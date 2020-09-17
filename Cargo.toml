@@ -3,7 +3,8 @@ name = "tribles"
 version = "0.1.0"
 authors = ["Jan-Paul Bultmann <jp@bultmann.eu>"]
 edition = "2018"
-
+description = "The tribles knowledge base implementation for rust."
+homepage = "tribles.space"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

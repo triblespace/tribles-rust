@@ -1,7 +1,7 @@
 [package]
 name = "tribles"
-version = "0.1.0"
-authors = ["Jan-Paul Bultmann <jp@bultmann.eu>"]
+version = "0.1.1"
+authors = ["<jp@bultmann.eu>"]
 edition = "2018"
 description = "The tribles knowledge base implementation for rust."
 homepage = "https://tribles.space"

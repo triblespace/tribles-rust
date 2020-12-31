@@ -1,11 +1,11 @@
 [package]
 name = "tribles"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["<jp@bultmann.eu>"]
 edition = "2018"
 description = "The tribles knowledge base implementation for rust."
 homepage = "https://tribles.space"
-license = "MIT"
+license-file = "LICENSE"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

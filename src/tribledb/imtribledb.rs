@@ -127,9 +127,9 @@ impl Default for ImTribleDB {
 }
 
 impl TribleDB for ImTribleDB {
-    fn with<T>(&self, tribles: T) -> ImTribleDB
+    fn with<'a, T>(&self, tribles: T) -> ImTribleDB
     where
-        T: IntoIterator<Item = Trible>,
+        T: IntoIterator<Item = &'a Trible>,
     {
         let mut index = self.index.clone();
         for trible in tribles {

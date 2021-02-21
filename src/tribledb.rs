@@ -5,13 +5,13 @@ use super::trible::Trible;
 use query::*;
 
 pub trait TribleDB {
-    fn with<T>(&self, tribles: T) -> Self
+    fn with<'a, T>(&self, tribles: T) -> Self
     where
-        T: IntoIterator<Item = Trible>;
+        T: IntoIterator<Item = &'a Trible>;
     /*
     fn empty(&self) -> Self;
     fn isEmpty(&self) -> bool;
-    fn isEqual(&self, other: &Self) -> bool;
+    fn isEqual(&self, other: &Self) -> bool;å
     fn isSubsetOf(&self, other: &Self) -> bool;
     fn isProperSubsetOf(&self, other: &Self) -> bool;
     fn isIntersecting(&self, other: &Self) -> bool;

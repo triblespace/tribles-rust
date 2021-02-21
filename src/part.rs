@@ -1,7 +1,6 @@
 use std::alloc::{alloc, dealloc, Layout};
 use std::mem::MaybeUninit;
 use std::ptr;
-use wasm_bindgen_test::*;
 
 /*
 #[cfg(target_pointer_width = "64")]
@@ -80,12 +79,4 @@ impl Node {
         node
     }
     
-}
-
-#[wasm_bindgen_test]
-fn node_init() {
-    *(ptr as *mut u16) = 42;
-    assert_eq!(*(ptr as *mut u16), 42);
-
-    dealloc(ptr, layout);
 }

@@ -1,3 +1,6 @@
+pub mod trible;
+pub mod tribledb;
+
 #[cfg(test)]
 mod tests {
     #[test]

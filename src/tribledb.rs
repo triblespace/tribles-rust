@@ -1,4 +1,6 @@
 pub mod imtribledb;
+pub mod imtribledb2;
+pub mod imtribledb3;
 pub mod query;
 
 use super::trible::Trible;
@@ -7,7 +9,7 @@ use query::*;
 pub trait TribleDB {
     fn with<'a, T>(&self, tribles: T) -> Self
     where
-        T: IntoIterator<Item = &'a Trible>;
+        T: Iterator<Item = &'a Trible> + Clone;
     /*
     fn empty(&self) -> Self;
     fn isEmpty(&self) -> bool;
@@ -19,7 +21,7 @@ pub trait TribleDB {
     fn subtract(&self, other: &Self) -> Self;
     fn difference(&self, other: &Self) -> Self;
     fn intersect(&self, other: &Self) -> Self;
-    */
+
     fn inner_constraint(
         &self,
         variable: Variable,
@@ -34,4 +36,5 @@ pub trait TribleDB {
         v1: Variable,
         v2: Variable,
     ) -> Box<dyn Constraint>;
+    */
 }

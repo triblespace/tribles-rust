@@ -1,6 +1,7 @@
 use crate::trible::*;
 use crate::tribledb::query::*;
 use crate::tribledb::TribleDB;
+use im_rc::ordmap::OrdMapPool;
 use im_rc::OrdMap;
 use im_rc::OrdSet;
 
@@ -21,377 +22,246 @@ Searchign for both E and A at once.
 
 */
 
+type IndexSegment = OrdMap<Segment, Branch>;
+
 #[derive(Clone)]
-struct IndexBranch {
-    e: OrdMap<E, EBranch>,
-    a: OrdMap<A, ABranch>,
-    v1: OrdMap<V1, V1Branch>,
+enum Branch {
+    Index(IndexSegment, IndexSegment, IndexSegment),
+    E(IndexSegment, IndexSegment),
+    EA(IndexSegment),
+    EAV1(IndexSegment),
+    EAV1V2(),
+    EV1(IndexSegment),
+    EV1V2(IndexSegment),
+    EV1V2A(),
+    A(IndexSegment, IndexSegment),
+    AE(IndexSegment),
+    AEV1(IndexSegment),
+    AEV1V2(),
+    AV1(IndexSegment),
+    AV1V2(IndexSegment),
+    AV1V2E(),
+    V1(IndexSegment),
+    V1V2(IndexSegment, IndexSegment),
+    V1V2A(IndexSegment),
+    V1V2AE(),
+    V1V2E(IndexSegment),
+    V1V2EA(),
+}
+
+pub fn upsert<K, V, F>(m: &OrdMap<K, V>, k: K, f: F) -> OrdMap<K, V>
+where
+    F: FnOnce(Option<&V>) -> V,
+    K: Ord + Copy,
+    V: Clone,
+{
+    let mut out = m.clone();
+    out.insert(k, f(m.get(&k)));
+    out
+}
+
+fn branch_with(pool: &OrdMapPool<Segment, Branch>, branch: &Branch, trible: &Trible) -> Branch {
+    let Trible {
+        e: E(te),
+        a: A(ta),
+        v1: V1(tv1),
+        v2: V2(tv2),
+    } = *trible;
+    match branch {
+        Branch::Index(e, a, v1) => Branch::Index(
+            upsert(e, te, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(
+                        pool,
+                        &Branch::E(OrdMap::with_pool(pool), OrdMap::with_pool(pool)),
+                        trible,
+                    )
+                }
+            }),
+            upsert(a, ta, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(
+                        pool,
+                        &Branch::A(OrdMap::with_pool(pool), OrdMap::with_pool(pool)),
+                        trible,
+                    )
+                }
+            }),
+            upsert(v1, tv1, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::V1(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+        ),
+        Branch::E(a, v1) => Branch::E(
+            upsert(a, ta, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::EA(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+            upsert(v1, tv1, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::EV1(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+        ),
+        Branch::EA(v1) => Branch::EA(upsert(v1, tv1, |may| {
+            if let Some(b) = may {
+                branch_with(pool, b, trible)
+            } else {
+                branch_with(pool, &Branch::EAV1(OrdMap::with_pool(pool)), trible)
+            }
+        })),
+        Branch::EAV1(v2) => Branch::EAV1(v2.update(tv2, Branch::EAV1V2())),
+        Branch::EV1(v2) => Branch::EV1(upsert(v2, tv2, |may| {
+            if let Some(b) = may {
+                branch_with(pool, b, trible)
+            } else {
+                branch_with(pool, &Branch::EV1V2(OrdMap::with_pool(pool)), trible)
+            }
+        })),
+        Branch::EV1V2(a) => Branch::EV1V2(a.update(ta, Branch::EV1V2A())),
+        Branch::A(e, v1) => Branch::A(
+            upsert(e, te, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::AE(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+            upsert(v1, tv1, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::AV1(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+        ),
+        Branch::AE(v1) => Branch::AE(upsert(v1, tv1, |may| {
+            if let Some(b) = may {
+                branch_with(pool, b, trible)
+            } else {
+                branch_with(pool, &Branch::AEV1(OrdMap::with_pool(pool)), trible)
+            }
+        })),
+        Branch::AEV1(v2) => Branch::AEV1(v2.update(tv2, Branch::AEV1V2())),
+        Branch::AV1(v2) => Branch::AV1(upsert(v2, tv2, |may| {
+            if let Some(b) = may {
+                branch_with(pool, b, trible)
+            } else {
+                branch_with(pool, &Branch::AV1V2(OrdMap::with_pool(pool)), trible)
+            }
+        })),
+        Branch::AV1V2(e) => Branch::AV1V2(e.update(te, Branch::AV1V2E())),
+        Branch::V1(v2) => Branch::V1(upsert(v2, tv2, |may| {
+            if let Some(b) = may {
+                branch_with(pool, b, trible)
+            } else {
+                branch_with(
+                    pool,
+                    &Branch::V1V2(OrdMap::with_pool(pool), OrdMap::with_pool(pool)),
+                    trible,
+                )
+            }
+        })),
+        Branch::V1V2(e, a) => Branch::V1V2(
+            upsert(e, te, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::V1V2E(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+            upsert(a, ta, |may| {
+                if let Some(b) = may {
+                    branch_with(pool, b, trible)
+                } else {
+                    branch_with(pool, &Branch::V1V2A(OrdMap::with_pool(pool)), trible)
+                }
+            }),
+        ),
+        Branch::V1V2A(e) => Branch::V1V2A(e.update(te, Branch::V1V2AE())),
+        Branch::V1V2E(a) => Branch::V1V2E(a.update(ta, Branch::V1V2EA())),
+        _ => branch.clone(),
+    }
+}
+
+#[derive(Clone)]
+pub struct ImTribleDB3 {
+    pool: OrdMapPool<Segment, Branch>,
+    index: Branch,
     ea: OrdSet<Segment>,
     ev1: OrdSet<Segment>,
     av1: OrdSet<Segment>,
     eav1: OrdSet<Segment>,
 }
 
-#[derive(Clone)]
-struct EBranch {
-    a: OrdMap<A, EABranch>,
-    v1: OrdMap<V1, EV1Branch>,
-}
-
-#[derive(Clone)]
-struct EABranch {
-    v1: OrdMap<V1, EAV1Branch>,
-}
-
-#[derive(Clone)]
-struct EAV1Branch {
-    v2: OrdSet<V2>,
-}
-
-#[derive(Clone)]
-struct EV1Branch {
-    v2: OrdMap<V2, EV1V2Branch>,
-}
-
-#[derive(Clone)]
-struct EV1V2Branch {
-    a: OrdSet<A>,
-}
-
-#[derive(Clone)]
-struct ABranch {
-    e: OrdMap<E, AEBranch>,
-    v1: OrdMap<V1, AV1Branch>,
-}
-
-#[derive(Clone)]
-struct AEBranch {
-    v1: OrdMap<V1, AEV1Branch>,
-}
-
-#[derive(Clone)]
-struct AEV1Branch {
-    v2: OrdSet<V2>,
-}
-
-#[derive(Clone)]
-struct AV1Branch {
-    v2: OrdMap<V2, AV1V2Branch>,
-}
-
-#[derive(Clone)]
-struct AV1V2Branch {
-    e: OrdSet<E>,
-}
-
-#[derive(Clone)]
-struct V1Branch {
-    v2: OrdMap<V2, V1V2Branch>,
-}
-
-#[derive(Clone)]
-struct V1V2Branch {
-    e: OrdMap<E, V1V2EBranch>,
-    a: OrdMap<A, V1V2ABranch>,
-}
-
-#[derive(Clone)]
-struct V1V2ABranch {
-    e: OrdSet<E>,
-}
-
-#[derive(Clone)]
-struct V1V2EBranch {
-    a: OrdSet<A>,
-}
-
-#[derive(Clone)]
-pub struct ImTribleDB {
-    index: IndexBranch,
-}
-
-impl Default for ImTribleDB {
+impl Default for ImTribleDB3 {
     fn default() -> Self {
-        ImTribleDB {
-            index: IndexBranch {
-                e: OrdMap::new(),
-                a: OrdMap::new(),
-                v1: OrdMap::new(),
-                ea: OrdSet::new(),
-                ev1: OrdSet::new(),
-                av1: OrdSet::new(),
-                eav1: OrdSet::new(),
-            },
+        let pool = OrdMapPool::new(1000000);
+        ImTribleDB3 {
+            pool: pool.clone(),
+            index: Branch::Index(
+                OrdMap::with_pool(&pool),
+                OrdMap::with_pool(&pool),
+                OrdMap::with_pool(&pool),
+            ),
+            ea: OrdSet::new(),
+            ev1: OrdSet::new(),
+            av1: OrdSet::new(),
+            eav1: OrdSet::new(),
         }
     }
 }
 
-impl TribleDB for ImTribleDB {
-    fn with<'a, T>(&self, tribles: T) -> ImTribleDB
+impl TribleDB for ImTribleDB3 {
+    fn with<'a, T>(&self, tribles: T) -> ImTribleDB3
     where
         T: Iterator<Item = &'a Trible> + Clone,
     {
         let mut index = self.index.clone();
-        for trible in tribles.clone() {
-            index.e = index.e.alter(
-                |branch| match branch {
-                    Some(EBranch { a, v1 }) => Some(EBranch {
-                        a: a.alter(
-                            |branch| match branch {
-                                Some(EABranch { v1 }) => Some(EABranch {
-                                    v1: v1.alter(
-                                        |branch| match branch {
-                                            Some(EAV1Branch { v2 }) => Some(EAV1Branch {
-                                                v2: v2.update(trible.v2),
-                                            }),
-                                            None => Some(EAV1Branch {
-                                                v2: OrdSet::unit(trible.v2),
-                                            }),
-                                        },
-                                        trible.v1,
-                                    ),
-                                }),
-                                None => Some(EABranch {
-                                    v1: OrdMap::unit(
-                                        trible.v1,
-                                        EAV1Branch {
-                                            v2: OrdSet::unit(trible.v2),
-                                        },
-                                    ),
-                                }),
-                            },
-                            trible.a,
-                        ),
-                        v1: v1.alter(
-                            |branch| match branch {
-                                Some(EV1Branch { v2 }) => Some(EV1Branch {
-                                    v2: v2.alter(
-                                        |branch| match branch {
-                                            Some(EV1V2Branch { a }) => Some(EV1V2Branch {
-                                                a: a.update(trible.a),
-                                            }),
-                                            None => Some(EV1V2Branch {
-                                                a: OrdSet::unit(trible.a),
-                                            }),
-                                        },
-                                        trible.v2,
-                                    ),
-                                }),
-                                None => Some(EV1Branch {
-                                    v2: OrdMap::unit(
-                                        trible.v2,
-                                        EV1V2Branch {
-                                            a: OrdSet::unit(trible.a),
-                                        },
-                                    ),
-                                }),
-                            },
-                            trible.v1,
-                        ),
-                    }),
-                    None => Some(EBranch {
-                        a: OrdMap::unit(
-                            trible.a,
-                            EABranch {
-                                v1: OrdMap::unit(
-                                    trible.v1,
-                                    EAV1Branch {
-                                        v2: OrdSet::unit(trible.v2),
-                                    },
-                                ),
-                            },
-                        ),
-                        v1: OrdMap::unit(
-                            trible.v1,
-                            EV1Branch {
-                                v2: OrdMap::unit(
-                                    trible.v2,
-                                    EV1V2Branch {
-                                        a: OrdSet::unit(trible.a),
-                                    },
-                                ),
-                            },
-                        ),
-                    }),
-                },
-                trible.e,
-            );
-        }
-        for trible in tribles.clone() {
-            index.a = index.a.alter(
-                |branch| match branch {
-                    Some(ABranch { e, v1 }) => Some(ABranch {
-                        e: e.alter(
-                            |branch| match branch {
-                                Some(AEBranch { v1 }) => Some(AEBranch {
-                                    v1: v1.alter(
-                                        |branch| match branch {
-                                            Some(AEV1Branch { v2 }) => Some(AEV1Branch {
-                                                v2: v2.update(trible.v2),
-                                            }),
-                                            None => Some(AEV1Branch {
-                                                v2: OrdSet::unit(trible.v2),
-                                            }),
-                                        },
-                                        trible.v1,
-                                    ),
-                                }),
-                                None => Some(AEBranch {
-                                    v1: OrdMap::unit(
-                                        trible.v1,
-                                        AEV1Branch {
-                                            v2: OrdSet::unit(trible.v2),
-                                        },
-                                    ),
-                                }),
-                            },
-                            trible.e,
-                        ),
-                        v1: v1.alter(
-                            |branch| match branch {
-                                Some(AV1Branch { v2 }) => Some(AV1Branch {
-                                    v2: v2.alter(
-                                        |branch| match branch {
-                                            Some(AV1V2Branch { e }) => Some(AV1V2Branch {
-                                                e: e.update(trible.e),
-                                            }),
-                                            None => Some(AV1V2Branch {
-                                                e: OrdSet::unit(trible.e),
-                                            }),
-                                        },
-                                        trible.v2,
-                                    ),
-                                }),
-                                None => Some(AV1Branch {
-                                    v2: OrdMap::unit(
-                                        trible.v2,
-                                        AV1V2Branch {
-                                            e: OrdSet::unit(trible.e),
-                                        },
-                                    ),
-                                }),
-                            },
-                            trible.v1,
-                        ),
-                    }),
-                    None => Some(ABranch {
-                        e: OrdMap::unit(
-                            trible.e,
-                            AEBranch {
-                                v1: OrdMap::unit(
-                                    trible.v1,
-                                    AEV1Branch {
-                                        v2: OrdSet::unit(trible.v2),
-                                    },
-                                ),
-                            },
-                        ),
-                        v1: OrdMap::unit(
-                            trible.v1,
-                            AV1Branch {
-                                v2: OrdMap::unit(
-                                    trible.v2,
-                                    AV1V2Branch {
-                                        e: OrdSet::unit(trible.e),
-                                    },
-                                ),
-                            },
-                        ),
-                    }),
-                },
-                trible.a,
-            );
-        }
-        for trible in tribles.clone() {
-            index.v1 = index.v1.alter(
-                |branch| match branch {
-                    Some(V1Branch { v2 }) => Some(V1Branch {
-                        v2: v2.alter(
-                            |branch| match branch {
-                                Some(V1V2Branch { e, a }) => Some(V1V2Branch {
-                                    e: e.alter(
-                                        |branch| match branch {
-                                            Some(V1V2EBranch { a }) => Some(V1V2EBranch {
-                                                a: a.update(trible.a),
-                                            }),
-                                            None => Some(V1V2EBranch {
-                                                a: OrdSet::unit(trible.a),
-                                            }),
-                                        },
-                                        trible.e,
-                                    ),
-                                    a: a.alter(
-                                        |branch| match branch {
-                                            Some(V1V2ABranch { e }) => Some(V1V2ABranch {
-                                                e: e.update(trible.e),
-                                            }),
-                                            None => Some(V1V2ABranch {
-                                                e: OrdSet::unit(trible.e),
-                                            }),
-                                        },
-                                        trible.a,
-                                    ),
-                                }),
-                                None => Some(V1V2Branch {
-                                    e: OrdMap::unit(
-                                        trible.e,
-                                        V1V2EBranch {
-                                            a: OrdSet::unit(trible.a),
-                                        },
-                                    ),
-                                    a: OrdMap::unit(
-                                        trible.a,
-                                        V1V2ABranch {
-                                            e: OrdSet::unit(trible.e),
-                                        },
-                                    ),
-                                }),
-                            },
-                            trible.v2,
-                        ),
-                    }),
-                    None => Some(V1Branch {
-                        v2: OrdMap::unit(
-                            trible.v2,
-                            V1V2Branch {
-                                e: OrdMap::unit(
-                                    trible.e,
-                                    V1V2EBranch {
-                                        a: OrdSet::unit(trible.a),
-                                    },
-                                ),
-                                a: OrdMap::unit(
-                                    trible.a,
-                                    V1V2ABranch {
-                                        e: OrdSet::unit(trible.e),
-                                    },
-                                ),
-                            },
-                        ),
-                    }),
-                },
-                trible.v1,
-            );
-        }
-        for trible in tribles.clone() {
+        let mut ea = self.ea.clone();
+        let mut av1 = self.av1.clone();
+        let mut ev1 = self.ev1.clone();
+        let mut eav1 = self.eav1.clone();
+        for trible in tribles {
+            index = branch_with(&self.pool, &index, trible);
+
             if trible.e.0 == trible.a.0 {
-                index.ea = index.ea.update(trible.e.0);
+                ea = ea.update(trible.e.0);
             }
 
             if trible.a.0 == trible.v1.0 {
-                index.av1 = index.av1.update(trible.a.0);
+                av1 = av1.update(trible.a.0);
             }
 
             if trible.e.0 == trible.v1.0 {
-                index.ev1 = index.ev1.update(trible.e.0);
+                ev1 = ev1.update(trible.e.0);
             }
 
             if trible.e.0 == trible.a.0 && trible.a.0 == trible.v1.0 {
-                index.eav1 = index.eav1.update(trible.e.0);
+                eav1 = eav1.update(trible.e.0);
             }
         }
 
-        return ImTribleDB { index };
+        return ImTribleDB3 {
+            pool: self.pool.clone(),
+            index,
+            ea,
+            av1,
+            ev1,
+            eav1,
+        };
     }
     /*
         fn empty(&self) -> Self;

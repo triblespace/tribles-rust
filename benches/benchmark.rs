@@ -4,6 +4,7 @@ use tribles::trible::*;
 use tribles::tribledb::imtribledb::ImTribleDB;
 use tribles::tribledb::imtribledb2::ImTribleDB2;
 use tribles::tribledb::imtribledb3::ImTribleDB3;
+use tribles::tribledb::imtribledb4::ImTribleDB4;
 use tribles::tribledb::TribleDB;
 
 fn random_tribles(length: usize) -> Vec<Trible> {
@@ -41,7 +42,9 @@ fn criterion_benchmark(c: &mut Criterion) {
     let samples_100 = random_tribles(100);
     let samples_1000 = random_tribles(1000);
     let samples_10000 = random_tribles(10000);
-    let tribledb: ImTribleDB3 = Default::default();
+    let samples_100000 = random_tribles(100000);
+    let samples_1000000 = random_tribles(1000000);
+    let tribledb: ImTribleDB4 = Default::default();
 
     c.bench_function("insert 10", |b| {
         b.iter(|| (black_box(&tribledb).with(samples_10.iter())))
@@ -54,6 +57,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
     c.bench_function("insert 10000", |b| {
         b.iter(|| (black_box(&tribledb).with(samples_10000.iter())))
+    });
+    c.bench_function("insert 100000", |b| {
+        b.iter(|| (black_box(&tribledb).with(samples_100000.iter())))
+    });
+    c.bench_function("insert 1000000", |b| {
+        b.iter(|| (black_box(&tribledb).with(samples_1000000.iter())))
     });
 }
 

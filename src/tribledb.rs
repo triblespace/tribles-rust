@@ -2,6 +2,7 @@ pub mod imtribledb;
 pub mod imtribledb2;
 pub mod imtribledb3;
 pub mod imtribledb4;
+pub mod imtribledb5;
 pub mod query;
 
 use super::trible::Trible;

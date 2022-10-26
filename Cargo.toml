@@ -9,11 +9,12 @@ license-file = "LICENSE"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-im-rc = { version = "15.0.0", features = ["pool"] }
+im-rc = { version = "15.1.0", features = ["pool"] }
 rand = "0.8.3"
 
 [dev-dependencies]
 criterion = "0.3"
+proptest = "1.0.0"
 
 [[bench]]
 name = "benchmark"

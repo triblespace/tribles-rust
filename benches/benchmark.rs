@@ -37,6 +37,8 @@ fn random_tribles(length: usize) -> Vec<Trible> {
     return vec;
 }
 
+
+
 fn criterion_benchmark(c: &mut Criterion) {
     let samples_10 = random_tribles(10);
     let samples_100 = random_tribles(100);

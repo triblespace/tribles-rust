@@ -1,38 +1,47 @@
 use std::fmt;
 
-struct ByteBitset {
+/// A fixed size bitset over the possible values of a byte.
+pub struct ByteBitset {
     bits: [u64; 4]
 }
 
 impl ByteBitset {
+    /// Create a new empty set.
     pub fn new_empty() -> Self {
         ByteBitset {
             bits: [0; 4]
         }
     }
+    /// Create a new set with every value of the domain set.
     pub fn new_full() -> Self {
         ByteBitset {
             bits: [!0; 4]
         }
     }
+    /// Check if the set is empty.
     pub fn is_empty(&self) -> bool {
         (self.bits[0] == 0) &&
         (self.bits[1] == 0) &&
         (self.bits[2] == 0) &&
         (self.bits[3] == 0)
     }
+    /// Count the number of elements in the set.
     pub fn count(&self) -> u32 {
         self.bits[0].count_ones() +
         self.bits[1].count_ones() +
         self.bits[2].count_ones() +
         self.bits[3].count_ones()
     }
+    /// Set the given value in the set.
     pub fn set(&mut self, index:u8) {
         self.bits[usize::from(index >> 6)] |= 1 << (index & 0b111111);
     }
+    /// Remove the given value from the set.
     pub fn unset(&mut self, index:u8) {
         self.bits[usize::from(index >> 6)] &= !(1 << (index & 0b111111));
     }
+    /// Sets or removes the given element into or from the set
+    /// depending on the passed value.
     pub fn set_value(&mut self, index: u8, value: bool) {
         if value {
             self.set(index);
@@ -40,12 +49,15 @@ impl ByteBitset {
             self.unset(index);
         }
     }
+    /// Include every value in the domain in the set.
     pub fn set_all(&mut self) {
         self.bits = [!0; 4];
     }
+    /// Remove all values from the set.
     pub fn unset_all(&mut self) {
         self.bits = [0; 4];
     }
+    /// Check if the given value is in the set.
     pub fn is_set(&self, index: u8) -> bool {
         0 != (self.bits[usize::from(index >> 6)] & (1 << (index & 0b111111)))
     }
@@ -67,7 +79,6 @@ impl ByteBitset {
         if self.bits[0] != 0 {return Some(63 - (self.bits[0].leading_zeros() as u8));}
         return None;
     }
-
     /// Returns the index of the next set bit
     /// in the bit set, in ascending order, while unseting it.
     pub fn drain_next_ascending(&mut self) -> Option<u8> {
@@ -88,57 +99,58 @@ impl ByteBitset {
             None
         }
     }
-
+    /// Checks if the set is a superset of the passed set.
     pub fn is_superset_of(&self, other: &Self) -> bool {
         ((self.bits[0] & other.bits[0]) ^ other.bits[0]) == 0 &&
         ((self.bits[1] & other.bits[1]) ^ other.bits[1]) == 0 &&
         ((self.bits[2] & other.bits[2]) ^ other.bits[2]) == 0 &&
         ((self.bits[3] & other.bits[3]) ^ other.bits[3]) == 0
     }
-
+    /// Checks if the set is a subset of the passed set.
     pub fn is_subset_of(&self, other: &Self) -> bool {
         ((self.bits[0] & other.bits[0]) ^ self.bits[0]) == 0 &&
         ((self.bits[1] & other.bits[1]) ^ self.bits[1]) == 0 &&
         ((self.bits[2] & other.bits[2]) ^ self.bits[2]) == 0 &&
         ((self.bits[3] & other.bits[3]) ^ self.bits[3]) == 0
     }
-
+    /// Store the set intersection between the two given sets in the set.
     pub fn set_intersect(&mut self, left: &Self, right: &Self) {
         self.bits[0] = left.bits[0] & right.bits[0];
         self.bits[1] = left.bits[1] & right.bits[1];
         self.bits[2] = left.bits[2] & right.bits[2];
         self.bits[3] = left.bits[3] & right.bits[3];
     }
-
+    /// Store the set union between the two given sets in the set.
     pub fn set_union(&mut self, left: &Self, right: &Self) {
         self.bits[0] = left.bits[0] | right.bits[0];
         self.bits[1] = left.bits[1] | right.bits[1];
         self.bits[2] = left.bits[2] | right.bits[2];
         self.bits[3] = left.bits[3] | right.bits[3];
     }
-
+    /// Store the set subtraction between the two given sets in the set.
     pub fn set_subtract(&mut self, left: &Self, right: &Self) {
         self.bits[1] = left.bits[1] & !right.bits[1];
         self.bits[2] = left.bits[2] & !right.bits[2];
         self.bits[0] = left.bits[0] & !right.bits[0];
         self.bits[3] = left.bits[3] & !right.bits[3];
     }
-
-
+    /// Store the set difference between the two given sets in the set.
     pub fn set_difference(&mut self, left: &Self, right: &Self) {
         self.bits[0] = left.bits[0] ^ right.bits[0];
         self.bits[1] = left.bits[1] ^ right.bits[1];
         self.bits[2] = left.bits[2] ^ right.bits[2];
         self.bits[3] = left.bits[3] ^ right.bits[3];
     }
-
+    /// Perform a set complement, removing every element that was in the set
+    /// and inserting every element from the domain that wasn't in the set.
     pub fn set_complement(&mut self, input: &Self) {
         self.bits[0] = !input.bits[0];
         self.bits[1] = !input.bits[1];
         self.bits[2] = !input.bits[2];
         self.bits[3] = !input.bits[3];
     }
-    
+    /// Remove all elements from the set except the one passed.
+    /// Equal to an intersection with a set containing only the passed element.
     pub fn keep_single(&mut self, index: u8) {
         let had_bit = self.is_set(index);
         self.unset_all();

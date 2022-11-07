@@ -1,19 +1,20 @@
 use std::fmt;
 
 /// A fixed size bitset over the possible values of a byte.
+#[repr(transparent)]
 pub struct ByteBitset {
     bits: [u64; 4]
 }
 
 impl ByteBitset {
     /// Create a new empty set.
-    pub fn new_empty() -> Self {
+    pub const fn new_empty() -> Self {
         ByteBitset {
             bits: [0; 4]
         }
     }
     /// Create a new set with every value of the domain set.
-    pub fn new_full() -> Self {
+    pub const fn new_full() -> Self {
         ByteBitset {
             bits: [!0; 4]
         }

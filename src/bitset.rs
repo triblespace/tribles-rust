@@ -1,6 +1,7 @@
 use std::fmt;
 
 /// A fixed size bitset over the possible values of a byte.
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct ByteBitset {
     bits: [u64; 4]

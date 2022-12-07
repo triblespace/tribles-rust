@@ -4,6 +4,11 @@ use rand::thread_rng;
 use rand::seq::SliceRandom;
 use std::sync::Once;
 
+//TODO: Try out an implementation where out of date
+// entries are deleted on growth.
+// This would allow us to get rid of the second (both?) bitmap(s).
+// And we could always delete the non ideal hashed version.
+
 /// The Trie's branching factor, fixed to the number of elements
 /// that can be represented by a byte/8bit.
 const BRANCH_FACTOR:usize = 256;
@@ -26,6 +31,41 @@ const MAX_BUCKET_COUNT:usize = BRANCH_FACTOR / BUCKET_ENTRY_COUNT;
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
 const MAX_RETRIES:usize = 4;
+
+static mut RAND: u8 = 4; // Choosen by fair dice roll.
+static mut RANDOM_PERMUTATION_RAND: [u8; 256] = [0; 256];
+static mut RANDOM_PERMUTATION_HASH: [u8; 256] = [0; 256];
+static INIT: Once = Once::new();
+
+pub fn init() {
+    INIT.call_once(|| {
+        let mut rng = thread_rng();
+        let mut bytes: [u8; 256] = [0; 256];
+
+        for i in 0..256 {
+            bytes[i] = i as u8;
+        }
+    
+        'shuffle: loop {
+            bytes.shuffle(&mut rng);
+            for i in 0..256 {
+                if (i as u8).reverse_bits() == bytes[i] {
+                    continue 'shuffle;
+                }
+            }
+            break;
+        }
+    
+        unsafe {
+            RANDOM_PERMUTATION_HASH = bytes;
+        }
+
+        bytes.shuffle(&mut rng);
+        unsafe {
+            RANDOM_PERMUTATION_RAND = bytes;
+        }
+    });
+}
 
 pub trait ByteEntry {
     fn empty() -> Self;
@@ -53,36 +93,31 @@ impl<T: ByteEntry + Copy> ByteBucket<T> {
         }
         return T::empty();
     }
-}
 
-/*
-    /// Attempt to store a new node in this bucket,
-    /// the key must not exist in this bucket beforehand.
+    /// Attempt to store a new node in this bucket.
     /// If there is no free slot the attempt will fail.
     /// Returns true iff it succeeds.
     pub fn put(
-        self: *Bucket,
-        // / Determines the hash function used for each key and is used to detect outdated (free) slots.
-        rand_hash_used: *ByteBitset,
-        // / The current bucket count. Is used to detect outdated (free) slots.
-        current_count: u8,
-        // / The current index the bucket has. Is used to detect outdated (free) slots.
-        bucket_index: u8,
-        // / The entry to be stored in the bucket.
-        entry: Node,
-    ) bool {
-        return self.putIntoSame(entry) or self.putIntoEmpty(entry) or self.putIntoOutdated(rand_hash_used, current_count, bucket_index, entry);
+        &mut self,
+        // Determines the hash function used for each key and is used to detect outdated (free) slots.
+        hashed_ideally: &ByteBitset,
+        // The current bucket count. Is used to detect outdated (free) slots.
+        bucket_count: usize,
+        // The current index the bucket has. Is used to detect outdated (free) slots.
+        bucket_index: usize,
+        // The entry to be stored in the bucket.
+        entry: T
+    ) -> bool {
+        self.put_into_same(entry) ||
+        self.put_into_empty(entry) ||
+        self.put_into_outdated(hashed_ideally, bucket_count, bucket_index, entry)
     }
 
     /// Updates the pointer for the key stored in this bucket.
-    pub fn putIntoEmpty(
-        self: *Bucket,
-        // / The new entry value.
-        entry: Node,
-    ) bool {
-        for (self.slots) |*slot| {
-            if (slot.isNone()) {
-                slot.* = entry;
+    fn put_into_same(&mut self, entry: T) -> bool {
+        for slot in &mut self.entries {
+            if slot.key() == entry.key() {
+                *slot = entry;
                 return true;
             }
         }
@@ -90,116 +125,75 @@ impl<T: ByteEntry + Copy> ByteBucket<T> {
     }
 
     /// Updates the pointer for the key stored in this bucket.
-    pub fn putIntoSame(
-        self: *Bucket,
-        // / The new entry value.
-        entry: Node,
-    ) bool {
-        for (self.slots) |*slot| {
-            if (slot.unknown.tag != .none and (slot.unknown.branch == entry.unknown.branch)) {
-                slot.* = entry;
+    fn put_into_empty(&mut self, entry: T) -> bool {
+        for slot in &mut self.entries {
+            if slot.is_empty() {
+                *slot = entry;
                 return true;
             }
         }
         return false;
     }
 
-    pub fn putIntoOutdated(
-        self: *Bucket,
-        // / Determines the hash function used for each key and is used to detect outdated (free) slots.
-        rand_hash_used: *ByteBitset,
-        // / The current bucket count. Is used to detect outdated (free) slots.
-        current_count: u8,
-        // / The current index the bucket has. Is used to detect outdated (free) slots.
-        bucket_index: u8,
-        // / The entry to be stored in the bucket.
-        entry: Node,
-    ) bool {
-        for (self.slots) |*slot| {
-            const slot_key = slot.unknown.branch;
-            if (bucket_index != hashByteKey(rand_hash_used.isSet(slot_key), current_count, slot_key)) {
-                slot.* = entry;
-                return true;
+    pub fn put_into_outdated(
+        &mut self,
+        // Determines the hash function used for each key and is used to detect outdated (free) slots.
+        hashed_ideally: &ByteBitset,
+        // The current bucket count. Is used to detect outdated (free) slots.
+        bucket_count: usize,
+        // The current index the bucket has. Is used to detect outdated (free) slots.
+        bucket_index: usize,
+        // The entry to be stored in the bucket.
+        entry: T,
+    ) -> bool {
+        for slot in &mut self.entries {
+            if let Some(slot_key) = slot.key() {
+                let hash = if hashed_ideally.is_set(slot_key) {
+                    ideal_hash(slot_key)
+                } else {
+                    rand_hash(slot_key)
+                };
+                if bucket_index != compress_hash(bucket_count, hash) {
+                    *slot = entry;
+                    return true;
+                }
             }
         }
         return false;
     }
 
-    /// Displaces a random existing slot.
-    pub fn displaceRandomly(
-        self: *Bucket,
-        // / A random value to determine the slot to displace.
-        random_value: u8,
-        // / The entry that displaces an existing entry.
-        entry: Node,
-    ) Node {
-        const index = random_value & (bucket_slot_count - 1);
-        const prev = self.slots[index];
-        self.slots[index] = entry;
-        return prev;
+    fn displace_randomly(&mut self, entry: T) -> T {
+        let index = unsafe {RAND as usize & (BUCKET_ENTRY_COUNT - 1)};
+        let displaced = self.entries[index];
+        self.entries[index] = entry;
+        return displaced;
     }
 
-    /// Displaces the first slot that is using the alternate hash function.
-    pub fn displaceRandHashOnly(
-        self: *Bucket,
-        // / Determines the hash function used for each key and is used to detect outdated (free) slots.
-        rand_hash_used: *ByteBitset,
-        // / The entry to be stored in the bucket.
-        entry: Node,
-    ) Node {
-        for (self.slots) |*slot| {
-            if (rand_hash_used.isSet(slot.unknown.branch)) {
-                const prev = slot.*;
-                slot.* = entry;
-                return prev;
+    fn displace_preserving_ideals(&mut self, hashed_ideally: &ByteBitset, entry: T) -> T {
+        for slot in &mut self.entries {
+            if !hashed_ideally.is_set(slot.key().unwrap()) {
+                let displaced = *slot;
+                *slot = entry;
+                return displaced;
             }
         }
-        unreachable;
+        return entry;
     }
-};
-*/
+}
 
 fn ideal_hash(byte_key: u8) -> usize {
     byte_key.reverse_bits() as usize
 }
 
-static mut RANDOM_PERMUTATION: [u8; 256] = [0; 256];
-
-static INIT: Once = Once::new();
-
-pub fn init() {
-    INIT.call_once(|| {
-        let mut bytes: [u8; 256] = [0; 256];
-        for i in 0..256 {
-            bytes[i] = i as u8;
-        }
-    
-        let mut rng = thread_rng();
-        'shuffle: loop {
-            bytes.shuffle(&mut rng);
-            for i in 0..256 {
-                if (i as u8).reverse_bits() == bytes[i] {
-                    continue 'shuffle;
-                }
-            }
-            break;
-        }
-    
-        unsafe {
-            RANDOM_PERMUTATION = bytes;
-        }
-    });
-}
-
 fn rand_hash(byte_key: u8) -> usize {
     unsafe {
-        RANDOM_PERMUTATION[byte_key as usize] as usize
+        RANDOM_PERMUTATION_HASH[byte_key as usize] as usize
     }
 }
 
-fn compress_hash<const N: usize>(hash: usize) -> usize {
-    let mask = N - 1;
-    hash | mask
+fn compress_hash(bucket_count: usize, hash: usize) -> usize {
+    let mask = bucket_count - 1;
+    hash & mask
 }
 
 pub struct ByteTable<const N: usize, T: ByteEntry + Copy> {
@@ -233,17 +227,61 @@ impl<const N: usize, T: ByteEntry + Copy> ByteTable<N, T> {
                 rand_hash(byte_key)
             };
             unsafe {
-                self.buckets[compress_hash::<N>(hash)].assume_init().get(byte_key)
+                self.buckets[compress_hash(N, hash)].assume_init().get(byte_key)
             }
         } else {
             T::empty()
         }
     }
 
+    fn put(&mut self, entry: T) -> T {
+        if let Some(mut byte_key) = entry.key() {
+            self.has_key.set(byte_key);
+
+            let max_grown = N != MAX_BUCKET_COUNT;
+            let min_grown = N == 1;
+
+            let mut use_ideal_hash = true;
+            let mut current_entry = entry;
+            let mut retries: usize = 0;
+            loop {
+                unsafe {
+                    RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize];
+                }
+
+                let hash = if use_ideal_hash {
+                    ideal_hash(byte_key)
+                } else {
+                    rand_hash(byte_key)
+                };
+                let bucket_index = compress_hash(N, hash);
+
+                if unsafe {self.buckets[bucket_index].assume_init().put(&self.hashed_ideally, N, bucket_index, current_entry)} {
+                    self.hashed_ideally.set_value(byte_key, use_ideal_hash);
+                    return T::empty();
+                }
+
+                if min_grown || retries == MAX_RETRIES {
+                    return current_entry;
+                }
+
+                if max_grown {
+                    current_entry = unsafe{self.buckets[bucket_index].assume_init().displace_preserving_ideals(&self.hashed_ideally, current_entry)};
+                    self.hashed_ideally.set_value(byte_key, use_ideal_hash);
+                    byte_key = current_entry.key().unwrap();
+                } else {
+                    retries += 1;
+                    current_entry = unsafe{self.buckets[bucket_index].assume_init().displace_randomly(current_entry)};
+                    self.hashed_ideally.set_value(byte_key, use_ideal_hash);
+                    byte_key = current_entry.key().unwrap();
+                    use_ideal_hash = !self.hashed_ideally.is_set(byte_key);
+                }
+            }
+        } else {
+            return T::empty();
+        }
+    }
 /*
-
-    fn put(&mut self, entry: Self::Entry) -> Self::Entry;
-
     // Contract: Key looked up must exist. Ensure with has.
     unsafe fn get_existing(&self, byte_key: u8) -> Self::Entry;
 
@@ -269,6 +307,14 @@ mod tests {
     #[derive(Clone, Copy)]
     struct DummyEntry {
         value: Option<u8>,
+    }
+
+    impl DummyEntry {
+        fn new(byte_key: u8) -> Self {
+            DummyEntry {
+                value: Some(byte_key),
+            }
+        }
     }
 
     impl ByteEntry for DummyEntry {
@@ -309,15 +355,25 @@ mod tests {
         #[test]
         fn empty_table_has_no_entries(n in 0u8..255) {
             init();
-            let table: ByteTable<1, DummyEntry> = ByteTable::new();
+            let mut table: ByteTable<1, DummyEntry> = ByteTable::new();
             prop_assert!(!table.has(n));
         }
 
         #[test]
         fn empty_table_then_empty_get(n in 0u8..255) {
             init();
-            let table: ByteTable<1, DummyEntry> = ByteTable::new();
+            let mut table: ByteTable<1, DummyEntry> = ByteTable::new();
             prop_assert!(table.get(n).is_empty());
+        }
+
+        #[test]
+        fn single_put_success(n in 0u8..255) {
+            init();
+            let mut table: ByteTable<1, DummyEntry> = ByteTable::new();
+            let entry = DummyEntry::new(n);
+            let displaced = table.put(entry);
+            prop_assert!(displaced.is_empty());
+            prop_assert!(table.has(n));
         }
     }
 }

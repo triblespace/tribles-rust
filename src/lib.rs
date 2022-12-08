@@ -3,6 +3,7 @@
 pub mod trible;
 pub mod bitset;
 pub mod bytetable;
+pub mod pact;
 
 
 #[cfg(test)]

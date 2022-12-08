@@ -10,6 +10,8 @@ license-file = "LICENSE"
 
 [dependencies]
 rand = "0.8.5"
+ux = "0.1.5"
+siphasher = "0.3"
 
 [dev-dependencies]
 criterion = "0.3"

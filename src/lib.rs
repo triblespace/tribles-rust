@@ -1,4 +1,4 @@
-#![feature(maybe_uninit_array_assume_init)]
+#![feature(rustc_attrs)]
 
 pub mod trible;
 pub mod bitset;

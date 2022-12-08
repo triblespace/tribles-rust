@@ -237,7 +237,6 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use proptest::prelude::*;
 

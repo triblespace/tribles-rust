@@ -1,7 +1,7 @@
-use core::mem::MaybeUninit;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 use std::sync::Once;
+use std::mem;
 
 //TODO: Try out an implementation where out of date
 // entries are deleted on growth.
@@ -66,82 +66,55 @@ pub fn init() {
     });
 }
 
-pub trait ByteEntry {
-    fn empty() -> Self;
-    fn is_empty(&self) -> bool;
+/// You must ensure that `key()` returns `None` on the zeroed bytes variant.
+pub unsafe trait ByteEntry {
+    fn zeroed() -> Self;
     fn key(&self) -> Option<u8>;
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct ByteBucket<T: ByteEntry + Copy> {
+#[derive(Clone, Debug)]
+#[repr(transparent)]
+pub struct ByteBucket<T: ByteEntry + Clone> {
     entries: [T; BUCKET_ENTRY_COUNT]
 }
 
-impl<T: ByteEntry + Copy + std::fmt::Debug> ByteBucket<T> {
+impl<T: ByteEntry + Clone + std::fmt::Debug> ByteBucket<T> {
     fn new() -> Self {
         ByteBucket{
-            entries: [T::empty(); BUCKET_ENTRY_COUNT],
+            entries: unsafe { mem::zeroed() },
         }
     }
 
-    fn get(&self, byte_key: u8) -> T {
-        for entry in self.entries {
+    fn get_key(&mut self, byte_key: u8) -> Option<&mut T> {
+        for entry in &mut self.entries {
             if entry.key() == Some(byte_key) {
-                return entry;
+                return Some(entry);
             }
         }
-        return T::empty();
-    }
-    
-    /// Updates the entry for the key stored in this bucket.
-    fn update(&mut self, entry: T) -> bool {
-        for slot in &mut self.entries {
-            if slot.key() == entry.key() {
-                *slot = entry;
-                return true;
-            }
-        }
-        return false;
+        return None;
     }
 
-    /// Updates the pointer for the key stored in this bucket.
-    fn insert(&mut self, entry: T) -> bool {
-        for slot in &mut self.entries {
-            if slot.is_empty() {
-                *slot = entry;
-                return true;
+    fn get_empty(&mut self) -> Option<&mut T> {
+        for entry in &mut self.entries {
+            if entry.key().is_none() {
+                return Some(entry);
             }
         }
-        return false;
+        return None;
     }
 
     fn shove_randomly(&mut self, shoved_entry: T) -> T {
         let index = unsafe {RAND as usize & (BUCKET_ENTRY_COUNT - 1)};
-        let displaced = self.entries[index];
-        self.entries[index] = shoved_entry;
-        return displaced;
+        return mem::replace(&mut self.entries[index], shoved_entry);
     }
 
     fn shove_preserving_ideals(&mut self, bucket_count: usize, bucket_index: usize, shoved_entry: T) -> T {
         for entry in &mut self.entries {
             if bucket_index != compress_hash(bucket_count, ideal_hash(entry.key().unwrap())) {
-                let displaced = *entry;
-                *entry = shoved_entry;
-                return displaced;
+                return mem::replace(entry, shoved_entry);
             }
         }
         return shoved_entry;
-    }
-
-    fn grow_repair(&mut self, bucket_count: usize, bucket_index: usize) {
-        for entry in &mut self.entries {
-            let ideal_index = compress_hash(bucket_count, ideal_hash(entry.key().unwrap()));
-            let rand_index = compress_hash(bucket_count, rand_hash(entry.key().unwrap()));
-            if ((ideal_index != rand_index) && (bucket_index == rand_index))
-            || ((ideal_index != bucket_index) && (rand_index != bucket_index))  {
-                *entry = T::empty();
-            }
-        }
     }
 }
 
@@ -160,31 +133,40 @@ fn compress_hash(bucket_count: usize, hash: usize) -> usize {
     hash & mask
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct ByteTable<const N: usize, T: ByteEntry + Copy> {
-    buckets: [MaybeUninit<ByteBucket<T>>; N]
+#[derive(Clone, Debug)]
+#[repr(transparent)]
+pub struct ByteTable<const N: usize, T: ByteEntry + Clone> {
+    buckets: [ByteBucket<T>; N]
 }
 
-impl<const N: usize, T: ByteEntry + Copy + std::fmt::Debug> ByteTable<N, T> {
+impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
     fn new() -> Self {
         ByteTable{
-            buckets: [MaybeUninit::new(ByteBucket::new()); N],
+            buckets: unsafe { mem::zeroed() },
         }
     }
 
-    fn get(&self, byte_key: u8) -> T {
-        let ideal_hash_entry = unsafe{self.buckets[compress_hash(N, ideal_hash(byte_key))].assume_init_ref().get(byte_key)};
-        if !ideal_hash_entry.is_empty() {
-            return ideal_hash_entry;
+    fn get(&mut self, byte_key: u8) -> Option<&mut T> {
+        let ideal_entry = self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key);
+        if ideal_entry.is_some() {
+            return self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key);
         }
-        return unsafe{self.buckets[compress_hash(N, rand_hash(byte_key))].assume_init_ref().get(byte_key)};
+        let rand_entry = self.buckets[compress_hash(N, rand_hash(byte_key))].get_key(byte_key);
+        if rand_entry.is_some() {
+            return self.buckets[compress_hash(N, rand_hash(byte_key))].get_key(byte_key);
+        }
+        return None;
     }
 
     fn put(&mut self, entry: T) -> T {
         if let Some(mut byte_key) = entry.key() {
-            if unsafe{self.buckets[compress_hash(N, ideal_hash(byte_key))].assume_init_mut().update(entry)} ||
-               unsafe{self.buckets[compress_hash(N, rand_hash(byte_key))].assume_init_mut().update(entry)} {
-                return T::empty();
+            if let Some(existing_entry) = self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key) {
+                mem::replace(existing_entry, entry);
+                return T::zeroed();
+            }
+            if let Some(existing_entry) = self.buckets[compress_hash(N, rand_hash(byte_key))].get_key(byte_key) {
+                mem::replace(existing_entry, entry);
+                return T::zeroed();
             }
 
             let max_grown = N != MAX_BUCKET_COUNT;
@@ -205,8 +187,8 @@ impl<const N: usize, T: ByteEntry + Copy + std::fmt::Debug> ByteTable<N, T> {
                 };
                 let bucket_index = compress_hash(N, hash);
 
-                if unsafe {self.buckets[bucket_index].assume_init_mut().insert(current_entry)} {
-                    return T::empty();
+                if let Some(empty_entry) = self.buckets[bucket_index].get_empty() {
+                    return mem::replace(empty_entry, current_entry);
                 }
 
                 if min_grown || retries == MAX_RETRIES {
@@ -214,17 +196,17 @@ impl<const N: usize, T: ByteEntry + Copy + std::fmt::Debug> ByteTable<N, T> {
                 }
 
                 if max_grown {
-                    current_entry = unsafe{self.buckets[bucket_index].assume_init_mut().shove_preserving_ideals(N, bucket_index, current_entry)};
+                    current_entry = self.buckets[bucket_index].shove_preserving_ideals(N, bucket_index, current_entry);
                     byte_key = current_entry.key().unwrap();
                 } else {
                     retries += 1;
-                    current_entry = unsafe{self.buckets[bucket_index].assume_init_mut().shove_randomly(current_entry)};
+                    current_entry = self.buckets[bucket_index].shove_randomly(current_entry);
                     byte_key = current_entry.key().unwrap();
                     use_ideal_hash = bucket_index != compress_hash(N, ideal_hash(byte_key));
                 }
             }
         } else {
-            return T::empty();
+            return T::zeroed();
         }
     }
 /*
@@ -236,59 +218,76 @@ impl<const N: usize, T: ByteEntry + Copy + std::fmt::Debug> ByteTable<N, T> {
 */
     unsafe fn grow_repair(&mut self) {
         assert!(N % 2 == 0);
-        unsafe {
-            for n in 0..N/2 {
-                let new_n = N/2 + n;
-                self.buckets[new_n].write(self.buckets[n].assume_init());
-
-                self.buckets[n].assume_init_mut().grow_repair(N, n); 
-                self.buckets[new_n].assume_init_mut().grow_repair(N, new_n);   
+        let (old_portion, new_portion) = self.buckets.split_at_mut(N/2);
+        for bucket_index in 0..N/2 {
+            for entry in &mut old_portion[bucket_index].entries {
+                if let Some(byte_key) = entry.key() {
+                    let ideal_index = compress_hash(N, ideal_hash(byte_key));
+                    let rand_index = compress_hash(N, rand_hash(byte_key));
+                    if bucket_index == ideal_index || bucket_index == rand_index {
+                        continue;
+                    }
+                    mem::swap(entry, new_portion[bucket_index].get_empty().unwrap());
+                }
             }
         }
+        // for bucket_index in 0..N/2 {
+        //     let alt_bucket_index = N/2 + bucket_index;
+        //     for entry in &mut self.buckets[bucket_index].entries {
+        //         if let Some(byte_key) = entry.key() {
+        //             let ideal_index = compress_hash(N, ideal_hash(byte_key));
+        //             let rand_index = compress_hash(N, rand_hash(byte_key));
+        //             if bucket_index == ideal_index || bucket_index == rand_index {
+        //                 continue;
+        //             }
+        //             mem::swap(entry, self.buckets[alt_bucket_index].get_empty().unwrap());
+        //         }
+        //     } 
+        // }
     }
 }
 
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use proptest::prelude::*;
 
-    #[derive(Clone, Copy, Debug)]
-    struct DummyEntry {
-        value: Option<u8>,
+    #[derive(Clone, Debug)]
+    #[repr(C, u8)]
+    enum DummyEntry {
+        None {} = 0,
+        Some {value: u8} = 1,
     }
 
     impl DummyEntry {
         fn new(byte_key: u8) -> Self {
-            DummyEntry {
-                value: Some(byte_key),
-            }
+            DummyEntry::Some{ value: byte_key}
         }
     }
 
-    impl ByteEntry for DummyEntry {
-        fn empty() -> Self {
-            DummyEntry {
-                value: None,
-            }
+    unsafe impl ByteEntry for DummyEntry {
+        fn zeroed() -> Self {
+            return unsafe {mem::zeroed()};
         }
-        fn is_empty(&self) -> bool {
-            self.value.is_none()
-        }
+        
         fn key(&self) -> Option<u8> {
-            self.value
+            match self {
+                DummyEntry::None {} => None,
+                DummyEntry::Some { value: v } => Some(*v)
+            }
         }
     }
 
     #[test]
     fn dummy_empty() {
-        assert!(DummyEntry::empty().is_empty());
+        assert!(DummyEntry::zeroed().key().is_none());
     }
 
     #[test]
     fn dummy_non_empty() {
-        assert!(!DummyEntry::new(0).is_empty());
+        assert!(DummyEntry::new(0).key().is_some());
     }
 
     #[test]
@@ -308,7 +307,7 @@ mod tests {
         fn empty_table_then_empty_get(n in 0u8..255) {
             init();
             let mut table: ByteTable<1, DummyEntry> = ByteTable::new();
-            prop_assert!(table.get(n).is_empty());
+            prop_assert!(table.get(n).is_none());
         }
 
         #[test]
@@ -317,8 +316,8 @@ mod tests {
             let mut table: ByteTable<1, DummyEntry> = ByteTable::new();
             let entry = DummyEntry::new(n);
             let displaced = table.put(entry);
-            prop_assert!(displaced.is_empty());
-            prop_assert!(!table.get(n).is_empty());
+            prop_assert!(displaced.key().is_none());
+            prop_assert!(table.get(n).is_some());
         }
     }
 }

@@ -231,19 +231,6 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
                 }
             }
         }
-        // for bucket_index in 0..N/2 {
-        //     let alt_bucket_index = N/2 + bucket_index;
-        //     for entry in &mut self.buckets[bucket_index].entries {
-        //         if let Some(byte_key) = entry.key() {
-        //             let ideal_index = compress_hash(N, ideal_hash(byte_key));
-        //             let rand_index = compress_hash(N, rand_hash(byte_key));
-        //             if bucket_index == ideal_index || bucket_index == rand_index {
-        //                 continue;
-        //             }
-        //             mem::swap(entry, self.buckets[alt_bucket_index].get_empty().unwrap());
-        //         }
-        //     } 
-        // }
     }
 }
 

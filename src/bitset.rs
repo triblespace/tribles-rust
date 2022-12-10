@@ -4,42 +4,35 @@ use std::fmt;
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct ByteBitset {
-    bits: [u64; 4]
+    bits: [u64; 4],
 }
 
 impl ByteBitset {
     /// Create a new empty set.
     pub const fn new_empty() -> Self {
-        ByteBitset {
-            bits: [0; 4]
-        }
+        ByteBitset { bits: [0; 4] }
     }
     /// Create a new set with every value of the domain set.
     pub const fn new_full() -> Self {
-        ByteBitset {
-            bits: [!0; 4]
-        }
+        ByteBitset { bits: [!0; 4] }
     }
     /// Check if the set is empty.
     pub fn is_empty(&self) -> bool {
-        (self.bits[0] == 0) &&
-        (self.bits[1] == 0) &&
-        (self.bits[2] == 0) &&
-        (self.bits[3] == 0)
+        (self.bits[0] == 0) && (self.bits[1] == 0) && (self.bits[2] == 0) && (self.bits[3] == 0)
     }
     /// Count the number of elements in the set.
     pub fn count(&self) -> u32 {
-        self.bits[0].count_ones() +
-        self.bits[1].count_ones() +
-        self.bits[2].count_ones() +
-        self.bits[3].count_ones()
+        self.bits[0].count_ones()
+            + self.bits[1].count_ones()
+            + self.bits[2].count_ones()
+            + self.bits[3].count_ones()
     }
     /// Set the given value in the set.
-    pub fn set(&mut self, index:u8) {
+    pub fn set(&mut self, index: u8) {
         self.bits[usize::from(index >> 6)] |= 1 << (index & 0b111111);
     }
     /// Remove the given value from the set.
-    pub fn unset(&mut self, index:u8) {
+    pub fn unset(&mut self, index: u8) {
         self.bits[usize::from(index >> 6)] &= !(1 << (index & 0b111111));
     }
     /// Sets or removes the given element into or from the set
@@ -66,19 +59,35 @@ impl ByteBitset {
     /// Finds the index of the first set bit.
     /// If no bits are set, returns `None`.
     pub fn find_first_set(&self) -> Option<u8> {
-        if self.bits[0] != 0 {return Some(self.bits[0].trailing_zeros() as u8);}
-        if self.bits[1] != 0 {return Some((1 << 6) + (self.bits[1].trailing_zeros() as u8));}
-        if self.bits[2] != 0 {return Some((2 << 6) + (self.bits[2].trailing_zeros() as u8));}
-        if self.bits[3] != 0 {return Some((3 << 6) + (self.bits[3].trailing_zeros() as u8));}
+        if self.bits[0] != 0 {
+            return Some(self.bits[0].trailing_zeros() as u8);
+        }
+        if self.bits[1] != 0 {
+            return Some((1 << 6) + (self.bits[1].trailing_zeros() as u8));
+        }
+        if self.bits[2] != 0 {
+            return Some((2 << 6) + (self.bits[2].trailing_zeros() as u8));
+        }
+        if self.bits[3] != 0 {
+            return Some((3 << 6) + (self.bits[3].trailing_zeros() as u8));
+        }
         return None;
     }
     /// Finds the index of the last set bit.
     /// If no bits are set, returns `None`.
     pub fn find_last_set(&self) -> Option<u8> {
-        if self.bits[3] != 0 {return Some((3 << 6) + (63 - (self.bits[3].leading_zeros() as u8)));}
-        if self.bits[2] != 0 {return Some((2 << 6) + (63 - (self.bits[2].leading_zeros() as u8)));}
-        if self.bits[1] != 0 {return Some((1 << 6) + (63 - (self.bits[1].leading_zeros() as u8)));}
-        if self.bits[0] != 0 {return Some(63 - (self.bits[0].leading_zeros() as u8));}
+        if self.bits[3] != 0 {
+            return Some((3 << 6) + (63 - (self.bits[3].leading_zeros() as u8)));
+        }
+        if self.bits[2] != 0 {
+            return Some((2 << 6) + (63 - (self.bits[2].leading_zeros() as u8)));
+        }
+        if self.bits[1] != 0 {
+            return Some((1 << 6) + (63 - (self.bits[1].leading_zeros() as u8)));
+        }
+        if self.bits[0] != 0 {
+            return Some(63 - (self.bits[0].leading_zeros() as u8));
+        }
         return None;
     }
     /// Returns the index of the next set bit
@@ -103,17 +112,17 @@ impl ByteBitset {
     }
     /// Checks if the set is a superset of the passed set.
     pub fn is_superset_of(&self, other: &Self) -> bool {
-        ((self.bits[0] & other.bits[0]) ^ other.bits[0]) == 0 &&
-        ((self.bits[1] & other.bits[1]) ^ other.bits[1]) == 0 &&
-        ((self.bits[2] & other.bits[2]) ^ other.bits[2]) == 0 &&
-        ((self.bits[3] & other.bits[3]) ^ other.bits[3]) == 0
+        ((self.bits[0] & other.bits[0]) ^ other.bits[0]) == 0
+            && ((self.bits[1] & other.bits[1]) ^ other.bits[1]) == 0
+            && ((self.bits[2] & other.bits[2]) ^ other.bits[2]) == 0
+            && ((self.bits[3] & other.bits[3]) ^ other.bits[3]) == 0
     }
     /// Checks if the set is a subset of the passed set.
     pub fn is_subset_of(&self, other: &Self) -> bool {
-        ((self.bits[0] & other.bits[0]) ^ self.bits[0]) == 0 &&
-        ((self.bits[1] & other.bits[1]) ^ self.bits[1]) == 0 &&
-        ((self.bits[2] & other.bits[2]) ^ self.bits[2]) == 0 &&
-        ((self.bits[3] & other.bits[3]) ^ self.bits[3]) == 0
+        ((self.bits[0] & other.bits[0]) ^ self.bits[0]) == 0
+            && ((self.bits[1] & other.bits[1]) ^ self.bits[1]) == 0
+            && ((self.bits[2] & other.bits[2]) ^ self.bits[2]) == 0
+            && ((self.bits[3] & other.bits[3]) ^ self.bits[3]) == 0
     }
     /// Store the set intersection between the two given sets in the set.
     pub fn set_intersect(&mut self, left: &Self, right: &Self) {
@@ -172,7 +181,7 @@ impl ByteBitset {
         }
 
         self.bits[from_word_index] &= !0 << (from_index & 0b111111);
-        self.bits[to_word_index] &= !(!1 << ((to_index & 0b111111)));
+        self.bits[to_word_index] &= !(!1 << (to_index & 0b111111));
 
         for word_index in (to_word_index + 1)..4 {
             self.bits[word_index] = 0;
@@ -365,7 +374,7 @@ mod tests {
         fn keep_range(from in 0u8..255, to in 0u8..255) {
             let mut set = ByteBitset::new_full();
             set.keep_range(from, to);
-            
+
             for n in 0u8..255 {
                 prop_assert_eq!(from <= n && n <= to, set.is_set(n));
             }

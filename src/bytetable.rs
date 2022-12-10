@@ -1,7 +1,7 @@
-use rand::thread_rng;
 use rand::seq::SliceRandom;
-use std::sync::Once;
+use rand::thread_rng;
 use std::mem;
+use std::sync::Once;
 
 //TODO: Try out an implementation where out of date
 // entries are deleted on growth.
@@ -10,26 +10,26 @@ use std::mem;
 
 /// The Trie's branching factor, fixed to the number of elements
 /// that can be represented by a byte/8bit.
-const BRANCH_FACTOR:usize = 256;
+const BRANCH_FACTOR: usize = 256;
 
 /// The number of hashes used in the cuckoo table.
-const HASH_COUNT:usize = 2;
+const HASH_COUNT: usize = 2;
 
 /// The size of a cache line in bytes.
-const CACHE_LINE_SIZE:usize = 64;
+const CACHE_LINE_SIZE: usize = 64;
 
 /// The size of bucket entries.
-const ENTRY_SIZE:usize = 16;
+const ENTRY_SIZE: usize = 16;
 
 /// The number of slots per bucket.
-const BUCKET_ENTRY_COUNT:usize = CACHE_LINE_SIZE / ENTRY_SIZE;
+const BUCKET_ENTRY_COUNT: usize = CACHE_LINE_SIZE / ENTRY_SIZE;
 
 /// The maximum number of buckets per table.
-const MAX_BUCKET_COUNT:usize = BRANCH_FACTOR / BUCKET_ENTRY_COUNT;
+const MAX_BUCKET_COUNT: usize = BRANCH_FACTOR / BUCKET_ENTRY_COUNT;
 
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
-const MAX_RETRIES:usize = 4;
+const MAX_RETRIES: usize = 4;
 
 static mut RAND: u8 = 4; // Choosen by fair dice roll.
 static mut RANDOM_PERMUTATION_RAND: [u8; 256] = [0; 256];
@@ -44,7 +44,7 @@ pub fn init() {
         for i in 0..256 {
             bytes[i] = i as u8;
         }
-    
+
         'shuffle: loop {
             bytes.shuffle(&mut rng);
             for i in 0..256 {
@@ -54,7 +54,7 @@ pub fn init() {
             }
             break;
         }
-    
+
         unsafe {
             RANDOM_PERMUTATION_HASH = bytes;
         }
@@ -75,12 +75,12 @@ pub unsafe trait ByteEntry {
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct ByteBucket<T: ByteEntry + Clone> {
-    entries: [T; BUCKET_ENTRY_COUNT]
+    entries: [T; BUCKET_ENTRY_COUNT],
 }
 
 impl<T: ByteEntry + Clone + std::fmt::Debug> ByteBucket<T> {
     fn new() -> Self {
-        ByteBucket{
+        ByteBucket {
             entries: unsafe { mem::zeroed() },
         }
     }
@@ -104,11 +104,16 @@ impl<T: ByteEntry + Clone + std::fmt::Debug> ByteBucket<T> {
     }
 
     fn shove_randomly(&mut self, shoved_entry: T) -> T {
-        let index = unsafe {RAND as usize & (BUCKET_ENTRY_COUNT - 1)};
+        let index = unsafe { RAND as usize & (BUCKET_ENTRY_COUNT - 1) };
         return mem::replace(&mut self.entries[index], shoved_entry);
     }
 
-    fn shove_preserving_ideals(&mut self, bucket_count: usize, bucket_index: usize, shoved_entry: T) -> T {
+    fn shove_preserving_ideals(
+        &mut self,
+        bucket_count: usize,
+        bucket_index: usize,
+        shoved_entry: T,
+    ) -> T {
         for entry in &mut self.entries {
             if bucket_index != compress_hash(bucket_count, ideal_hash(entry.key().unwrap())) {
                 return mem::replace(entry, shoved_entry);
@@ -123,9 +128,7 @@ fn ideal_hash(byte_key: u8) -> usize {
 }
 
 fn rand_hash(byte_key: u8) -> usize {
-    unsafe {
-        RANDOM_PERMUTATION_HASH[byte_key as usize] as usize
-    }
+    unsafe { RANDOM_PERMUTATION_HASH[byte_key as usize] as usize }
 }
 
 fn compress_hash(bucket_count: usize, hash: usize) -> usize {
@@ -136,12 +139,12 @@ fn compress_hash(bucket_count: usize, hash: usize) -> usize {
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct ByteTable<const N: usize, T: ByteEntry + Clone> {
-    buckets: [ByteBucket<T>; N]
+    buckets: [ByteBucket<T>; N],
 }
 
 impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
     fn new() -> Self {
-        ByteTable{
+        ByteTable {
             buckets: unsafe { mem::zeroed() },
         }
     }
@@ -160,11 +163,15 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
 
     fn put(&mut self, entry: T) -> T {
         if let Some(mut byte_key) = entry.key() {
-            if let Some(existing_entry) = self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key) {
+            if let Some(existing_entry) =
+                self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key)
+            {
                 mem::replace(existing_entry, entry);
                 return T::zeroed();
             }
-            if let Some(existing_entry) = self.buckets[compress_hash(N, rand_hash(byte_key))].get_key(byte_key) {
+            if let Some(existing_entry) =
+                self.buckets[compress_hash(N, rand_hash(byte_key))].get_key(byte_key)
+            {
                 mem::replace(existing_entry, entry);
                 return T::zeroed();
             }
@@ -196,7 +203,11 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
                 }
 
                 if max_grown {
-                    current_entry = self.buckets[bucket_index].shove_preserving_ideals(N, bucket_index, current_entry);
+                    current_entry = self.buckets[bucket_index].shove_preserving_ideals(
+                        N,
+                        bucket_index,
+                        current_entry,
+                    );
                     byte_key = current_entry.key().unwrap();
                 } else {
                     retries += 1;
@@ -209,17 +220,17 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
             return T::zeroed();
         }
     }
-/*
-    // Contract: Key looked up must exist. Ensure with has.
-    unsafe fn get_existing(&self, byte_key: u8) -> Self::Entry;
+    /*
+        // Contract: Key looked up must exist. Ensure with has.
+        unsafe fn get_existing(&self, byte_key: u8) -> Self::Entry;
 
-    // Contract: Key looked up must exist. Ensure with has.
-    unsafe fn put_existing(&mut self, entry: T);
-*/
+        // Contract: Key looked up must exist. Ensure with has.
+        unsafe fn put_existing(&mut self, entry: T);
+    */
     unsafe fn grow_repair(&mut self) {
         assert!(N % 2 == 0);
-        let (old_portion, new_portion) = self.buckets.split_at_mut(N/2);
-        for bucket_index in 0..N/2 {
+        let (old_portion, new_portion) = self.buckets.split_at_mut(N / 2);
+        for bucket_index in 0..N / 2 {
             for entry in &mut old_portion[bucket_index].entries {
                 if let Some(byte_key) = entry.key() {
                     let ideal_index = compress_hash(N, ideal_hash(byte_key));
@@ -234,7 +245,6 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,24 +254,24 @@ mod tests {
     #[repr(C, u8)]
     enum DummyEntry {
         None {} = 0,
-        Some {value: u8} = 1,
+        Some { value: u8 } = 1,
     }
 
     impl DummyEntry {
         fn new(byte_key: u8) -> Self {
-            DummyEntry::Some{ value: byte_key}
+            DummyEntry::Some { value: byte_key }
         }
     }
 
     unsafe impl ByteEntry for DummyEntry {
         fn zeroed() -> Self {
-            return unsafe {mem::zeroed()};
+            return unsafe { mem::zeroed() };
         }
-        
+
         fn key(&self) -> Option<u8> {
             match self {
                 DummyEntry::None {} => None,
-                DummyEntry::Some { value: v } => Some(*v)
+                DummyEntry::Some { value: v } => Some(*v),
             }
         }
     }

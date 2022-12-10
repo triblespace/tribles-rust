@@ -175,6 +175,15 @@ mod tests {
 
     #[test]
     fn leaf_infix_size() {
+        let head_twig = Head::<()>::Leaf {
+            infix: unsafe { mem::zeroed() },
+            start_depth: 0,
+            value: (),
+        };
+        if let Head::<()>::Leaf { infix, .. } = head_twig {
+            assert_eq!(infix.len(), 14);
+        }
+
         let head = Head::<u64>::Leaf {
             infix: unsafe { mem::zeroed() },
             start_depth: 0,

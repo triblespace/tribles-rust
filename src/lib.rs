@@ -1,3 +1,4 @@
+#![feature(generic_const_exprs)]
 #![feature(rustc_attrs)]
 
 pub mod trible;

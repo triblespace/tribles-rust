@@ -8,8 +8,15 @@ use siphasher::sip128::{Hasher128, SipHasher24};
 use crate::bitset::{ByteBitset};
 use crate::bytetable::{ByteTable, ByteEntry};
 
+trait SizeLimited<const N: usize>: Sized {
+    const UNUSED: usize = N - std::mem::size_of::<Self>();
+}
+
+impl<A: Sized, const N: usize> SizeLimited<N> for A {}
+
 #[repr(C)]
-struct Branch<const N: usize, T: Clone> {
+struct Branch<const N: usize, T: SizeLimited<13> + Clone> 
+where [u8; <T as SizeLimited<13>>::UNUSED + 1]: Sized {
     leaf_count: u64,
     rc: AtomicU16,
     segment_count: u32, //TODO: increase this to a u48
@@ -19,7 +26,8 @@ struct Branch<const N: usize, T: Clone> {
 }
 
 #[repr(C)]
-struct Infix<const N: usize, T: Clone> {
+struct Infix<const N: usize, T: SizeLimited<13> + Clone> 
+where [u8; <T as SizeLimited<13>>::UNUSED + 1]: Sized {
     child: Head<T>,
     rc: AtomicU16,
     infix: [u8; N],
@@ -28,7 +36,8 @@ struct Infix<const N: usize, T: Clone> {
 //#[rustc_layout(debug)]
 #[derive(Clone, Debug)]
 #[repr(u8)]
-enum Head<T: Clone> {
+enum Head<T: SizeLimited<13> + Clone>
+where [u8; <T as SizeLimited<13>>::UNUSED + 1]: Sized {
     None {padding: [u8; 15]} = 0,
     Branch1 {
         infix: [u8; 5],
@@ -79,22 +88,44 @@ enum Head<T: Clone> {
         ptr: NonNull<Branch<64, T>>,
         phantom: PhantomData<Branch<64, T>>
         },
-        /*
-    Infix14 {},
-    Infix30 {},
-    Infix46 {},
-    Infix62 {},
-
-    */
+    Infix14 {
+        infix: [u8; 5],
+        start_depth: u8,
+        branch_depth: u8,
+        ptr: NonNull<Infix<14, T>>,
+        phantom: PhantomData<Infix<14, T>>
+    },
+    Infix30 {
+        infix: [u8; 5],
+        start_depth: u8,
+        branch_depth: u8,
+        ptr: NonNull<Infix<30, T>>,
+        phantom: PhantomData<Infix<30, T>>
+    },
+    Infix46 {
+        infix: [u8; 5],
+        start_depth: u8,
+        branch_depth: u8,
+        ptr: NonNull<Infix<46, T>>,
+        phantom: PhantomData<Infix<46, T>>
+    },
+    Infix62 {
+        infix: [u8; 5],
+        start_depth: u8,
+        branch_depth: u8,
+        ptr: NonNull<Infix<62, T>>,
+        phantom: PhantomData<Infix<62, T>>
+    },
     Leaf {
-        infix: [u8; 8],
+        infix: [u8; <T as SizeLimited<13>>::UNUSED + 1],
         start_depth: u8,
         value: T
     },
 }
 
 
-unsafe impl<T: Clone> ByteEntry for Head<T> {
+unsafe impl<T: SizeLimited<13> + Clone> ByteEntry for Head<T>
+where [u8; <T as SizeLimited<13>>::UNUSED + 1]: Sized {
     fn zeroed() -> Self {
         return Head::None {padding: unsafe {mem::zeroed()}};
     }
@@ -110,8 +141,12 @@ unsafe impl<T: Clone> ByteEntry for Head<T> {
             Head::Branch16 { infix: infix, ..} => Some(infix[0]),
             Head::Branch32 { infix: infix, ..} => Some(infix[0]),
             Head::Branch64 { infix: infix, ..} => Some(infix[0]),
+            Head::Infix14 { infix: infix, ..} => Some(infix[0]),
+            Head::Infix30 { infix: infix, ..} => Some(infix[0]),
+            Head::Infix46 { infix: infix, ..} => Some(infix[0]),
+            Head::Infix62 { infix: infix, ..} => Some(infix[0]),
+            Head::Leaf { infix: infix, ..} => Some(infix[0]),
             _ => None
-
         }
     }
 }
@@ -124,6 +159,19 @@ mod tests {
     #[test]
     fn head_size() {
         assert_eq!(mem::size_of::<Head<()>>(), 16);
+        assert_eq!(mem::size_of::<Head<u64>>(), 16);
+    }
+
+    #[test]
+    fn leaf_infix_size() {
+        let head = Head::<u64>::Leaf{
+            infix: unsafe { mem::zeroed() },
+            start_depth: 0,
+            value: 0
+        };
+        if let Head::<u64>::Leaf{infix, ..} = head {
+            assert_eq!(infix.len(), 6);
+        }
     }
 
     #[test]

@@ -1,13 +1,13 @@
 use crate::bitset::ByteBitset;
 use crate::bytetable::{ByteEntry, ByteTable};
 use siphasher::sip128::{Hasher128, SipHasher24};
-use std::alloc::{alloc, dealloc, Layout};
 use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU16;
+use std::alloc::{alloc_zeroed, realloc, dealloc, Layout};
 
 pub trait SizeLimited<const LIMIT: usize>: Sized {
     const UNUSED: usize = LIMIT - std::mem::size_of::<Self>();
@@ -16,7 +16,7 @@ pub trait SizeLimited<const LIMIT: usize>: Sized {
 impl<A: Sized, const LIMIT: usize> SizeLimited<LIMIT> for A {}
 
 #[repr(C)]
-struct Branch<const KEY_LEN: usize, Value: SizeLimited<13> + Clone, const TABLE_SIZE: usize>
+struct BranchBody<const KEY_LEN: usize, Value: SizeLimited<13> + Clone, const TABLE_SIZE: usize>
 where
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
@@ -28,18 +28,77 @@ where
     children: ByteTable<TABLE_SIZE, Head<KEY_LEN, Value>>,
 }
 
-#[repr(C)]
-struct Path<const KEY_LEN: usize, Value: SizeLimited<13> + Clone, const INFIX_LEN: usize>
+#[repr(packed(1), C)]
+struct BranchHead<const KEY_LEN: usize, Value, const TABLE_SIZE: usize>
 where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fragment: [u8; 5],
+    start_depth: u8,
+    end_depth: u8,
+    ptr: NonNull<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
+    phantom: PhantomData<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
+}
+
+impl<const KEY_LEN: usize, Value, const TABLE_SIZE: usize> Clone for BranchHead<KEY_LEN, Value, TABLE_SIZE>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn clone(&self) -> Self {
+        Self {
+            fragment: self.fragment,
+            start_depth: self.start_depth,
+            end_depth: self.end_depth,
+            ptr: self.ptr,
+            phantom: PhantomData
+        }
+    }
+}
+
+#[repr(C)]
+struct PathBody<const KEY_LEN: usize, Value, const FRAGMENT_LEN: usize>
+where
+    Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
     child: Head<KEY_LEN, Value>,
     rc: AtomicU16,
-    fragment: [u8; INFIX_LEN],
+    fragment: [u8; FRAGMENT_LEN],
+}
+
+#[repr(packed(1), C)]
+struct PathHead<const KEY_LEN: usize, Value, const FRAGMENT_LEN: usize>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fragment: [u8; 5],
+    start_depth: u8,
+    end_depth: u8,
+    ptr: NonNull<PathBody<KEY_LEN, Value, FRAGMENT_LEN>>,
+    phantom: PhantomData<PathBody<KEY_LEN, Value, FRAGMENT_LEN>>,
+}
+
+impl<const KEY_LEN: usize, Value, const FRAGMENT_LEN: usize> Clone for PathHead<KEY_LEN, Value, FRAGMENT_LEN>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn clone(&self) -> Self {
+        Self {
+            fragment: self.fragment,
+            start_depth: self.start_depth,
+            end_depth: self.end_depth,
+            ptr: self.ptr,
+            phantom: PhantomData
+        }
+    }
 }
 
 //#[rustc_layout(debug)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 #[repr(u8)]
 enum Head<const KEY_LEN: usize, Value: SizeLimited<13> + Clone>
 where
@@ -48,83 +107,17 @@ where
     Empty {
         padding: [u8; 15],
     } = 0,
-    Branch1 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 1>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 1>>,
-    },
-    Branch2 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 2>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 2>>,
-    },
-    Branch4 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 4>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 4>>,
-    },
-    Branch8 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 8>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 8>>,
-    },
-    Branch16 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 16>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 16>>,
-    },
-    Branch32 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 32>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 32>>,
-    },
-    Branch64 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Branch<KEY_LEN, Value, 64>>,
-        phantom: PhantomData<Branch<KEY_LEN, Value, 64>>,
-    },
-    Path14 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Path<KEY_LEN, Value, 14>>,
-        phantom: PhantomData<Path<KEY_LEN, Value, 14>>,
-    },
-    Path30 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Path<KEY_LEN, Value, 30>>,
-        phantom: PhantomData<Path<KEY_LEN, Value, 30>>,
-    },
-    Path46 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Path<KEY_LEN, Value, 46>>,
-        phantom: PhantomData<Path<KEY_LEN, Value, 46>>,
-    },
-    Path62 {
-        fragment: [u8; 5],
-        start_depth: u8,
-        branch_depth: u8,
-        ptr: NonNull<Path<KEY_LEN, Value, 62>>,
-        phantom: PhantomData<Path<KEY_LEN, Value, 62>>,
-    },
+    Branch1 {head: BranchHead<KEY_LEN, Value, 1>},
+    Branch2 {head: BranchHead<KEY_LEN, Value, 2>},
+    Branch4 {head: BranchHead<KEY_LEN, Value, 4>},
+    Branch8 {head: BranchHead<KEY_LEN, Value, 8>},
+    Branch16 {head: BranchHead<KEY_LEN, Value, 16>},
+    Branch32 {head: BranchHead<KEY_LEN, Value, 32>},
+    Branch64 {head: BranchHead<KEY_LEN, Value, 64>},
+    Path14 { head: PathHead<KEY_LEN, Value, 14>},
+    Path30 { head: PathHead<KEY_LEN, Value, 30> },
+    Path46 { head: PathHead<KEY_LEN, Value, 46> },
+    Path62 { head: PathHead<KEY_LEN, Value, 62> },
     Leaf {
         fragment: [u8; <Value as SizeLimited<13>>::UNUSED + 1],
         start_depth: u8,
@@ -138,6 +131,114 @@ where
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
     const LEAF_FRAGMENT_RANGE: usize = KEY_LEN - <Value as SizeLimited<13>>::UNUSED + 1;
+
+    /// We want to copy the last bytes of the key into the leaf fragment.
+    /// Note how the position of the fragment changes relative to the key when the
+    /// start_depth is outside of the range that can be covered by the fragment.
+    ///
+    ///
+    /// Case: start_depth < fragment_range                     ┌──────────┐
+    ///    ┌───────────────────────────────────────────────────┤ fragment │
+    ///    │                             key                   └──────────┤
+    ///    └──────────────────────────────────────▲────────────▲──────────▲
+    ///                               start_depth─┘            │  KEY_LEN─┘
+    ///                                         fragment_range─┘
+    ///
+    ///
+    /// Case: start_depth > fragment_range                          ┌──────────┐
+    ///    ┌────────────────────────────────────────────────────────┤ fragment │
+    ///    │                             key                        └─────┬────┘
+    ///    └───────────────────────────────────────────────────▲────▲─────▲
+    ///                                         fragment_range─┘    │     │
+    ///                                                 start_depth─┘     │
+    ///                                                           KEY_LEN─┘
+    ///
+    fn new_leaf(
+        start_depth: usize,
+        key: &[u8; KEY_LEN],
+        value: Value,
+    ) -> Self {
+        let actual_start_depth = max(start_depth, Head::<KEY_LEN, Value>::LEAF_FRAGMENT_RANGE);
+
+        let mut new_leaf = Self::Leaf {
+            fragment: unsafe { mem::zeroed() },
+            start_depth: actual_start_depth as u8,
+            value: value.clone(),
+        };
+
+        if let Self::Leaf { mut fragment, .. } = new_leaf {
+            copy_start(&mut fragment[..], &key[..], actual_start_depth);
+        }
+
+        return new_leaf;
+    }
+/*
+    fn wrap_path(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
+        let raised = self.start_at(start_depth, key);
+        
+        let actual_start_depth = raised.start_depth();
+        if start_depth == actual_start_depth {
+            return raised;
+        }
+
+        let path_length = actual_start_depth - start_depth;
+
+        if (path_length <= 19) {
+            unsafe {
+                let layout = Layout::new::<PathBody::<KEY_LEN, Value>>();
+                let ptr = alloc_zeroed(layout);
+    
+                let mut new_path = Self::Path14 {
+                    fragment: unsafe { mem::zeroed() },
+                    start_depth: start_depth,
+                    end_depth: actual_start_depth as u8,
+                    ptr: ptr
+                };
+            }
+        }
+
+        panic!("Fragment too long for path to hold.");
+    }
+
+    fn start_at(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
+        match self {
+            Head::Empty { .. } => self,
+            Head::Branch1 { start_depth, .. } => self,
+            Head::Branch1 { start_depth, .. } => self,
+            Head::Branch2 { start_depth, .. } => self,
+            Head::Branch4 { start_depth, .. } => self,
+            Head::Branch8 { start_depth, .. } => self,
+            Head::Branch16 { start_depth, .. } => self,
+            Head::Branch32 { start_depth, .. } => self,
+            Head::Branch64 { start_depth, .. } => self,
+            Head::Path14 { start_depth, .. } => {
+                if
+            },
+            Head::Path30 { start_depth, .. } => self,
+            Head::Path46 { start_depth, .. } => self,
+            Head::Path62 { start_depth, .. } => self,
+            Head::Leaf { .. } => self,
+        }
+    }
+*/
+    fn start_depth(&self) -> u8 {
+        match self {
+            Head::Empty { .. } => 0,
+            Head::Branch1 { head } => head.start_depth,
+            Head::Branch2 { head } => head.start_depth,
+            Head::Branch4 { head } => head.start_depth,
+            Head::Branch8 { head } => head.start_depth,
+            Head::Branch1 { head } => head.start_depth,
+            Head::Branch16 { head } => head.start_depth,
+            Head::Branch32 { head } => head.start_depth,
+            Head::Branch64 { head } => head.start_depth,
+            Head::Path14 { head } => head.start_depth,
+            Head::Path30 { head } => head.start_depth,
+            Head::Path46 { head } => head.start_depth,
+            Head::Path62 { head } => head.start_depth,
+            Head::Leaf { start_depth, .. } => *start_depth,
+        }
+    }
 }
 
 unsafe impl<const KEY_LEN: usize, Value: SizeLimited<13> + Clone> ByteEntry for Head<KEY_LEN, Value>
@@ -153,20 +254,19 @@ where
     fn key(&self) -> Option<u8> {
         match self {
             Head::Empty { .. } => None,
-            Head::Branch1 { fragment, .. } => Some(fragment[0]),
-            Head::Branch1 { fragment, .. } => Some(fragment[0]),
-            Head::Branch2 { fragment, .. } => Some(fragment[0]),
-            Head::Branch4 { fragment, .. } => Some(fragment[0]),
-            Head::Branch8 { fragment, .. } => Some(fragment[0]),
-            Head::Branch16 { fragment, .. } => Some(fragment[0]),
-            Head::Branch32 { fragment, .. } => Some(fragment[0]),
-            Head::Branch64 { fragment, .. } => Some(fragment[0]),
-            Head::Path14 { fragment, .. } => Some(fragment[0]),
-            Head::Path30 { fragment, .. } => Some(fragment[0]),
-            Head::Path46 { fragment, .. } => Some(fragment[0]),
-            Head::Path62 { fragment, .. } => Some(fragment[0]),
+            Head::Branch1 { head } => Some(head.fragment[0]),
+            Head::Branch1 { head } => Some(head.fragment[0]),
+            Head::Branch2 { head } => Some(head.fragment[0]),
+            Head::Branch4 { head } => Some(head.fragment[0]),
+            Head::Branch8 { head } => Some(head.fragment[0]),
+            Head::Branch16 { head } => Some(head.fragment[0]),
+            Head::Branch32 { head } => Some(head.fragment[0]),
+            Head::Branch64 { head } => Some(head.fragment[0]),
+            Head::Path14 { head } => Some(head.fragment[0]),
+            Head::Path30 { head } => Some(head.fragment[0]),
+            Head::Path46 { head } => Some(head.fragment[0]),
+            Head::Path62 { head } => Some(head.fragment[0]),
             Head::Leaf { fragment, .. } => Some(fragment[0]),
-            _ => None,
         }
     }
 }
@@ -181,51 +281,6 @@ fn copy_end(target: []u8, source: []const u8, end_index: u8) void {
 fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
     let used_len = min(source.len() - start_index, target.len());
     target[0..used_len].copy_from_slice(&source[start_index..start_index + used_len]);
-}
-
-/// We want to copy the last bytes of the key into the leaf fragment.
-/// Note how the position of the fragment changes relative to the key when the
-/// start_depth is outside of the range that can be covered by the fragment.
-///
-///
-/// Case: start_depth < fragment_range                     ┌──────────┐
-///    ┌───────────────────────────────────────────────────┤ fragment │
-///    │                             key                   └──────────┤
-///    └──────────────────────────────────────▲────────────▲──────────▲
-///                               start_depth─┘            │  KEY_LEN─┘
-///                                         fragment_range─┘
-///
-///
-/// Case: start_depth > fragment_range                          ┌──────────┐
-///    ┌────────────────────────────────────────────────────────┤ fragment │
-///    │                             key                        └─────┬────┘
-///    └───────────────────────────────────────────────────▲────▲─────▲
-///                                         fragment_range─┘    │     │
-///                                                 start_depth─┘     │
-///                                                           KEY_LEN─┘
-///
-fn new_leaf<const KEY_LEN: usize, Value>(
-    start_depth: usize,
-    key: &[u8; KEY_LEN],
-    value: Value,
-) -> Head<KEY_LEN, Value>
-where
-    Value: SizeLimited<13> + Clone,
-    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
-{
-    let actual_start_depth = max(start_depth, Head::<KEY_LEN, Value>::LEAF_FRAGMENT_RANGE);
-
-    let mut new_leaf = Head::Leaf {
-        fragment: unsafe { mem::zeroed() },
-        start_depth: actual_start_depth as u8,
-        value: value.clone(),
-    };
-
-    if let Head::Leaf { mut fragment, .. } = new_leaf {
-        copy_start(&mut fragment[..], &key[..], actual_start_depth);
-    }
-
-    return new_leaf;
 }
 
 pub struct Tree<const KEY_LEN: usize, Value: SizeLimited<13> + Clone>
@@ -251,8 +306,7 @@ where
 
     pub fn put(&mut self, key: [u8; KEY_LEN], value: Value) {
         if let Head::Empty { .. } = self.head {
-            self.head = new_leaf(0, &key, value);
-            //self.child = wrap_path(0, key, new_leaf(0, key, value));
+            self.head = Head::<KEY_LEN, Value>::new_leaf(0, &key, value);//.wrap_path(0, key);
         } else {
             //self.child = try self.child.put(0, key, value, true);
         }
@@ -307,20 +361,20 @@ mod tests {
     #[test]
     fn branch_size() {
         assert_eq!(mem::size_of::<ByteTable<1, Head<64, ()>>>(), 64);
-        assert_eq!(mem::size_of::<Branch<64, (), 1>>(), 64 * 2);
-        assert_eq!(mem::size_of::<Branch<64, (), 2>>(), 64 * 3);
-        assert_eq!(mem::size_of::<Branch<64, (), 4>>(), 64 * 5);
-        assert_eq!(mem::size_of::<Branch<64, (), 8>>(), 64 * 9);
-        assert_eq!(mem::size_of::<Branch<64, (), 16>>(), 64 * 17);
-        assert_eq!(mem::size_of::<Branch<64, (), 32>>(), 64 * 33);
-        assert_eq!(mem::size_of::<Branch<64, (), 64>>(), 64 * 65);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 1>>(), 64 * 2);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 2>>(), 64 * 3);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 4>>(), 64 * 5);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 8>>(), 64 * 9);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 16>>(), 64 * 17);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 32>>(), 64 * 33);
+        assert_eq!(mem::size_of::<BranchBody<64, (), 64>>(), 64 * 65);
     }
 
     #[test]
     fn fragment_size() {
-        assert_eq!(mem::size_of::<Path<64, (), 14>>(), 16 * 2);
-        assert_eq!(mem::size_of::<Path<64, (), 30>>(), 16 * 3);
-        assert_eq!(mem::size_of::<Path<64, (), 46>>(), 16 * 4);
-        assert_eq!(mem::size_of::<Path<64, (), 62>>(), 16 * 5);
+        assert_eq!(mem::size_of::<PathBody<64, (), 14>>(), 16 * 2);
+        assert_eq!(mem::size_of::<PathBody<64, (), 30>>(), 16 * 3);
+        assert_eq!(mem::size_of::<PathBody<64, (), 46>>(), 16 * 4);
+        assert_eq!(mem::size_of::<PathBody<64, (), 62>>(), 16 * 5);
     }
 }

@@ -88,7 +88,7 @@ where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
-    fn init(key: &[u8; KEY_LEN], start_depth: u8, child: Head<KEY_LEN, Value>) -> Self {
+    fn init(key: &[u8; KEY_LEN], start_depth: usize, child: Head<KEY_LEN, Value>) -> Self {
         unsafe {
             let end_depth = child.start_depth();
             let layout = Layout::new::<PathBody<KEY_LEN, Value, FRAGMENT_LEN>>();
@@ -101,17 +101,18 @@ where
                 rc: AtomicU16::new(1),
                 fragment: mem::zeroed(),
             });
-            copy_end(&mut path_body.fragment[..], &key[..], end_depth);
+
+            copy_end((*path_body).fragment.as_mut_slice(), &key[..], end_depth);
 
             let mut path_head = Self {
-                    fragment: unsafe { mem::zeroed() },
-                    start_depth: start_depth,
-                    end_depth: end_depth,
-                    ptr: NonNull::new_unchecked(path_body),
-                    phantom: PhantomData
-                };
+                fragment: unsafe { mem::zeroed() },
+                start_depth: start_depth as u8,
+                end_depth: end_depth as u8,
+                ptr: NonNull::new_unchecked(path_body),
+                phantom: PhantomData
+            };
             
-            copy_start(&mut path_head.fragment[..], &key[..], start_depth);
+            copy_start(path_head.fragment.as_mut_slice(), &key[..], start_depth);
 
             return path_head;
         }
@@ -240,8 +241,26 @@ where
         let path_length = actual_start_depth - start_depth;
 
         if path_length <= 19 {
-            Self {
-                head: PathHead::<KEY_LEN, Value, 14>::init(&key, start_depth, self),
+            return Self::Path14 {
+                head: PathHead::<KEY_LEN, Value, 14>::init(&key, start_depth, expanded),
+            };
+        }
+
+        if path_length <= 35 {
+            return Self::Path30 {
+                head: PathHead::<KEY_LEN, Value, 30>::init(&key, start_depth, expanded),
+            };
+        }
+
+        if path_length <= 51 {
+            return Self::Path46 {
+                head: PathHead::<KEY_LEN, Value, 46>::init(&key, start_depth, expanded),
+            };
+        }
+
+        if path_length <= 67 {
+            return Self::Path62 {
+                head: PathHead::<KEY_LEN, Value, 62>::init(&key, start_depth, expanded),
             };
         }
 
@@ -267,8 +286,8 @@ where
         }
     }
 
-    fn start_depth(&self) -> u8 {
-        match self {
+    fn start_depth(&self) -> usize {
+        (match self {
             Head::Empty { .. } => 0,
             Head::Branch1 { head } => head.start_depth,
             Head::Branch2 { head } => head.start_depth,
@@ -283,7 +302,7 @@ where
             Head::Path46 { head } => head.start_depth,
             Head::Path62 { head } => head.start_depth,
             Head::Leaf { start_depth, .. } => *start_depth,
-        }
+        }) as usize
     }
 }
 
@@ -318,13 +337,20 @@ where
 }
 
 fn copy_end(target: &mut [u8], source: &[u8], end_index: usize) {
-    let used_len = min(end_index, target.len());
-    target[target.len() - used_len..].copy_from_slice(&source[end_index - used_len..end_index]);
+    let target_len = target.len();
+    let used_len = min(end_index, target_len);
+    let target_range = &mut target[target_len - used_len..];
+    let source_range = & source[end_index - used_len..end_index];
+    target_range.copy_from_slice(source_range);
 }
 
 fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
-    let used_len = min(source.len() - start_index, target.len());
-    target[0..used_len].copy_from_slice(&source[start_index..start_index + used_len]);
+    let target_len = target.len();
+    let source_len = source.len();
+    let used_len = min(source_len - start_index, target_len);
+    let target_range = &mut target[0..used_len];
+    let source_range = & source[start_index..start_index + used_len];
+    target_range.copy_from_slice(source_range);
 }
 
 pub struct Tree<const KEY_LEN: usize, Value: SizeLimited<13> + Clone>
@@ -350,7 +376,7 @@ where
 
     pub fn put(&mut self, key: [u8; KEY_LEN], value: Value) {
         if let Head::Empty { .. } = self.head {
-            self.head = Head::<KEY_LEN, Value>::new_leaf(0, &key, value); //.wrap_path(0, key);
+            self.head = Head::<KEY_LEN, Value>::new_leaf(0, &key, value).wrap_path(0, &key);
         } else {
             //self.child = try self.child.put(0, key, value, true);
         }

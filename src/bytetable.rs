@@ -172,7 +172,7 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
             if let Some(existing_entry) =
                 self.buckets[compress_hash(N, rand_hash(byte_key))].get_key(byte_key)
             {
-                mem::replace(existing_entry, entry);
+                let _ = mem::replace(existing_entry, entry);
                 return T::zeroed();
             }
 

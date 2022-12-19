@@ -28,7 +28,7 @@ struct UnknownHead {
     padding: [u8; 13],
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 struct EmptyHead {
     tag: HeadTag,
@@ -442,7 +442,7 @@ where
     fn clone(&self) -> Self {
         unsafe {
             match self.unknown.tag {
-                HeadTag::Empty => Self { empty: ManuallyDrop::new(EmptyHead::new()) },
+                HeadTag::Empty => Self { empty: self.empty.clone() },
                 HeadTag::Leaf => Self { leaf: self.leaf.clone() },
                 HeadTag::Path14 => Self { path14: self.path14.clone() },
                 HeadTag::Path30 => Self { path30: self.path30.clone() },
@@ -468,7 +468,7 @@ where
     fn drop(&mut self) {
         unsafe {
             match self.unknown.tag {
-                HeadTag::Empty => {},
+                HeadTag::Empty => ManuallyDrop::drop(&mut self.empty),
                 HeadTag::Leaf => ManuallyDrop::drop(&mut self.leaf),
                 HeadTag::Path14 => ManuallyDrop::drop(&mut self.path14),
                 HeadTag::Path30 => ManuallyDrop::drop(&mut self.path30),

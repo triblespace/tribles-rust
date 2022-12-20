@@ -143,13 +143,13 @@ pub struct ByteTable<const N: usize, T: ByteEntry + Clone> {
 }
 
 impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         ByteTable {
             buckets: unsafe { mem::zeroed() },
         }
     }
 
-    fn get(&mut self, byte_key: u8) -> Option<&mut T> {
+    pub fn get(&mut self, byte_key: u8) -> Option<&mut T> {
         let ideal_entry = self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key);
         if ideal_entry.is_some() {
             return self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key);
@@ -161,7 +161,7 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
         return None;
     }
 
-    fn put(&mut self, entry: T) -> T {
+    pub fn put(&mut self, entry: T) -> T {
         if let Some(mut byte_key) = entry.key() {
             if let Some(existing_entry) =
                 self.buckets[compress_hash(N, ideal_hash(byte_key))].get_key(byte_key)
@@ -227,7 +227,7 @@ impl<const N: usize, T: ByteEntry + Clone + std::fmt::Debug> ByteTable<N, T> {
         // Contract: Key looked up must exist. Ensure with has.
         unsafe fn put_existing(&mut self, entry: T);
     */
-    unsafe fn grow_repair(&mut self) {
+    pub unsafe fn grow_repair(&mut self) {
         assert!(N % 2 == 0);
         let (old_portion, new_portion) = self.buckets.split_at_mut(N / 2);
         for bucket_index in 0..N / 2 {

@@ -5,12 +5,21 @@ use std::alloc::{alloc, /* dealloc, realloc, */Layout};
 use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::mem;
-use std::mem::{ transmute, MaybeUninit };
+use std::mem::{ MaybeUninit };
+use std::ptr;
 use std::ptr::NonNull;
-use std::sync::atomic::AtomicU16;
+use std::sync::atomic::{ AtomicU16, Ordering};
 use std::mem::ManuallyDrop;
 use std::fmt::Debug;
 use std::fmt;
+
+#[inline]
+pub unsafe fn sizeless_transmute<A, B>(a: A) -> B {
+    let b = ::core::ptr::read(&a as *const A as *const B);
+    ::core::mem::forget(a);
+    b
+}
+
 pub trait SizeLimited<const LIMIT: usize>: Sized {
     const UNUSED: usize = LIMIT - std::mem::size_of::<Self>();
 }
@@ -61,6 +70,16 @@ struct EmptyHead {
     padding: [u8; 15],
 }
 
+impl<const KEY_LEN: usize, Value> From<EmptyHead> for Head<KEY_LEN, Value> 
+where
+    Value: SizeLimited<13> + Clone + Debug,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn from(head: EmptyHead) -> Self {
+        sizeless_transmute::<EmptyHead, Head<KEY_LEN, Value>>(head)
+    }
+}
+
 impl EmptyHead {
     const TAG: HeadTag = HeadTag::Empty;
 
@@ -69,9 +88,10 @@ impl EmptyHead {
         Value: SizeLimited<13> + Clone + Debug,
         [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized
     {
-        unsafe {
-            Head::<KEY_LEN, Value> { any: transmute::<EmptyHead, [MaybeUninit<u8>; 16]>(mem::zeroed()) }
-        }
+        (Self {
+            tag: Self::TAG,
+            padding: mem::zeroed()
+        }).into()
     }
 
     fn put<const KEY_LEN: usize, Value>(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value) -> Head<KEY_LEN, Value>
@@ -95,6 +115,16 @@ where
     start_depth: u8,
     fragment: [u8; <Value as SizeLimited<13>>::UNUSED + 1],
     value: Value,
+}
+
+impl<const KEY_LEN: usize, Value> From<LeafHead<KEY_LEN, Value>> for Head<KEY_LEN, Value> 
+where
+    Value: SizeLimited<13> + Clone + Debug,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn from(head: LeafHead<KEY_LEN, Value>) -> Self {
+        sizeless_transmute::<LeafHead<KEY_LEN, Value>, Head<KEY_LEN, Value>>(head)
+    }
 }
 
 impl<const KEY_LEN: usize, Value> LeafHead<KEY_LEN, Value>
@@ -130,16 +160,16 @@ where
     fn new(start_depth: usize, key: &[u8; KEY_LEN], value: Value) -> Head<KEY_LEN, Value> {
         let actual_start_depth = max(start_depth, Self::FRAGMENT_RANGE);
 
-        let mut leaf_head = ManuallyDrop::new(Self {
+        let mut leaf_head = Self {
             tag: Self::TAG,
             start_depth: actual_start_depth as u8,
             fragment: unsafe { mem::zeroed() },
             value: value.clone(),
-        });
+        };
 
         copy_start(leaf_head.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
-        return mem::transmute_copy::<Self, Head<KEY_LEN, Value>>(&leaf_head);
+        leaf_head.into()
     }
 
     fn expand(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
@@ -147,9 +177,7 @@ where
         self.start_depth = actual_start_depth as u8;
         copy_start(self.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
-        let head = mem::transmute_copy::<Self, Head<KEY_LEN, Value>>(&self);
-        mem::forget(self);
-        return head;
+        self.into()
     }
 
     fn peek(& self, at_depth: usize) -> Option<u8> {
@@ -177,8 +205,8 @@ where
         let sibling_leaf_node = LeafHead::new(branch_depth, key, value);
 
         let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
-        branch_head.branch1.insert(sibling_leaf_node);
-        branch_head.branch1.insert(self.expand(branch_depth, key));
+        (&mut branch_head.branch1).insert(sibling_leaf_node);
+        (&mut branch_head.branch1).insert(self.expand(branch_depth, key));
 
         return branch_head.wrap_path(start_depth, key);
     }
@@ -210,8 +238,18 @@ where
     start_depth: u8,
     fragment: [u8; HEAD_FRAGMENT_LEN],
     end_depth: u8,
-    body_ptr: NonNull<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
+    body: NonNull<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
     phantom: PhantomData<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
+}
+
+impl<const KEY_LEN: usize, Value, const TABLE_SIZE: usize> From<BranchHead<KEY_LEN, Value, TABLE_SIZE>> for Head<KEY_LEN, Value> 
+where
+    Value: SizeLimited<13> + Clone + Debug,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn from(head: BranchHead<KEY_LEN, Value, TABLE_SIZE>) -> Self {
+        sizeless_transmute::<BranchHead<KEY_LEN, Value, TABLE_SIZE>, Head<KEY_LEN, Value>>(head)
+    }
 }
 
 impl<const KEY_LEN: usize, Value, const TABLE_SIZE: usize> Clone
@@ -226,7 +264,7 @@ where
             start_depth: self.start_depth,
             fragment: self.fragment,
             end_depth: self.end_depth,
-            body_ptr: self.body_ptr,
+            body: self.body,
             phantom: PhantomData,
         }
     }
@@ -272,15 +310,13 @@ where
                 start_depth: actual_start_depth as u8,
                 fragment: mem::zeroed(),
                 end_depth: branch_depth as u8,
-                body_ptr: NonNull::new_unchecked(branch_body),
+                body: NonNull::new_unchecked(branch_body),
                 phantom: PhantomData
             };
             
             copy_start(branch_head.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
-            return unsafe {
-                Head::<KEY_LEN, Value> { any: transmute::<Self, [MaybeUninit<u8>; 16]>(branch_head) }
-            };
+            branch_head.into()
         }
     }
 
@@ -289,13 +325,98 @@ where
         self.start_depth = actual_start_depth as u8;
         copy_start(self.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
-        return unsafe {
-            Head::<KEY_LEN, Value> { any: transmute::<Self, [MaybeUninit<u8>; 16]>(self) }
-        };
+        self.into()
     }
 
     fn insert(&mut self, child: Head<KEY_LEN, Value>) {
-        self.body_ptr.as_mut().children.put(child);
+        self.body.as_mut().children.put(child);
+    }
+
+    fn put(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value, subtree_clone: bool) -> Head<KEY_LEN, Value> {
+//>
+        let mut branch_depth = start_depth;
+        while branch_depth < self.end_depth as usize {
+            if Some(key[branch_depth]) == self.peek(branch_depth) {
+                branch_depth += 1
+            } else {
+                break;
+            }
+        }
+        if branch_depth == self.end_depth as usize {
+            // The entire infix matched with the key, i.e. branch_depth == self.branch_depth.
+            let new_child = self.body.as_ref().child
+                                .put(self.end_depth as usize, key, value, needs_clone);
+            if new_child.start_depth() != self.end_depth {
+                return new_child.wrap_path(start_depth, key);
+            }
+
+            let mut cow = if needs_clone { self.clone() } else { self };
+            cow.body.as_mut().child = new_child;
+            
+            return cow.into()
+        }
+
+        let sibling_leaf_node = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
+
+        let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
+        (&mut branch_head.branch1).insert(sibling_leaf_node);
+        (&mut branch_head.branch1).insert(self.expand(branch_depth, key));
+
+        return branch_head.wrap_path(start_depth, key);
+
+
+        //////
+
+        let needs_clone = subtree_clone || self.body.as_ref().rc.load(Ordering::SeqCst) > 1;
+//>
+        var branch_depth = start_depth;
+        while (branch_depth < self.branch_depth) : (branch_depth += 1) {
+            if (key[branch_depth] != self.peek(branch_depth).?) break;
+        } else {
+            // The entire compressed infix above this node matched with the key.
+            const byte_key = key[branch_depth];
+            if (self.hasBranch(byte_key)) {
+                // The node already has a child branch with the same byte byte_key as the one in the key.
+                const old_child = self.getBranch(byte_key);
+                const old_child_hash = old_child.hash(key);
+                const old_child_leaf_count = old_child.count();
+                const old_child_segment_count = old_child.segmentCount(branch_depth);
+                const new_child = try old_child.put(branch_depth, key, value, single_owner, allocator);
+                const new_child_hash = new_child.hash(key);
+
+                const new_hash = self.body.node_hash.update(old_child_hash, new_child_hash);
+                const new_leaf_count = self.body.leaf_count - old_child_leaf_count + new_child.count();
+                const new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(branch_depth);
+
+                var self_or_copy = self;
+                if (!single_owner) {
+                    self_or_copy = try self.copy(allocator);
+                    old_child.rel(allocator);
+                }
+                self_or_copy.body.node_hash = new_hash;
+                self_or_copy.body.leaf_count = new_leaf_count;
+                self_or_copy.body.segment_count = new_segment_count;
+
+                self_or_copy.updateBranch(new_child);
+                return @bitCast(Node, self_or_copy);
+            } else {
+                const new_child_node = try WrapInfixNode(branch_depth, key, InitLeaf(branch_depth, key, value), allocator);
+
+                var self_or_copy = if (single_owner) self else try self.copy(allocator);
+
+                var displaced = self_or_copy.createBranch(new_child_node, branch_depth, key);
+                var grown = @bitCast(Node, self_or_copy);
+                while (displaced) |entry| {
+                    grown = try grown.grow(allocator);
+                    displaced = grown.reinsertBranch(entry);
+                }
+                return grown;
+            }
+        }
+
+        const sibling_leaf_node = try WrapInfixNode(branch_depth, key, InitLeaf(branch_depth, key, value), allocator);
+
+        return try BranchNodeBase.initBranch(start_depth, branch_depth, key, sibling_leaf_node, self.initAt(branch_depth, key), allocator);
     }
 }
 
@@ -322,8 +443,18 @@ where
     start_depth: u8,
     fragment: [u8; HEAD_FRAGMENT_LEN],
     end_depth: u8,
-    body_ptr: NonNull<PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>>,
+    body: NonNull<PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>>,
     phantom: PhantomData<PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>>,
+}
+
+impl<const KEY_LEN: usize, Value, const BODY_FRAGMENT_LEN: usize> From<PathHead<KEY_LEN, Value, BODY_FRAGMENT_LEN>> for Head<KEY_LEN, Value> 
+where
+    Value: SizeLimited<13> + Clone + Debug,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn from(head: PathHead<KEY_LEN, Value, BODY_FRAGMENT_LEN>) -> Self {
+        sizeless_transmute::<PathHead<KEY_LEN, Value, BODY_FRAGMENT_LEN>, Head<KEY_LEN, Value>>(head)
+    }
 }
 
 impl<const KEY_LEN: usize, Value, const BODY_FRAGMENT_LEN: usize> PathHead<KEY_LEN, Value, BODY_FRAGMENT_LEN>
@@ -363,15 +494,13 @@ where
                 start_depth: actual_start_depth as u8,
                 fragment: mem::zeroed(),
                 end_depth: end_depth,
-                body_ptr: NonNull::new_unchecked(path_body),
+                body: NonNull::new_unchecked(path_body),
                 phantom: PhantomData
             };
             
             copy_start(path_head.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
-            return unsafe {
-                Head::<KEY_LEN, Value> { any: transmute::<Self, [MaybeUninit<u8>; 16]>(path_head) }
-            };
+            path_head.into()
         }
     }
 
@@ -380,15 +509,51 @@ where
         self.start_depth = actual_start_depth as u8;
         copy_start(self.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
-        return unsafe {
-            Head::<KEY_LEN, Value> { any: transmute::<Self, [MaybeUninit<u8>; 16]>(self) }
-        };
+        self.into()
     }
 
-    pub fn put(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value, cow: bool) -> Head<KEY_LEN, Value> {
-        unsafe {
-            Head::<KEY_LEN, Value> { any: transmute::<Self, [MaybeUninit<u8>; 16]>(self) }
+    fn peek(self, at_depth: usize) -> Option<u8> {
+        if at_depth < self.start_depth as usize || self.end_depth as usize <= at_depth {
+            return None;
         }
+        if at_depth < self.start_depth as usize + HEAD_FRAGMENT_LEN {
+            return Some(self.fragment[index_start(self.start_depth as usize, at_depth as usize)]);
+        }
+        return Some(self.body.as_ref().fragment[index_end(BODY_FRAGMENT_LEN, self.end_depth as usize, at_depth as usize)]);
+    }
+
+    pub fn put(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value, subtree_clone: bool) -> Head<KEY_LEN, Value> {
+        let needs_clone = subtree_clone || self.body.as_ref().rc.load(Ordering::SeqCst) > 1;
+
+        let mut branch_depth = start_depth;
+        while branch_depth < self.end_depth as usize {
+            if Some(key[branch_depth]) == self.peek(branch_depth) {
+                branch_depth += 1
+            } else {
+                break;
+            }
+        }
+        if branch_depth == self.end_depth as usize {
+            // The entire infix matched with the key, i.e. branch_depth == self.branch_depth.
+            let new_child = self.body.as_ref().child
+                                .put(self.end_depth as usize, key, value, needs_clone);
+            if new_child.start_depth() != self.end_depth {
+                return new_child.wrap_path(start_depth, key);
+            }
+
+            let mut cow = if needs_clone { self.clone() } else { self };
+            cow.body.as_mut().child = new_child;
+            
+            return cow.into()
+        }
+
+        let sibling_leaf_node = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
+
+        let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
+        (&mut branch_head.branch1).insert(sibling_leaf_node);
+        (&mut branch_head.branch1).insert(self.expand(branch_depth, key));
+
+        return branch_head.wrap_path(start_depth, key);
     }
 }
 
@@ -404,7 +569,7 @@ where
             start_depth: self.start_depth,
             fragment: self.fragment,
             end_depth: self.end_depth,
-            body_ptr: self.body_ptr,
+            body: self.body,
             phantom: PhantomData,
         }
     }

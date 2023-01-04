@@ -1,7 +1,7 @@
 use crate::bitset::ByteBitset;
 use crate::bytetable::{ByteEntry, ByteTable};
 //use siphasher::sip128::{Hasher128, SipHasher24};
-use std::alloc::{alloc, /* dealloc, realloc, */Layout};
+use std::alloc::{ Global, Layout};
 use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::mem;
@@ -224,7 +224,7 @@ where
     segment_count: u32, //TODO: increase this to a u48
     node_hash: u128,
     child_set: ByteBitset,
-    children: ByteTable<TABLE_SIZE, Head<KEY_LEN, Value>>,
+    child_table: ByteTable<TABLE_SIZE, Head<KEY_LEN, Value>>,
 }
 
 #[derive(Debug)]
@@ -290,17 +290,14 @@ where
     fn new(start_depth: usize, branch_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
         unsafe {
             let layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE>>();
-            let branch_body = alloc(layout) as *mut BranchBody<KEY_LEN, Value, TABLE_SIZE>;
-            if branch_body.is_null() {
-                panic!("Alloc error!");
-            }
+            let branch_body = Global.allocate_zeroed(layout).unwrap() as *mut BranchBody<KEY_LEN, Value, TABLE_SIZE>;
             branch_body.write(BranchBody {
                 leaf_count: 0,
                 rc: AtomicU16::new(1),
                 segment_count: 0,
                 node_hash: 0,
                 child_set: ByteBitset::new_empty(),
-                children: ByteTable::new(),
+                child_table: ByteTable::new(),
             });
 
             let actual_start_depth = max(start_depth as isize, branch_depth as isize - Self::FRAGMENT_LEN as isize) as usize;
@@ -310,13 +307,34 @@ where
                 start_depth: actual_start_depth as u8,
                 fragment: mem::zeroed(),
                 end_depth: branch_depth as u8,
-                body: NonNull::new_unchecked(branch_body),
+                body: branch_body,
                 phantom: PhantomData
             };
             
             copy_start(branch_head.fragment.as_mut_slice(), &key[..], actual_start_depth);
 
             branch_head.into()
+        }
+    }
+
+    fn grow(self) -> Head<KEY_LEN, Value> {
+        unsafe {
+            let old_layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE>>();
+            let new_layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE*2>>();
+            let branch_body = Global.grow(self.body, old_layout, new_layout).unwrap() as *mut BranchBody<KEY_LEN, Value, TABLE_SIZE*2>;
+
+            branch_body.child_table.grow_repair();
+
+            let new_head = BranchHead<KEY_LEN, Value, TABLE_SIZE*2> {
+                tag: BranchHead<KEY_LEN, Value, TABLE_SIZE*2>::TAG,
+                start_depth: self.start_depth,
+                fragment: self.fragment,
+                end_depth: self.end_depth,
+                body: branch_body,
+                phantom: PhantomData
+            };
+
+            new_head.into()
         }
     }
 
@@ -329,11 +347,12 @@ where
     }
 
     fn insert(&mut self, child: Head<KEY_LEN, Value>) {
-        self.body.as_mut().children.put(child);
+        self.body.as_mut().child_table.put(child);
     }
 
     fn put(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value, subtree_clone: bool) -> Head<KEY_LEN, Value> {
-//>
+        let needs_clone = subtree_clone || self.body.as_ref().rc.load(Ordering::SeqCst) > 1;
+        
         let mut branch_depth = start_depth;
         while branch_depth < self.end_depth as usize {
             if Some(key[branch_depth]) == self.peek(branch_depth) {
@@ -343,80 +362,53 @@ where
             }
         }
         if branch_depth == self.end_depth as usize {
-            // The entire infix matched with the key, i.e. branch_depth == self.branch_depth.
-            let new_child = self.body.as_ref().child
-                                .put(self.end_depth as usize, key, value, needs_clone);
-            if new_child.start_depth() != self.end_depth {
-                return new_child.wrap_path(start_depth, key);
+            // The entire compressed infix above this node matched with the key.
+            let byte_key = key[branch_depth];
+            if self.body.as_ref().child_set.has(byte_key) {
+                // The node already has a child branch with the same byte byte_key as the one in the key.
+                let old_child = self.body.as_ref().child_table.get(byte_key).unwrap();
+                //let old_child_hash = old_child.hash(key);
+                //let old_child_leaf_count = old_child.count();
+                //let old_child_segment_count = old_child.segmentCount(branch_depth);
+                let new_child = old_child.put(branch_depth, key, value, needs_clone);
+                //let new_child_hash = new_child.hash(key);
+
+                //let new_hash = self.body.node_hash.update(old_child_hash, new_child_hash);
+                //let new_leaf_count = self.body.leaf_count - old_child_leaf_count + new_child.count();
+                //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(branch_depth);
+
+                let mut cow = if needs_clone { self.clone() } else { self };
+                //cow.body.node_hash = new_hash;
+                //cow.body.leaf_count = new_leaf_count;
+                //cow.body.segment_count = new_segment_count;
+
+                cow.body.as_mut().child_table.put(new_child)
+                return cow.into();
             }
+            //TODO >>
+
+            let new_child = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
 
             let mut cow = if needs_clone { self.clone() } else { self };
-            cow.body.as_mut().child = new_child;
-            
-            return cow.into()
+
+            let displaced = cow.body.as_mut().child_table.put(new_child);
+            let grown: Head<KEY_LEN, Value> = cow.into();
+            while (displaced.key().is_some()) {
+
+                grown = grown.grow();
+                displaced = grown.insert(entry);
+            }
+            return grown;
+            // << TODO
         }
 
         let sibling_leaf_node = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
 
         let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
         (&mut branch_head.branch1).insert(sibling_leaf_node);
-        (&mut branch_head.branch1).insert(self.expand(branch_depth, key));
+        (&mut branch_head.branch1).insert(self.wrap_path(branch_depth, key));
 
         return branch_head.wrap_path(start_depth, key);
-
-
-        //////
-
-        let needs_clone = subtree_clone || self.body.as_ref().rc.load(Ordering::SeqCst) > 1;
-//>
-        var branch_depth = start_depth;
-        while (branch_depth < self.branch_depth) : (branch_depth += 1) {
-            if (key[branch_depth] != self.peek(branch_depth).?) break;
-        } else {
-            // The entire compressed infix above this node matched with the key.
-            const byte_key = key[branch_depth];
-            if (self.hasBranch(byte_key)) {
-                // The node already has a child branch with the same byte byte_key as the one in the key.
-                const old_child = self.getBranch(byte_key);
-                const old_child_hash = old_child.hash(key);
-                const old_child_leaf_count = old_child.count();
-                const old_child_segment_count = old_child.segmentCount(branch_depth);
-                const new_child = try old_child.put(branch_depth, key, value, single_owner, allocator);
-                const new_child_hash = new_child.hash(key);
-
-                const new_hash = self.body.node_hash.update(old_child_hash, new_child_hash);
-                const new_leaf_count = self.body.leaf_count - old_child_leaf_count + new_child.count();
-                const new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(branch_depth);
-
-                var self_or_copy = self;
-                if (!single_owner) {
-                    self_or_copy = try self.copy(allocator);
-                    old_child.rel(allocator);
-                }
-                self_or_copy.body.node_hash = new_hash;
-                self_or_copy.body.leaf_count = new_leaf_count;
-                self_or_copy.body.segment_count = new_segment_count;
-
-                self_or_copy.updateBranch(new_child);
-                return @bitCast(Node, self_or_copy);
-            } else {
-                const new_child_node = try WrapInfixNode(branch_depth, key, InitLeaf(branch_depth, key, value), allocator);
-
-                var self_or_copy = if (single_owner) self else try self.copy(allocator);
-
-                var displaced = self_or_copy.createBranch(new_child_node, branch_depth, key);
-                var grown = @bitCast(Node, self_or_copy);
-                while (displaced) |entry| {
-                    grown = try grown.grow(allocator);
-                    displaced = grown.reinsertBranch(entry);
-                }
-                return grown;
-            }
-        }
-
-        const sibling_leaf_node = try WrapInfixNode(branch_depth, key, InitLeaf(branch_depth, key, value), allocator);
-
-        return try BranchNodeBase.initBranch(start_depth, branch_depth, key, sibling_leaf_node, self.initAt(branch_depth, key), allocator);
     }
 }
 
@@ -475,10 +467,7 @@ where
         unsafe {
             let end_depth = child.start_depth();
             let layout = Layout::new::<PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>>();
-            let path_body = alloc(layout) as *mut PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>;
-            if path_body.is_null() {
-                panic!("Alloc error!");
-            }
+            let path_body = Global.allocate_zeroed(layout).unwrap() as *mut PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>;
             path_body.write(PathBody {
                 child: child,
                 rc: AtomicU16::new(1),
@@ -494,7 +483,7 @@ where
                 start_depth: actual_start_depth as u8,
                 fragment: mem::zeroed(),
                 end_depth: end_depth,
-                body: NonNull::new_unchecked(path_body),
+                body: path_body,
                 phantom: PhantomData
             };
             

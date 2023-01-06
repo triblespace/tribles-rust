@@ -119,9 +119,6 @@ fn compress_hash(bucket_count: usize, hash: usize) -> usize {
 }
 
 macro_rules! create_bytetable {
-    // This macro takes an argument of designator `ident` and
-    // creates a function named `$func_name`.
-    // The `ident` designator is used for variable/function names.
     ($name:ident, $size:expr) => {
         #[derive(Clone, Debug)]
         #[repr(transparent)]

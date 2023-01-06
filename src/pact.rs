@@ -1,7 +1,7 @@
 use crate::bitset::ByteBitset;
-use crate::bytetable::{ByteEntry, ByteTable};
+use crate::bytetable::*;
 //use siphasher::sip128::{Hasher128, SipHasher24};
-use std::alloc::{ Global, Layout};
+use std::alloc::{ Global, Layout, Allocator };
 use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::mem;
@@ -204,17 +204,19 @@ where
 
         let sibling_leaf_node = LeafHead::new(branch_depth, key, value);
 
-        let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
-        (&mut branch_head.branch1).insert(sibling_leaf_node);
-        (&mut branch_head.branch1).insert(self.expand(branch_depth, key));
+        let mut branch_head = BranchHead4::<KEY_LEN, Value>::new(start_depth, branch_depth, key);
+        (&mut branch_head.branch4).insert(sibling_leaf_node);
+        (&mut branch_head.branch4).insert(self.expand(branch_depth, key));
 
         return branch_head.wrap_path(start_depth, key);
     }
 }
 
+macro_rules! create_branch {
+    ($head_name:ident, $body_name:ident, $tag:expr, $table:tt) => {
 #[derive(Debug)]
 #[repr(C)]
-struct BranchBody<const KEY_LEN: usize, Value, const TABLE_SIZE: usize>
+struct $body_name<const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone + Debug,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -224,12 +226,12 @@ where
     segment_count: u32, //TODO: increase this to a u48
     node_hash: u128,
     child_set: ByteBitset,
-    child_table: ByteTable<TABLE_SIZE, Head<KEY_LEN, Value>>,
+    child_table: $table<Head<KEY_LEN, Value>>,
 }
 
 #[derive(Debug)]
 #[repr(C)]
-struct BranchHead<const KEY_LEN: usize, Value, const TABLE_SIZE: usize>
+struct $head_name<const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone + Debug,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -238,22 +240,22 @@ where
     start_depth: u8,
     fragment: [u8; HEAD_FRAGMENT_LEN],
     end_depth: u8,
-    body: NonNull<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
-    phantom: PhantomData<BranchBody<KEY_LEN, Value, TABLE_SIZE>>,
+    body: NonNull<$body_name<KEY_LEN, Value>>,
+    phantom: PhantomData<$body_name<KEY_LEN, Value>>,
 }
 
-impl<const KEY_LEN: usize, Value, const TABLE_SIZE: usize> From<BranchHead<KEY_LEN, Value, TABLE_SIZE>> for Head<KEY_LEN, Value> 
+impl<const KEY_LEN: usize, Value> From<$head_name<KEY_LEN, Value>> for Head<KEY_LEN, Value> 
 where
     Value: SizeLimited<13> + Clone + Debug,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
-    fn from(head: BranchHead<KEY_LEN, Value, TABLE_SIZE>) -> Self {
-        sizeless_transmute::<BranchHead<KEY_LEN, Value, TABLE_SIZE>, Head<KEY_LEN, Value>>(head)
+    fn from(head: $head_name<KEY_LEN, Value>) -> Self {
+        sizeless_transmute::<$head_name<KEY_LEN, Value>, Head<KEY_LEN, Value>>(head)
     }
 }
 
-impl<const KEY_LEN: usize, Value, const TABLE_SIZE: usize> Clone
-    for BranchHead<KEY_LEN, Value, TABLE_SIZE>
+impl<const KEY_LEN: usize, Value> Clone
+    for $head_name<KEY_LEN, Value>
 where
     Value: SizeLimited<13> + Clone + Debug,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -270,35 +272,26 @@ where
     }
 }
 
-impl<const KEY_LEN: usize, Value, const TABLE_SIZE: usize> BranchHead<KEY_LEN, Value, TABLE_SIZE>
+impl<const KEY_LEN: usize, Value> $head_name<KEY_LEN, Value>
 where
     Value: SizeLimited<13> + Clone + Debug,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
-    const TAG: HeadTag = match TABLE_SIZE {
-        1 => HeadTag::Branch1,
-        2 => HeadTag::Branch2,
-        4 => HeadTag::Branch4,
-        8 => HeadTag::Branch8,
-        16 => HeadTag::Branch16,
-        32 => HeadTag::Branch32,
-        64 => HeadTag::Branch64,
-        _ => panic!("invalid path length"),
-    };
+    const TAG: HeadTag = $tag;
     const FRAGMENT_LEN: usize = HEAD_FRAGMENT_LEN;
 
     fn new(start_depth: usize, branch_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
         unsafe {
-            let layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE>>();
-            let branch_body = Global.allocate_zeroed(layout).unwrap() as *mut BranchBody<KEY_LEN, Value, TABLE_SIZE>;
-            branch_body.write(BranchBody {
+            let layout = Layout::new::<$body_name<KEY_LEN, Value>>();
+            let branch_body = Global.allocate_zeroed(layout).unwrap().cast::<$body_name<KEY_LEN, Value>>();
+            *(branch_body.as_mut()) = $body_name {
                 leaf_count: 0,
                 rc: AtomicU16::new(1),
                 segment_count: 0,
                 node_hash: 0,
                 child_set: ByteBitset::new_empty(),
-                child_table: ByteTable::new(),
-            });
+                child_table: $table::new(),
+            };
 
             let actual_start_depth = max(start_depth as isize, branch_depth as isize - Self::FRAGMENT_LEN as isize) as usize;
 
@@ -317,27 +310,6 @@ where
         }
     }
 
-    fn grow(self) -> Head<KEY_LEN, Value> {
-        unsafe {
-            let old_layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE>>();
-            let new_layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE*2>>();
-            let branch_body = Global.grow(self.body, old_layout, new_layout).unwrap() as *mut BranchBody<KEY_LEN, Value, TABLE_SIZE*2>;
-
-            branch_body.child_table.grow_repair();
-
-            let new_head = BranchHead<KEY_LEN, Value, TABLE_SIZE*2> {
-                tag: BranchHead<KEY_LEN, Value, TABLE_SIZE*2>::TAG,
-                start_depth: self.start_depth,
-                fragment: self.fragment,
-                end_depth: self.end_depth,
-                body: branch_body,
-                phantom: PhantomData
-            };
-
-            new_head.into()
-        }
-    }
-
     fn expand(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
         let actual_start_depth = max(start_depth as isize, self.end_depth as isize - Self::FRAGMENT_LEN as isize) as usize;
         self.start_depth = actual_start_depth as u8;
@@ -346,8 +318,8 @@ where
         self.into()
     }
 
-    fn insert(&mut self, child: Head<KEY_LEN, Value>) {
-        self.body.as_mut().child_table.put(child);
+    fn insert(&mut self, child: Head<KEY_LEN, Value>) -> Head<KEY_LEN, Value> {
+        self.body.as_mut().child_table.put(child)
     }
 
     fn put(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value, subtree_clone: bool) -> Head<KEY_LEN, Value> {
@@ -382,35 +354,67 @@ where
                 //cow.body.leaf_count = new_leaf_count;
                 //cow.body.segment_count = new_segment_count;
 
-                cow.body.as_mut().child_table.put(new_child)
+                cow.insert(new_child);
                 return cow.into();
             }
-            //TODO >>
-
             let new_child = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
 
             let mut cow = if needs_clone { self.clone() } else { self };
 
-            let displaced = cow.body.as_mut().child_table.put(new_child);
+            let displaced = cow.insert(new_child);
             let grown: Head<KEY_LEN, Value> = cow.into();
-            while (displaced.key().is_some()) {
-
+            while displaced.key().is_some() {
                 grown = grown.grow();
-                displaced = grown.insert(entry);
+                displaced = grown.insert(displaced);
             }
             return grown;
-            // << TODO
         }
 
         let sibling_leaf_node = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
 
-        let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
-        (&mut branch_head.branch1).insert(sibling_leaf_node);
-        (&mut branch_head.branch1).insert(self.wrap_path(branch_depth, key));
+        let mut branch_head = BranchHead4::<KEY_LEN, Value>::new(start_depth, branch_depth, key);
+        (&mut branch_head.branch4).insert(sibling_leaf_node);
+        (&mut branch_head.branch4).insert(self.wrap_path(branch_depth, key));
 
         return branch_head.wrap_path(start_depth, key);
     }
 }
+    }
+}
+
+create_branch!(BranchHead4, BranchBody4, HeadTag::Branch4, ByteTable4);
+create_branch!(BranchHead8, BranchBody8, HeadTag::Branch8, ByteTable8);
+create_branch!(BranchHead16, BranchBody16, HeadTag::Branch16, ByteTable16);
+create_branch!(BranchHead32, BranchBody32, HeadTag::Branch32, ByteTable32);
+create_branch!(BranchHead64, BranchBody64, HeadTag::Branch64, ByteTable64);
+create_branch!(BranchHead128, BranchBody128, HeadTag::Branch128, ByteTable128);
+create_branch!(BranchHead256, BranchBody256, HeadTag::Branch256, ByteTable256);
+
+/*
+    fn grow(self) -> Head<KEY_LEN, Value> {
+        if Self::TAG == HeadTag::Branch256 {
+            return self.into();
+        }
+        unsafe {
+            let old_layout = Layout::new::<BranchBody<KEY_LEN, Value, TABLE_SIZE>>();
+            let new_layout = Layout::new::<BranchBody<KEY_LEN, Value, { Self::NEW_TABLE_SIZE }>>();
+            let branch_body = Global.grow(self.body.cast::<u8>(), old_layout, new_layout).unwrap().cast::<BranchBody<KEY_LEN, Value, Self::NEW_TABLE_SIZE>>();
+
+            branch_body.child_table.grow_repair();
+
+            let new_head = BranchHead::<KEY_LEN, Value> {
+                tag: BranchHead::<KEY_LEN, Value>::TAG,
+                start_depth: self.start_depth,
+                fragment: self.fragment,
+                end_depth: self.end_depth,
+                body: branch_body,
+                phantom: PhantomData
+            };
+
+            new_head.into()
+        }
+    }
+*/
 
 #[derive(Debug)]
 #[repr(C)]
@@ -467,7 +471,7 @@ where
         unsafe {
             let end_depth = child.start_depth();
             let layout = Layout::new::<PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>>();
-            let path_body = Global.allocate_zeroed(layout).unwrap() as *mut PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>;
+            let path_body = Global.allocate_zeroed(layout).unwrap().cast::<PathBody<KEY_LEN, Value, BODY_FRAGMENT_LEN>>();
             path_body.write(PathBody {
                 child: child,
                 rc: AtomicU16::new(1),
@@ -538,9 +542,9 @@ where
 
         let sibling_leaf_node = LeafHead::new(branch_depth, key, value).wrap_path(branch_depth, key);
 
-        let mut branch_head = BranchHead::<KEY_LEN, Value, 1>::new(start_depth, branch_depth, key);
-        (&mut branch_head.branch1).insert(sibling_leaf_node);
-        (&mut branch_head.branch1).insert(self.expand(branch_depth, key));
+        let mut branch_head = BranchHead4::<KEY_LEN, Value>::new(start_depth, branch_depth, key);
+        (&mut branch_head.branch4).insert(sibling_leaf_node);
+        (&mut branch_head.branch4).insert(self.expand(branch_depth, key));
 
         return branch_head.wrap_path(start_depth, key);
     }
@@ -568,13 +572,13 @@ where
 #[repr(u8)]
 enum HeadTag {
     Empty = 0,
-    Branch1,
-    Branch2,
     Branch4,
     Branch8,
     Branch16,
     Branch32,
     Branch64,
+    Branch128,
+    Branch256,
     Path14,
     Path30,
     Path46,
@@ -591,13 +595,13 @@ where
     any: [MaybeUninit<u8>; 16],
     unknown: ManuallyDrop<UnknownHead>,
     empty: ManuallyDrop<EmptyHead>,
-    branch1: ManuallyDrop<BranchHead<KEY_LEN, Value, 1>>,
-    branch2: ManuallyDrop<BranchHead<KEY_LEN, Value, 2>>,
-    branch4: ManuallyDrop<BranchHead<KEY_LEN, Value, 4>>,
-    branch8: ManuallyDrop<BranchHead<KEY_LEN, Value, 8>>,
-    branch16: ManuallyDrop<BranchHead<KEY_LEN, Value, 16>>,
-    branch32: ManuallyDrop<BranchHead<KEY_LEN, Value, 32>>,
-    branch64: ManuallyDrop<BranchHead<KEY_LEN, Value, 64>>,
+    branch4: ManuallyDrop<BranchHead4<KEY_LEN, Value>>,
+    branch8: ManuallyDrop<BranchHead8<KEY_LEN, Value>>,
+    branch16: ManuallyDrop<BranchHead16<KEY_LEN, Value>>,
+    branch32: ManuallyDrop<BranchHead32<KEY_LEN, Value>>,
+    branch64: ManuallyDrop<BranchHead64<KEY_LEN, Value>>,
+    branch128: ManuallyDrop<BranchHead128<KEY_LEN, Value>>,
+    branch256: ManuallyDrop<BranchHead256<KEY_LEN, Value>>,
     path14: ManuallyDrop<PathHead<KEY_LEN, Value, 14>>,
     path30: ManuallyDrop<PathHead<KEY_LEN, Value, 30>>,
     path46: ManuallyDrop<PathHead<KEY_LEN, Value, 46>>,
@@ -649,19 +653,34 @@ where
                 HeadTag::Path30 => self.path30.expand(start_depth, key),
                 HeadTag::Path46 => self.path46.expand(start_depth, key),
                 HeadTag::Path62 => self.path62.expand(start_depth, key),
-                HeadTag::Branch1 => self.branch1.expand(start_depth, key),
-                HeadTag::Branch2 => self.branch2.expand(start_depth, key),
                 HeadTag::Branch4 => self.branch4.expand(start_depth, key),
                 HeadTag::Branch8 => self.branch8.expand(start_depth, key),
                 HeadTag::Branch16 => self.branch16.expand(start_depth, key),
                 HeadTag::Branch32 => self.branch32.expand(start_depth, key),
                 HeadTag::Branch64 => self.branch64.expand(start_depth, key),
+                HeadTag::Branch128 => self.branch128.expand(start_depth, key),
+                HeadTag::Branch256 => self.branch256.expand(start_depth, key),
             }
         }
     }
 
     fn start_depth(&self) -> u8 {
         unsafe {self.unknown.start_depth}
+    }
+
+    fn insert(&mut self, child: Head<KEY_LEN, Value>) -> Head<KEY_LEN, Value> {
+        unsafe {
+            match self.unknown.tag {
+                HeadTag::Branch4 => self.branch4.insert(child),
+                HeadTag::Branch8 => self.branch8.insert(child),
+                HeadTag::Branch16 => self.branch16.insert(child),
+                HeadTag::Branch32 => self.branch32.insert(child),
+                HeadTag::Branch64 => self.branch64.insert(child),
+                HeadTag::Branch128 => self.branch128.insert(child),
+                HeadTag::Branch256 => self.branch256.insert(child),
+                _ => panic!("called insert on non-branch")
+            }
+        }
     }
 
     pub fn put(self, start_depth: usize, key: &[u8; KEY_LEN], value: Value, cow: bool) -> Self {
@@ -673,13 +692,13 @@ where
                 HeadTag::Path30 => self.path30.put(start_depth, key, value, cow),
                 HeadTag::Path46 => self.path46.put(start_depth, key, value, cow),
                 HeadTag::Path62 => self.path62.put(start_depth, key, value, cow),
-                HeadTag::Branch1 => self.branch1.put(start_depth, key, value, cow),
-                HeadTag::Branch2 => self.branch2.put(start_depth, key, value, cow),
                 HeadTag::Branch4 => self.branch4.put(start_depth, key, value, cow),
                 HeadTag::Branch8 => self.branch8.put(start_depth, key, value, cow),
                 HeadTag::Branch16 => self.branch16.put(start_depth, key, value, cow),
                 HeadTag::Branch32 => self.branch32.put(start_depth, key, value, cow),
                 HeadTag::Branch64 => self.branch64.put(start_depth, key, value, cow),
+                HeadTag::Branch128 => self.branch128.put(start_depth, key, value, cow),
+                HeadTag::Branch256 => self.branch256.put(start_depth, key, value, cow),
             }
         }
     }
@@ -699,13 +718,13 @@ where
                 HeadTag::Path30 => self.path30.fmt(f),
                 HeadTag::Path46 => self.path46.fmt(f),
                 HeadTag::Path62 => self.path62.fmt(f),
-                HeadTag::Branch1 => self.branch1.fmt(f),
-                HeadTag::Branch2 => self.branch2.fmt(f),
                 HeadTag::Branch4 => self.branch4.fmt(f),
                 HeadTag::Branch8 => self.branch8.fmt(f),
                 HeadTag::Branch16 => self.branch16.fmt(f),
                 HeadTag::Branch32 => self.branch32.fmt(f),
                 HeadTag::Branch64 => self.branch64.fmt(f),
+                HeadTag::Branch128 => self.branch128.fmt(f),
+                HeadTag::Branch256 => self.branch256.fmt(f),
             }
         }
     }
@@ -745,13 +764,13 @@ where
                 HeadTag::Path30 => Self { path30: self.path30.clone() },
                 HeadTag::Path46 => Self { path46: self.path46.clone() },
                 HeadTag::Path62 => Self { path62: self.path62.clone() },
-                HeadTag::Branch1 => Self { branch1: self.branch1.clone() },
-                HeadTag::Branch2 => Self { branch2: self.branch2.clone() },
                 HeadTag::Branch4 => Self { branch4: self.branch4.clone() },
                 HeadTag::Branch8 => Self { branch8: self.branch8.clone() },
                 HeadTag::Branch16 => Self { branch16: self.branch16.clone() },
                 HeadTag::Branch32 => Self { branch32: self.branch32.clone() },
                 HeadTag::Branch64 => Self { branch64: self.branch64.clone() },
+                HeadTag::Branch128 => Self { branch128: self.branch128.clone() },
+                HeadTag::Branch256 => Self { branch256: self.branch256.clone() },
             }
         }
     }
@@ -771,13 +790,13 @@ where
                 HeadTag::Path30 => ManuallyDrop::drop(&mut self.path30),
                 HeadTag::Path46 => ManuallyDrop::drop(&mut self.path46),
                 HeadTag::Path62 => ManuallyDrop::drop(&mut self.path62),
-                HeadTag::Branch1 => ManuallyDrop::drop(&mut self.branch1),
-                HeadTag::Branch2 => ManuallyDrop::drop(&mut self.branch2),
                 HeadTag::Branch4 => ManuallyDrop::drop(&mut self.branch4),
                 HeadTag::Branch8 => ManuallyDrop::drop(&mut self.branch8),
                 HeadTag::Branch16 => ManuallyDrop::drop(&mut self.branch16),
                 HeadTag::Branch32 => ManuallyDrop::drop(&mut self.branch32),
                 HeadTag::Branch64 => ManuallyDrop::drop(&mut self.branch64),
+                HeadTag::Branch128 => ManuallyDrop::drop(&mut self.branch128),
+                HeadTag::Branch256 => ManuallyDrop::drop(&mut self.branch256),
             }
         }
     }
@@ -859,14 +878,14 @@ mod tests {
 
     #[test]
     fn branch_size() {
-        assert_eq!(mem::size_of::<ByteTable<1, Head<64, ()>>>(), 64);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 1>>(), 64 * 2);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 2>>(), 64 * 3);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 4>>(), 64 * 5);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 8>>(), 64 * 9);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 16>>(), 64 * 17);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 32>>(), 64 * 33);
-        assert_eq!(mem::size_of::<BranchBody<64, (), 64>>(), 64 * 65);
+        assert_eq!(mem::size_of::<ByteTable4<Head<64, ()>>>(), 64);
+        assert_eq!(mem::size_of::<BranchBody4<64, ()>>(), 64 * 2);
+        assert_eq!(mem::size_of::<BranchBody8<64, ()>>(), 64 * 3);
+        assert_eq!(mem::size_of::<BranchBody16<64, ()>>(), 64 * 5);
+        assert_eq!(mem::size_of::<BranchBody32<64, ()>>(), 64 * 9);
+        assert_eq!(mem::size_of::<BranchBody64<64, ()>>(), 64 * 17);
+        assert_eq!(mem::size_of::<BranchBody128<64, ()>>(), 64 * 33);
+        assert_eq!(mem::size_of::<BranchBody256<64, ()>>(), 64 * 65);
     }
 
     #[test]

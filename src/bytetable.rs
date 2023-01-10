@@ -54,7 +54,7 @@ pub unsafe trait ByteEntry {
     fn key(&self) -> Option<u8>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct ByteBucket<T: ByteEntry + Clone> {
     entries: [T; BUCKET_ENTRY_COUNT],
@@ -120,7 +120,7 @@ fn compress_hash(bucket_count: usize, hash: usize) -> usize {
 
 macro_rules! create_bytetable {
     ($name:ident, $size:expr) => {
-        #[derive(Clone, Debug)]
+        #[derive(Clone)]
         #[repr(transparent)]
         pub struct $name<T: ByteEntry + Clone> {
             buckets: [ByteBucket<T>; $size],
@@ -133,7 +133,7 @@ macro_rules! create_bytetable {
                 }
             }
 
-            pub fn get(&mut self, byte_key: u8) -> Option<&mut T> {
+            pub fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
                 let ideal_entry =
                     self.buckets[compress_hash($size, ideal_hash(byte_key))].get_key(byte_key);
                 if ideal_entry.is_some() {
@@ -147,6 +147,14 @@ macro_rules! create_bytetable {
                         .get_key(byte_key);
                 }
                 return None;
+            }
+
+            pub fn take(&mut self, byte_key: u8) -> Option<T> {
+                if let Some(entry) = self.get_mut(byte_key) {
+                    Some(mem::replace(entry, unsafe { mem::zeroed() }))
+                } else {
+                    None
+                }
             }
 
             pub fn put(&mut self, entry: T) -> T {
@@ -303,7 +311,7 @@ mod tests {
         fn empty_table_then_empty_get(n in 0u8..255) {
             init();
             let mut table: ByteTable4<DummyEntry> = ByteTable4::new();
-            prop_assert!(table.get(n).is_none());
+            prop_assert!(table.take(n).is_none());
         }
 
         #[test]
@@ -313,7 +321,7 @@ mod tests {
             let entry = DummyEntry::new(n);
             let displaced = table.put(entry);
             prop_assert!(displaced.key().is_none());
-            prop_assert!(table.get(n).is_some());
+            prop_assert!(table.take(n).is_some());
         }
     }
 }

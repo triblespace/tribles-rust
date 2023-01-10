@@ -60,7 +60,7 @@ macro_rules! create_converters {
             Value: SizeLimited<13> + Clone,
             [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
         {
-            fn from(head: EmptyHead) -> Self {
+            fn from(head: EmptyHead<KEY_LEN, Value>) -> Self {
                 sizeless_transmute::<$name<KEY_LEN, Value>, Head<KEY_LEN, Value>>(head)
             }
         }
@@ -129,6 +129,7 @@ where
 {
     tag: HeadTag,
     padding: [u8; 15],
+    phantom: PhantomData<Value>,
 }
 
 create_converters!(EmptyHead);
@@ -144,6 +145,7 @@ where
         (Self {
             tag: Self::TAG,
             padding: mem::zeroed(),
+            phantom: PhantomData,
         })
         .into()
     }
@@ -773,10 +775,10 @@ macro_rules! create_path {
     };
 }
 
-create_branch!(PathHead14, PathBody14, HeadTag::Path14, 14,);
-create_branch!(PathHead30, PathBody30, HeadTag::Path30, 30,);
-create_branch!(PathHead46, PathBody46, HeadTag::Path46, 46,);
-create_branch!(PathHead62, PathBody62, HeadTag::Path62, 62,);
+create_path!(PathHead14, PathBody14, HeadTag::Path14, 14);
+create_path!(PathHead30, PathBody30, HeadTag::Path30, 30);
+create_path!(PathHead46, PathBody46, HeadTag::Path46, 46);
+create_path!(PathHead62, PathBody62, HeadTag::Path62, 62);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
@@ -806,7 +808,7 @@ macro_rules! dispatch {
 macro_rules! dispatch_all {
         ($self:ident, $name:ident, $call:tt) => {
             match $self.tag {
-                HeadTag::Empty => dispatch!(EmptyHead, $self, $name, $call),
+                HeadTag::Empty => dispatch!(EmptyHead<KEY_LEN, Value>, $self, $name, $call),
                 HeadTag::Leaf => dispatch!(LeafHead<KEY_LEN, Value>, $self, $name, $call),
                 HeadTag::Path14 => dispatch!(PathHead14<KEY_LEN, Value>, $self, $name, $call),
                 HeadTag::Path30 => dispatch!(PathHead30<KEY_LEN, Value>, $self, $name, $call),
@@ -833,7 +835,7 @@ macro_rules! dispatch_ref {
 macro_rules! dispatch_ref_all {
     ($self:ident, $name:ident, $call:tt) => {
         match $self.tag {
-            HeadTag::Empty => dispatch_ref!(EmptyHead, $self, $name, $call),
+            HeadTag::Empty => dispatch_ref!(EmptyHead<KEY_LEN, Value>, $self, $name, $call),
             HeadTag::Leaf => dispatch_ref!(LeafHead<KEY_LEN, Value>, $self, $name, $call),
             HeadTag::Path14 => dispatch_ref!(PathHead14<KEY_LEN, Value>, $self, $name, $call),
             HeadTag::Path30 => dispatch_ref!(PathHead30<KEY_LEN, Value>, $self, $name, $call),
@@ -860,7 +862,7 @@ macro_rules! dispatch_mut {
 macro_rules! dispatch_mut_all {
     ($self:ident, $name:ident, $call:tt) => {
         match $self.tag {
-            HeadTag::Empty => dispatch_mut!(EmptyHead, $self, $name, $call),
+            HeadTag::Empty => dispatch_mut!(EmptyHead<KEY_LEN, Value>, $self, $name, $call),
             HeadTag::Leaf => dispatch_mut!(LeafHead<KEY_LEN, Value>, $self, $name, $call),
             HeadTag::Path14 => dispatch_mut!(PathHead14<KEY_LEN, Value>, $self, $name, $call),
             HeadTag::Path30 => dispatch_mut!(PathHead30<KEY_LEN, Value>, $self, $name, $call),
@@ -1014,12 +1016,12 @@ where
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
     fn zeroed() -> Self {
-        EmptyHead::new()
+        EmptyHead::<KEY_LEN, Value>::new()
     }
 
     fn key(&self) -> Option<u8> {
         unsafe {
-            if self.tag == EmptyHead::TAG {
+            if self.tag == EmptyHead::<KEY_LEN, Value>::TAG {
                 None
             } else {
                 Some(self.key)
@@ -1065,7 +1067,7 @@ where
 
     pub fn new() -> Self {
         Tree {
-            head: EmptyHead::new(),
+            head: EmptyHead::<KEY_LEN, Value>::new(),
         }
     }
 

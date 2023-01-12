@@ -633,11 +633,11 @@ where
 
         
         macro_rules! growinginsert { // TODO see if we can abstract the BranchN*2 logic away
-            (Branch4, $body:ident, $inserted:ident) => {
+            (Branch4, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
                     let new_body = $body.grow();
-                    growinginsert!(Branch8, new_body, $inserted);
+                    growinginsert!(Branch8, $start_depth, $end_depth, $fragment, new_body, $inserted);
                 } else {
                     return Self::Branch4 {
                         start_depth: $start_depth,
@@ -647,11 +647,11 @@ where
                     };
                 }
             };
-            (Branch8, $body:ident, $inserted:ident) => {
+            (Branch8, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
                     let new_body = $body.grow();
-                    growinginsert!(Branch16, new_body, $inserted);
+                    growinginsert!(Branch16, $start_depth, $end_depth, $fragment, new_body, $inserted);
                 } else {
                     return Self::Branch8 {
                         start_depth: $start_depth,
@@ -661,11 +661,11 @@ where
                     };
                 }
             };
-            (Branch16, $body:ident, $inserted:ident) => {
+            (Branch16, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
                     let new_body = $body.grow();
-                    growinginsert!(Branch32, new_body, $inserted);
+                    growinginsert!(Branch32, $start_depth, $end_depth, $fragment, new_body, $inserted);
                 } else {
                     return Self::Branch16 {
                         start_depth: $start_depth,
@@ -675,11 +675,11 @@ where
                     };
                 }
             };
-            (Branch32, $body:ident, $inserted:ident) => {
+            (Branch32, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
                     let new_body = $body.grow();
-                    growinginsert!(Branch64, new_body, $inserted);
+                    growinginsert!(Branch64, $start_depth, $end_depth, $fragment, new_body, $inserted);
                 } else {
                     return Self::Branch32 {
                         start_depth: $start_depth,
@@ -689,11 +689,11 @@ where
                     };
                 }
             };
-            (Branch64, $body:ident, $inserted:ident) => {
+            (Branch64, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
                     let new_body = $body.grow();
-                    growinginsert!(Branch128, new_body, $inserted);
+                    growinginsert!(Branch128, $start_depth, $end_depth, $fragment, new_body, $inserted);
                 } else {
                     return Self::Branch64 {
                         start_depth: $start_depth,
@@ -703,11 +703,11 @@ where
                     };
                 }
             };
-            (Branch128, $body:ident, $inserted:ident) => {
+            (Branch128, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
                     let new_body = $body.grow();
-                    growinginsert!(Branch256, new_body, $inserted);
+                    growinginsert!(Branch256, $start_depth, $end_depth, $fragment, new_body, $inserted);
                 } else {
                     return Self::Branch128 {
                         start_depth: $start_depth,
@@ -717,7 +717,7 @@ where
                     };
                 }
             };
-            (Branch256, $body:ident, $inserted:ident) => {
+            (Branch256, $start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $inserted:ident) => {
                 $body.insert($inserted);
                 return Self::Branch256 {
                     start_depth: $start_depth,

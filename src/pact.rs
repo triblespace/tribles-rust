@@ -636,47 +636,95 @@ where
             (Branch4, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
-                    $body = $body.grow();
-                    growinginsert!(Branch8, $body, $inserted);
+                    let new_body = $body.grow();
+                    growinginsert!(Branch8, new_body, $inserted);
+                } else {
+                    return Self::Branch4 {
+                        start_depth: $start_depth,
+                        end_depth: $end_depth,
+                        fragment: $fragment,
+                        boy: $body,
+                    };
                 }
             };
             (Branch8, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
-                    $body = $body.grow();
-                    growinginsert!(Branch16, $body, $inserted);
+                    let new_body = $body.grow();
+                    growinginsert!(Branch16, new_body, $inserted);
+                } else {
+                    return Self::Branch8 {
+                        start_depth: $start_depth,
+                        end_depth: $end_depth,
+                        fragment: $fragment,
+                        boy: $body,
+                    };
                 }
             };
             (Branch16, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
-                    $body = $body.grow();
-                    growinginsert!(Branch32, $body, $inserted);
+                    let new_body = $body.grow();
+                    growinginsert!(Branch32, new_body, $inserted);
+                } else {
+                    return Self::Branch16 {
+                        start_depth: $start_depth,
+                        end_depth: $end_depth,
+                        fragment: $fragment,
+                        boy: $body,
+                    };
                 }
             };
             (Branch32, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
-                    $body = $body.grow();
-                    growinginsert!(Branch64, $body, $inserted);
+                    let new_body = $body.grow();
+                    growinginsert!(Branch64, new_body, $inserted);
+                } else {
+                    return Self::Branch32 {
+                        start_depth: $start_depth,
+                        end_depth: $end_depth,
+                        fragment: $fragment,
+                        boy: $body,
+                    };
                 }
             };
             (Branch64, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
-                    $body = $body.grow();
-                    growinginsert!(Branch128, $body, $inserted);
+                    let new_body = $body.grow();
+                    growinginsert!(Branch128, new_body, $inserted);
+                } else {
+                    return Self::Branch64 {
+                        start_depth: $start_depth,
+                        end_depth: $end_depth,
+                        fragment: $fragment,
+                        boy: $body,
+                    };
                 }
             };
             (Branch128, $body:ident, $inserted:ident) => {
                 $inserted = $body.insert($inserted);
                 if $inserted.key().is_some() {
-                    $body = $body.grow();
-                    growinginsert!(Branch256, $body, $inserted);
+                    let new_body = $body.grow();
+                    growinginsert!(Branch256, new_body, $inserted);
+                } else {
+                    return Self::Branch128 {
+                        start_depth: $start_depth,
+                        end_depth: $end_depth,
+                        fragment: $fragment,
+                        boy: $body,
+                    };
                 }
             };
             (Branch256, $body:ident, $inserted:ident) => {
                 $body.insert($inserted);
+                return Self::Branch256 {
+                    start_depth: $start_depth,
+                    end_depth: $end_depth,
+                    fragment: $fragment,
+                    body: $body,
+                };
             };
         }
 
@@ -728,13 +776,6 @@ where
                     let mut new_body = Arc::make_mut($body);
 
                     growinginsert!($variant, new_body, inserted);
-
-                    return Self::$variant {
-                        start_depth: $start_depth,
-                        end_depth: $end_depth,
-                        fragment: $fragment,
-                        boy: new_body,
-                    };
                 }
 
                 let sibling_leaf_node =

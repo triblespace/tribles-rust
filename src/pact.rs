@@ -387,6 +387,24 @@ where
         }
     }
 
+    fn count(&self) -> usize {
+        match self {
+            Self::Empty { .. } => 0,
+            Self::Leaf { .. } => 1,
+            Self::Path14 { body, .. } => body.child.count(),
+            Self::Path30 { body, .. } => body.child.count(),
+            Self::Path46 { body, .. } => body.child.count(),
+            Self::Path62 { body, .. } => body.child.count(),
+            Self::Branch4 { body, .. } => body.leaf_count as usize,
+            Self::Branch8 { body, .. } => body.leaf_count as usize,
+            Self::Branch16 { body, .. } => body.leaf_count as usize,
+            Self::Branch32 { body, .. } => body.leaf_count as usize,
+            Self::Branch64 { body, .. } => body.leaf_count as usize,
+            Self::Branch128 { body, .. } => body.leaf_count as usize,
+            Self::Branch256 { body, .. } => body.leaf_count as usize,
+        }
+    }
+
     fn expand(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
         macro_rules! pathexpand {
             ($end_depth:ident, $body:ident, $variant:ident, $fragment_len: expr) => {{
@@ -814,18 +832,17 @@ where
                         // The node already has a child branch with the same byte byte_key as the one in the key.
                         let old_child = new_body.child_table.take(byte_key).unwrap();
                         //let old_child_hash = old_child.hash(key);
-                        //let old_child_leaf_count = old_child.count();
                         //let old_child_segment_count = old_child.segmentCount(branch_depth);
-                        let new_child = old_child.put(branch_depth, key, value);
                         //let new_child_hash = new_child.hash(key);
+                        let old_child_leaf_count = old_child.count();
+                        let new_child = old_child.put(branch_depth, key, value);
 
                         //let new_hash = self.body.node_hash.update(old_child_hash, new_child_hash);
-                        //let new_leaf_count = self.body.leaf_count - old_child_leaf_count + new_child.count();
                         //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(branch_depth);
 
                         //new_body.node_hash = new_hash;
-                        //new_body.leaf_count = new_leaf_count;
                         //new_body.segment_count = new_segment_count;
+                        new_body.leaf_count = new_body.leaf_count - old_child_leaf_count as u64 + new_child.count() as u64;
                         new_body.child_table.put(new_child);
 
                         return Self::$variant {

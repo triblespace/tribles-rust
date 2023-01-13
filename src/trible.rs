@@ -1,4 +1,7 @@
-#[derive(Copy, Clone, PartialEq, Eq)]
+use arbitrary::Arbitrary;
+
+#[derive(Arbitrary, Copy, Clone, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct Trible {
     pub data: [u8; 64],
 }

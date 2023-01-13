@@ -118,8 +118,33 @@ fn compress_hash(bucket_count: usize, hash: usize) -> usize {
     hash & mask
 }
 
+macro_rules! create_grow {
+    ($name:ident,) => {};
+    ($name:ident, $grown_name:ident) => {
+        pub fn grow(mut self) -> $grown_name<T> {
+            let buckets_len = self.buckets.len();
+            let mut grown = $grown_name::new();
+            let (lower_portion, upper_portion) = grown.buckets.split_at_mut(buckets_len);
+            for bucket_index in 0..buckets_len {
+                for entry in &mut self.buckets[bucket_index].entries {
+                    if let Some(byte_key) = entry.key() {
+                        let ideal_index = compress_hash(buckets_len, ideal_hash(byte_key));
+                        let rand_index = compress_hash(buckets_len, rand_hash(byte_key));
+                        if bucket_index == ideal_index || bucket_index == rand_index {
+                            mem::swap(entry, lower_portion[bucket_index].get_empty().unwrap());
+                        } else {
+                            mem::swap(entry, upper_portion[bucket_index].get_empty().unwrap());
+                        }
+                    }
+                }
+            }
+            return grown;
+        }
+    };
+}
+
 macro_rules! create_bytetable {
-    ($name:ident, $size:expr) => {
+    ($name:ident, $size:expr, $($grown_name:ident)?) => {
         #[derive(Clone)]
         #[repr(transparent)]
         pub struct $name<T: ByteEntry + Clone> {
@@ -218,6 +243,9 @@ macro_rules! create_bytetable {
                     return T::zeroed();
                 }
             }
+
+            create_grow!($name, $($grown_name)?);
+
             /*
                 // Contract: Key looked up must exist. Ensure with has.
                 unsafe fn get_existing(&self, byte_key: u8) -> Self::Entry;
@@ -225,33 +253,17 @@ macro_rules! create_bytetable {
                 // Contract: Key looked up must exist. Ensure with has.
                 unsafe fn put_existing(&mut self, entry: T);
             */
-            pub unsafe fn grow_repair(&mut self) {
-                assert!($size % 2 == 0);
-                let (old_portion, new_portion) = self.buckets.split_at_mut($size / 2);
-                for bucket_index in 0..$size / 2 {
-                    for entry in &mut old_portion[bucket_index].entries {
-                        if let Some(byte_key) = entry.key() {
-                            let ideal_index = compress_hash($size, ideal_hash(byte_key));
-                            let rand_index = compress_hash($size, rand_hash(byte_key));
-                            if bucket_index == ideal_index || bucket_index == rand_index {
-                                continue;
-                            }
-                            mem::swap(entry, new_portion[bucket_index].get_empty().unwrap());
-                        }
-                    }
-                }
-            }
         }
     };
 }
 
-create_bytetable!(ByteTable4, 1);
-create_bytetable!(ByteTable8, 2);
-create_bytetable!(ByteTable16, 4);
-create_bytetable!(ByteTable32, 8);
-create_bytetable!(ByteTable64, 16);
-create_bytetable!(ByteTable128, 32);
-create_bytetable!(ByteTable256, 64);
+create_bytetable!(ByteTable4, 1, ByteTable8);
+create_bytetable!(ByteTable8, 2, ByteTable16);
+create_bytetable!(ByteTable16, 4, ByteTable32);
+create_bytetable!(ByteTable32, 8, ByteTable64);
+create_bytetable!(ByteTable64, 16, ByteTable128);
+create_bytetable!(ByteTable128, 32, ByteTable256);
+create_bytetable!(ByteTable256, 64,);
 
 #[cfg(test)]
 mod tests {

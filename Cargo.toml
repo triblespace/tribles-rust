@@ -12,11 +12,12 @@ license-file = "LICENSE"
 rand = "0.8.5"
 ux = "0.1.5"
 siphasher = "0.3"
-arbitrary = { version = "1.2.2", features = ["derive"] }
+arbitrary = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.3"
 proptest = "1.0.0"
+im = "15.1.0"
 
 [[bench]]
 name = "benchmark"

@@ -68,8 +68,8 @@ macro_rules! create_grow {
         fn grow(self) -> $grown_name<KEY_LEN, Value> {
             $grown_name {
                 leaf_count: self.leaf_count,
-                segment_count: self.segment_count,
-                node_hash: self.node_hash,
+                //segment_count: self.segment_count,
+                //node_hash: self.node_hash,
                 child_set: self.child_set,
                 child_table: self.child_table.grow(),
             }
@@ -88,8 +88,8 @@ macro_rules! create_branchbody {
         {
             leaf_count: u64,
             //rc: AtomicU16,
-            segment_count: u32, //TODO: increase this to a u48
-            node_hash: u128,
+            //segment_count: u32, //TODO: increase this to a u48
+            //node_hash: u128,
             child_set: ByteBitset,
             child_table: $table<Head<KEY_LEN, Value>>,
         }
@@ -308,10 +308,10 @@ where
         */
 
         let mut branch_body = BranchBody4 {
-            leaf_count: 0,
+            leaf_count: left.count() + right.count(),
             //rc: AtomicU16::new(1),
-            segment_count: 0,
-            node_hash: 0,
+            //segment_count: 0,
+            //node_hash: 0,
             child_set: ByteBitset::new_empty(),
             child_table: ByteTable4::new(),
         };
@@ -387,7 +387,7 @@ where
         }
     }
 
-    fn count(&self) -> usize {
+    fn count(&self) -> u64 {
         match self {
             Self::Empty { .. } => 0,
             Self::Leaf { .. } => 1,
@@ -395,13 +395,13 @@ where
             Self::Path30 { body, .. } => body.child.count(),
             Self::Path46 { body, .. } => body.child.count(),
             Self::Path62 { body, .. } => body.child.count(),
-            Self::Branch4 { body, .. } => body.leaf_count as usize,
-            Self::Branch8 { body, .. } => body.leaf_count as usize,
-            Self::Branch16 { body, .. } => body.leaf_count as usize,
-            Self::Branch32 { body, .. } => body.leaf_count as usize,
-            Self::Branch64 { body, .. } => body.leaf_count as usize,
-            Self::Branch128 { body, .. } => body.leaf_count as usize,
-            Self::Branch256 { body, .. } => body.leaf_count as usize,
+            Self::Branch4 { body, .. } => body.leaf_count,
+            Self::Branch8 { body, .. } => body.leaf_count,
+            Self::Branch16 { body, .. } => body.leaf_count,
+            Self::Branch32 { body, .. } => body.leaf_count,
+            Self::Branch64 { body, .. } => body.leaf_count,
+            Self::Branch128 { body, .. } => body.leaf_count,
+            Self::Branch256 { body, .. } => body.leaf_count,
         }
     }
 
@@ -842,7 +842,7 @@ where
 
                         //new_body.node_hash = new_hash;
                         //new_body.segment_count = new_segment_count;
-                        new_body.leaf_count = new_body.leaf_count - old_child_leaf_count as u64 + new_child.count() as u64;
+                        new_body.leaf_count = (new_body.leaf_count - old_child_leaf_count as u64) + new_child.count() as u64;
                         new_body.child_table.put(new_child);
 
                         return Self::$variant {
@@ -1025,7 +1025,7 @@ where
     }
 }
 
-pub struct Tree<const KEY_LEN: usize, Value>
+pub struct PACT<const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -1033,7 +1033,7 @@ where
     head: Head<KEY_LEN, Value>,
 }
 
-impl<const KEY_LEN: usize, Value> Tree<KEY_LEN, Value>
+impl<const KEY_LEN: usize, Value> PACT<KEY_LEN, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -1041,7 +1041,7 @@ where
     const KEY_LEN_CHECK: usize = KEY_LEN - 64;
 
     pub fn new() -> Self {
-        Tree {
+        PACT {
             head: Head::<KEY_LEN, Value>::newEmpty(),
         }
     }
@@ -1049,6 +1049,10 @@ where
     pub fn put(&mut self, key: [u8; KEY_LEN], value: Value) {
         let root = mem::take(&mut self.head);
         self.head = root.put(0, &key, value);
+    }
+
+    pub fn count(&self) -> u64 {
+        self.head.count()
     }
 }
 
@@ -1064,13 +1068,13 @@ mod tests {
 
     #[test]
     fn empty_tree() {
-        let tree = Tree::<64, ()>::new();
+        let tree = PACT::<64, ()>::new();
     }
 
     #[test]
     fn tree_insert_one() {
         const KEY_SIZE: usize = 64;
-        let mut tree = Tree::<KEY_SIZE, ()>::new();
+        let mut tree = PACT::<KEY_SIZE, ()>::new();
         let key = [0; KEY_SIZE];
         tree.put(key, ());
     }

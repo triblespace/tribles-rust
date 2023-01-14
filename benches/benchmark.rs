@@ -3,9 +3,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
 use tribles::trible::*;
-use tribles::FUCID::*;
+use tribles::fucid::FUCID;
 use std::iter::FromIterator;
 
+use tribles::pact;
 use tribles::pact::PACT;
 
 use im::OrdSet;
@@ -61,6 +62,8 @@ fn im_put(c: &mut Criterion) {
 }
 
 fn pact_put(c: &mut Criterion) {
+    pact::init();
+    
     let samples_10 = random_tribles(10);
     let samples_100 = random_tribles(100);
     let samples_1000 = random_tribles(1000);

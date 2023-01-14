@@ -6,8 +6,8 @@ pub mod bitset;
 pub mod bytetable;
 pub mod pact;
 pub mod trible;
-pub mod UFOID;
-pub mod FUCID;
+pub mod ufoid;
+pub mod fucid;
 
 #[cfg(test)]
 mod tests {}

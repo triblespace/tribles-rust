@@ -1,9 +1,28 @@
 use crate::bitset::ByteBitset;
+use crate::bytetable;
 use crate::bytetable::*;
-//use siphasher::sip128::{Hasher128, SipHasher24};
+use std::sync::Once;
 use std::cmp::{max, min};
 use std::mem;
 use std::sync::Arc;
+use rand::thread_rng;
+use rand::RngCore;
+use core::hash::Hasher;
+use siphasher::sip128::{Hasher128, SipHasher24};
+
+static mut SIP_KEY: [u8; 16] = [0; 16];
+static INIT: Once = Once::new();
+
+pub fn init() {
+    INIT.call_once(|| {
+        bytetable::init();
+        
+        let mut rng = thread_rng();
+        unsafe {
+            rng.fill_bytes(&mut SIP_KEY[..]);
+        }
+    });
+}
 
 pub trait SizeLimited<const LIMIT: usize>: Sized {
     const UNUSED: usize = LIMIT - std::mem::size_of::<Self>();
@@ -89,7 +108,7 @@ macro_rules! create_branchbody {
             leaf_count: u64,
             //rc: AtomicU16,
             //segment_count: u32, //TODO: increase this to a u48
-            //node_hash: u128,
+            //hash: u128,
             child_set: ByteBitset,
             child_table: $table<Head<KEY_LEN, Value>>,
         }
@@ -406,6 +425,52 @@ where
             Self::Branch256 { body, .. } => body.leaf_count,
         }
     }
+/*
+    fn hash(&self, prefix: [u8; KEY_LEN]) -> u128 {
+
+/* Path
+                    var key = prefix;
+
+                    var i = self.start_depth;
+                    while(i < self.branch_depth):(i += 1) {
+                        key[i] = self.peek(i).?;
+                    }
+
+                    return self.body.child.hash(key);
+*/
+
+/* Leaf
+
+*/
+
+        match self {
+            Self::Empty { .. } => panic!("Called `hash` on `Empty`."),
+            Self::Leaf { start_depth, fragment, .. } => {
+                let mut key = prefix;
+
+                let start = *start_depth as usize;
+                for i in start..KEY_LEN
+                    key[i] = fragment[index_start(start, i)];
+                }
+
+                let mut hasher = SipHasher24::new_with_key(&SIP_KEY);
+
+                return Hash.init(&key);
+            },
+            Self::Path14 { body, .. } => body.child.hash(),
+            Self::Path30 { body, .. } => body.child.hash(),
+            Self::Path46 { body, .. } => body.child.hash(),
+            Self::Path62 { body, .. } => body.child.hash(),
+            Self::Branch4 { body, .. } => body.hash,
+            Self::Branch8 { body, .. } => body.hash,
+            Self::Branch16 { body, .. } => body.hash,
+            Self::Branch32 { body, .. } => body.hash,
+            Self::Branch64 { body, .. } => body.hash,
+            Self::Branch128 { body, .. } => body.hash,
+            Self::Branch256 { body, .. } => body.hash,
+        }
+    }
+    */
 
     fn expand(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
         macro_rules! pathexpand {

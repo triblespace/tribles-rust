@@ -1,6 +1,6 @@
 use arbitrary::Arbitrary;
 
-#[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Trible {
     pub data: [u8; 64],

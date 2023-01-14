@@ -316,6 +316,8 @@ where
             child_table: ByteTable4::new(),
         };
 
+        branch_body.child_set.set(left.key().unwrap());
+        branch_body.child_set.set(right.key().unwrap());
         branch_body.child_table.put(left);
         branch_body.child_table.put(right);
 
@@ -830,7 +832,7 @@ where
                     let byte_key = key[branch_depth];
                     if new_body.child_set.is_set(byte_key) {
                         // The node already has a child branch with the same byte byte_key as the one in the key.
-                        let old_child = new_body.child_table.take(byte_key).unwrap();
+                        let old_child = new_body.child_table.take(byte_key).expect("table content should match child set content");
                         //let old_child_hash = old_child.hash(key);
                         //let old_child_segment_count = old_child.segmentCount(branch_depth);
                         //let new_child_hash = new_child.hash(key);
@@ -854,6 +856,8 @@ where
                     }
                     let mut inserted =
                     Self::newLeaf(branch_depth, key, value).wrap_path(branch_depth, key);
+
+                    new_body.child_set.set(inserted.key().expect("leaf should have a byte key"));
 
                     growinginsert!($variant, $start_depth, $end_depth, $fragment, new_body, inserted);
                 }

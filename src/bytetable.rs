@@ -124,12 +124,13 @@ macro_rules! create_grow {
         pub fn grow(mut self) -> $grown_name<T> {
             let buckets_len = self.buckets.len();
             let mut grown = $grown_name::new();
+            let grown_buckets_len = grown.buckets.len();
             let (lower_portion, upper_portion) = grown.buckets.split_at_mut(buckets_len);
             for bucket_index in 0..buckets_len {
                 for entry in &mut self.buckets[bucket_index].entries {
                     if let Some(byte_key) = entry.key() {
-                        let ideal_index = compress_hash(buckets_len, ideal_hash(byte_key));
-                        let rand_index = compress_hash(buckets_len, rand_hash(byte_key));
+                        let ideal_index = compress_hash(grown_buckets_len, ideal_hash(byte_key));
+                        let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
                         if bucket_index == ideal_index || bucket_index == rand_index {
                             mem::swap(entry, lower_portion[bucket_index].get_empty().unwrap());
                         } else {

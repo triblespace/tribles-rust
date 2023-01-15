@@ -2,6 +2,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::mem;
 use std::sync::Once;
+use crate::bitset::ByteBitset;
 
 /// The number of slots per bucket.
 const BUCKET_ENTRY_COUNT: usize = 4;
@@ -27,16 +28,7 @@ pub fn init() {
             bytes[i] = i as u8;
         }
 
-        'shuffle: loop {
-            bytes.shuffle(&mut rng);
-            for i in 0..256 {
-                if (i as u8).reverse_bits() == bytes[i] {
-                    continue 'shuffle;
-                }
-            }
-            break;
-        }
-
+        bytes.shuffle(&mut rng);
         unsafe {
             RANDOM_PERMUTATION_HASH = bytes;
         }
@@ -92,8 +84,8 @@ impl<T: ByteEntry + Clone> ByteBucket<T> {
 
     fn shove_preserving_ideals(
         &mut self,
-        bucket_count: usize,
-        bucket_index: usize,
+        bucket_count: u8,
+        bucket_index: u8,
         shoved_entry: T,
     ) -> T {
         for entry in &mut self.entries {
@@ -105,15 +97,15 @@ impl<T: ByteEntry + Clone> ByteBucket<T> {
     }
 }
 
-fn ideal_hash(byte_key: u8) -> usize {
-    byte_key.reverse_bits() as usize
+fn ideal_hash(byte_key: u8) -> u8 {
+    byte_key.reverse_bits()
 }
 
-fn rand_hash(byte_key: u8) -> usize {
-    unsafe { RANDOM_PERMUTATION_HASH[byte_key as usize] as usize }
+fn rand_hash(byte_key: u8) -> u8 {
+    unsafe { RANDOM_PERMUTATION_HASH[byte_key as usize] }
 }
 
-fn compress_hash(bucket_count: usize, hash: usize) -> usize {
+fn compress_hash(bucket_count: u8, hash: u8) -> u8 {
     let mask = bucket_count - 1;
     hash & mask
 }
@@ -124,14 +116,15 @@ macro_rules! create_grow {
         pub fn grow(mut self) -> $grown_name<T> {
             let buckets_len = self.buckets.len();
             let mut grown = $grown_name::new();
-            let grown_buckets_len = grown.buckets.len();
+            let grown_buckets_len = grown.buckets.len() as u8;
             let (lower_portion, upper_portion) = grown.buckets.split_at_mut(buckets_len);
             for bucket_index in 0..buckets_len {
                 for entry in &mut self.buckets[bucket_index].entries {
                     if let Some(byte_key) = entry.key() {
                         let ideal_index = compress_hash(grown_buckets_len, ideal_hash(byte_key));
                         let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
-                        if bucket_index == ideal_index || bucket_index == rand_index {
+                        
+                        if bucket_index as u8 == ideal_index || bucket_index as u8 == rand_index {
                             mem::swap(entry, lower_portion[bucket_index].get_empty().unwrap());
                         } else {
                             mem::swap(entry, upper_portion[bucket_index].get_empty().unwrap());
@@ -161,15 +154,15 @@ macro_rules! create_bytetable {
 
             pub fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
                 let ideal_entry =
-                    self.buckets[compress_hash($size, ideal_hash(byte_key))].get_key(byte_key);
+                    self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_key(byte_key);
                 if ideal_entry.is_some() {
-                    return self.buckets[compress_hash($size, ideal_hash(byte_key))]
+                    return self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize]
                         .get_key(byte_key);
                 }
                 let rand_entry =
-                    self.buckets[compress_hash($size, rand_hash(byte_key))].get_key(byte_key);
+                    self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get_key(byte_key);
                 if rand_entry.is_some() {
-                    return self.buckets[compress_hash($size, rand_hash(byte_key))]
+                    return self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize]
                         .get_key(byte_key);
                 }
                 return None;
@@ -186,15 +179,15 @@ macro_rules! create_bytetable {
             pub fn put(&mut self, entry: T) -> T {
                 if let Some(mut byte_key) = entry.key() {
                     if let Some(existing_entry) =
-                        self.buckets[compress_hash($size, ideal_hash(byte_key))].get_key(byte_key)
+                        self.buckets[compress_hash($size, ideal_hash(byte_key)) as usize].get_key(byte_key)
                     {
-                        mem::replace(existing_entry, entry);
+                        *existing_entry = entry;
                         return T::zeroed();
                     }
                     if let Some(existing_entry) =
-                        self.buckets[compress_hash($size, rand_hash(byte_key))].get_key(byte_key)
+                        self.buckets[compress_hash($size, rand_hash(byte_key)) as usize].get_key(byte_key)
                     {
-                        let _ = mem::replace(existing_entry, entry);
+                        *existing_entry = entry;
                         return T::zeroed();
                     }
 
@@ -216,7 +209,7 @@ macro_rules! create_bytetable {
                         };
                         let bucket_index = compress_hash($size, hash);
 
-                        if let Some(empty_entry) = self.buckets[bucket_index].get_empty() {
+                        if let Some(empty_entry) = self.buckets[bucket_index as usize].get_empty() {
                             return mem::replace(empty_entry, current_entry);
                         }
 
@@ -225,7 +218,7 @@ macro_rules! create_bytetable {
                         }
 
                         if max_grown {
-                            current_entry = self.buckets[bucket_index].shove_preserving_ideals(
+                            current_entry = self.buckets[bucket_index as usize].shove_preserving_ideals(
                                 $size,
                                 bucket_index,
                                 current_entry,
@@ -234,7 +227,7 @@ macro_rules! create_bytetable {
                         } else {
                             retries += 1;
                             current_entry =
-                                self.buckets[bucket_index].shove_randomly(current_entry);
+                                self.buckets[bucket_index as usize].shove_randomly(current_entry);
                             byte_key = current_entry.key().unwrap();
                             use_ideal_hash =
                                 bucket_index != compress_hash($size, ideal_hash(byte_key));
@@ -254,6 +247,18 @@ macro_rules! create_bytetable {
                 // Contract: Key looked up must exist. Ensure with has.
                 unsafe fn put_existing(&mut self, entry: T);
             */
+
+            pub fn keys(&self) -> ByteBitset {
+                let mut bitset = ByteBitset::new_empty();
+                for bucket in &self.buckets {
+                    for entry in &bucket.entries {
+                        if let Some(byte_key) = entry.key() {
+                            bitset.set(byte_key);
+                        }
+                    }
+                }
+                return bitset;
+            }
         }
     };
 }
@@ -335,6 +340,48 @@ mod tests {
             let displaced = table.put(entry);
             prop_assert!(displaced.key().is_none());
             prop_assert!(table.take(n).is_some());
+        }
+
+        #[test]
+        fn put_success(entries in prop::collection::vec(0u8..255, 1..32)) {
+            init();
+
+            let mut displaced = DummyEntry::zeroed();
+            let mut i = 0;
+
+            macro_rules! put_step {
+                ($table:ident, $grown_table:ident) => {
+                    while displaced.key().is_none() && i < entries.len() {
+                        displaced = $table.put(DummyEntry::new(entries[i]));
+                        if(displaced.key().is_none()) {
+                            for j in 0..=i {
+                                prop_assert!($table.get_mut(entries[j]).is_some(),
+                                "Missing value {} after insert", entries[j]);
+                            }
+                        }
+                        i += 1;
+                    }
+                    let mut $grown_table = $table.grow();
+                    displaced = $grown_table.put(displaced);
+        
+                    if displaced.key().is_none() {
+                        for j in 0..i {
+                            prop_assert!($grown_table.get_mut(entries[j]).is_some(),
+                            "Missing value {} after growth with hash {:?}", entries[j], unsafe { RANDOM_PERMUTATION_HASH });
+                        }
+                    }
+                };
+            }
+
+            let mut table4: ByteTable4<DummyEntry> = ByteTable4::new();
+            put_step!(table4, table8);
+            put_step!(table8, table16);
+            put_step!(table16, table32);
+            put_step!(table32, table64);
+            put_step!(table64, table128);
+            put_step!(table128, table256);
+
+            prop_assert!(displaced.key().is_none());
         }
     }
 }

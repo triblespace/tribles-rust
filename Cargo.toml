@@ -18,6 +18,7 @@ arbitrary = { version = "1", features = ["derive"] }
 criterion = "0.3"
 proptest = "1.0.0"
 im = "15.1.0"
+itertools = "0.10.5"
 
 [[bench]]
 name = "benchmark"

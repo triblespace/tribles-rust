@@ -362,7 +362,7 @@ where
     create_newpath!(newPath62, Path62, PathBody62, 62);
 
     fn wrap_path(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
-        let expanded = self.expand(start_depth, key);
+        let expanded = self.with_start_depth(start_depth, key);
 
         let actual_start_depth = expanded.start_depth() as usize;
         if start_depth == actual_start_depth {
@@ -472,41 +472,63 @@ where
     }
     */
 
-    fn expand(self, start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
-        macro_rules! pathexpand {
-            ($end_depth:ident, $body:ident, $variant:ident, $fragment_len: expr) => {{
+    fn with_start_depth(self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
+        macro_rules! pathcase {
+            ($start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $variant:ident, $fragment_len: expr) => {{
                 let actual_start_depth = max(
-                    start_depth as isize,
+                    new_start_depth as isize,
                     $end_depth as isize - $fragment_len as isize,
                 ) as usize;
 
-                let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                //TODO Bugfix I think this might cause problems because we
-                //need to copy from the body fragment.
-                copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
+                let head_end_depth = $start_depth as usize + HEAD_FRAGMENT_LEN;
+
+                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
+                for i in 0..new_fragment.len() {
+                    let depth = actual_start_depth + i;
+                    if($end_depth as usize <= depth) { break; }
+                    new_fragment[i] = 
+                        if(depth < $start_depth as usize) {
+                            key[depth]
+                        } else {
+                            if depth < head_end_depth {
+                                $fragment[index_start($start_depth as usize, depth)]}
+                            else {
+                                $body.fragment[index_end($body.fragment.len(), $end_depth as usize, depth)]
+                            }
+                        }
+                }
 
                 Self::$variant {
                     start_depth: actual_start_depth as u8,
-                    fragment: fragment,
+                    fragment: new_fragment,
                     end_depth: $end_depth,
                     body: $body,
                 }
             }};
         }
 
-        macro_rules! branchexpand {
-            ($end_depth:ident, $body:ident, $variant:ident) => {{
+        macro_rules! branchcase {
+            ($start_depth:ident, $end_depth:ident, $fragment:ident, $body:ident, $variant:ident) => {{
                 let actual_start_depth = max(
-                    start_depth as isize,
+                    new_start_depth as isize,
                     $end_depth as isize - HEAD_FRAGMENT_LEN as isize,
                 ) as usize;
 
-                let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
-
+                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
+                for i in 0..new_fragment.len() {
+                    let depth = actual_start_depth + i;
+                    if($end_depth as usize <= depth) { break; }
+                    new_fragment[i] = 
+                        if depth < $start_depth as usize {
+                            println!("key @ {}", depth);
+                            key[depth]
+                        } else {
+                            $fragment[index_start($start_depth as usize, depth)]
+                        }
+                }
                 Self::$variant {
                     start_depth: actual_start_depth as u8,
-                    fragment: fragment,
+                    fragment: new_fragment,
                     end_depth: $end_depth,
                     body: $body,
                 }
@@ -516,62 +538,71 @@ where
         match self {
             Self::Empty { .. } => panic!("Called `expand` on `Empty."),
             Self::Leaf {
-                start_depth, value, ..
+                start_depth, value, fragment, ..
             } => {
+                assert!(new_start_depth <= KEY_LEN);
+
                 let actual_start_depth = max(
-                    start_depth as isize,
+                    new_start_depth as isize,
                     KEY_LEN as isize - { <Value as SizeLimited<13>>::UNUSED + 1 } as isize,
                 ) as usize;
 
-                //TODO Bugfix I think this might cause problems because we
-                //need to copy from the old fragment.
-                let mut fragment = [0; { <Value as SizeLimited<13>>::UNUSED + 1 }];
-                copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
+                let mut new_fragment = [0; { <Value as SizeLimited<13>>::UNUSED + 1 }];
+                for i in 0..new_fragment.len() {
+                    let depth = actual_start_depth + i;
+                    if KEY_LEN <= depth { break; }
+                    new_fragment[i] = 
+                        if depth < start_depth as usize {
+                            key[depth]
+                        } else {
+                            fragment[index_start(start_depth as usize, depth)]
+                        }
+                }
 
                 Self::Leaf {
                     start_depth: actual_start_depth as u8,
-                    fragment: fragment,
+                    fragment: new_fragment,
                     value: value,
                 }
             }
             Self::Path14 {
-                end_depth, body, ..
-            } => pathexpand!(end_depth, body, Path14, { 14 + HEAD_FRAGMENT_LEN }),
+                start_depth, end_depth, fragment, body, ..
+            } => pathcase!(start_depth, end_depth, fragment, body, Path14, { 14 + HEAD_FRAGMENT_LEN }),
             Self::Path30 {
-                end_depth, body, ..
-            } => pathexpand!(end_depth, body, Path30, { 30 + HEAD_FRAGMENT_LEN }),
+                start_depth, end_depth, fragment, body, ..
+            } => pathcase!(start_depth, end_depth, fragment, body, Path30, { 30 + HEAD_FRAGMENT_LEN }),
             Self::Path46 {
-                end_depth, body, ..
-            } => pathexpand!(end_depth, body, Path46, { 46 + HEAD_FRAGMENT_LEN }),
+                start_depth, end_depth, fragment, body, ..
+            } => pathcase!(start_depth, end_depth, fragment, body, Path46, { 46 + HEAD_FRAGMENT_LEN }),
             Self::Path62 {
-                end_depth, body, ..
-            } => pathexpand!(end_depth, body, Path62, { 62 + HEAD_FRAGMENT_LEN }),
+                start_depth, end_depth, fragment, body, ..
+            } => pathcase!(start_depth, end_depth, fragment, body, Path62, { 62 + HEAD_FRAGMENT_LEN }),
             Self::Branch4 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch4),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch4),
             Self::Branch8 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch8),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch8),
             Self::Branch16 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch16),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch16),
             Self::Branch32 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch32),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch32),
             Self::Branch64 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch64),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch64),
             Self::Branch128 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch128),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch128),
             Self::Branch256 {
-                end_depth, body, ..
-            } => branchexpand!(end_depth, body, Branch256),
+                start_depth, end_depth, fragment, body, ..
+            } => branchcase!(start_depth, end_depth, fragment, body, Branch256),
         }
     }
 
     fn peek(&self, at_depth: usize) -> Option<u8> {
-        macro_rules! pathpeek {
+        macro_rules! pathcase {
             ($body_fragment_len: expr, $start_depth: ident, $end_depth: ident, $fragment: ident, $body: ident) => {{
                 if at_depth < *$start_depth as usize || *$end_depth as usize <= at_depth {
                     return None;
@@ -586,7 +617,7 @@ where
             }};
         }
 
-        macro_rules! branchpeek {
+        macro_rules! branchcase {
             ($start_depth: ident, $end_depth: ident, $fragment: ident) => {{
                 if at_depth < *$start_depth as usize || *$end_depth as usize <= at_depth {
                     return None;
@@ -596,7 +627,7 @@ where
         }
 
         match self {
-            Self::Empty { .. } => panic!("Called `start_depth` on `Empathpeekpty`."),
+            Self::Empty { .. } => panic!("Called `start_depth` on `Empty`."),
             Self::Leaf {
                 fragment,
                 start_depth,
@@ -612,72 +643,72 @@ where
                 end_depth,
                 fragment,
                 body,
-            } => pathpeek!(14, start_depth, end_depth, fragment, body),
+            } => pathcase!(14, start_depth, end_depth, fragment, body),
             Self::Path30 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathpeek!(30, start_depth, end_depth, fragment, body),
+            } => pathcase!(30, start_depth, end_depth, fragment, body),
             Self::Path46 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathpeek!(46, start_depth, end_depth, fragment, body),
+            } => pathcase!(46, start_depth, end_depth, fragment, body),
             Self::Path62 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathpeek!(62, start_depth, end_depth, fragment, body),
+            } => pathcase!(62, start_depth, end_depth, fragment, body),
             Self::Branch4 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
             Self::Branch8 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
             Self::Branch16 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
             Self::Branch32 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
             Self::Branch64 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
             Self::Branch128 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
             Self::Branch256 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchpeek!(start_depth, end_depth, fragment),
+            } => branchcase!(start_depth, end_depth, fragment),
         }
     }
 
     fn put(self, at_start_depth: usize, key: &[u8; KEY_LEN], value: Value) -> Self {
-        macro_rules! pathput {
+        macro_rules! pathcase {
             ($variant:ident, $start_depth: ident, $end_depth: ident, $fragment: ident, $body: ident) => {
                 {
                 let mut branch_depth = at_start_depth;
@@ -876,7 +907,7 @@ where
             };
         }
 
-        macro_rules! branchput {
+        macro_rules! branchcase {
             ($variant:ident, $start_depth: ident, $end_depth: ident, $fragment: ident, $body: ident) => {
                 {
                 let mut branch_depth = at_start_depth;
@@ -975,7 +1006,7 @@ where
                     branch_depth,
                     key,
                     sibling_leaf_node,
-                    self.expand(branch_depth, key),
+                    self.with_start_depth(branch_depth, key),
                 );
 
                 return branch_head.wrap_path(at_start_depth, key);
@@ -985,67 +1016,67 @@ where
                 end_depth,
                 fragment,
                 body,
-            } => pathput!(Path14, start_depth, end_depth, fragment, body),
+            } => pathcase!(Path14, start_depth, end_depth, fragment, body),
             Self::Path30 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathput!(Path30, start_depth, end_depth, fragment, body),
+            } => pathcase!(Path30, start_depth, end_depth, fragment, body),
             Self::Path46 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathput!(Path46, start_depth, end_depth, fragment, body),
+            } => pathcase!(Path46, start_depth, end_depth, fragment, body),
             Self::Path62 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathput!(Path62, start_depth, end_depth, fragment, body),
+            } => pathcase!(Path62, start_depth, end_depth, fragment, body),
             Self::Branch4 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch4, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch4, start_depth, end_depth, fragment, body),
             Self::Branch8 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch8, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch8, start_depth, end_depth, fragment, body),
             Self::Branch16 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch16, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch16, start_depth, end_depth, fragment, body),
             Self::Branch32 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch32, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch32, start_depth, end_depth, fragment, body),
             Self::Branch64 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch64, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch64, start_depth, end_depth, fragment, body),
             Self::Branch128 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch128, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch128, start_depth, end_depth, fragment, body),
             Self::Branch256 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => branchput!(Branch256, start_depth, end_depth, fragment, body),
+            } => branchcase!(Branch256, start_depth, end_depth, fragment, body),
         }
     }
 }
@@ -1128,6 +1159,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+    use itertools::Itertools;
 
     #[test]
     fn head_size() {
@@ -1137,11 +1170,15 @@ mod tests {
 
     #[test]
     fn empty_tree() {
+        init();
+        
         let tree = PACT::<64, ()>::new();
     }
 
     #[test]
-    fn tree_insert_one() {
+    fn tree_put_one() {
+        init();
+
         const KEY_SIZE: usize = 64;
         let mut tree = PACT::<KEY_SIZE, ()>::new();
         let key = [0; KEY_SIZE];
@@ -1166,5 +1203,18 @@ mod tests {
         assert_eq!(mem::size_of::<PathBody30<64, ()>>(), 16 * 3);
         assert_eq!(mem::size_of::<PathBody46<64, ()>>(), 16 * 4);
         assert_eq!(mem::size_of::<PathBody62<64, ()>>(), 16 * 5);
+    }
+
+    proptest! {
+        #[test]
+        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..256)) {
+            const KEY_SIZE: usize = 64;
+            let mut tree = PACT::<KEY_SIZE, ()>::new();
+            for entry in entries {
+                let mut key = [0; KEY_SIZE];
+                key.iter_mut().set_from(entry.iter().cloned());
+                tree.put(key, ());
+            }
+        }
     }
 }

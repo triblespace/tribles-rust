@@ -8,6 +8,7 @@ pub mod pact;
 pub mod trible;
 pub mod ufoid;
 pub mod fucid;
+pub mod query;
 
 #[cfg(test)]
 mod tests {}

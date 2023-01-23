@@ -1,21 +1,33 @@
 use crate::bitset::ByteBitset;
 
-enum ExplorationMode { path, branch, backtrack };
+pub trait ByteCursor {
+    fn peek(&self) -> Option<u8>;
+
+    fn propose(&self, bitset: &mut ByteBitset);
+
+    fn pop(&mut self);
+
+    fn push(&mut self, byte: u8);
+
+    fn segment_count(&self) -> u32;
+}
+
+enum ExplorationMode { path, branch, backtrack }
 
 pub struct CursorIterator<CURSOR: ByteCursor, const MAX_DEPTH: usize> {
     mode: ExplorationMode,
-    depth: usize = 0,
+    depth: usize,
     key: [u8; MAX_DEPTH],
     branch_points: ByteBitset,
     branch_state: [ByteBitset; MAX_DEPTH],
-    cursor: cursor_type,
+    cursor: CURSOR,
 }
 
 impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> CursorIterator<CURSOR, MAX_DEPTH> {
-    pub fn new(cursor: CURSOR) Self {
+    pub fn new(cursor: CURSOR) -> Self {
         Self {
-            mode: ExplorationMode,
-            depth: 0;
+            mode: ExplorationMode::path,
+            depth: 0,
             key: [0; MAX_DEPTH],
             branch_points: ByteBitset::new_empty(),
             branch_state: [ByteBitset::new_empty(); MAX_DEPTH],
@@ -26,9 +38,9 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> CursorIterator<CURSOR, MAX_DEPT
 impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CURSOR, MAX_DEPTH> {
     type Item = [u8; MAX_DEPTH];
 
-    pub fn next(self: &mut Self) Option<Self::Item> {
-        search: loop {
-            match (self.mode) {
+    fn next(self: &mut Self) -> Option<Self::Item> {
+        'search: loop {
+            match self.mode {
                 ExplorationMode::path => {
                     while self.depth < MAX_DEPTH {
                         if let Some(key_fragment) = self.cursor.peek() {
@@ -46,7 +58,7 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                     return Some(self.key);
                 },
                 ExplorationMode::branch => {
-                    if let Some(key_fragment) = self.branch_state[self.depth].drainNextAscending() {
+                    if let Some(key_fragment) = self.branch_state[self.depth].drain_next_ascending() {
                         self.key[self.depth] = key_fragment;
                         self.cursor.push(key_fragment);
                         self.depth += 1;
@@ -57,9 +69,9 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                     }
                 },
                 ExplorationMode::backtrack => {
-                    if let Some(parent_depth) = self.branch_points.findLastSet() {
+                    if let Some(parent_depth) = self.branch_points.find_last_set() {
                         while parent_depth < self.depth {
-                            self.cursor.pop()
+                            self.cursor.pop();
                             self.depth -= 1;
                         }
                         self.mode = ExplorationMode::branch;

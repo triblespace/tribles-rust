@@ -1,6 +1,7 @@
 use crate::bitset::ByteBitset;
 use crate::bytetable;
 use crate::bytetable::*;
+use crate::query::{ ByteCursor, CursorIterator };
 use std::sync::Once;
 use std::cmp::{max, min};
 use std::mem;
@@ -601,33 +602,28 @@ where
         }
     }
 
+    fn peek_branch(at_depth: usize, start_depth: usize, end_depth: usize, head_fragment: &[u8]) -> Option<u8> {
+        if at_depth < start_depth || end_depth <= at_depth {
+            return None;
+        }
+        return Some(head_fragment[index_start(start_depth, at_depth)]);
+    }
+
+    fn peek_path(at_depth: usize, start_depth: usize, end_depth: usize, head_fragment: &[u8], body_fragment: &[u8]) -> Option<u8> {
+        if at_depth < start_depth || end_depth <= at_depth {
+            return None;
+        }
+        if at_depth < start_depth + head_fragment.len() {
+            return Some(head_fragment[index_start(start_depth, at_depth)]);
+        }
+        return Some(
+            body_fragment[index_end(body_fragment.len(), end_depth, at_depth)],
+        );
+    }
+
     fn peek(&self, at_depth: usize) -> Option<u8> {
-        macro_rules! pathcase {
-            ($body_fragment_len: expr, $start_depth: ident, $end_depth: ident, $fragment: ident, $body: ident) => {{
-                if at_depth < *$start_depth as usize || *$end_depth as usize <= at_depth {
-                    return None;
-                }
-                if at_depth < *$start_depth as usize + HEAD_FRAGMENT_LEN {
-                    return Some($fragment[index_start(*$start_depth as usize, at_depth as usize)]);
-                }
-                return Some(
-                    $body.fragment
-                        [index_end($body_fragment_len, *$end_depth as usize, at_depth as usize)],
-                );
-            }};
-        }
-
-        macro_rules! branchcase {
-            ($start_depth: ident, $end_depth: ident, $fragment: ident) => {{
-                if at_depth < *$start_depth as usize || *$end_depth as usize <= at_depth {
-                    return None;
-                }
-                return Some($fragment[index_start(*$start_depth as usize, at_depth as usize)]);
-            }};
-        }
-
         match self {
-            Self::Empty { .. } => panic!("Called `start_depth` on `Empty`."),
+            Self::Empty { .. } => panic!("Called `peek` on `Empty`."),
             Self::Leaf {
                 fragment,
                 start_depth,
@@ -643,67 +639,283 @@ where
                 end_depth,
                 fragment,
                 body,
-            } => pathcase!(14, start_depth, end_depth, fragment, body),
+            } => Self::peek_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..]),
             Self::Path30 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathcase!(30, start_depth, end_depth, fragment, body),
+            } => Self::peek_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..]),
             Self::Path46 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathcase!(46, start_depth, end_depth, fragment, body),
+            } => Self::peek_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..]),
             Self::Path62 {
                 start_depth,
                 end_depth,
                 fragment,
                 body,
-            } => pathcase!(62, start_depth, end_depth, fragment, body),
+            } => Self::peek_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..]),
             Self::Branch4 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
             Self::Branch8 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
             Self::Branch16 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
             Self::Branch32 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
             Self::Branch64 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
             Self::Branch128 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
             Self::Branch256 {
                 start_depth,
                 end_depth,
                 fragment,
                 ..
-            } => branchcase!(start_depth, end_depth, fragment),
+            } => Self::peek_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..]),
+        }
+    }
+
+    fn propose_branch(at_depth: usize, start_depth: usize, end_depth: usize, head_fragment: &[u8], child_set: &ByteBitset, result_set: &mut ByteBitset) {
+        if at_depth == end_depth {
+            *result_set = *child_set;
+            return;
+        }
+
+        result_set.unset_all();
+        if let Some(byte_key) = Self::peek_branch(at_depth, start_depth, end_depth, head_fragment) {
+            result_set.set(byte_key);
+            return;
+        }
+    }
+
+    fn propose_path(at_depth: usize, start_depth: usize, end_depth: usize, head_fragment: &[u8], body_fragment: &[u8], child: &Head<KEY_LEN, Value>, result_set: &mut ByteBitset) {
+        result_set.unset_all();
+        if at_depth == end_depth {
+            result_set.set(child.peek(at_depth).expect("path child peek at child depth must succeed"));
+            return;
+        }
+    
+        if let Some(byte_key) = Self::peek_path(at_depth, start_depth, end_depth, head_fragment, body_fragment) {
+            result_set.set(byte_key);
+        }
+    }
+
+    fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
+        match self {
+            Self::Empty { .. } => panic!("Called `propose` on `Empty`."),
+            Self::Leaf {
+                fragment,
+                start_depth,
+                ..
+            } => {
+                result_set.unset_all();
+                if KEY_LEN <= at_depth {
+                    return; //TODO: do we need this vs. assert?
+                }
+                result_set.set(fragment[index_start(*start_depth as usize, at_depth)]);
+            }
+            Self::Path14 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Path30 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Path46 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Path62 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Branch4 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch8 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch16 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch32 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch64 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch128 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch256 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+        }
+    }
+
+    fn get_branch(at_depth: usize, byte_key: u8, start_depth: usize, end_depth: usize, head_fragment: &[u8], child_set: &ByteBitset, head: &Self) {
+        if at_depth == end_depth {
+            if child_set.is_set(byte_key) {
+                return ;
+            } else {
+                return ;
+            }
+        }
+        if let Some(byte_key) = Self::peek_branch(at_depth, start_depth, end_depth, head_fragment) {
+            return head;
+        }
+    }
+
+    fn propose_path(at_depth: usize, start_depth: usize, end_depth: usize, head_fragment: &[u8], body_fragment: &[u8], child: &Head<KEY_LEN, Value>, result_set: &mut ByteBitset) {
+        result_set.unset_all();
+        if at_depth == end_depth {
+            result_set.set(child.peek(at_depth).expect("path child peek at child depth must succeed"));
+            return;
+        }
+    
+        if let Some(byte_key) = Self::peek_path(at_depth, start_depth, end_depth, head_fragment, body_fragment) {
+            result_set.set(byte_key);
+        }
+    }
+
+    fn get(&self, at_depth: usize, byte_key: u8) {
+        match self {
+            Self::Empty { .. } => panic!("Called `propose` on `Empty`."),
+            Self::Leaf {
+                fragment,
+                start_depth,
+                ..
+            } => {
+                result_set.unset_all();
+                if KEY_LEN <= at_depth {
+                    return; //TODO: do we need this vs. assert?
+                }
+                result_set.set(fragment[index_start(*start_depth as usize, at_depth)]);
+            }
+            Self::Path14 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Path30 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Path46 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Path62 {
+                start_depth,
+                end_depth,
+                fragment,
+                body,
+            } => Self::propose_path(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.fragment[..], &body.child, result_set),
+            Self::Branch4 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch8 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch16 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch32 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch64 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch128 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
+            Self::Branch256 {
+                start_depth,
+                end_depth,
+                fragment,
+                body
+            } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
         }
     }
 
@@ -1090,12 +1302,6 @@ where
         Self::newEmpty()
     }
 }
-/*
-Head:
-    fn grow(self) -> Head<KEY_LEN, Value> {
-        dispatch_all!(self, head, { head.grow() });
-    }
-*/
 
 unsafe impl<const KEY_LEN: usize, Value> ByteEntry for Head<KEY_LEN, Value>
 where
@@ -1130,37 +1336,107 @@ where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
-    head: Head<KEY_LEN, Value>,
+    root: Head<KEY_LEN, Value>,
 }
 
 impl<const KEY_LEN: usize, Value> PACT<KEY_LEN, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
     const KEY_LEN_CHECK: usize = KEY_LEN - 64;
 
     pub fn new() -> Self {
         PACT {
-            head: Head::<KEY_LEN, Value>::newEmpty(),
+            root: Head::<KEY_LEN, Value>::newEmpty(),
         }
     }
 
     pub fn put(&mut self, key: [u8; KEY_LEN], value: Value) {
-        let root = mem::take(&mut self.head);
-        self.head = root.put(0, &key, value);
+        let root = mem::take(&mut self.root);
+        self.root = root.put(0, &key, value);
     }
 
     pub fn count(&self) -> u64 {
-        self.head.count()
+        self.root.count()
+    }
+
+    pub fn cursor(&self) -> PACTCursor<KEY_LEN, Value> {
+        return PACTCursor::new(self);
     }
 }
+
+pub struct PACTCursor<const KEY_LEN: usize, Value>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+{
+    depth: usize,
+    path: [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1],
+}
+
+impl<const KEY_LEN: usize, Value> PACTCursor<KEY_LEN, Value>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+{
+    pub fn new(tree: &PACT<KEY_LEN, Value>) -> Self {
+        let mut new = Self {
+            depth: 0,
+            path: [None; ]
+        };
+        new.path[0] = &tree.root;
+        return new;
+    }
+
+    pub fn node(&self) -> Head<KEY_LEN, Value> {
+        return self.path[self.depth];
+    }
+}
+
+impl<const KEY_LEN: usize, Value> ByteCursor for PACTCursor<KEY_LEN, Value>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+{
+    fn peek(&self) -> Option<u8> {
+        return self.path[self.depth].peek(self.depth);
+    }
+
+    fn propose(&self, bitset: &mut ByteBitset) {
+        self.path[self.depth].propose(self.depth, bitset);
+    }
+
+    fn pop(&mut self) {
+        self.depth -= 1;
+    }
+
+    fn push(&mut self, byte: u8) {
+        self.path[self.depth + 1] = self.path[self.depth].get(self.depth, byte);
+        self.depth += 1;
+    }
+
+    fn segment_count(&self) -> u32 {
+        return self.path[self.depth].segment_count(self.depth);
+    }
+}
+
+/*
+    pub fn iterate(self: Cursor) CursorIterator(Cursor, key_length) {
+        return CursorIterator(Cursor, key_length).init(self);
+    }
+*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use proptest::prelude::*;
     use itertools::Itertools;
+    use std::collections::HashSet;
 
     #[test]
     fn head_size() {
@@ -1207,14 +1483,12 @@ mod tests {
 
     proptest! {
         #[test]
-        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..256)) {
-            const KEY_SIZE: usize = 64;
-            let mut tree = PACT::<KEY_SIZE, ()>::new();
+        fn tree_put(entries in prop::collection::vec([0u8..255; 64], 1..256)) {
+            let mut tree = PACT::<64, ()>::new();
             for entry in entries {
-                let mut key = [0; KEY_SIZE];
-                key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(key, ());
+                tree.put(entry, ());
             }
+            let entry_set = HashSet::from_iter(entries.iter().cloned());
         }
     }
 }

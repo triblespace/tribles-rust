@@ -17,7 +17,7 @@ cardkit = "0.1.0-alpha.10"
 
 #[dev-dependencies]
 criterion = "0.3"
-proptest = { git = "https://github.com/proptest-rs/proptest", branch = "master" }
+proptest = "1.0"
 im = "15.1.0"
 itertools = "0.10.5"
 

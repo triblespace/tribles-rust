@@ -153,8 +153,51 @@ create_pathbody!(PathBody30, 30);
 create_pathbody!(PathBody46, 46);
 create_pathbody!(PathBody62, 62);
 
+struct LeafHead<const KEY_LEN: usize, Value>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    start_depth: u8,
+    fragment: [u8; <Value as SizeLimited<13>>::UNUSED + 1],
+    value: Value,
+}
+
+impl<const KEY_LEN: usize, Value> LeafHead<KEY_LEN, Value>
+where
+    Value: SizeLimited<13> + Clone,
+    [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
+{
+    fn put(self, at_start_depth: usize, key: &[u8; KEY_LEN], value: Value) -> Head<KEY_LEN, Value> {
+        let mut branch_depth = at_start_depth;
+        while branch_depth < KEY_LEN {
+            if key[branch_depth]
+                == self.fragment[index_start(self.start_depth as usize, branch_depth)]
+            {
+                branch_depth += 1
+            } else {
+                break;
+            }
+        }
+        if branch_depth == KEY_LEN {
+            return Head::Leaf { leaf: self };
+        }
+
+        let sibling_leaf_node = Head::newLeaf(branch_depth, key, value);
+
+        let branch_head = Head::newBranch(
+            at_start_depth,
+            branch_depth,
+            key,
+            sibling_leaf_node,
+            self.with_start_depth(branch_depth, key),
+        );
+
+        return branch_head.wrap_path(at_start_depth, key);
+    }
+}
+
 #[derive(Clone)]
-#[repr(u8)]
 enum Head<const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone,
@@ -164,9 +207,7 @@ where
         padding: [u8; 15],
     } = 0,
     Leaf {
-        start_depth: u8,
-        fragment: [u8; <Value as SizeLimited<13>>::UNUSED + 1],
-        value: Value,
+        leaf: LeafHead<KEY_LEN, Value>
     },
     Path14 {
         start_depth: u8,
@@ -298,9 +339,11 @@ where
         copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
 
         Self::Leaf {
-            start_depth: actual_start_depth as u8,
-            fragment: fragment,
-            value: value,
+            leaf: LeafHead {
+                start_depth: actual_start_depth as u8,
+                fragment: fragment,
+                value: value,
+            }
         }
     }
 
@@ -811,6 +854,7 @@ where
         }
     }
 
+    /*
     fn get_branch(at_depth: usize, byte_key: u8, start_depth: usize, end_depth: usize, head_fragment: &[u8], child_set: &ByteBitset, head: &Self) {
         if at_depth == end_depth {
             if child_set.is_set(byte_key) {
@@ -918,7 +962,7 @@ where
             } => Self::propose_branch(at_depth, *start_depth as usize, *end_depth as usize, &fragment[..], &body.child_set, result_set),
         }
     }
-
+    */
     fn put(self, at_start_depth: usize, key: &[u8; KEY_LEN], value: Value) -> Self {
         macro_rules! pathcase {
             ($variant:ident, $start_depth: ident, $end_depth: ident, $fragment: ident, $body: ident) => {
@@ -1192,37 +1236,7 @@ where
             Self::Empty { .. } => {
                 Self::newLeaf(at_start_depth, key, value).wrap_path(at_start_depth, key)
             }
-            Self::Leaf {
-                start_depth,
-                fragment,
-                ..
-            } => {
-                let mut branch_depth = at_start_depth;
-                while branch_depth < KEY_LEN {
-                    if key[branch_depth]
-                        == fragment[index_start(start_depth as usize, branch_depth)]
-                    {
-                        branch_depth += 1
-                    } else {
-                        break;
-                    }
-                }
-                if branch_depth == KEY_LEN {
-                    return self;
-                }
-
-                let sibling_leaf_node = Self::newLeaf(branch_depth, key, value);
-
-                let branch_head = Self::newBranch(
-                    at_start_depth,
-                    branch_depth,
-                    key,
-                    sibling_leaf_node,
-                    self.with_start_depth(branch_depth, key),
-                );
-
-                return branch_head.wrap_path(at_start_depth, key);
-            }
+            Self::Leaf {leaf} => {leaf.put(at_start_depth, key, value)}
             Self::Path14 {
                 start_depth,
                 end_depth,
@@ -1315,7 +1329,7 @@ where
     fn key(&self) -> Option<u8> {
         match self {
             Self::Empty { .. } => None,
-            Self::Leaf { fragment, .. } => Some(fragment[0]),
+            Self::Leaf { leaf } => Some(leaf.fragment[0]),
             Self::Path14 { fragment, .. } => Some(fragment[0]),
             Self::Path30 { fragment, .. } => Some(fragment[0]),
             Self::Path46 { fragment, .. } => Some(fragment[0]),
@@ -1339,11 +1353,11 @@ where
     root: Head<KEY_LEN, Value>,
 }
 
-impl<const KEY_LEN: usize, Value> PACT<KEY_LEN, Value>
+impl<'a, const KEY_LEN: usize, Value> PACT<KEY_LEN, Value>
 where
-    Value: SizeLimited<13> + Clone,
+    Value: SizeLimited<13> + Clone + 'a,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
-    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+    [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
     const KEY_LEN_CHECK: usize = KEY_LEN - 64;
 
@@ -1367,26 +1381,26 @@ where
     }
 }
 
-pub struct PACTCursor<const KEY_LEN: usize, Value>
+pub struct PACTCursor<'a, const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
-    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+    [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
     depth: usize,
-    path: [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1],
+    path: [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1],
 }
 
-impl<const KEY_LEN: usize, Value> PACTCursor<KEY_LEN, Value>
+impl<'a, const KEY_LEN: usize, Value> PACTCursor<'a, KEY_LEN, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
-    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+    [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
     pub fn new(tree: &PACT<KEY_LEN, Value>) -> Self {
         let mut new = Self {
             depth: 0,
-            path: [None; ]
+            path: [None; KEY_LEN]
         };
         new.path[0] = &tree.root;
         return new;
@@ -1397,11 +1411,11 @@ where
     }
 }
 
-impl<const KEY_LEN: usize, Value> ByteCursor for PACTCursor<KEY_LEN, Value>
+impl<'a, const KEY_LEN: usize, Value> ByteCursor for PACTCursor<'a, KEY_LEN, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
-    [Option<&Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
+    [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
     fn peek(&self) -> Option<u8> {
         return self.path[self.depth].peek(self.depth);

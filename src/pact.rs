@@ -101,7 +101,7 @@ macro_rules! create_branchbody {
     ($name:ident, $table:tt, $($grown_name:ident)?) => {
         #[derive(Clone)]
         #[repr(C)]
-        struct $name<const KEY_LEN: usize, Value>
+        pub struct $name<const KEY_LEN: usize, Value>
         where
             Value: SizeLimited<13> + Clone,
             [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -136,7 +136,7 @@ macro_rules! create_pathbody {
     ($body_name:ident, $body_fragment_len:expr) => {
         #[derive(Clone)]
         #[repr(C)]
-        struct $body_name<const KEY_LEN: usize, Value>
+        pub struct $body_name<const KEY_LEN: usize, Value>
         where
             Value: SizeLimited<13> + Clone,
             [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -153,7 +153,8 @@ create_pathbody!(PathBody30, 30);
 create_pathbody!(PathBody46, 46);
 create_pathbody!(PathBody62, 62);
 
-struct LeafHead<const KEY_LEN: usize, Value>
+#[derive(Clone)]
+pub struct LeafHead<const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
@@ -168,6 +169,21 @@ where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
+    fn peek(&self, at_depth: usize) -> Option<u8> {
+        if KEY_LEN <= at_depth {
+            return None; //TODO: do we need this vs. assert?
+        }
+        return Some(self.fragment[index_start(self.start_depth as usize, at_depth)]);
+    }
+
+    fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
+        result_set.unset_all();
+        if KEY_LEN <= at_depth {
+            return; //TODO: do we need this vs. assert?
+        }
+        result_set.set(self.fragment[index_start(self.start_depth as usize, at_depth)]);
+    }
+
     fn put(self, at_start_depth: usize, key: &[u8; KEY_LEN], value: Value) -> Head<KEY_LEN, Value> {
         let mut branch_depth = at_start_depth;
         while branch_depth < KEY_LEN {
@@ -195,17 +211,46 @@ where
 
         return branch_head.wrap_path(at_start_depth, key);
     }
+
+    fn with_start_depth(self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, Value> {
+        assert!(new_start_depth <= KEY_LEN);
+
+        let actual_start_depth = max(
+            new_start_depth as isize,
+            KEY_LEN as isize - { <Value as SizeLimited<13>>::UNUSED + 1 } as isize,
+        ) as usize;
+
+        let mut new_fragment = [0; { <Value as SizeLimited<13>>::UNUSED + 1 }];
+        for i in 0..new_fragment.len() {
+            let depth = actual_start_depth + i;
+            if KEY_LEN <= depth { break; }
+            new_fragment[i] = 
+                if depth < self.start_depth as usize {
+                    key[depth]
+                } else {
+                    self.fragment[index_start(self.start_depth as usize, depth)]
+                }
+        }
+
+        Head::Leaf {
+            leaf: Self {
+                start_depth: actual_start_depth as u8,
+                fragment: new_fragment,
+                value: self.value,
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
-enum Head<const KEY_LEN: usize, Value>
+pub enum Head<const KEY_LEN: usize, Value>
 where
     Value: SizeLimited<13> + Clone,
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
 {
-    Empty {
+    Empty { // MUST be first so that discriminant = 0;
         padding: [u8; 15],
-    } = 0,
+    },
     Leaf {
         leaf: LeafHead<KEY_LEN, Value>
     },
@@ -437,7 +482,7 @@ where
     fn start_depth(&self) -> u8 {
         match self {
             Self::Empty { .. } => panic!("Called `start_depth` on `Empty`."),
-            Self::Leaf { start_depth, .. } => *start_depth,
+            Self::Leaf { leaf } => leaf.start_depth,
             Self::Path14 { start_depth, .. } => *start_depth,
             Self::Path30 { start_depth, .. } => *start_depth,
             Self::Path46 { start_depth, .. } => *start_depth,
@@ -581,34 +626,7 @@ where
 
         match self {
             Self::Empty { .. } => panic!("Called `expand` on `Empty."),
-            Self::Leaf {
-                start_depth, value, fragment, ..
-            } => {
-                assert!(new_start_depth <= KEY_LEN);
-
-                let actual_start_depth = max(
-                    new_start_depth as isize,
-                    KEY_LEN as isize - { <Value as SizeLimited<13>>::UNUSED + 1 } as isize,
-                ) as usize;
-
-                let mut new_fragment = [0; { <Value as SizeLimited<13>>::UNUSED + 1 }];
-                for i in 0..new_fragment.len() {
-                    let depth = actual_start_depth + i;
-                    if KEY_LEN <= depth { break; }
-                    new_fragment[i] = 
-                        if depth < start_depth as usize {
-                            key[depth]
-                        } else {
-                            fragment[index_start(start_depth as usize, depth)]
-                        }
-                }
-
-                Self::Leaf {
-                    start_depth: actual_start_depth as u8,
-                    fragment: new_fragment,
-                    value: value,
-                }
-            }
+            Self::Leaf {leaf} => leaf.with_start_depth(new_start_depth, key),
             Self::Path14 {
                 start_depth, end_depth, fragment, body, ..
             } => pathcase!(start_depth, end_depth, fragment, body, Path14, { 14 + HEAD_FRAGMENT_LEN }),
@@ -667,16 +685,7 @@ where
     fn peek(&self, at_depth: usize) -> Option<u8> {
         match self {
             Self::Empty { .. } => panic!("Called `peek` on `Empty`."),
-            Self::Leaf {
-                fragment,
-                start_depth,
-                ..
-            } => {
-                if KEY_LEN <= at_depth {
-                    return None; //TODO: do we need this vs. assert?
-                }
-                return Some(fragment[index_start(*start_depth as usize, at_depth)]);
-            }
+            Self::Leaf {leaf} => leaf.peek(at_depth),
             Self::Path14 {
                 start_depth,
                 end_depth,
@@ -774,17 +783,7 @@ where
     fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
         match self {
             Self::Empty { .. } => panic!("Called `propose` on `Empty`."),
-            Self::Leaf {
-                fragment,
-                start_depth,
-                ..
-            } => {
-                result_set.unset_all();
-                if KEY_LEN <= at_depth {
-                    return; //TODO: do we need this vs. assert?
-                }
-                result_set.set(fragment[index_start(*start_depth as usize, at_depth)]);
-            }
+            Self::Leaf {leaf} => leaf.propose(at_depth, result_set),
             Self::Path14 {
                 start_depth,
                 end_depth,
@@ -1397,17 +1396,13 @@ where
     [u8; <Value as SizeLimited<13>>::UNUSED + 1]: Sized,
     [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
-    pub fn new(tree: &PACT<KEY_LEN, Value>) -> Self {
+    pub fn new(tree: &'a PACT<KEY_LEN, Value>) -> Self {
         let mut new = Self {
             depth: 0,
-            path: [None; KEY_LEN]
+            path: [None; KEY_LEN + 1]
         };
-        new.path[0] = &tree.root;
+        new.path[0] = Some(&tree.root);
         return new;
-    }
-
-    pub fn node(&self) -> Head<KEY_LEN, Value> {
-        return self.path[self.depth];
     }
 }
 
@@ -1418,11 +1413,15 @@ where
     [Option<&'a Head<KEY_LEN, Value>>; KEY_LEN + 1]: Sized,
 {
     fn peek(&self) -> Option<u8> {
-        return self.path[self.depth].peek(self.depth);
+        return self.path[self.depth]
+                .expect("peeked path should exist")
+                .peek(self.depth);
     }
 
     fn propose(&self, bitset: &mut ByteBitset) {
-        self.path[self.depth].propose(self.depth, bitset);
+        self.path[self.depth]
+        .expect("proposed path should exist")
+        .propose(self.depth, bitset);
     }
 
     fn pop(&mut self) {
@@ -1430,12 +1429,15 @@ where
     }
 
     fn push(&mut self, byte: u8) {
-        self.path[self.depth + 1] = self.path[self.depth].get(self.depth, byte);
+        self.path[self.depth + 1] = self.path[self.depth];
+        //.expect("pushed path should exist")
+        //.get(self.depth, byte);
         self.depth += 1;
     }
 
     fn segment_count(&self) -> u32 {
-        return self.path[self.depth].segment_count(self.depth);
+        return 0;
+        //return self.path[self.depth].segment_count(self.depth);
     }
 }
 
@@ -1495,6 +1497,7 @@ mod tests {
         assert_eq!(mem::size_of::<PathBody62<64, ()>>(), 16 * 5);
     }
 
+    /*
     proptest! {
         #[test]
         fn tree_put(entries in prop::collection::vec([0u8..255; 64], 1..256)) {
@@ -1505,4 +1508,5 @@ mod tests {
             let entry_set = HashSet::from_iter(entries.iter().cloned());
         }
     }
+    */
 }

@@ -163,13 +163,13 @@ macro_rules! create_bytetable {
 
             pub fn get(&self, byte_key: u8) -> Option<&T> {
                 let ideal_entry =
-                    self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key);
+                    self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get(byte_key);
                 if ideal_entry.is_some() {
                     return self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize]
                         .get(byte_key);
                 }
                 let rand_entry =
-                    self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get_mut(byte_key);
+                    self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get(byte_key);
                 if rand_entry.is_some() {
                     return self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize]
                         .get(byte_key);

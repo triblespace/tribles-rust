@@ -38,7 +38,7 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> CursorIterator<CURSOR, MAX_DEPT
 impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CURSOR, MAX_DEPTH> {
     type Item = [u8; MAX_DEPTH];
 
-    fn next(self: &mut Self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<Self::Item> {
         'search: loop {
             match self.mode {
                 ExplorationMode::path => {
@@ -49,7 +49,7 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                             self.depth += 1;
                         } else {
                             self.cursor.propose(&mut self.branch_state[self.depth]);
-                            self.branch_points.set(self.depth);
+                            self.branch_points.set(self.depth as u8);
                             self.mode = ExplorationMode::branch;
                             continue 'search;
                         }
@@ -64,13 +64,13 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                         self.depth += 1;
                         self.mode = ExplorationMode::path;
                     } else {
-                        self.branch_points.unset(self.depth);
+                        self.branch_points.unset(self.depth as u8);
                         self.mode = ExplorationMode::backtrack;
                     }
                 },
                 ExplorationMode::backtrack => {
                     if let Some(parent_depth) = self.branch_points.find_last_set() {
-                        while parent_depth < self.depth {
+                        while (parent_depth as usize) < self.depth {
                             self.cursor.pop();
                             self.depth -= 1;
                         }

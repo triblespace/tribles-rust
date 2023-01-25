@@ -20,8 +20,8 @@ use std::cmp::{max, min};
 use std::mem;
 use std::sync::Arc;
 use std::sync::Once;
-//use core::hash::Hasher;
-//use siphasher::sip128::{Hasher128, SipHasher24};
+use core::hash::Hasher;
+use siphasher::sip128::{Hasher128, SipHasher24};
 use std::fmt;
 use std::fmt::Debug;
 use std::mem::ManuallyDrop;
@@ -245,8 +245,8 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         dispatch_mut!(self, variant, variant.put(key))
     }
 
-    fn insert(&mut self, child: Self) -> Self {
-        dispatch_mut!(self, variant, variant.insert(child))
+    fn insert(&mut self, key: &[u8; KEY_LEN], child: Self) -> Self {
+        dispatch_mut!(self, variant, variant.insert(key, child))
     }
 
     fn reinsert(&mut self, child: Self) -> Self {
@@ -257,46 +257,9 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         dispatch!(self, variant, variant.grow())
     }
 
-    /*
-    fn hash(&self, prefix: [u8; KEY_LEN]) -> u128 {
-
-                    var key = prefix;
-
-                    var i = self.start_depth;
-                    while(i < self.branch_depth):(i += 1) {
-                        key[i] = self.peek(i).?;
-                    }
-
-                    return self.body.child.hash(key);
-
-        match self {
-            Self::Empty { .. } => panic!("Called `hash` on `Empty`."),
-            Self::Leaf { start_depth, fragment, .. } => {
-                let mut key = prefix;
-
-                let start = *start_depth as usize;
-                for i in start..KEY_LEN
-                    key[i] = fragment[index_start(start, i)];
-                }
-
-                let mut hasher = SipHasher24::new_with_key(&SIP_KEY);
-
-                return Hash.init(&key);
-            },
-            Self::Path14 { body, .. } => body.child.hash(),
-            Self::Path30 { body, .. } => body.child.hash(),
-            Self::Path46 { body, .. } => body.child.hash(),
-            Self::Path62 { body, .. } => body.child.hash(),
-            Self::Branch4 { body, .. } => body.hash,
-            Self::Branch8 { body, .. } => body.hash,
-            Self::Branch16 { body, .. } => body.hash,
-            Self::Branch32 { body, .. } => body.hash,
-            Self::Branch64 { body, .. } => body.hash,
-            Self::Branch128 { body, .. } => body.hash,
-            Self::Branch256 { body, .. } => body.hash,
-        }
+    fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
+        dispatch!(self, variant, variant.hash(prefix))
     }
-    */
 }
 
 #[derive(Debug, Clone)]

@@ -8,7 +8,7 @@ macro_rules! create_branch {
             leaf_count: u64,
             //rc: AtomicU16,
             //segment_count: u32, //TODO: increase this to a u48
-            //hash: u128,
+            hash: u128,
             child_set: ByteBitset,
             child_table: $table<Head<KEY_LEN>>,
         }
@@ -48,7 +48,7 @@ macro_rules! create_branch {
                         leaf_count: 0,
                         //rc: AtomicU16::new(1),
                         //segment_count: 0,
-                        //node_hash: 0,
+                        hash: 0,
                         child_set: ByteBitset::new_empty(),
                         child_table: $table::new(),
                     }),
@@ -59,13 +59,14 @@ macro_rules! create_branch {
                 self.body.leaf_count
             }
 
-            pub(super) fn insert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
-                let inner = Arc::make_mut(&mut self.body);
-                inner
+            pub(super) fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+                let body = Arc::make_mut(&mut self.body);
+                body
                     .child_set
                     .set(child.key().expect("leaf should have a byte key"));
-                inner.leaf_count += child.count();
-                inner.child_table.put(child)
+                    body.leaf_count += child.count();
+                    body.hash ^= child.hash(key);
+                    body.child_table.put(child)
             }
 
             pub(super) fn reinsert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
@@ -106,32 +107,32 @@ macro_rules! create_branch {
                     if self.body.child_set.is_set(byte_key) {
                         // We already have a child with the same byte as the key.
 
-                        let new_body = Arc::make_mut(&mut self.body);
-                        let old_child = new_body
+                        let body = Arc::make_mut(&mut self.body);
+                        let old_child = body
                             .child_table
                             .get_mut(byte_key)
                             .expect("table content should match child set content");
-                        //let old_child_hash = old_child.hash(key);
+                        let old_child_hash = old_child.hash(key);
                         //let old_child_segment_count = old_child.segmentCount(branch_depth);
-                        //let new_child_hash = new_child.hash(key);
                         let old_child_leaf_count = old_child.count();
+                        
                         let new_child = old_child.put(key);
 
-                        //let new_hash = self.body.node_hash.update(old_child_hash, new_child_hash);
+                        body.hash = (body.hash ^ old_child_hash) ^ new_child.hash(key);
                         //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(branch_depth);
 
-                        //new_body.node_hash = new_hash;
-                        //new_body.segment_count = new_segment_count;
-                        new_body.leaf_count = (new_body.leaf_count - old_child_leaf_count as u64)
+                        //body.segment_count = new_segment_count;
+                        body.leaf_count = (body.leaf_count - old_child_leaf_count as u64)
                             + new_child.count() as u64;
-                        new_body.child_table.put(new_child);
+                        body.child_table.put(new_child);
 
                         return self.clone().into();
                     } else {
                         // We don't have a child with the byte of the key.
 
                         let mut displaced = self.insert(
-                            Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key),
+                            key,
+                            Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key)
                         );
                         if None == displaced.key() {
                             Head::from(self.clone());
@@ -152,12 +153,16 @@ macro_rules! create_branch {
                         Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key);
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
-                    new_branch.insert(sibling_leaf);
+                    new_branch.insert(key, sibling_leaf);
                     new_branch
-                        .insert(Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
+                        .insert(key, Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
 
                     return Head::from(new_branch).wrap_path(self.start_depth as usize, key);
                 }
+            }
+
+            pub(super) fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
+                self.body.hash
             }
 
             pub(super) fn with_start_depth(
@@ -217,7 +222,7 @@ macro_rules! create_grow {
                     body: Arc::new($grown_body_name {
                         leaf_count: self.body.leaf_count,
                         //segment_count: self.segment_count,
-                        //node_hash: self.node_hash,
+                        hash: self.body.hash,
                         child_set: self.body.child_set,
                         child_table: self.body.child_table.grow(),
                     }),

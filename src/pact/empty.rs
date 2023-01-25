@@ -44,7 +44,11 @@ impl Empty {
         Head::<KEY_LEN>::from(Leaf::new(0, key)).wrap_path(0, key)
     }
 
-    pub(super) fn insert<const KEY_LEN: usize>(&mut self, _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+    pub(super) fn hash<const KEY_LEN: usize>(&self, prefix: &[u8; KEY_LEN]) -> u128 {
+        0
+    }
+
+    pub(super) fn insert<const KEY_LEN: usize>(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
         panic!("`insert` called on empty");
     }
 

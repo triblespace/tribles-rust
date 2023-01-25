@@ -118,9 +118,9 @@ macro_rules! create_path {
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
 
-                    new_branch.insert(sibling_leaf);
+                    new_branch.insert(key, sibling_leaf);
                     new_branch
-                        .insert(Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
+                        .insert(key, Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
 
                     return Head::<KEY_LEN>::from(new_branch)
                         .wrap_path(self.start_depth as usize, key);
@@ -162,7 +162,17 @@ macro_rules! create_path {
                 })
             }
 
-            pub(super) fn insert(&mut self, _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+            pub(super) fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
+                let mut key = *prefix;
+        
+                for depth in self.start_depth as usize..self.end_depth as usize {
+                    key[depth] = self.peek(depth).unwrap();
+                }
+        
+                return self.body.child.hash(&key);
+            }
+
+            pub(super) fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
                 panic!("`insert` called on path");
             }
 

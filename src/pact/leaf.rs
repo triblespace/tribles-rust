@@ -58,8 +58,8 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             let sibling_leaf = Head::<KEY_LEN>::from(Leaf::new(branch_depth, key));
 
             let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
-            new_branch.insert(sibling_leaf);
-            new_branch.insert(Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
+            new_branch.insert(key, sibling_leaf);
+            new_branch.insert(key, Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
 
             return Head::<KEY_LEN>::from(new_branch).wrap_path(self.start_depth as usize, key);
         }
@@ -81,7 +81,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         for i in 0..new_fragment.len() {
             let depth = actual_start_depth + i;
 
-            new_fragment[i] = if (depth < self.start_depth as usize) {
+            new_fragment[i] = if depth < self.start_depth as usize {
                 key[depth]
             } else {
                 if let Some(byte) = self.peek(depth) {
@@ -99,7 +99,19 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         })
     }
 
-    pub(super) fn insert(&mut self, _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+    pub(super) fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
+        let mut key = *prefix;
+
+        for depth in self.start_depth as usize..KEY_LEN as usize {
+            key[depth] = self.peek(depth).unwrap();
+        }
+
+        let mut hasher = SipHasher24::new_with_key(unsafe { &SIP_KEY });
+        hasher.write(&key[..]);
+        return hasher.finish128().into();
+    }
+
+    pub(super) fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
         panic!("`insert` called on leaf");
     }
 

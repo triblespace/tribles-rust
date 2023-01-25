@@ -5,11 +5,11 @@
 
 pub mod bitset;
 pub mod bytetable;
+pub mod fucid;
 pub mod pact;
+pub mod query;
 pub mod trible;
 pub mod ufoid;
-pub mod fucid;
-pub mod query;
 
 #[cfg(test)]
 mod tests {}

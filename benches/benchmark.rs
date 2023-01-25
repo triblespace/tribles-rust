@@ -1,16 +1,13 @@
-
-
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::{thread_rng, Rng};
-use tribles::trible::*;
-use tribles::fucid::FUCID;
 use std::iter::FromIterator;
+use tribles::fucid::FUCID;
+use tribles::trible::*;
 
 use tribles::pact;
 use tribles::pact::PACT;
 
 use im::OrdSet;
-
 
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
@@ -63,7 +60,7 @@ fn im_put(c: &mut Criterion) {
 
 fn pact_put(c: &mut Criterion) {
     pact::init();
-    
+
     let samples_10 = random_tribles(10);
     let samples_100 = random_tribles(100);
     let samples_1000 = random_tribles(1000);
@@ -77,42 +74,48 @@ fn pact_put(c: &mut Criterion) {
             for t in black_box(&samples_10) {
                 pact.put(t.data);
             }
-        })});
+        })
+    });
     c.bench_function("PACT insert 100", |b| {
         b.iter(|| {
             let mut pact = PACT::<64>::new();
             for t in black_box(&samples_100) {
                 pact.put(t.data);
             }
-        })});
+        })
+    });
     c.bench_function("PACT insert 1000", |b| {
         b.iter(|| {
             let mut pact = PACT::<64>::new();
             for t in black_box(&samples_1000) {
                 pact.put(t.data);
             }
-        })});
+        })
+    });
     c.bench_function("PACT insert 10000", |b| {
         b.iter(|| {
             let mut pact = PACT::<64>::new();
             for t in black_box(&samples_10000) {
                 pact.put(t.data);
             }
-        })});
+        })
+    });
     c.bench_function("PACT insert 100000", |b| {
         b.iter(|| {
             let mut pact = PACT::<64>::new();
             for t in black_box(&samples_100000) {
                 pact.put(t.data);
             }
-        })});
+        })
+    });
     c.bench_function("PACT insert 1000000", |b| {
         b.iter(|| {
             let mut pact = PACT::<64>::new();
             for t in black_box(&samples_1000000) {
                 pact.put(t.data);
             }
-        })});
+        })
+    });
 }
 
 criterion_group!(benches, im_put, pact_put);

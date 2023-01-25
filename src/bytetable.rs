@@ -1,9 +1,9 @@
+use crate::bitset::ByteBitset;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use std::fmt::Debug;
 use std::mem;
 use std::sync::Once;
-use crate::bitset::ByteBitset;
-use std::fmt::Debug;
 
 /// The number of slots per bucket.
 const BUCKET_ENTRY_COUNT: usize = 4;
@@ -133,7 +133,7 @@ macro_rules! create_grow {
                     if let Some(byte_key) = entry.key() {
                         let ideal_index = compress_hash(grown_buckets_len, ideal_hash(byte_key));
                         let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
-                        
+
                         if bucket_index as u8 == ideal_index || bucket_index as u8 == rand_index {
                             *(lower_portion[bucket_index].find_empty().unwrap()) = entry.clone();
                         } else {
@@ -389,7 +389,7 @@ mod tests {
                     }
                     let mut $grown_table = $table.grow();
                     displaced = $grown_table.put(displaced);
-        
+
                     if displaced.key().is_none() {
                         for j in 0..i {
                             prop_assert!($grown_table.get_mut(entries[j]).is_some(),

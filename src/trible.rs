@@ -8,15 +8,17 @@ pub struct Trible {
 
 impl Trible {
     pub fn new<E, A, V>(e: &E, a: &A, v: &V) -> Trible
-    where E: Id,
-          A: Id,
-          V: Value {
+    where
+        E: Id,
+        A: Id,
+        V: Value,
+    {
         let mut data = [0; 64];
         data[0..16].copy_from_slice(&mut Id::encode(e)[..]);
         data[16..32].copy_from_slice(&mut Id::encode(a)[..]);
         data[32..64].copy_from_slice(&mut Value::encode(v)[..]);
 
-        Self {data}
+        Self { data }
     }
 }
 

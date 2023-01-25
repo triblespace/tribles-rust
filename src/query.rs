@@ -12,7 +12,11 @@ pub trait ByteCursor {
     fn segment_count(&self) -> u32;
 }
 
-enum ExplorationMode { Path, Branch, Backtrack }
+enum ExplorationMode {
+    Path,
+    Branch,
+    Backtrack,
+}
 
 pub struct CursorIterator<CURSOR: ByteCursor, const MAX_DEPTH: usize> {
     mode: ExplorationMode,
@@ -31,7 +35,7 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> CursorIterator<CURSOR, MAX_DEPT
             key: [0; MAX_DEPTH],
             branch_points: ByteBitset::new_empty(),
             branch_state: [ByteBitset::new_empty(); MAX_DEPTH],
-            cursor
+            cursor,
         }
     }
 }
@@ -56,9 +60,10 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                     }
                     self.mode = ExplorationMode::Backtrack;
                     return Some(self.key);
-                },
+                }
                 ExplorationMode::Branch => {
-                    if let Some(key_fragment) = self.branch_state[self.depth].drain_next_ascending() {
+                    if let Some(key_fragment) = self.branch_state[self.depth].drain_next_ascending()
+                    {
                         self.key[self.depth] = key_fragment;
                         self.cursor.push(key_fragment);
                         self.depth += 1;
@@ -67,7 +72,7 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                         self.branch_points.unset(self.depth as u8);
                         self.mode = ExplorationMode::Backtrack;
                     }
-                },
+                }
                 ExplorationMode::Backtrack => {
                     if let Some(parent_depth) = self.branch_points.find_last_set() {
                         while (parent_depth as usize) < self.depth {

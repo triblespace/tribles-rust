@@ -9,18 +9,13 @@ pub(super) struct Leaf<const KEY_LEN: usize> {
 
 impl<const KEY_LEN: usize> From<Leaf<KEY_LEN>> for Head<KEY_LEN> {
     fn from(head: Leaf<KEY_LEN>) -> Self {
-        unsafe {
-            transmute(head)
-        }
+        unsafe { transmute(head) }
     }
 }
 
 impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(super) fn new(start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
-        let actual_start_depth = max(
-            start_depth,
-            KEY_LEN - LEAF_FRAGMENT_LEN,
-        );
+        let actual_start_depth = max(start_depth, KEY_LEN - LEAF_FRAGMENT_LEN);
 
         let mut fragment = [0; LEAF_FRAGMENT_LEN];
 
@@ -65,29 +60,34 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
             new_branch.insert(sibling_leaf);
             new_branch.insert(Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
-    
+
             return Head::<KEY_LEN>::from(new_branch).wrap_path(self.start_depth as usize, key);
         }
     }
 
-    pub(super) fn with_start_depth(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+    pub(super) fn with_start_depth(
+        &self,
+        new_start_depth: usize,
+        key: &[u8; KEY_LEN],
+    ) -> Head<KEY_LEN> {
         assert!(new_start_depth <= KEY_LEN);
 
         let actual_start_depth = max(
             new_start_depth as isize,
-            KEY_LEN as isize - ( LEAF_FRAGMENT_LEN as isize ),
+            KEY_LEN as isize - (LEAF_FRAGMENT_LEN as isize),
         ) as usize;
 
         let mut new_fragment = [0; LEAF_FRAGMENT_LEN];
         for i in 0..new_fragment.len() {
             let depth = actual_start_depth + i;
-            if KEY_LEN <= depth { break; }
-            new_fragment[i] = 
-                if depth < self.start_depth as usize {
-                    key[depth]
-                } else {
-                    self.fragment[index_start(self.start_depth as usize, depth)]
-                }
+            if KEY_LEN <= depth {
+                break;
+            }
+            new_fragment[i] = if depth < self.start_depth as usize {
+                key[depth]
+            } else {
+                self.fragment[index_start(self.start_depth as usize, depth)]
+            }
         }
 
         Head::<KEY_LEN>::from(Self {

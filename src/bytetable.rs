@@ -3,6 +3,7 @@ use rand::thread_rng;
 use std::mem;
 use std::sync::Once;
 use crate::bitset::ByteBitset;
+use std::fmt::Debug;
 
 /// The number of slots per bucket.
 const BUCKET_ENTRY_COUNT: usize = 4;
@@ -46,13 +47,13 @@ pub unsafe trait ByteEntry {
     fn key(&self) -> Option<u8>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[repr(transparent)]
-pub struct ByteBucket<T: ByteEntry + Clone> {
+pub struct ByteBucket<T: ByteEntry + Clone + Debug> {
     entries: [T; BUCKET_ENTRY_COUNT],
 }
 
-impl<T: ByteEntry + Clone> ByteBucket<T> {
+impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
     fn new() -> Self {
         ByteBucket {
             entries: unsafe { mem::zeroed() },
@@ -122,21 +123,21 @@ fn compress_hash(bucket_count: u8, hash: u8) -> u8 {
 macro_rules! create_grow {
     ($name:ident,) => {};
     ($name:ident, $grown_name:ident) => {
-        pub fn grow(mut self) -> $grown_name<T> {
+        pub fn grow(&self) -> $grown_name<T> {
             let buckets_len = self.buckets.len();
             let mut grown = $grown_name::new();
             let grown_buckets_len = grown.buckets.len() as u8;
             let (lower_portion, upper_portion) = grown.buckets.split_at_mut(buckets_len);
             for bucket_index in 0..buckets_len {
-                for entry in &mut self.buckets[bucket_index].entries {
+                for entry in &self.buckets[bucket_index].entries {
                     if let Some(byte_key) = entry.key() {
                         let ideal_index = compress_hash(grown_buckets_len, ideal_hash(byte_key));
                         let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
                         
                         if bucket_index as u8 == ideal_index || bucket_index as u8 == rand_index {
-                            mem::swap(entry, lower_portion[bucket_index].find_empty().unwrap());
+                            *(lower_portion[bucket_index].find_empty().unwrap()) = entry.clone();
                         } else {
-                            mem::swap(entry, upper_portion[bucket_index].find_empty().unwrap());
+                            *(upper_portion[bucket_index].find_empty().unwrap()) = entry.clone();
                         }
                     }
                 }
@@ -148,13 +149,13 @@ macro_rules! create_grow {
 
 macro_rules! create_bytetable {
     ($name:ident, $size:expr, $($grown_name:ident)?) => {
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         #[repr(transparent)]
-        pub struct $name<T: ByteEntry + Clone> {
+        pub struct $name<T: ByteEntry + Clone + Debug> {
             buckets: [ByteBucket<T>; $size],
         }
 
-        impl<T: ByteEntry + Clone> $name<T> {
+        impl<T: ByteEntry + Clone + Debug> $name<T> {
             pub fn new() -> Self {
                 Self {
                     buckets: unsafe { mem::zeroed() },
@@ -340,13 +341,13 @@ mod tests {
     #[test]
     fn new_empty_bucket() {
         init();
-        let bucket: ByteBucket<DummyEntry> = ByteBucket::new();
+        let _bucket: ByteBucket<DummyEntry> = ByteBucket::new();
     }
 
     #[test]
     fn new_empty_table() {
         init();
-        let table: ByteTable4<DummyEntry> = ByteTable4::new();
+        let _table: ByteTable4<DummyEntry> = ByteTable4::new();
     }
 
     proptest! {

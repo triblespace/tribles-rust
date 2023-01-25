@@ -73,44 +73,44 @@ fn pact_put(c: &mut Criterion) {
 
     c.bench_function("PACT insert 10", |b| {
         b.iter(|| {
-            let mut pact = PACT::<64, ()>::new();
+            let mut pact = PACT::<64>::new();
             for t in black_box(&samples_10) {
-                pact.put(t.data, ());
+                pact.put(t.data);
             }
         })});
     c.bench_function("PACT insert 100", |b| {
         b.iter(|| {
-            let mut pact = PACT::<64, ()>::new();
+            let mut pact = PACT::<64>::new();
             for t in black_box(&samples_100) {
-                pact.put(t.data, ());
+                pact.put(t.data);
             }
         })});
     c.bench_function("PACT insert 1000", |b| {
         b.iter(|| {
-            let mut pact = PACT::<64, ()>::new();
+            let mut pact = PACT::<64>::new();
             for t in black_box(&samples_1000) {
-                pact.put(t.data, ());
+                pact.put(t.data);
             }
         })});
     c.bench_function("PACT insert 10000", |b| {
         b.iter(|| {
-            let mut pact = PACT::<64, ()>::new();
+            let mut pact = PACT::<64>::new();
             for t in black_box(&samples_10000) {
-                pact.put(t.data, ());
+                pact.put(t.data);
             }
         })});
     c.bench_function("PACT insert 100000", |b| {
         b.iter(|| {
-            let mut pact = PACT::<64, ()>::new();
+            let mut pact = PACT::<64>::new();
             for t in black_box(&samples_100000) {
-                pact.put(t.data, ());
+                pact.put(t.data);
             }
         })});
     c.bench_function("PACT insert 1000000", |b| {
         b.iter(|| {
-            let mut pact = PACT::<64, ()>::new();
+            let mut pact = PACT::<64>::new();
             for t in black_box(&samples_1000000) {
-                pact.put(t.data, ());
+                pact.put(t.data);
             }
         })});
 }

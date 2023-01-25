@@ -97,6 +97,7 @@ macro_rules! create_branch {
         #[derive(Clone, Debug)]
         #[repr(C)]
         pub struct $name<const KEY_LEN: usize> {
+            tag: HeadTag,
             start_depth: u8,
             fragment: [u8; HEAD_FRAGMENT_LEN],
             end_depth: u8,
@@ -122,6 +123,7 @@ macro_rules! create_branch {
                     copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
             
                     Self {
+                            tag: HeadTag::$name,
                             start_depth: actual_start_depth as u8,
                             fragment: fragment,
                             end_depth: end_depth as u8,
@@ -250,6 +252,7 @@ macro_rules! create_branch {
                         }
                 }
                 Head::from(Self {
+                    tag: HeadTag::$name,
                     start_depth: actual_start_depth as u8,
                     fragment: new_fragment,
                     end_depth: self.end_depth,
@@ -276,6 +279,7 @@ macro_rules! create_grow {
         impl<const KEY_LEN: usize> $name<KEY_LEN> {
             fn grow(&self) -> Head<KEY_LEN> {
                 Head::<KEY_LEN>::from($grown_name {
+                    tag: HeadTag::$grown_name,
                     start_depth: self.start_depth,
                     fragment: self.fragment,
                     end_depth: self.end_depth,
@@ -318,6 +322,7 @@ macro_rules! create_path {
         #[derive(Clone, Debug)]
         #[repr(C)]
         pub struct $name<const KEY_LEN: usize> {
+            tag: HeadTag,
             start_depth: u8,
             fragment: [u8; HEAD_FRAGMENT_LEN],
             end_depth: u8,
@@ -352,6 +357,7 @@ macro_rules! create_path {
                 copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
     
                 Self {
+                    tag: HeadTag::$name,
                     start_depth: actual_start_depth as u8,
                     fragment: fragment,
                     end_depth: end_depth,
@@ -444,6 +450,7 @@ macro_rules! create_path {
                 }
 
                 Head::<KEY_LEN>::from(Self {
+                    tag: HeadTag::$name,
                     start_depth: actual_start_depth as u8,
                     fragment: new_fragment,
                     end_depth: self.end_depth,
@@ -1188,6 +1195,7 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
     */
 }
 
+#[derive(Debug, Clone)]
 pub struct PACT<const KEY_LEN: usize> {
     root: Head<KEY_LEN>,
 }
@@ -1208,7 +1216,7 @@ where
         self.root = self.root.put(&key);
     }
 
-    pub fn count(&self) -> u64 {
+    pub fn len(&self) -> u64 {
         self.root.count()
     }
 
@@ -1283,7 +1291,8 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
     use itertools::Itertools;
-    //use std::collections::HashSet;
+    use std::collections::HashSet;
+    use std::iter::FromIterator;
 
     #[test]
     fn head_size() {
@@ -1330,7 +1339,7 @@ mod tests {
     
     proptest! {
         #[test]
-        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..256)) {
+        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
             let mut tree = PACT::<64>::new();
             for entry in entries {
                 let mut key = [0; 64];
@@ -1339,6 +1348,18 @@ mod tests {
             }
             //let entry_set = HashSet::from_iter(entries.iter().cloned());
         }
-    }
 
+        #[test]
+        fn tree_len(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut tree = PACT::<64>::new();
+            let mut set = HashSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                tree.put(key);
+                set.insert(key);
+            }
+            prop_assert_eq!(set.len() as u64, tree.len())
+        }
+    }
 }

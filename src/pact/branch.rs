@@ -173,14 +173,15 @@ macro_rules! create_branch {
                 let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
                 for i in 0..new_fragment.len() {
                     let depth = actual_start_depth + i;
-                    if (self.end_depth as usize <= depth) {
-                        break;
-                    }
-                    new_fragment[i] = if depth < self.start_depth as usize {
-                        println!("key @ {}", depth);
+                    
+                    new_fragment[i] = if (depth < self.start_depth as usize) {
                         key[depth]
                     } else {
-                        self.fragment[index_start(self.start_depth as usize, depth)]
+                        if let Some(byte) = self.peek(depth) {
+                            byte
+                        } else {
+                            break;
+                        }
                     }
                 }
                 Head::from(Self {

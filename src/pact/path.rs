@@ -138,25 +138,17 @@ macro_rules! create_path {
                         - (self.body.fragment.len() as isize + HEAD_FRAGMENT_LEN as isize),
                 ) as usize;
 
-                let head_end_depth = self.start_depth as usize + HEAD_FRAGMENT_LEN;
-
                 let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
                 for i in 0..new_fragment.len() {
                     let depth = actual_start_depth + i;
-                    if (self.end_depth as usize <= depth) {
-                        break;
-                    }
+                    
                     new_fragment[i] = if (depth < self.start_depth as usize) {
                         key[depth]
                     } else {
-                        if depth < head_end_depth {
-                            self.fragment[index_start(self.start_depth as usize, depth)]
+                        if let Some(byte) = self.peek(depth) {
+                            byte
                         } else {
-                            self.body.fragment[index_end(
-                                self.body.fragment.len(),
-                                self.end_depth as usize,
-                                depth,
-                            )]
+                            break;
                         }
                     }
                 }

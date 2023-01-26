@@ -57,12 +57,13 @@ macro_rules! create_path {
                     body: path_body,
                 }
             }
-
-            pub(super) fn count(&self) -> u64 {
+        }
+        impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for $name<KEY_LEN> {
+            fn count(&self) -> u64 {
                 self.body.child.count()
             }
 
-            pub(super) fn peek(&self, at_depth: usize) -> Option<u8> {
+            fn peek(&self, at_depth: usize) -> Option<u8> {
                 if at_depth < self.start_depth as usize || self.end_depth as usize <= at_depth {
                     return None;
                 }
@@ -75,7 +76,7 @@ macro_rules! create_path {
                 );
             }
 
-            pub(super) fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
+            fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
                 result_set.unset_all();
                 if at_depth == self.end_depth as usize {
                     result_set.set(
@@ -92,7 +93,7 @@ macro_rules! create_path {
                 }
             }
 
-            pub(super) fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+            fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
                 let mut branch_depth = self.start_depth as usize;
                 while Some(key[branch_depth]) == self.peek(branch_depth) {
                     branch_depth += 1;
@@ -127,7 +128,17 @@ macro_rules! create_path {
                 }
             }
 
-            pub(super) fn with_start_depth(
+            fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
+                let mut key = *prefix;
+        
+                for depth in self.start_depth as usize..self.end_depth as usize {
+                    key[depth] = self.peek(depth).unwrap();
+                }
+        
+                return self.body.child.hash(&key);
+            }
+
+            fn with_start_depth(
                 &self,
                 new_start_depth: usize,
                 key: &[u8; KEY_LEN],
@@ -160,29 +171,7 @@ macro_rules! create_path {
                     end_depth: self.end_depth,
                     body: Arc::clone(&self.body),
                 })
-            }
-
-            pub(super) fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
-                let mut key = *prefix;
-        
-                for depth in self.start_depth as usize..self.end_depth as usize {
-                    key[depth] = self.peek(depth).unwrap();
-                }
-        
-                return self.body.child.hash(&key);
-            }
-
-            pub(super) fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
-                panic!("`insert` called on path");
-            }
-
-            pub(super) fn reinsert(&mut self, _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
-                panic!("`reinsert` called on path");
-            }
-
-            pub(super) fn grow(&self) -> Head<KEY_LEN> {
-                panic!("`grow` called on path");
-            }
+            } 
         }
     };
 }

@@ -93,6 +93,41 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
 ///
 */
 
+trait HeadVariant<const KEY_LEN: usize>: Sized {
+    fn count(&self) -> u64;
+
+    fn peek(&self, _at_depth: usize) -> Option<u8>;
+
+    fn propose(&self, _at_depth: usize, result_set: &mut ByteBitset);
+
+    fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN>;
+
+    fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
+
+    fn with_start_depth(
+        &self,
+        _new_start_depth: usize,
+        _key: &[u8; KEY_LEN],
+    ) -> Head<KEY_LEN> {
+        panic!("`with_start_depth` not supported by type");
+    }
+    
+    fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+        panic!("`insert` not supported by type");
+    }
+
+    fn reinsert(
+        &mut self,
+        _child: Head<KEY_LEN>,
+    ) -> Head<KEY_LEN> {
+        panic!("`reinsert` not supported by type");
+    }
+
+    fn grow(&self) -> Head<KEY_LEN> {
+        panic!("`grow` not supported by type");
+    }
+}
+
 #[derive(Debug)]
 #[repr(C)]
 struct Unknown {
@@ -123,7 +158,7 @@ enum HeadTag {
 #[repr(C)]
 pub union Head<const KEY_LEN: usize> {
     unknown: ManuallyDrop<Unknown>,
-    empty: ManuallyDrop<Empty>,
+    empty: ManuallyDrop<Empty<KEY_LEN>>,
     branch4: ManuallyDrop<Branch4<KEY_LEN>>,
     branch8: ManuallyDrop<Branch8<KEY_LEN>>,
     branch16: ManuallyDrop<Branch16<KEY_LEN>>,

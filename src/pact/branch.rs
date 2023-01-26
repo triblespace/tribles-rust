@@ -54,12 +54,14 @@ macro_rules! create_branch {
                     }),
                 }
             }
-
-            pub(super) fn count(&self) -> u64 {
+        }
+        
+        impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for $name<KEY_LEN> {
+            fn count(&self) -> u64 {
                 self.body.leaf_count
             }
 
-            pub(super) fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+            fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN>) -> Head<KEY_LEN> {
                 let body = Arc::make_mut(&mut self.body);
                 body
                     .child_set
@@ -69,19 +71,19 @@ macro_rules! create_branch {
                     body.child_table.put(child)
             }
 
-            pub(super) fn reinsert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+            fn reinsert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
                 let inner = Arc::make_mut(&mut self.body);
                 inner.child_table.put(child)
             }
 
-            pub(super) fn peek(&self, at_depth: usize) -> Option<u8> {
+            fn peek(&self, at_depth: usize) -> Option<u8> {
                 if at_depth < self.start_depth as usize || self.end_depth as usize <= at_depth {
                     return None;
                 }
                 return Some(self.fragment[index_start(self.start_depth as usize, at_depth)]);
             }
 
-            pub(super) fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
+            fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
                 if at_depth == self.end_depth as usize {
                     *result_set = self.body.child_set;
                     return;
@@ -94,7 +96,7 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+            fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
                 let mut branch_depth = self.start_depth as usize;
                 while Some(key[branch_depth]) == self.peek(branch_depth) {
                     branch_depth += 1;
@@ -161,11 +163,11 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
+            fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
                 self.body.hash
             }
 
-            pub(super) fn with_start_depth(
+            fn with_start_depth(
                 &self,
                 new_start_depth: usize,
                 key: &[u8; KEY_LEN],

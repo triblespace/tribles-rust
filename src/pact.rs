@@ -469,7 +469,6 @@ mod tests {
                 key.iter_mut().set_from(entry.iter().cloned());
                 tree.put(key);
             }
-            //let entry_set = HashSet::from_iter(entries.iter().cloned());
         }
 
         #[test]
@@ -483,6 +482,20 @@ mod tests {
                 set.insert(key);
             }
             prop_assert_eq!(set.len() as u64, tree.len())
+        }
+
+        #[test]
+        fn tree_iter(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut tree = PACT::<64>::new();
+            let mut set = HashSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                tree.put(key);
+                set.insert(key);
+            }
+            let tree_set = HashSet::from_iter(tree.cursor().into_iter());
+            prop_assert_eq!(set, tree_set);
         }
     }
 }

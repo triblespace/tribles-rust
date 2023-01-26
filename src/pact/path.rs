@@ -153,7 +153,7 @@ macro_rules! create_path {
                 for i in 0..new_fragment.len() {
                     let depth = actual_start_depth + i;
                     
-                    new_fragment[i] = if (depth < self.start_depth as usize) {
+                    new_fragment[i] = if depth < self.start_depth as usize {
                         key[depth]
                     } else {
                         if let Some(byte) = self.peek(depth) {

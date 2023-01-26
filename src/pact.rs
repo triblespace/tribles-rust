@@ -94,14 +94,27 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
 */
 
 trait HeadVariant<const KEY_LEN: usize>: Sized {
+    /// Returns the number of leafs in the subtree under this node.
     fn count(&self) -> u64;
 
+    /// Allows for the reading of the non-branching key fragments
+    /// that are stored in this node.
+    /// Returns `None` when the key bytes are ambiguous or when
+    /// the provided depth is out of bounds for the node
+    /// e.g. when at the end depth of a branch node.
     fn peek(&self, _at_depth: usize) -> Option<u8>;
 
+    /// Similar to peek except that it provides all possible key bytes,
+    /// both for parts of key fragments and when a node branches into
+    /// multiple children.
     fn propose(&self, _at_depth: usize, result_set: &mut ByteBitset);
 
+    /// Stores the provided key in the node. This returns a new node
+    /// which may or may not share structure with the provided node.
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN>;
 
+    /// Returns the xored sum of all hashes of leafs
+    //  in the subtree under this node.
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
     fn with_start_depth(
@@ -365,15 +378,15 @@ where
             .propose(self.depth, bitset);
     }
 
-    fn pop(&mut self) {
-        self.depth -= 1;
-    }
-
     fn push(&mut self, byte: u8) {
         self.path[self.depth + 1] = self.path[self.depth];
-        //.expect("pushed path should exist")
-        //.get(self.depth, byte);
+            //.expect("pushed path should exist")
+            //.get(self.depth, byte);
         self.depth += 1;
+    }
+
+    fn pop(&mut self) {
+        self.depth -= 1;
     }
 
     fn segment_count(&self) -> u32 {

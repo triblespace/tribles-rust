@@ -13,7 +13,7 @@ use path::*;
 use crate::bitset::ByteBitset;
 use crate::bytetable;
 use crate::bytetable::*;
-use crate::query::ByteCursor; //CursorIterator
+use crate::query::{ ByteCursor, CursorIterator };
 use rand::thread_rng;
 use rand::RngCore;
 use std::cmp::{max, min};
@@ -94,24 +94,28 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
 */
 
 trait HeadVariant<const KEY_LEN: usize>: Sized {
-    /// Returns the number of leafs in the subtree under this node.
-    fn count(&self) -> u64;
-
     /// Allows for the reading of the non-branching key fragments
     /// that are stored in this node.
     /// Returns `None` when the key bytes are ambiguous or when
     /// the provided depth is out of bounds for the node
     /// e.g. when at the end depth of a branch node.
-    fn peek(&self, _at_depth: usize) -> Option<u8>;
+    fn peek(&self, at_depth: usize) -> Option<u8>;
 
     /// Similar to peek except that it provides all possible key bytes,
     /// both for parts of key fragments and when a node branches into
     /// multiple children.
-    fn propose(&self, _at_depth: usize, result_set: &mut ByteBitset);
+    fn propose(&self, at_depth: usize, result_set: &mut ByteBitset);
+
+    /// Return the child stored at the provided depth under the provided key.
+    /// Will return `self` when the fragment matches the key at the depth.
+    fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN>;
 
     /// Stores the provided key in the node. This returns a new node
     /// which may or may not share structure with the provided node.
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN>;
+
+    /// Returns the number of leafs in the subtree under this node.
+    fn count(&self) -> u64;
 
     /// Returns the xored sum of all hashes of leafs
     //  in the subtree under this node.
@@ -289,6 +293,10 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         dispatch!(self, variant, variant.propose(at_depth, result_set))
     }
 
+    fn get(&self, at_depth: usize, key: u8) -> Self {
+        dispatch!(self, variant, variant.get(at_depth, key))
+    }
+
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Self {
         dispatch_mut!(self, variant, variant.put(key))
     }
@@ -340,52 +348,47 @@ where
     }
 }
 
-pub struct PACTCursor<'a, const KEY_LEN: usize>
+pub struct PACTCursor<const KEY_LEN: usize>
 where
-    [Option<&'a Head<KEY_LEN>>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
 {
     depth: usize,
-    path: [Option<&'a Head<KEY_LEN>>; KEY_LEN + 1],
+    path: [Head<KEY_LEN>; KEY_LEN + 1],
 }
 
-impl<'a, const KEY_LEN: usize> PACTCursor<'a, KEY_LEN>
+impl<const KEY_LEN: usize> PACTCursor<KEY_LEN>
 where
-    [Option<&'a Head<KEY_LEN>>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
 {
-    pub fn new(tree: &'a PACT<KEY_LEN>) -> Self {
+    pub fn new(tree: &PACT<KEY_LEN>) -> Self {
         let mut new = Self {
             depth: 0,
-            path: [None; KEY_LEN + 1],
+            path: unsafe { mem::zeroed() },
         };
-        new.path[0] = Some(&tree.root);
+        new.path[0] = tree.root.clone();
         return new;
     }
 }
 
-impl<'a, const KEY_LEN: usize> ByteCursor for PACTCursor<'a, KEY_LEN>
+impl<const KEY_LEN: usize> ByteCursor for PACTCursor<KEY_LEN>
 where
-    [Option<&'a Head<KEY_LEN>>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
 {
     fn peek(&self) -> Option<u8> {
-        return self.path[self.depth]
-            .expect("peeked path should exist")
-            .peek(self.depth);
+        return self.path[self.depth].peek(self.depth);
     }
 
     fn propose(&self, bitset: &mut ByteBitset) {
-        self.path[self.depth]
-            .expect("proposed path should exist")
-            .propose(self.depth, bitset);
+        self.path[self.depth].propose(self.depth, bitset);
     }
 
     fn push(&mut self, byte: u8) {
-        self.path[self.depth + 1] = self.path[self.depth];
-            //.expect("pushed path should exist")
-            //.get(self.depth, byte);
+        self.path[self.depth + 1] = self.path[self.depth].get(self.depth, byte);
         self.depth += 1;
     }
 
     fn pop(&mut self) {
+        self.path[self.depth] = unsafe {mem::zeroed()};
         self.depth -= 1;
     }
 
@@ -395,11 +398,17 @@ where
     }
 }
 
-/*
-    pub fn iterate(self: Cursor) CursorIterator(Cursor, key_length) {
-        return CursorIterator(Cursor, key_length).init(self);
+impl<const KEY_LEN: usize> IntoIterator for PACTCursor<KEY_LEN> 
+where
+    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
+{
+    type Item = [u8; KEY_LEN];
+    type IntoIter = CursorIterator<Self, KEY_LEN>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CursorIterator::new(self)
     }
-*/
+}
 
 #[cfg(test)]
 mod tests {

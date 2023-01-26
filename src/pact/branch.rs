@@ -55,7 +55,7 @@ macro_rules! create_branch {
                 }
             }
         }
-        
+
         impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for $name<KEY_LEN> {
             fn count(&self) -> u64 {
                 self.body.leaf_count
@@ -93,6 +93,24 @@ macro_rules! create_branch {
                 if let Some(byte_key) = self.peek(at_depth) {
                     result_set.set(byte_key);
                     return;
+                }
+            }
+
+            fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
+                if at_depth == self.end_depth as usize {
+                    if self.body.child_set.is_set(key) {
+                        return self.body.child_table.get(key)
+                            .expect("child table should match child set")
+                            .clone();
+                    } else {
+                        return Empty::new().into();
+                    }
+                } else {
+                    if Some(key) == self.peek(at_depth) {
+                        return self.clone().into();
+                    } else {
+                        return Empty::new().into();
+                    }
                 }
             }
 

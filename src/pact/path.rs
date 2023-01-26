@@ -93,6 +93,21 @@ macro_rules! create_path {
                 }
             }
 
+            fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
+                if at_depth == self.end_depth as usize {
+                    if Some(key) == self.body.child.peek(at_depth) {
+                        return self.body.child.clone();
+                    } else {
+                        return Empty::new().into();
+                    }
+                }
+                if Some(key) == self.peek(at_depth) {
+                    return self.clone().into();
+                } else {
+                    return Empty::new().into();
+                }
+            }
+
             fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
                 let mut branch_depth = self.start_depth as usize;
                 while Some(key[branch_depth]) == self.peek(branch_depth) {

@@ -51,7 +51,7 @@ fn pact_benchmark(c: &mut Criterion) {
 
     for i in [10, 100, 1000, 10000, 100000].iter() {
         group.throughput(Throughput::Elements(*i));
-        group.bench_with_input(BenchmarkId::new("current", i), i, |b, &i| {
+        group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
                 let mut pact = PACT::<64>::new();

@@ -76,7 +76,7 @@ macro_rules! create_path {
                 );
             }
 
-            fn propose(&self, at_depth: usize) -> ByteBitset{
+            fn propose(&self, at_depth: usize) -> ByteBitset {
                 let mut result_set = ByteBitset::new_empty();
                 if at_depth == self.end_depth as usize {
                     result_set.set(
@@ -135,8 +135,10 @@ macro_rules! create_path {
                     let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
 
                     new_branch.insert(key, sibling_leaf);
-                    new_branch
-                        .insert(key, Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
+                    new_branch.insert(
+                        key,
+                        Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key),
+                    );
 
                     return Head::<KEY_LEN>::from(new_branch)
                         .wrap_path(self.start_depth as usize, key);
@@ -145,11 +147,11 @@ macro_rules! create_path {
 
             fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
                 let mut key = *prefix;
-        
+
                 for depth in self.start_depth as usize..self.end_depth as usize {
                     key[depth] = self.peek(depth).unwrap();
                 }
-        
+
                 return self.body.child.hash(&key);
             }
 
@@ -167,7 +169,7 @@ macro_rules! create_path {
                 let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
                 for i in 0..new_fragment.len() {
                     let depth = actual_start_depth + i;
-                    
+
                     new_fragment[i] = if depth < self.start_depth as usize {
                         key[depth]
                     } else {
@@ -186,7 +188,7 @@ macro_rules! create_path {
                     end_depth: self.end_depth,
                     body: Arc::clone(&self.body),
                 })
-            } 
+            }
         }
     };
 }

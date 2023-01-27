@@ -69,7 +69,10 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
 
             let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
             new_branch.insert(key, sibling_leaf);
-            new_branch.insert(key, Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
+            new_branch.insert(
+                key,
+                Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key),
+            );
 
             return Head::<KEY_LEN>::from(new_branch).wrap_path(self.start_depth as usize, key);
         }
@@ -87,11 +90,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         return hasher.finish128().into();
     }
 
-    fn with_start_depth(
-        &self,
-        new_start_depth: usize,
-        key: &[u8; KEY_LEN],
-    ) -> Head<KEY_LEN> {
+    fn with_start_depth(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
         assert!(new_start_depth <= KEY_LEN);
 
         let actual_start_depth = max(

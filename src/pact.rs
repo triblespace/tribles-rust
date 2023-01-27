@@ -20,6 +20,7 @@ use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;
 use siphasher::sip128::{Hasher128, SipHasher24};
+use std::any::type_name;
 use std::cmp::{max, min};
 use std::fmt;
 use std::fmt::Debug;
@@ -28,7 +29,6 @@ use std::mem::ManuallyDrop;
 use std::mem::{transmute, MaybeUninit};
 use std::sync::Arc;
 use std::sync::Once;
-use std::any::type_name;
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
@@ -125,7 +125,10 @@ trait HeadVariant<const KEY_LEN: usize>: Sized {
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
     fn with_start_depth(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-        panic!("`with_start_depth` not supported by {}", type_name::<Self>());
+        panic!(
+            "`with_start_depth` not supported by {}",
+            type_name::<Self>()
+        );
     }
 
     fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {

@@ -63,12 +63,11 @@ macro_rules! create_branch {
 
             fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN>) -> Head<KEY_LEN> {
                 let body = Arc::make_mut(&mut self.body);
-                body
-                    .child_set
+                body.child_set
                     .set(child.key().expect("leaf should have a byte key"));
-                    body.leaf_count += child.count();
-                    body.hash ^= child.hash(key);
-                    body.child_table.put(child)
+                body.leaf_count += child.count();
+                body.hash ^= child.hash(key);
+                body.child_table.put(child)
             }
 
             fn reinsert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
@@ -98,7 +97,10 @@ macro_rules! create_branch {
             fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
                 if at_depth == self.end_depth as usize {
                     if self.body.child_set.is_set(key) {
-                        return self.body.child_table.get(key)
+                        return self
+                            .body
+                            .child_table
+                            .get(key)
                             .expect("child table should match child set")
                             .clone();
                     } else {
@@ -134,7 +136,7 @@ macro_rules! create_branch {
                         let old_child_hash = old_child.hash(key);
                         //let old_child_segment_count = old_child.segmentCount(branch_depth);
                         let old_child_leaf_count = old_child.count();
-                        
+
                         let new_child = old_child.put(key);
 
                         body.hash = (body.hash ^ old_child_hash) ^ new_child.hash(key);
@@ -151,7 +153,7 @@ macro_rules! create_branch {
 
                         let mut displaced = self.insert(
                             key,
-                            Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key)
+                            Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key),
                         );
                         if None == displaced.key() {
                             Head::from(self.clone());
@@ -173,8 +175,10 @@ macro_rules! create_branch {
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
                     new_branch.insert(key, sibling_leaf);
-                    new_branch
-                        .insert(key, Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key));
+                    new_branch.insert(
+                        key,
+                        Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key),
+                    );
 
                     return Head::from(new_branch).wrap_path(self.start_depth as usize, key);
                 }
@@ -197,7 +201,7 @@ macro_rules! create_branch {
                 let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
                 for i in 0..new_fragment.len() {
                     let depth = actual_start_depth + i;
-                    
+
                     new_fragment[i] = if (depth < self.start_depth as usize) {
                         key[depth]
                     } else {

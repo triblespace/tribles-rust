@@ -124,41 +124,56 @@ impl ByteBitset {
             && ((self.bits[2] & other.bits[2]) ^ self.bits[2]) == 0
             && ((self.bits[3] & other.bits[3]) ^ self.bits[3]) == 0
     }
-    /// Store the set intersection between the two given sets in the set.
-    pub fn set_intersect(&mut self, left: &Self, right: &Self) {
-        self.bits[0] = left.bits[0] & right.bits[0];
-        self.bits[1] = left.bits[1] & right.bits[1];
-        self.bits[2] = left.bits[2] & right.bits[2];
-        self.bits[3] = left.bits[3] & right.bits[3];
+    /// Compute the set intersection between the two given sets.
+    pub fn intersect(self, other: Self) -> Self {
+        Self {
+            bits: [
+                self.bits[0] & other.bits[0],
+                self.bits[1] & other.bits[1],
+                self.bits[2] & other.bits[2],
+                self.bits[3] & other.bits[3],
+            ],
+        }
     }
-    /// Store the set union between the two given sets in the set.
-    pub fn set_union(&mut self, left: &Self, right: &Self) {
-        self.bits[0] = left.bits[0] | right.bits[0];
-        self.bits[1] = left.bits[1] | right.bits[1];
-        self.bits[2] = left.bits[2] | right.bits[2];
-        self.bits[3] = left.bits[3] | right.bits[3];
+    /// Compute the set union between the two given sets.
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            bits: [
+                self.bits[0] | other.bits[0],
+                self.bits[1] | other.bits[1],
+                self.bits[2] | other.bits[2],
+                self.bits[3] | other.bits[3],
+            ],
+        }
     }
-    /// Store the set subtraction between the two given sets in the set.
-    pub fn set_subtract(&mut self, left: &Self, right: &Self) {
-        self.bits[1] = left.bits[1] & !right.bits[1];
-        self.bits[2] = left.bits[2] & !right.bits[2];
-        self.bits[0] = left.bits[0] & !right.bits[0];
-        self.bits[3] = left.bits[3] & !right.bits[3];
+    /// Compute the set subtraction between the two given sets.
+    pub fn subtract(self, other: Self) -> Self {
+        Self {
+            bits: [
+                self.bits[0] & !other.bits[0],
+                self.bits[1] & !other.bits[1],
+                self.bits[2] & !other.bits[2],
+                self.bits[3] & !other.bits[3],
+            ],
+        }
     }
-    /// Store the set difference between the two given sets in the set.
-    pub fn set_difference(&mut self, left: &Self, right: &Self) {
-        self.bits[0] = left.bits[0] ^ right.bits[0];
-        self.bits[1] = left.bits[1] ^ right.bits[1];
-        self.bits[2] = left.bits[2] ^ right.bits[2];
-        self.bits[3] = left.bits[3] ^ right.bits[3];
+    /// Compute the set difference between the two given sets.
+    pub fn difference(self, other: Self) -> Self {
+        Self {
+            bits: [
+                self.bits[0] ^ other.bits[0],
+                self.bits[1] ^ other.bits[1],
+                self.bits[2] ^ other.bits[2],
+                self.bits[3] ^ other.bits[3],
+            ],
+        }
     }
-    /// Perform a set complement, removing every element that was in the set
+    /// Compute a set complement, removing every element that was in the set
     /// and inserting every element from the domain that wasn't in the set.
-    pub fn set_complement(&mut self, input: &Self) {
-        self.bits[0] = !input.bits[0];
-        self.bits[1] = !input.bits[1];
-        self.bits[2] = !input.bits[2];
-        self.bits[3] = !input.bits[3];
+    pub fn complement(self) -> Self {
+        Self {
+            bits: [!self.bits[0], !self.bits[1], !self.bits[2], !self.bits[3]],
+        }
     }
     /// Remove all elements from the set except the one passed.
     /// Equal to an intersection with a set containing only the passed element.
@@ -310,52 +325,52 @@ mod tests {
         }
         #[test]
         fn intersect(n in 0u8..255, m in 0u8..255) {
-            let mut out = ByteBitset::new_empty();
             let mut left = ByteBitset::new_empty();
             let mut right = ByteBitset::new_empty();
             left.set(n);
             right.set(m);
-            out.set_intersect(&left, &right);
+
+            let out = left.intersect(right);
             prop_assert_eq!(n == m, out.is_set(n));
         }
         #[test]
         fn union(n in 0u8..255, m in 0u8..255) {
-            let mut out = ByteBitset::new_empty();
             let mut left = ByteBitset::new_empty();
             let mut right = ByteBitset::new_empty();
             left.set(n);
             right.set(m);
-            out.set_union(&left, &right);
+
+            let out = left.union(right);
             prop_assert!(out.is_set(n));
             prop_assert!(out.is_set(m));
         }
         #[test]
         fn subtract(n in 0u8..255, m in 0u8..255) {
-            let mut out = ByteBitset::new_empty();
             let mut left = ByteBitset::new_empty();
             let mut right = ByteBitset::new_empty();
             left.set(n);
             right.set(m);
-            out.set_subtract(&left, &right);
+
+            let out = left.subtract(right);
             prop_assert_eq!(n != m, out.is_set(n));
         }
         #[test]
         fn difference(n in 0u8..255, m in 0u8..255) {
-            let mut out = ByteBitset::new_empty();
             let mut left = ByteBitset::new_empty();
             let mut right = ByteBitset::new_empty();
             left.set(n);
             right.set(m);
-            out.set_difference(&left, &right);
+
+            let out = left.difference(right);
             prop_assert_eq!(n != m, out.is_set(n));
             prop_assert_eq!(n != m, out.is_set(m));
         }
         #[test]
         fn complement(n in 0u8..255, m in 0u8..255) {
-            let mut out = ByteBitset::new_empty();
             let mut input = ByteBitset::new_empty();
             input.set(n);
-            out.set_complement(&input);
+
+            let out = input.complement();
             prop_assert!(!out.is_set(n));
             if n != m {
                 prop_assert!(out.is_set(m));

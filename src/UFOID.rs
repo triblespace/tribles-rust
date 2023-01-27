@@ -1,4 +1,6 @@
+use crate::trible::{Id, Value};
 use arbitrary::Arbitrary;
+use std::convert::TryInto;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Arbitrary, Copy, Clone, PartialEq, Eq)]
@@ -39,12 +41,24 @@ mod tests {
     }
 }
 
-/*
-    pub fn decode(data: *const [32]u8) UFOID {
-        return UFOID{data = data[16..32]};
+impl Id for UFOID {
+    fn decode(data: [u8; 16]) -> Self {
+        UFOID { data }
     }
+    fn encode(id: &Self) -> [u8; 16] {
+        id.data
+    }
+}
 
-    pub fn encode(self: *const UFOID) [32]u8 {
-        return self.data;
+impl Value for UFOID {
+    fn decode(data: [u8; 32]) -> Self {
+        UFOID {
+            data: data[16..32].try_into().unwrap(),
+        }
     }
-*/
+    fn encode(value: &Self) -> [u8; 32] {
+        let mut data = [0; 32];
+        data[16..32].copy_from_slice(&value.data);
+        data
+    }
+}

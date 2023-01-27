@@ -1,8 +1,9 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use std::iter::FromIterator;
 use tribles::fucid::FUCID;
 use tribles::trible::*;
+use tribles::ufoid::UFOID;
 
 use tribles::pact;
 use tribles::pact::PACT;
@@ -13,110 +14,55 @@ fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
     let mut vec = Vec::new();
 
-    let mut e = FUCID::new();
-    let mut a = FUCID::new();
-    let mut v = FUCID::new();
+    let mut e = UFOID::new(&mut rng);
+    let mut a = UFOID::new(&mut rng);
+    let mut v = UFOID::new(&mut rng);
     for _i in 0..length {
         if rng.gen_bool(0.1) {
-            e = FUCID::new();
+            e = UFOID::new(&mut rng);
         }
         if rng.gen_bool(0.1) {
-            a = FUCID::new();
+            a = UFOID::new(&mut rng);
         }
-        v = FUCID::new();
+        v = UFOID::new(&mut rng);
 
         vec.push(Trible::new(&e, &a, &v))
     }
     return vec;
 }
 
-fn im_put(c: &mut Criterion) {
-    let samples_10 = random_tribles(10);
-    let samples_100 = random_tribles(100);
-    let samples_1000 = random_tribles(1000);
-    let samples_10000 = random_tribles(10000);
-    let samples_100000 = random_tribles(100000);
-    let samples_1000000 = random_tribles(1000000);
+fn im_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("im");
 
-    c.bench_function("im insert 10", |b| {
-        b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples_10).iter().copied()))
-    });
-    c.bench_function("im insert 100", |b| {
-        b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples_100).iter().copied()))
-    });
-    c.bench_function("im insert 1000", |b| {
-        b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples_1000).iter().copied()))
-    });
-    c.bench_function("im insert 10000", |b| {
-        b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples_10000).iter().copied()))
-    });
-    c.bench_function("im insert 100000", |b| {
-        b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples_100000).iter().copied()))
-    });
-    c.bench_function("im insert 1000000", |b| {
-        b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples_1000000).iter().copied()))
-    });
+    for i in [10, 100, 1000, 10000, 100000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
+        });
+    }
+    group.finish();
 }
 
-fn pact_put(c: &mut Criterion) {
+fn pact_benchmark(c: &mut Criterion) {
     pact::init();
 
-    let samples_10 = random_tribles(10);
-    let samples_100 = random_tribles(100);
-    let samples_1000 = random_tribles(1000);
-    let samples_10000 = random_tribles(10000);
-    let samples_100000 = random_tribles(100000);
-    let samples_1000000 = random_tribles(1000000);
+    let mut group = c.benchmark_group("PACT");
 
-    c.bench_function("PACT insert 10", |b| {
-        b.iter(|| {
-            let mut pact = PACT::<64>::new();
-            for t in black_box(&samples_10) {
-                pact.put(t.data);
-            }
-        })
-    });
-    c.bench_function("PACT insert 100", |b| {
-        b.iter(|| {
-            let mut pact = PACT::<64>::new();
-            for t in black_box(&samples_100) {
-                pact.put(t.data);
-            }
-        })
-    });
-    c.bench_function("PACT insert 1000", |b| {
-        b.iter(|| {
-            let mut pact = PACT::<64>::new();
-            for t in black_box(&samples_1000) {
-                pact.put(t.data);
-            }
-        })
-    });
-    c.bench_function("PACT insert 10000", |b| {
-        b.iter(|| {
-            let mut pact = PACT::<64>::new();
-            for t in black_box(&samples_10000) {
-                pact.put(t.data);
-            }
-        })
-    });
-    c.bench_function("PACT insert 100000", |b| {
-        b.iter(|| {
-            let mut pact = PACT::<64>::new();
-            for t in black_box(&samples_100000) {
-                pact.put(t.data);
-            }
-        })
-    });
-    c.bench_function("PACT insert 1000000", |b| {
-        b.iter(|| {
-            let mut pact = PACT::<64>::new();
-            for t in black_box(&samples_1000000) {
-                pact.put(t.data);
-            }
-        })
-    });
+    for i in [10, 100, 1000, 10000, 100000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("current", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            b.iter(|| {
+                let mut pact = PACT::<64>::new();
+                for t in black_box(&samples) {
+                    pact.put(t.data);
+                }
+            })
+        });
+    }
+    group.finish();
 }
 
-criterion_group!(benches, im_put, pact_put);
+criterion_group!(benches, im_benchmark, pact_benchmark);
 criterion_main!(benches);

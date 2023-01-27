@@ -30,8 +30,8 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Empty<KEY_LEN> {
         None
     }
 
-    fn propose(&self, _at_depth: usize, result_set: &mut ByteBitset) {
-        result_set.unset_all();
+    fn propose(&self, _at_depth: usize) -> ByteBitset {
+        ByteBitset::new_empty()
     }
 
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {

@@ -76,8 +76,8 @@ macro_rules! create_path {
                 );
             }
 
-            fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
-                result_set.unset_all();
+            fn propose(&self, at_depth: usize) -> ByteBitset{
+                let mut result_set = ByteBitset::new_empty();
                 if at_depth == self.end_depth as usize {
                     result_set.set(
                         self.body
@@ -85,12 +85,12 @@ macro_rules! create_path {
                             .peek(at_depth)
                             .expect("path child peek at child depth must succeed"),
                     );
-                    return;
+                } else {
+                    if let Some(byte_key) = self.peek(at_depth) {
+                        result_set.set(byte_key);
+                    }
                 }
-
-                if let Some(byte_key) = self.peek(at_depth) {
-                    result_set.set(byte_key);
-                }
+                return result_set;
             }
 
             fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {

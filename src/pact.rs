@@ -3,29 +3,32 @@ mod empty;
 mod leaf;
 mod macros;
 mod path;
+mod setops;
 
 use branch::*;
 use empty::*;
 use leaf::*;
 use macros::*;
 use path::*;
+use setops::*;
 
 use crate::bitset::ByteBitset;
 use crate::bytetable;
 use crate::bytetable::*;
-use crate::query::{ ByteCursor, CursorIterator };
+use crate::query::{ByteCursor, CursorIterator};
+use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;
-use std::cmp::{max, min};
-use std::mem;
-use std::sync::Arc;
-use std::sync::Once;
-use core::hash::Hasher;
 use siphasher::sip128::{Hasher128, SipHasher24};
+use std::cmp::{max, min};
 use std::fmt;
 use std::fmt::Debug;
+use std::mem;
 use std::mem::ManuallyDrop;
 use std::mem::{transmute, MaybeUninit};
+use std::sync::Arc;
+use std::sync::Once;
+use std::any::type_name;
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
@@ -104,7 +107,7 @@ trait HeadVariant<const KEY_LEN: usize>: Sized {
     /// Similar to peek except that it provides all possible key bytes,
     /// both for parts of key fragments and when a node branches into
     /// multiple children.
-    fn propose(&self, at_depth: usize, result_set: &mut ByteBitset);
+    fn propose(&self, at_depth: usize) -> ByteBitset;
 
     /// Return the child stored at the provided depth under the provided key.
     /// Will return `self` when the fragment matches the key at the depth.
@@ -121,27 +124,20 @@ trait HeadVariant<const KEY_LEN: usize>: Sized {
     //  in the subtree under this node.
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
-    fn with_start_depth(
-        &self,
-        _new_start_depth: usize,
-        _key: &[u8; KEY_LEN],
-    ) -> Head<KEY_LEN> {
-        panic!("`with_start_depth` not supported by type");
-    }
-    
-    fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
-        panic!("`insert` not supported by type");
+    fn with_start_depth(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+        panic!("`with_start_depth` not supported by {}", type_name::<Self>());
     }
 
-    fn reinsert(
-        &mut self,
-        _child: Head<KEY_LEN>,
-    ) -> Head<KEY_LEN> {
-        panic!("`reinsert` not supported by type");
+    fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+        panic!("`insert` not supported by {}", type_name::<Self>());
+    }
+
+    fn reinsert(&mut self, _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+        panic!("`reinsert` not supported by {}", type_name::<Self>());
     }
 
     fn grow(&self) -> Head<KEY_LEN> {
-        panic!("`grow` not supported by type");
+        panic!("`grow` not supported by {}", type_name::<Self>());
     }
 }
 
@@ -289,8 +285,8 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         dispatch!(self, variant, variant.peek(at_depth))
     }
 
-    fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
-        dispatch!(self, variant, variant.propose(at_depth, result_set))
+    fn propose(&self, at_depth: usize) -> ByteBitset {
+        dispatch!(self, variant, variant.propose(at_depth))
     }
 
     fn get(&self, at_depth: usize, key: u8) -> Self {
@@ -323,9 +319,9 @@ pub struct PACT<const KEY_LEN: usize> {
     root: Head<KEY_LEN>,
 }
 
-impl<'a, const KEY_LEN: usize> PACT<KEY_LEN>
+impl<const KEY_LEN: usize> PACT<KEY_LEN>
 where
-    [Option<&'a Head<KEY_LEN>>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
 {
     const KEY_LEN_CHECK: usize = KEY_LEN - 64;
 
@@ -378,8 +374,8 @@ where
         return self.path[self.depth].peek(self.depth);
     }
 
-    fn propose(&self, bitset: &mut ByteBitset) {
-        self.path[self.depth].propose(self.depth, bitset);
+    fn propose(&self) -> ByteBitset {
+        self.path[self.depth].propose(self.depth)
     }
 
     fn push(&mut self, byte: u8) {
@@ -388,7 +384,7 @@ where
     }
 
     fn pop(&mut self) {
-        self.path[self.depth] = unsafe {mem::zeroed()};
+        self.path[self.depth] = unsafe { mem::zeroed() };
         self.depth -= 1;
     }
 
@@ -398,7 +394,7 @@ where
     }
 }
 
-impl<const KEY_LEN: usize> IntoIterator for PACTCursor<KEY_LEN> 
+impl<const KEY_LEN: usize> IntoIterator for PACTCursor<KEY_LEN>
 where
     [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
 {

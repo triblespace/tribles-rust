@@ -83,17 +83,16 @@ macro_rules! create_branch {
                 return Some(self.fragment[index_start(self.start_depth as usize, at_depth)]);
             }
 
-            fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
+            fn propose(&self, at_depth: usize) -> ByteBitset {
                 if at_depth == self.end_depth as usize {
-                    *result_set = self.body.child_set;
-                    return;
+                    return self.body.child_set;
                 }
 
-                result_set.unset_all();
+                let mut result_set = ByteBitset::new_empty();
                 if let Some(byte_key) = self.peek(at_depth) {
                     result_set.set(byte_key);
-                    return;
                 }
+                return result_set;
             }
 
             fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {

@@ -41,12 +41,12 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         return Some(self.fragment[index_start(self.start_depth as usize, at_depth)]);
     }
 
-    fn propose(&self, at_depth: usize, result_set: &mut ByteBitset) {
-        result_set.unset_all();
-        if KEY_LEN <= at_depth {
-            return;
+    fn propose(&self, at_depth: usize) -> ByteBitset {
+        let mut result_set = ByteBitset::new_empty();
+        if at_depth < KEY_LEN {
+            result_set.set(self.fragment[index_start(self.start_depth as usize, at_depth)]);
         }
-        result_set.set(self.fragment[index_start(self.start_depth as usize, at_depth)]);
+        return result_set;
     }
 
     fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {

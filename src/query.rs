@@ -3,7 +3,7 @@ use crate::bitset::ByteBitset;
 pub trait ByteCursor {
     fn peek(&self) -> Option<u8>;
 
-    fn propose(&self, bitset: &mut ByteBitset);
+    fn propose(&self) -> ByteBitset;
 
     fn pop(&mut self);
 
@@ -52,7 +52,7 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                             self.cursor.push(key_fragment);
                             self.depth += 1;
                         } else {
-                            self.cursor.propose(&mut self.branch_state[self.depth]);
+                            self.branch_state[self.depth] = self.cursor.propose();
                             self.branch_points.set(self.depth as u8);
                             self.mode = ExplorationMode::Branch;
                             continue 'search;

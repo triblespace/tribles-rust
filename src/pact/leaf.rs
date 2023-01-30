@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub(super) struct Leaf<const KEY_LEN: usize> {
-    tag: HeadTag,
+    _tag: HeadTag,
     start_depth: u8,
     fragment: [u8; LEAF_FRAGMENT_LEN],
 }
@@ -22,7 +22,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
 
         Self {
-            tag: HeadTag::Leaf,
+            _tag: HeadTag::Leaf,
             start_depth: actual_start_depth as u8,
             fragment: fragment,
         }
@@ -107,7 +107,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         }
 
         Head::<KEY_LEN>::from(Self {
-            tag: HeadTag::Leaf,
+            _tag: HeadTag::Leaf,
             start_depth: actual_start_depth as u8,
             fragment: new_fragment,
         })

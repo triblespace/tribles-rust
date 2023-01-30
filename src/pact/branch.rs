@@ -155,7 +155,7 @@ macro_rules! create_branch {
                                 Head::from(Leaf::new(depth, key)).wrap_path(depth, key),
                             );
                             if None == displaced.key() {
-                                Head::from(self.clone());
+                                return Head::from(self.clone());
                             }
     
                             let mut new_self = Head::from(self.clone());

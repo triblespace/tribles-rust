@@ -10,7 +10,7 @@ use empty::*;
 use leaf::*;
 use macros::*;
 use path::*;
-use setops::*;
+//use setops::*;
 
 use crate::bitset::ByteBitset;
 use crate::bytetable;
@@ -44,7 +44,6 @@ pub fn init() {
     });
 }
 
-const HEAD_SIZE: usize = 16;
 const HEAD_FRAGMENT_LEN: usize = 5;
 const LEAF_FRAGMENT_LEN: usize = 14;
 

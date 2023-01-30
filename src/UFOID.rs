@@ -17,10 +17,10 @@ impl UFOID {
             .expect("time went backwards");
         let now_in_ms = now_since_epoch.as_millis();
 
-        return Self::newWithTime(now_in_ms as u32, rnd);
+        return Self::new_with_time(now_in_ms as u32, rnd);
     }
 
-    pub fn newWithTime(timestamp_ms: u32, rnd: &mut dyn rand::RngCore) -> UFOID {
+    pub fn new_with_time(timestamp_ms: u32, rnd: &mut dyn rand::RngCore) -> UFOID {
         let mut id = UFOID { data: [0; 16] };
         id.data[0..4].copy_from_slice(&timestamp_ms.to_be_bytes());
         rnd.fill_bytes(&mut id.data[4..16]);

@@ -34,11 +34,11 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Empty<KEY_LEN> {
         Head::<KEY_LEN>::from(Leaf::new(0, key)).wrap_path(0, key)
     }
 
-    fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
+    fn get(&self, _at_depth: usize, _key: u8) -> Head<KEY_LEN> {
         return Empty::new().into();
     }
 
-    fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
+    fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
         0
     }
 }

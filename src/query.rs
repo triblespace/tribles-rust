@@ -51,12 +51,17 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
             dbg!(self.mode, self.depth);
             match self.mode {
                 ExplorationMode::Path => {
-                    while self.depth < MAX_DEPTH {
+                    loop {
                         match self.cursor.peek() {
                             Peek::Fragment(key_fragment) => {
                                 self.key[self.depth] = key_fragment;
-                                self.cursor.push(key_fragment);
-                                self.depth += 1;
+                                if self.depth == MAX_DEPTH - 1 {
+                                    self.mode = ExplorationMode::Backtrack;
+                                    return Some(self.key);
+                                } else {
+                                    self.cursor.push(key_fragment);
+                                    self.depth += 1;
+                                }
                             },
                             Peek::Branch(options) => {
                                 self.branch_state[self.depth] = options;
@@ -66,16 +71,18 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
                             }
                         }
                     }
-                    self.mode = ExplorationMode::Backtrack;
-                    return Some(self.key);
                 }
                 ExplorationMode::Branch => {
                     if let Some(key_fragment) = self.branch_state[self.depth].drain_next_ascending()
                     {
                         self.key[self.depth] = key_fragment;
-                        self.cursor.push(key_fragment);
-                        self.depth += 1;
-                        self.mode = ExplorationMode::Path;
+                        if self.depth == MAX_DEPTH - 1 {
+                            return Some(self.key);
+                        } else {
+                            self.cursor.push(key_fragment);
+                            self.depth += 1;
+                            self.mode = ExplorationMode::Path;
+                        }
                     } else {
                         self.branch_points.unset(self.depth as u8);
                         self.mode = ExplorationMode::Backtrack;

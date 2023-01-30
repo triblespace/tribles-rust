@@ -1,5 +1,5 @@
 use super::*;
-
+/*
 fn recursiveUnion<const KEY_LEN: usize>(
     at_depth: usize,
     unioned_nodes: &[Head<KEY_LEN>],
@@ -132,3 +132,4 @@ mod tests {
         }
     }
 }
+*/

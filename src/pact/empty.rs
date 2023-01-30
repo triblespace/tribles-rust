@@ -16,7 +16,7 @@ impl<const KEY_LEN: usize> Empty<KEY_LEN> {
     pub(super) fn new() -> Self {
         Self {
             tag: HeadTag::Empty,
-            ignore: MaybeUninit::uninit_array(),
+            ignore: [MaybeUninit::new(0); 15],
         }
     }
 }

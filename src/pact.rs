@@ -312,7 +312,7 @@ pub struct PACT<const KEY_LEN: usize> {
 
 impl<const KEY_LEN: usize> PACT<KEY_LEN>
 where
-    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN]: Sized,
 {
     const KEY_LEN_CHECK: usize = KEY_LEN - 64;
 
@@ -337,15 +337,15 @@ where
 
 pub struct PACTCursor<const KEY_LEN: usize>
 where
-    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN]: Sized,
 {
     depth: usize,
-    path: [Head<KEY_LEN>; KEY_LEN + 1],
+    path: [Head<KEY_LEN>; KEY_LEN],
 }
 
 impl<const KEY_LEN: usize> PACTCursor<KEY_LEN>
 where
-    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN]: Sized,
 {
     pub fn new(tree: &PACT<KEY_LEN>) -> Self {
         let mut new = Self {
@@ -359,7 +359,7 @@ where
 
 impl<const KEY_LEN: usize> ByteCursor for PACTCursor<KEY_LEN>
 where
-    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN]: Sized,
 {
     fn peek(&self) -> Peek {
         self.path[self.depth].peek(self.depth)
@@ -383,7 +383,7 @@ where
 
 impl<const KEY_LEN: usize> IntoIterator for PACTCursor<KEY_LEN>
 where
-    [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
+    [Head<KEY_LEN>; KEY_LEN]: Sized,
 {
     type Item = [u8; KEY_LEN];
     type IntoIter = CursorIterator<Self, KEY_LEN>;

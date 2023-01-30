@@ -1,9 +1,12 @@
 use crate::bitset::ByteBitset;
 
-pub trait ByteCursor {
-    fn peek(&self) -> Option<u8>;
+pub enum Peek {
+    Fragment(u8),
+    Branch(ByteBitset),
+}
 
-    fn propose(&self) -> ByteBitset;
+pub trait ByteCursor {
+    fn peek(&self) -> Peek;
 
     fn pop(&mut self);
 
@@ -12,6 +15,7 @@ pub trait ByteCursor {
     fn segment_count(&self) -> u32;
 }
 
+#[derive(Debug, Copy, Clone)]
 enum ExplorationMode {
     Path,
     Branch,
@@ -44,18 +48,22 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
 
     fn next(&mut self) -> Option<Self::Item> {
         'search: loop {
+            dbg!(self.mode, self.depth);
             match self.mode {
                 ExplorationMode::Path => {
                     while self.depth < MAX_DEPTH {
-                        if let Some(key_fragment) = self.cursor.peek() {
-                            self.key[self.depth] = key_fragment;
-                            self.cursor.push(key_fragment);
-                            self.depth += 1;
-                        } else {
-                            self.branch_state[self.depth] = self.cursor.propose();
-                            self.branch_points.set(self.depth as u8);
-                            self.mode = ExplorationMode::Branch;
-                            continue 'search;
+                        match self.cursor.peek() {
+                            Peek::Fragment(key_fragment) => {
+                                self.key[self.depth] = key_fragment;
+                                self.cursor.push(key_fragment);
+                                self.depth += 1;
+                            },
+                            Peek::Branch(options) => {
+                                self.branch_state[self.depth] = options;
+                                self.branch_points.set(self.depth as u8);
+                                self.mode = ExplorationMode::Branch;
+                                continue 'search;
+                            }
                         }
                     }
                     self.mode = ExplorationMode::Backtrack;

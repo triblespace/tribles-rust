@@ -26,12 +26,8 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Empty<KEY_LEN> {
         0
     }
 
-    fn peek(&self, _at_depth: usize) -> Option<u8> {
-        None
-    }
-
-    fn propose(&self, _at_depth: usize) -> ByteBitset {
-        ByteBitset::new_empty()
+    fn peek(&self, _at_depth: usize) -> Peek {
+        Peek::Branch(ByteBitset::new_empty())
     }
 
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {

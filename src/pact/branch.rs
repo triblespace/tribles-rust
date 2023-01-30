@@ -62,12 +62,15 @@ macro_rules! create_branch {
             }
 
             fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN>) -> Head<KEY_LEN> {
-                let body = Arc::make_mut(&mut self.body);
-                body.child_set
-                    .set(child.key().expect("leaf should have a byte key"));
-                body.leaf_count += child.count();
-                body.hash ^= child.hash(key);
-                body.child_table.put(child)
+                if let Some(byte_key) = child.key() {
+                    let body = Arc::make_mut(&mut self.body);
+                    body.child_set.set(byte_key);
+                    body.leaf_count += child.count();
+                    body.hash ^= child.hash(key);
+                    body.child_table.put(child)
+                } else {
+                    Empty::new().into()
+                }
             }
 
             fn reinsert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
@@ -75,112 +78,94 @@ macro_rules! create_branch {
                 inner.child_table.put(child)
             }
 
-            fn peek(&self, at_depth: usize) -> Option<u8> {
-                if at_depth < self.start_depth as usize || self.end_depth as usize <= at_depth {
-                    return None;
-                }
-                return Some(self.fragment[index_start(self.start_depth as usize, at_depth)]);
-            }
-
-            fn propose(&self, at_depth: usize) -> ByteBitset {
+            fn peek(&self, at_depth: usize) -> Peek {
+                assert!(self.start_depth as usize <= at_depth
+                    && at_depth <= self.end_depth as usize);
                 if at_depth == self.end_depth as usize {
-                    return self.body.child_set;
+                    Peek::Branch(self.body.child_set)
+                } else {
+                    Peek::Fragment(self.fragment[index_start(self.start_depth as usize, at_depth)])
                 }
-
-                let mut result_set = ByteBitset::new_empty();
-                if let Some(byte_key) = self.peek(at_depth) {
-                    result_set.set(byte_key);
-                }
-                return result_set;
             }
 
             fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
-                if at_depth == self.end_depth as usize {
-                    if self.body.child_set.is_set(key) {
-                        return self
-                            .body
+                match self.peek(at_depth) {
+                    Peek::Fragment(byte) if byte == key => self.clone().into(),
+                    Peek::Branch(children) if children.is_set(key)  =>
+                        self.body
                             .child_table
                             .get(key)
                             .expect("child table should match child set")
-                            .clone();
-                    } else {
-                        return Empty::new().into();
-                    }
-                } else {
-                    if Some(key) == self.peek(at_depth) {
-                        return self.clone().into();
-                    } else {
-                        return Empty::new().into();
-                    }
+                            .clone(),
+                    _ => Empty::new().into()
                 }
             }
 
             fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-                let mut branch_depth = self.start_depth as usize;
-                while Some(key[branch_depth]) == self.peek(branch_depth) {
-                    branch_depth += 1;
-                }
+                let mut depth = self.start_depth as usize;
+                loop {
+                    let key_byte = key[depth];
+                    match self.peek(depth) {
+                        Peek::Fragment(byte) if byte == key_byte => depth += 1,
+                        Peek::Fragment(_) => {
+                            // The key diverged from what we already have, so we need to introduce
+                            // a branch at the discriminating depth.
 
-                if branch_depth == self.end_depth as usize {
-                    // The entire fragment matched with the key.
-
-                    let byte_key = key[branch_depth];
-                    if self.body.child_set.is_set(byte_key) {
-                        // We already have a child with the same byte as the key.
-
-                        let body = Arc::make_mut(&mut self.body);
-                        let old_child = body
-                            .child_table
-                            .get_mut(byte_key)
-                            .expect("table content should match child set content");
-                        let old_child_hash = old_child.hash(key);
-                        //let old_child_segment_count = old_child.segmentCount(branch_depth);
-                        let old_child_leaf_count = old_child.count();
-
-                        let new_child = old_child.put(key);
-
-                        body.hash = (body.hash ^ old_child_hash) ^ new_child.hash(key);
-                        //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(branch_depth);
-
-                        //body.segment_count = new_segment_count;
-                        body.leaf_count = (body.leaf_count - old_child_leaf_count as u64)
-                            + new_child.count() as u64;
-                        body.child_table.put(new_child);
-
-                        return self.clone().into();
-                    } else {
-                        // We don't have a child with the byte of the key.
-
-                        let mut displaced = self.insert(
-                            key,
-                            Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key),
-                        );
-                        if None == displaced.key() {
-                            Head::from(self.clone());
+                            let sibling_leaf =
+                                Head::from(Leaf::new(depth, key)).wrap_path(depth, key);
+        
+                            let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
+                            new_branch.insert(key, sibling_leaf);
+                            new_branch.insert(
+                                key,
+                                Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
+                            );
+        
+                            return Head::from(new_branch).wrap_path(self.start_depth as usize, key);
                         }
-
-                        let mut new_self = Head::from(self.clone());
-                        while None != displaced.key() {
-                            new_self = new_self.grow();
-                            displaced = new_self.reinsert(displaced);
-                        }
-                        return new_self;
+                        Peek::Branch(children) if children.is_set(key_byte) => {
+                            // We already have a child with the same byte as the key.
+    
+                            let body = Arc::make_mut(&mut self.body);
+                            let old_child = body
+                                .child_table
+                                .get_mut(key_byte)
+                                .expect("table content should match child set content");
+                            let old_child_hash = old_child.hash(key);
+                            //let old_child_segment_count = old_child.segmentCount(depth);
+                            let old_child_leaf_count = old_child.count();
+    
+                            let new_child = old_child.put(key);
+    
+                            body.hash = (body.hash ^ old_child_hash) ^ new_child.hash(key);
+                            //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(depth);
+    
+                            //body.segment_count = new_segment_count;
+                            body.leaf_count = (body.leaf_count - old_child_leaf_count as u64)
+                                + new_child.count() as u64;
+                            body.child_table.put(new_child);
+    
+                            return self.clone().into();
+                        },
+                        Peek::Branch(_) => {
+                            // We don't have a child with the byte of the key.
+    
+                            let mut displaced = self.insert(
+                                key,
+                                Head::from(Leaf::new(depth, key)).wrap_path(depth, key),
+                            );
+                            if None == displaced.key() {
+                                Head::from(self.clone());
+                            }
+    
+                            let mut new_self = Head::from(self.clone());
+                            while None != displaced.key() {
+                                new_self = new_self.grow();
+                                displaced = new_self.reinsert(displaced);
+                            }
+                            return new_self;
+                        },
                     }
-                } else {
-                    // The key diverged from what we already have, so we need to introduce
-                    // a branch at the discriminating depth.
-
-                    let sibling_leaf =
-                        Head::from(Leaf::new(branch_depth, key)).wrap_path(branch_depth, key);
-
-                    let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
-                    new_branch.insert(key, sibling_leaf);
-                    new_branch.insert(
-                        key,
-                        Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key),
-                    );
-
-                    return Head::from(new_branch).wrap_path(self.start_depth as usize, key);
                 }
             }
 
@@ -205,10 +190,9 @@ macro_rules! create_branch {
                     new_fragment[i] = if (depth < self.start_depth as usize) {
                         key[depth]
                     } else {
-                        if let Some(byte) = self.peek(depth) {
-                            byte
-                        } else {
-                            break;
+                        match self.peek(depth) {
+                            Peek::Fragment(byte) => byte,
+                            Peek::Branch(_) => break,
                         }
                     }
                 }

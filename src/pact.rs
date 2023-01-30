@@ -15,7 +15,7 @@ use setops::*;
 use crate::bitset::ByteBitset;
 use crate::bytetable;
 use crate::bytetable::*;
-use crate::query::{ByteCursor, CursorIterator};
+use crate::query::{ByteCursor, Peek, CursorIterator};
 use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;
@@ -97,17 +97,9 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
 */
 
 trait HeadVariant<const KEY_LEN: usize>: Sized {
-    /// Allows for the reading of the non-branching key fragments
-    /// that are stored in this node.
-    /// Returns `None` when the key bytes are ambiguous or when
-    /// the provided depth is out of bounds for the node
-    /// e.g. when at the end depth of a branch node.
-    fn peek(&self, at_depth: usize) -> Option<u8>;
-
-    /// Similar to peek except that it provides all possible key bytes,
-    /// both for parts of key fragments and when a node branches into
-    /// multiple children.
-    fn propose(&self, at_depth: usize) -> ByteBitset;
+    /// Returns a path byte fragment or all possible branch options
+    /// at the given depth.
+    fn peek(&self, at_depth: usize) -> Peek;
 
     /// Return the child stored at the provided depth under the provided key.
     /// Will return `self` when the fragment matches the key at the depth.
@@ -284,12 +276,8 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         )
     }
 
-    fn peek(&self, at_depth: usize) -> Option<u8> {
+    fn peek(&self, at_depth: usize) -> Peek {
         dispatch!(self, variant, variant.peek(at_depth))
-    }
-
-    fn propose(&self, at_depth: usize) -> ByteBitset {
-        dispatch!(self, variant, variant.propose(at_depth))
     }
 
     fn get(&self, at_depth: usize, key: u8) -> Self {
@@ -373,12 +361,8 @@ impl<const KEY_LEN: usize> ByteCursor for PACTCursor<KEY_LEN>
 where
     [Head<KEY_LEN>; KEY_LEN + 1]: Sized,
 {
-    fn peek(&self) -> Option<u8> {
-        return self.path[self.depth].peek(self.depth);
-    }
-
-    fn propose(&self) -> ByteBitset {
-        self.path[self.depth].propose(self.depth)
+    fn peek(&self) -> Peek {
+        self.path[self.depth].peek(self.depth)
     }
 
     fn push(&mut self, byte: u8) {

@@ -16,6 +16,14 @@ impl ByteBitset {
     pub const fn new_full() -> Self {
         ByteBitset { bits: [!0; 4] }
     }
+
+    /// Create a new set with a single value from the domain set.
+    pub fn new_singleton(index: u8) -> Self {
+        let mut set = Self::new_empty();
+        set.set(index);
+        return set;
+    }
+
     /// Check if the set is empty.
     pub fn is_empty(&self) -> bool {
         (self.bits[0] == 0) && (self.bits[1] == 0) && (self.bits[2] == 0) && (self.bits[3] == 0)

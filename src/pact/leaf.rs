@@ -34,56 +34,50 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         1
     }
 
-    fn peek(&self, at_depth: usize) -> Option<u8> {
-        if KEY_LEN <= at_depth {
-            return None;
-        }
-        return Some(self.fragment[index_start(self.start_depth as usize, at_depth)]);
-    }
+    fn peek(&self, at_depth: usize) -> Peek {
+        assert!(self.start_depth as usize <= at_depth
+            && at_depth <= KEY_LEN as usize);
 
-    fn propose(&self, at_depth: usize) -> ByteBitset {
-        let mut result_set = ByteBitset::new_empty();
-        if at_depth < KEY_LEN {
-            result_set.set(self.fragment[index_start(self.start_depth as usize, at_depth)]);
+        if at_depth == KEY_LEN as usize {
+            Peek::Branch(ByteBitset::new_empty())
+        } else {
+            Peek::Fragment(self.fragment[index_start(self.start_depth as usize, at_depth)])
         }
-        return result_set;
     }
 
     fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
-        if Some(key) == self.peek(at_depth) {
-            return self.clone().into();
-        } else {
-            return Empty::new().into();
+        match self.peek(at_depth) {
+            Peek::Fragment(byte) if byte == key => self.clone().into(),
+            _ => Empty::new().into()
         }
     }
 
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-        let mut branch_depth = self.start_depth as usize;
-        while Some(key[branch_depth]) == self.peek(branch_depth) {
-            branch_depth += 1;
-        }
-        if branch_depth == KEY_LEN {
-            return self.clone().into();
-        } else {
-            let sibling_leaf = Head::<KEY_LEN>::from(Leaf::new(branch_depth, key));
-
-            let mut new_branch = Branch4::new(self.start_depth as usize, branch_depth, key);
-            new_branch.insert(key, sibling_leaf);
-            new_branch.insert(
-                key,
-                Head::<KEY_LEN>::from(self.clone()).wrap_path(branch_depth, key),
-            );
-
-            return Head::<KEY_LEN>::from(new_branch).wrap_path(self.start_depth as usize, key);
+        let mut depth = self.start_depth as usize;
+        loop {
+            match self.peek(depth) {
+                Peek::Branch(_) => return self.clone().into(),
+                Peek::Fragment(byte) if byte == key[depth] => depth += 1,
+                Peek::Fragment(_) => {
+                    let sibling_leaf = Head::<KEY_LEN>::from(Leaf::new(depth, key));
+        
+                    let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
+                    new_branch.insert(key, sibling_leaf);
+                    new_branch.insert(
+                        key,
+                        Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
+                    );
+        
+                    return Head::<KEY_LEN>::from(new_branch).wrap_path(self.start_depth as usize, key);
+                },
+            }
         }
     }
 
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
         let mut key = *prefix;
 
-        for depth in self.start_depth as usize..KEY_LEN as usize {
-            key[depth] = self.peek(depth).unwrap();
-        }
+        key[self.start_depth as usize..].copy_from_slice(&self.fragment[..KEY_LEN - self.start_depth as usize]);
 
         let mut hasher = SipHasher24::new_with_key(unsafe { &SIP_KEY });
         hasher.write(&key[..]);
@@ -105,10 +99,9 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
             new_fragment[i] = if depth < self.start_depth as usize {
                 key[depth]
             } else {
-                if let Some(byte) = self.peek(depth) {
-                    byte
-                } else {
-                    break;
+                match self.peek(depth) {
+                    Peek::Fragment(byte) => byte,
+                    Peek::Branch(_) => break,
                 }
             }
         }

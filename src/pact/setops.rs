@@ -1,5 +1,5 @@
 use super::*;
-/*
+
 fn recursiveUnion<const KEY_LEN: usize>(
     at_depth: usize,
     unioned_nodes: &[Head<KEY_LEN>],
@@ -23,6 +23,16 @@ fn recursiveUnion<const KEY_LEN: usize>(
     }
 
     let mut depth = at_depth;
+    /*
+    outer: while (depth < max_depth):(depth += 1) {
+        const first_peek = first_node.peek(depth).?;
+        for (other_nodes) |other_node| {
+            const other_peek = other_node.peek(depth).?;
+            if (first_peek != other_peek) break :outer;
+        }
+        prefix[depth] = first_peek;
+    }
+    */
     loop {
         dbg!(at_depth, depth);
         let mut union_childbits = ByteBitset::new_empty();
@@ -31,7 +41,7 @@ fn recursiveUnion<const KEY_LEN: usize>(
             union_childbits = union_childbits.union(node.propose(depth));
         }
 
-        match dbg!(union_childbits.count()) {
+        match union_childbits.count() {
             0 => return Head::from(Empty::new()),
             1 => {
                 prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
@@ -49,13 +59,13 @@ fn recursiveUnion<const KEY_LEN: usize>(
                     _ => panic!("bad child count"),
                 };
 
-                while let Some(index) = union_childbits.drain_next_ascending() {
-                    prefix[depth] = index;
+                while let Some(byte) = union_childbits.drain_next_ascending() {
+                    prefix[depth] = byte;
 
                     let mut children = Vec::new();
                     for node in unioned_nodes {
                         //TODO filter empty
-                        children.push(node.get(depth, index));
+                        children.push(node.get(depth, byte));
                     }
 
                     let union_node = recursiveUnion(depth + 1, &children[..], prefix);
@@ -122,4 +132,3 @@ mod tests {
         }
     }
 }
-*/

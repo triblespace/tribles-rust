@@ -48,7 +48,6 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
 
     fn next(&mut self) -> Option<Self::Item> {
         'search: loop {
-            dbg!(self.mode, self.depth);
             match self.mode {
                 ExplorationMode::Path => loop {
                     match self.cursor.peek() {

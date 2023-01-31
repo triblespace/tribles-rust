@@ -4,6 +4,7 @@ pub mod fucid;
 pub mod pact;
 pub mod query;
 pub mod trible;
+pub mod tribleset;
 pub mod ufoid;
 
 #[cfg(test)]

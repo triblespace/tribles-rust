@@ -20,6 +20,7 @@ criterion = "0.3"
 proptest = "1.0"
 im = "15.1.0"
 itertools = "0.10.5"
+peak_alloc = "0.1.0"
 
 [[bench]]
 name = "benchmark"

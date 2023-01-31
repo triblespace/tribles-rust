@@ -11,6 +11,10 @@ use tribles::tribleset::TribleSet;
 
 use im::OrdSet;
 
+//use peak_alloc::PeakAlloc;
+//#[global_allocator]
+//static PEAK_ALLOC: PeakAlloc = PeakAlloc;
+
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
     let mut vec = Vec::new();
@@ -35,7 +39,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 fn im_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("im");
 
-    for i in [10, 100, 1000, 10000, 100000].iter() {
+    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
@@ -49,6 +53,8 @@ fn im_benchmark(c: &mut Criterion) {
             );
         });
     }
+    //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
+    //println!("The max amount that was used {}", peak_mem);
     group.finish();
 }
 
@@ -57,7 +63,7 @@ fn pact_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("PACT");
 
-    for i in [10, 100, 1000, 10000, 100000].iter() {
+    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
@@ -83,16 +89,12 @@ fn pact_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-//use peak_alloc::PeakAlloc;
-//#[global_allocator]
-//static PEAK_ALLOC: PeakAlloc = PeakAlloc;
-
 fn tribleset_benchmark(c: &mut Criterion) {
     pact::init();
 
     let mut group = c.benchmark_group("TribleSet");
 
-    for i in [10, 100, 1000, 10000, 100000].iter() {
+    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);

@@ -41,6 +41,13 @@ fn im_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
         });
+        group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let set = OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied());
+            b.iter(||
+                set.iter().count()
+            );
+        });
     }
     group.finish();
 }
@@ -61,7 +68,18 @@ fn pact_benchmark(c: &mut Criterion) {
                 }
             })
         });
+        group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let mut pact = PACT::<64>::new();
+            for t in black_box(&samples) {
+                pact.put(t.data);
+            }
+            b.iter(|| {
+                pact.cursor().into_iter().count()
+            })
+        });
     }
+
     group.finish();
 }
 
@@ -91,5 +109,5 @@ fn tribleset_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, tribleset_benchmark);
+criterion_group!(benches, im_benchmark, pact_benchmark, tribleset_benchmark);
 criterion_main!(benches);

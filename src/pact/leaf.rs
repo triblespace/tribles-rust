@@ -35,20 +35,15 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
     }
 
     fn peek(&self, at_depth: usize) -> Peek {
-        assert!(self.start_depth as usize <= at_depth
-            && at_depth <= KEY_LEN as usize);
+        assert!(self.start_depth as usize <= at_depth && at_depth < KEY_LEN as usize);
 
-        if at_depth == KEY_LEN as usize {
-            Peek::Branch(ByteBitset::new_empty())
-        } else {
-            Peek::Fragment(self.fragment[index_start(self.start_depth as usize, at_depth)])
-        }
+        Peek::Fragment(self.fragment[index_start(self.start_depth as usize, at_depth)])
     }
 
     fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
         match self.peek(at_depth) {
             Peek::Fragment(byte) if byte == key => self.clone().into(),
-            _ => Empty::new().into()
+            _ => Empty::new().into(),
         }
     }
 
@@ -60,16 +55,17 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
                 Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                 Peek::Fragment(_) => {
                     let sibling_leaf = Head::<KEY_LEN>::from(Leaf::new(depth, key));
-        
+
                     let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(key, sibling_leaf);
                     new_branch.insert(
                         key,
                         Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
                     );
-        
-                    return Head::<KEY_LEN>::from(new_branch).wrap_path(self.start_depth as usize, key);
-                },
+
+                    return Head::<KEY_LEN>::from(new_branch)
+                        .wrap_path(self.start_depth as usize, key);
+                }
             }
         }
     }
@@ -77,7 +73,8 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
         let mut key = *prefix;
 
-        key[self.start_depth as usize..].copy_from_slice(&self.fragment[..KEY_LEN - self.start_depth as usize]);
+        key[self.start_depth as usize..]
+            .copy_from_slice(&self.fragment[..KEY_LEN - self.start_depth as usize]);
 
         let mut hasher = SipHasher24::new_with_key(unsafe { &SIP_KEY });
         hasher.write(&key[..]);

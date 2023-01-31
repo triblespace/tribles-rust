@@ -15,7 +15,7 @@ use path::*;
 use crate::bitset::ByteBitset;
 use crate::bytetable;
 use crate::bytetable::*;
-use crate::query::{ByteCursor, Peek, CursorIterator};
+use crate::query::{ByteCursor, CursorIterator, Peek};
 use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;

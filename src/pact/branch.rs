@@ -79,8 +79,9 @@ macro_rules! create_branch {
             }
 
             fn peek(&self, at_depth: usize) -> Peek {
-                assert!(self.start_depth as usize <= at_depth
-                    && at_depth <= self.end_depth as usize);
+                assert!(
+                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize
+                );
                 if at_depth == self.end_depth as usize {
                     Peek::Branch(self.body.child_set)
                 } else {
@@ -91,13 +92,13 @@ macro_rules! create_branch {
             fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
                 match self.peek(at_depth) {
                     Peek::Fragment(byte) if byte == key => self.clone().into(),
-                    Peek::Branch(children) if children.is_set(key)  =>
-                        self.body
-                            .child_table
-                            .get(key)
-                            .expect("child table should match child set")
-                            .clone(),
-                    _ => Empty::new().into()
+                    Peek::Branch(children) if children.is_set(key) => self
+                        .body
+                        .child_table
+                        .get(key)
+                        .expect("child table should match child set")
+                        .clone(),
+                    _ => Empty::new().into(),
                 }
             }
 
@@ -113,19 +114,21 @@ macro_rules! create_branch {
 
                             let sibling_leaf =
                                 Head::from(Leaf::new(depth, key)).wrap_path(depth, key);
-        
-                            let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
+
+                            let mut new_branch =
+                                Branch4::new(self.start_depth as usize, depth, key);
                             new_branch.insert(key, sibling_leaf);
                             new_branch.insert(
                                 key,
                                 Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
                             );
-        
-                            return Head::from(new_branch).wrap_path(self.start_depth as usize, key);
+
+                            return Head::from(new_branch)
+                                .wrap_path(self.start_depth as usize, key);
                         }
                         Peek::Branch(children) if children.is_set(key_byte) => {
                             // We already have a child with the same byte as the key.
-    
+
                             let body = Arc::make_mut(&mut self.body);
                             let old_child = body
                                 .child_table
@@ -134,22 +137,22 @@ macro_rules! create_branch {
                             let old_child_hash = old_child.hash(key);
                             //let old_child_segment_count = old_child.segmentCount(depth);
                             let old_child_leaf_count = old_child.count();
-    
+
                             let new_child = old_child.put(key);
-    
+
                             body.hash = (body.hash ^ old_child_hash) ^ new_child.hash(key);
                             //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(depth);
-    
+
                             //body.segment_count = new_segment_count;
                             body.leaf_count = (body.leaf_count - old_child_leaf_count as u64)
                                 + new_child.count() as u64;
                             body.child_table.put(new_child);
-    
+
                             return self.clone().into();
-                        },
+                        }
                         Peek::Branch(_) => {
                             // We don't have a child with the byte of the key.
-    
+
                             let mut displaced = self.insert(
                                 key,
                                 Head::from(Leaf::new(depth, key)).wrap_path(depth, key),
@@ -157,14 +160,14 @@ macro_rules! create_branch {
                             if None == displaced.key() {
                                 return Head::from(self.clone());
                             }
-    
+
                             let mut new_self = Head::from(self.clone());
                             while None != displaced.key() {
                                 new_self = new_self.grow();
                                 displaced = new_self.reinsert(displaced);
                             }
                             return new_self;
-                        },
+                        }
                     }
                 }
             }

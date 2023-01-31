@@ -20,11 +20,11 @@ impl Trible {
 
         Self { data }
     }
-/*
-    pub fn ordered(&self) -> [u8; 64] {
+    /*
+        pub fn ordered(&self) -> [u8; 64] {
 
-    }
-*/
+        }
+    */
 }
 
 pub trait Id {

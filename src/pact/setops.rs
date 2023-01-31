@@ -1,12 +1,11 @@
-/*
 use super::*;
 
-fn recursiveUnion<const KEY_LEN: usize>(
+fn recursive_union<const KEY_LEN: usize>(
     at_depth: usize,
-    unioned_nodes: &[Head<KEY_LEN>],
+    unioned_nodes: &mut [Head<KEY_LEN>],
     prefix: &mut [u8; KEY_LEN],
 ) -> Head<KEY_LEN> {
-    if 0 == dbg!(unioned_nodes.len()) {
+    if 0 == unioned_nodes.len() {
         return Head::from(Empty::new());
     }
     let first_node = &unioned_nodes[0];
@@ -24,28 +23,29 @@ fn recursiveUnion<const KEY_LEN: usize>(
     }
 
     let mut depth = at_depth;
-    /*
-    outer: while (depth < max_depth):(depth += 1) {
-        const first_peek = first_node.peek(depth).?;
-        for (other_nodes) |other_node| {
-            const other_peek = other_node.peek(depth).?;
-            if (first_peek != other_peek) break :outer;
-        }
-        prefix[depth] = first_peek;
-    }
-    */
+
     loop {
-        dbg!(at_depth, depth);
         let mut union_childbits = ByteBitset::new_empty();
 
-        for node in unioned_nodes {
-            union_childbits = union_childbits.union(node.propose(depth));
+        for node in &mut *unioned_nodes {
+            match node.peek(depth) {
+                Peek::Fragment(byte) => {
+                    union_childbits.set(byte);
+                }
+                Peek::Branch(children_set) if !children_set.is_empty() => {
+                    union_childbits = union_childbits.union(children_set);
+                    *node = node.get(depth, children_set.find_first_set().expect("child exists"));
+                }
+                Peek::Branch(_no_children) => {}
+            }
         }
-
         match union_childbits.count() {
             0 => return Head::from(Empty::new()),
             1 => {
                 prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
+                if depth == KEY_LEN - 1 {
+                    return Head::from(Leaf::new(depth, prefix)).wrap_path(at_depth, prefix);
+                }
                 depth += 1;
             }
             n => {
@@ -64,12 +64,16 @@ fn recursiveUnion<const KEY_LEN: usize>(
                     prefix[depth] = byte;
 
                     let mut children = Vec::new();
-                    for node in unioned_nodes {
+                    for node in &mut *unioned_nodes {
                         //TODO filter empty
                         children.push(node.get(depth, byte));
                     }
 
-                    let union_node = recursiveUnion(depth + 1, &children[..], prefix);
+                    let union_node = if depth == KEY_LEN - 1 {
+                        Leaf::new(depth, prefix).into()
+                    } else {
+                        recursive_union(depth, &mut children[..], prefix)
+                    };
 
                     let mut displaced = branch_node.insert(prefix, union_node);
                     while None != displaced.key() {
@@ -98,7 +102,7 @@ impl<const KEY_LEN: usize> PACT<KEY_LEN> {
         let mut prefix = [0u8; KEY_LEN];
 
         return PACT {
-            root: recursiveUnion(0, &children[..], &mut prefix),
+            root: recursive_union(0, &mut children[..], &mut prefix),
         };
     }
 }
@@ -133,4 +137,3 @@ mod tests {
         }
     }
 }
-*/

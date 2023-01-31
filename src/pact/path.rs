@@ -64,25 +64,31 @@ macro_rules! create_path {
             }
 
             fn peek(&self, at_depth: usize) -> Peek {
-                assert!(self.start_depth as usize <= at_depth
-                    && at_depth <= self.end_depth as usize);
-                
+                assert!(
+                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize
+                );
+
                 match at_depth {
-                    depth if depth == self.end_depth as usize => Peek::Branch(
-                        ByteBitset::new_singleton(self.body.child.key().expect("child should exist"))),
-                    depth if depth < self.start_depth as usize + self.fragment.len() =>
-                        Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)]),
+                    depth if depth == self.end_depth as usize => {
+                        Peek::Branch(ByteBitset::new_singleton(
+                            self.body.child.key().expect("child should exist"),
+                        ))
+                    }
+                    depth if depth < self.start_depth as usize + self.fragment.len() => {
+                        Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
+                    }
                     depth => Peek::Fragment(
-                        self.body.fragment[index_end(self.body.fragment.len(), self.end_depth as usize, depth)])
+                        self.body.fragment
+                            [index_end(self.body.fragment.len(), self.end_depth as usize, depth)],
+                    ),
                 }
             }
 
             fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
                 match self.peek(at_depth) {
                     Peek::Fragment(byte) if byte == key => self.clone().into(),
-                    Peek::Branch(children) if children.is_set(key)  =>
-                        self.body.child.clone(),
-                    _ => Empty::new().into()
+                    Peek::Branch(children) if children.is_set(key) => self.body.child.clone(),
+                    _ => Empty::new().into(),
                 }
             }
 
@@ -94,31 +100,32 @@ macro_rules! create_path {
                         Peek::Fragment(_) => {
                             // The key diverged from what we already have, so we need to introduce
                             // a branch at the discriminating depth.
-                            let sibling_leaf = Head::<KEY_LEN>::from(Leaf::new(depth, key))
-                                .wrap_path(depth, key);
-        
-                            let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
-        
+                            let sibling_leaf =
+                                Head::<KEY_LEN>::from(Leaf::new(depth, key)).wrap_path(depth, key);
+
+                            let mut new_branch =
+                                Branch4::new(self.start_depth as usize, depth, key);
+
                             new_branch.insert(key, sibling_leaf);
                             new_branch.insert(
                                 key,
                                 Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
                             );
-        
+
                             return Head::<KEY_LEN>::from(new_branch)
                                 .wrap_path(self.start_depth as usize, key);
-                        },
+                        }
                         Peek::Branch(_) => {
                             // The entire fragment matched with the key.
                             let mut new_body = Arc::make_mut(&mut self.body);
-        
+
                             let new_child = new_body.child.put(key);
                             if new_child.start_depth() != self.end_depth {
                                 return new_child.wrap_path(self.start_depth as usize, key);
                             }
-        
+
                             new_body.child = new_child;
-        
+
                             return self.clone().into();
                         }
                     }
@@ -131,7 +138,7 @@ macro_rules! create_path {
                 for depth in self.start_depth as usize..self.end_depth as usize {
                     match self.peek(depth) {
                         Peek::Fragment(byte) => key[depth] = byte,
-                        _ => panic!()
+                        _ => panic!(),
                     }
                 }
 

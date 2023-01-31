@@ -82,7 +82,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
     }
 
     fn with_start_depth(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-        assert!(new_start_depth <= KEY_LEN);
+        assert!(new_start_depth < KEY_LEN);
 
         let actual_start_depth = max(
             new_start_depth as isize,
@@ -90,15 +90,15 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         ) as usize;
 
         let mut new_fragment = [0; LEAF_FRAGMENT_LEN];
-        for i in 0..new_fragment.len() {
-            let depth = actual_start_depth + i;
+        for depth in actual_start_depth..KEY_LEN {
+            if depth == KEY_LEN {break;}
 
-            new_fragment[i] = if depth < self.start_depth as usize {
+            new_fragment[depth - actual_start_depth] = if depth < self.start_depth as usize {
                 key[depth]
             } else {
                 match self.peek(depth) {
                     Peek::Fragment(byte) => byte,
-                    Peek::Branch(_) => break,
+                    Peek::Branch(_) => panic!(),
                 }
             }
         }

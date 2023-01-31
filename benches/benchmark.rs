@@ -82,6 +82,23 @@ fn pact_benchmark(c: &mut Criterion) {
         });
     }
 
+    let total_unioned = 1000000;
+    for i in [1, 10, 100, 1000].iter() {
+        group.throughput(Throughput::Elements(total_unioned as u64));
+        group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let pacts = samples.chunks(total_unioned / i)
+                            .map(|samples| {
+                                let mut pact = PACT::<64>::new();
+                                for t in samples {
+                                    pact.put(t.data);
+                                }
+                                pact
+                            });
+            b.iter(|| PACT::union(black_box(pacts.clone())));
+        });
+    }
+
     group.finish();
 }
 

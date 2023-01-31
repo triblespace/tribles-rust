@@ -226,6 +226,7 @@ impl<const KEY_LEN: usize> Default for Head<KEY_LEN> {
 
 impl<const KEY_LEN: usize> Head<KEY_LEN> {
     fn wrap_path(&self, start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
+        assert!(start_depth < KEY_LEN);
         let expanded = self.with_start_depth(start_depth, key);
 
         let actual_start_depth = expanded.start_depth() as usize;

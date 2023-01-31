@@ -48,9 +48,7 @@ fn im_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             let set = OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied());
-            b.iter(||
-                set.iter().count()
-            );
+            b.iter(|| set.iter().count());
         });
     }
     //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
@@ -80,9 +78,7 @@ fn pact_benchmark(c: &mut Criterion) {
             for t in black_box(&samples) {
                 pact.put(t.data);
             }
-            b.iter(|| {
-                pact.cursor().into_iter().count()
-            })
+            b.iter(|| pact.cursor().into_iter().count())
         });
     }
 

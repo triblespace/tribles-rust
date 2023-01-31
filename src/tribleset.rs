@@ -9,7 +9,7 @@ pub struct TribleSet {
 
 impl TribleSet {
     pub fn new() -> TribleSet {
-        TribleSet{
+        TribleSet {
             eav: PACT::new(),
             aev: PACT::new(),
             ave: PACT::new(),

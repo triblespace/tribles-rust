@@ -49,28 +49,26 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
     fn next(&mut self) -> Option<Self::Item> {
         'search: loop {
             match self.mode {
-                ExplorationMode::Path => {
-                    loop {
-                        match self.cursor.peek() {
-                            Peek::Fragment(key_fragment) => {
-                                self.key[self.depth] = key_fragment;
-                                if self.depth == MAX_DEPTH - 1 {
-                                    self.mode = ExplorationMode::Backtrack;
-                                    return Some(self.key);
-                                } else {
-                                    self.cursor.push(key_fragment);
-                                    self.depth += 1;
-                                }
-                            },
-                            Peek::Branch(options) => {
-                                self.branch_state[self.depth] = options;
-                                self.branch_points.set(self.depth as u8);
-                                self.mode = ExplorationMode::Branch;
-                                continue 'search;
+                ExplorationMode::Path => loop {
+                    match self.cursor.peek() {
+                        Peek::Fragment(key_fragment) => {
+                            self.key[self.depth] = key_fragment;
+                            if self.depth == MAX_DEPTH - 1 {
+                                self.mode = ExplorationMode::Backtrack;
+                                return Some(self.key);
+                            } else {
+                                self.cursor.push(key_fragment);
+                                self.depth += 1;
                             }
                         }
+                        Peek::Branch(options) => {
+                            self.branch_state[self.depth] = options;
+                            self.branch_points.set(self.depth as u8);
+                            self.mode = ExplorationMode::Branch;
+                            continue 'search;
+                        }
                     }
-                }
+                },
                 ExplorationMode::Branch => {
                     if let Some(key_fragment) = self.branch_state[self.depth].drain_next_ascending()
                     {

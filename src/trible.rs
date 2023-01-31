@@ -20,11 +20,26 @@ impl Trible {
 
         Self { data }
     }
-/*
-    pub fn ordered(&self) -> [u8; 64] {
 
+    pub fn orderEAV(&self) -> [u8; 64] {
+        self.data
     }
-*/
+
+    pub fn orderAEV(&self) -> [u8; 64] {
+        let mut data = [0; 64];
+        data[16..32].copy_from_slice(&self.data[0..16]);
+        data[0..16].copy_from_slice(&self.data[16..32]);
+        data[32..64].copy_from_slice(&self.data[32..64]);
+        data
+    }
+
+    pub fn orderAVE(&self) -> [u8; 64] {
+        let mut data = [0; 64];
+        data[48..64].copy_from_slice(&self.data[0..16]);
+        data[0..16].copy_from_slice(&self.data[16..32]);
+        data[16..48].copy_from_slice(&self.data[32..64]);
+        data
+    }
 }
 
 pub trait Id {

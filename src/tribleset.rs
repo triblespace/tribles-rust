@@ -1,28 +1,28 @@
-/*
+use crate::pact::PACT;
+use crate::trible::Trible;
+
 pub struct TribleSet {
-    eav: EAVIndex,
-    aev: AEVIndex,
-    ave: AVEIndex,
+    eav: PACT<64>,
+    aev: PACT<64>,
+    ave: PACT<64>,
 }
 
 impl TribleSet {
     pub fn new() -> TribleSet {
         TribleSet{
-            eav: EAVIndex.init(),
-            aev: AEVIndex.init(),
-            ave: AVEIndex.init(),
+            eav: PACT::new(),
+            aev: PACT::new(),
+            ave: PACT::new(),
         }
     }
 
-    pub fn len(&self) u64 {
+    pub fn len(&self) -> u64 {
         return self.eav.len();
     }
 
-    pub fn put(self: *TribleSet, trible: *const Trible) allocError!void {
-        try self.eav.put(trible.ordered(.eav));
-        try self.aev.put(trible.ordered(.aev));
-        try self.ave.put(trible.ordered(.ave));
+    pub fn put(&mut self, trible: &Trible) {
+        self.eav.put(trible.orderEAV());
+        self.aev.put(trible.orderAEV());
+        self.ave.put(trible.orderAVE());
     }
-};
-
-*/
+}

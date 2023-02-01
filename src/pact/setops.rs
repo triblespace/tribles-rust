@@ -44,7 +44,7 @@ fn recursive_union<const KEY_LEN: usize>(
             1 => {
                 prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
                 if depth == KEY_LEN - 1 {
-                    return Head::from(Leaf::new(depth, prefix)).wrap_path(at_depth, prefix);
+                    return new_leaf(depth, prefix).wrap_path(at_depth, prefix);
                 }
                 depth += 1;
             }
@@ -70,7 +70,7 @@ fn recursive_union<const KEY_LEN: usize>(
                     }
 
                     let union_node = if depth == KEY_LEN - 1 {
-                        Leaf::new(depth, prefix).into()
+                        new_leaf(depth, prefix)
                     } else {
                         recursive_union(depth, &mut children[..], prefix)
                     };

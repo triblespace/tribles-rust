@@ -11,9 +11,9 @@ use tribles::tribleset::TribleSet;
 
 use im::OrdSet;
 
-//use peak_alloc::PeakAlloc;
-//#[global_allocator]
-//static PEAK_ALLOC: PeakAlloc = PeakAlloc;
+use peak_alloc::PeakAlloc;
+#[global_allocator]
+static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
@@ -107,7 +107,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("tribleset");
 
-    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
+    for i in [1000000].iter() {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
@@ -116,8 +116,8 @@ fn tribleset_benchmark(c: &mut Criterion) {
                 for t in black_box(&samples) {
                     set.put(t);
                 }
-                //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
-                //println!("The max amount that was used {}", peak_mem);
+                let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
+                println!("The max amount that was used {}", peak_mem);
             })
         });
     }

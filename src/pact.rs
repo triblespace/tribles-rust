@@ -160,6 +160,7 @@ enum HeadTag {
     Path46,
     Path62,
     Leaf,
+    SharedLeaf,
 }
 
 #[repr(C)]
@@ -178,6 +179,7 @@ pub union Head<const KEY_LEN: usize> {
     path46: ManuallyDrop<Path46<KEY_LEN>>,
     path62: ManuallyDrop<Path62<KEY_LEN>>,
     leaf: ManuallyDrop<Leaf<KEY_LEN>>,
+    sharedleaf: ManuallyDrop<SharedLeaf<KEY_LEN>>,
 }
 
 unsafe impl<const KEY_LEN: usize> ByteEntry for Head<KEY_LEN> {

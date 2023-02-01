@@ -104,8 +104,7 @@ macro_rules! create_path {
                         Peek::Fragment(_) => {
                             // The key diverged from what we already have, so we need to introduce
                             // a branch at the discriminating depth.
-                            let sibling_leaf =
-                                Head::<KEY_LEN>::from(Leaf::new(depth, key)).wrap_path(depth, key);
+                            let sibling_leaf = new_leaf(depth, key).wrap_path(depth, key);
 
                             let mut new_branch =
                                 Branch4::new(self.start_depth as usize, depth, key);

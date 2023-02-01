@@ -60,7 +60,7 @@ fn im_benchmark(c: &mut Criterion) {
 fn pact_benchmark(c: &mut Criterion) {
     pact::init();
 
-    let mut group = c.benchmark_group("PACT");
+    let mut group = c.benchmark_group("pact");
 
     for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
         group.throughput(Throughput::Elements(*i));
@@ -105,7 +105,7 @@ fn pact_benchmark(c: &mut Criterion) {
 fn tribleset_benchmark(c: &mut Criterion) {
     pact::init();
 
-    let mut group = c.benchmark_group("TribleSet");
+    let mut group = c.benchmark_group("tribleset");
 
     for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
         group.throughput(Throughput::Elements(*i));

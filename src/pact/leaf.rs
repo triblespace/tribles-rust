@@ -35,7 +35,13 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
     }
 
     fn peek(&self, at_depth: usize) -> Peek {
-        assert!(self.start_depth as usize <= at_depth && at_depth < KEY_LEN as usize);
+        assert!(
+            self.start_depth as usize <= at_depth && at_depth < KEY_LEN as usize,
+            "Peek out of bounds: {} <= {} < {}",
+            self.start_depth,
+            at_depth,
+            KEY_LEN
+        );
 
         Peek::Fragment(self.fragment[index_start(self.start_depth as usize, at_depth)])
     }
@@ -91,7 +97,9 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
 
         let mut new_fragment = [0; LEAF_FRAGMENT_LEN];
         for depth in actual_start_depth..KEY_LEN {
-            if depth == KEY_LEN {break;}
+            if depth == KEY_LEN {
+                break;
+            }
 
             new_fragment[depth - actual_start_depth] = if depth < self.start_depth as usize {
                 key[depth]

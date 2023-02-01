@@ -65,7 +65,11 @@ macro_rules! create_path {
 
             fn peek(&self, at_depth: usize) -> Peek {
                 assert!(
-                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize
+                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize,
+                    "Peek out of bounds: {} <= {} <= {}",
+                    self.start_depth,
+                    at_depth,
+                    self.end_depth
                 );
 
                 match at_depth {
@@ -117,16 +121,11 @@ macro_rules! create_path {
                         }
                         Peek::Branch(_) => {
                             // The entire fragment matched with the key.
-                            let mut new_body = Arc::make_mut(&mut self.body);
-
-                            let new_child = new_body.child.put(key);
-                            if new_child.start_depth() != self.end_depth {
-                                return new_child.wrap_path(self.start_depth as usize, key);
-                            }
-
-                            new_body.child = new_child;
-
-                            return self.clone().into();
+                            let new_body = Arc::make_mut(&mut self.body);
+                            return new_body
+                                .child
+                                .put(key)
+                                .wrap_path(self.start_depth as usize, key);
                         }
                     }
                 }

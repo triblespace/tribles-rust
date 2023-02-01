@@ -314,8 +314,6 @@ impl<const KEY_LEN: usize> PACT<KEY_LEN>
 where
     [Head<KEY_LEN>; KEY_LEN]: Sized,
 {
-    const KEY_LEN_CHECK: usize = KEY_LEN - 64;
-
     pub fn new() -> Self {
         PACT {
             root: Empty::new().into(),

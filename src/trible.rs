@@ -21,11 +21,11 @@ impl Trible {
         Self { data }
     }
 
-    pub fn orderEAV(&self) -> [u8; 64] {
+    pub fn order_eav(&self) -> [u8; 64] {
         self.data
     }
 
-    pub fn orderAEV(&self) -> [u8; 64] {
+    pub fn order_aev(&self) -> [u8; 64] {
         let mut data = [0; 64];
         data[16..32].copy_from_slice(&self.data[0..16]);
         data[0..16].copy_from_slice(&self.data[16..32]);
@@ -33,7 +33,7 @@ impl Trible {
         data
     }
 
-    pub fn orderAVE(&self) -> [u8; 64] {
+    pub fn order_ave(&self) -> [u8; 64] {
         let mut data = [0; 64];
         data[48..64].copy_from_slice(&self.data[0..16]);
         data[0..16].copy_from_slice(&self.data[16..32]);

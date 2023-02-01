@@ -21,8 +21,8 @@ impl TribleSet {
     }
 
     pub fn put(&mut self, trible: &Trible) {
-        self.eav.put(trible.orderEAV());
-        self.aev.put(trible.orderAEV());
-        self.ave.put(trible.orderAVE());
+        self.eav.put(trible.order_eav());
+        self.aev.put(trible.order_aev());
+        self.ave.put(trible.order_ave());
     }
 }

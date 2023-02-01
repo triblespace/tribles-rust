@@ -1,5 +1,6 @@
 use crate::trible::{Id, Value};
 use arbitrary::Arbitrary;
+use rand::{thread_rng, Rng};
 use std::convert::TryInto;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,20 +11,21 @@ pub struct UFOID {
 }
 
 impl UFOID {
-    pub fn new(rnd: &mut dyn rand::RngCore) -> UFOID {
+    pub fn new() -> UFOID {
+        let mut rng = thread_rng();
         let now_in_sys = SystemTime::now();
         let now_since_epoch = now_in_sys
             .duration_since(UNIX_EPOCH)
             .expect("time went backwards");
         let now_in_ms = now_since_epoch.as_millis();
 
-        return Self::new_with_time(now_in_ms as u32, rnd);
+        return Self::new_with(now_in_ms as u32, &mut rng);
     }
 
-    pub fn new_with_time(timestamp_ms: u32, rnd: &mut dyn rand::RngCore) -> UFOID {
+    pub fn new_with(timestamp_ms: u32, rng: &mut dyn rand::RngCore) -> UFOID {
         let mut id = UFOID { data: [0; 16] };
         id.data[0..4].copy_from_slice(&timestamp_ms.to_be_bytes());
-        rnd.fill_bytes(&mut id.data[4..16]);
+        rng.fill_bytes(&mut id.data[4..16]);
 
         return id;
     }
@@ -32,12 +34,10 @@ impl UFOID {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::thread_rng;
 
     #[test]
     fn unique() {
-        let mut rng = thread_rng();
-        assert!(UFOID::new(&mut rng) != UFOID::new(&mut rng));
+        assert!(UFOID::new() != UFOID::new());
     }
 }
 

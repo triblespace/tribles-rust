@@ -54,12 +54,6 @@ pub struct ByteBucket<T: ByteEntry + Clone + Debug> {
 }
 
 impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
-    fn new() -> Self {
-        ByteBucket {
-            entries: unsafe { mem::zeroed() },
-        }
-    }
-
     fn get(&self, byte_key: u8) -> Option<&T> {
         for entry in &self.entries {
             if entry.key() == Some(byte_key) {
@@ -317,7 +311,7 @@ mod tests {
 
     unsafe impl ByteEntry for DummyEntry {
         fn zeroed() -> Self {
-            return unsafe { mem::zeroed() };
+            return DummyEntry::None {};
         }
 
         fn key(&self) -> Option<u8> {
@@ -336,12 +330,6 @@ mod tests {
     #[test]
     fn dummy_non_empty() {
         assert!(DummyEntry::new(0).key().is_some());
-    }
-
-    #[test]
-    fn new_empty_bucket() {
-        init();
-        let _bucket: ByteBucket<DummyEntry> = ByteBucket::new();
     }
 
     #[test]

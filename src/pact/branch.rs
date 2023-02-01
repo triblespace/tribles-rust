@@ -80,7 +80,11 @@ macro_rules! create_branch {
 
             fn peek(&self, at_depth: usize) -> Peek {
                 assert!(
-                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize
+                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize,
+                    "Peek out of bounds: {} <= {} <= {}",
+                    self.start_depth,
+                    at_depth,
+                    self.end_depth
                 );
                 if at_depth == self.end_depth as usize {
                     Peek::Branch(self.body.child_set)

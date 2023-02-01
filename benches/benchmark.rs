@@ -17,19 +17,20 @@ use im::OrdSet;
 
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
+
     let mut vec = Vec::new();
 
-    let mut e = FUCID::new();
-    let mut a = FUCID::new();
-    let mut v = FUCID::new();
+    let mut e = UFOID::new();
+    let mut a = UFOID::new();
+    let mut v = UFOID::new();
     for _i in 0..length {
-        if rng.gen_bool(0.1) {
-            e = FUCID::new();
+        if rng.gen_bool(0.5) {
+            e = UFOID::new();
         }
-        if rng.gen_bool(0.1) {
-            a = FUCID::new();
+        if rng.gen_bool(0.5) {
+            a = UFOID::new();
         }
-        v = FUCID::new();
+        v = UFOID::new();
 
         vec.push(Trible::new(&e, &a, &v))
     }
@@ -87,14 +88,13 @@ fn pact_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(total_unioned as u64));
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let pacts = samples.chunks(total_unioned / i)
-                            .map(|samples| {
-                                let mut pact = PACT::<64>::new();
-                                for t in samples {
-                                    pact.put(t.data);
-                                }
-                                pact
-                            });
+            let pacts = samples.chunks(total_unioned / i).map(|samples| {
+                let mut pact = PACT::<64>::new();
+                for t in samples {
+                    pact.put(t.data);
+                }
+                pact
+            });
             b.iter(|| PACT::union(black_box(pacts.clone())));
         });
     }

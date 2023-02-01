@@ -10,6 +10,7 @@ macro_rules! create_branch {
             //segment_count: u32, //TODO: increase this to a u48
             hash: u128,
             child_set: ByteBitset,
+            key: [u8; KEY_LEN],
             child_table: $table<Head<KEY_LEN>>,
         }
 
@@ -31,23 +32,19 @@ macro_rules! create_branch {
 
         impl<const KEY_LEN: usize> $name<KEY_LEN> {
             pub(super) fn new(start_depth: usize, end_depth: usize, key: &[u8; KEY_LEN]) -> Self {
-                let actual_start_depth = max(
-                    start_depth as isize,
-                    end_depth as isize - HEAD_FRAGMENT_LEN as isize,
-                ) as usize;
-
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &key[..], actual_start_depth);
+                copy_start(fragment.as_mut_slice(), &key[..], start_depth);
 
                 Self {
                     tag: HeadTag::$name,
-                    start_depth: actual_start_depth as u8,
+                    start_depth: start_depth as u8,
                     fragment: fragment,
                     end_depth: end_depth as u8,
                     body: Arc::new($body_name {
                         leaf_count: 0,
                         //rc: AtomicU16::new(1),
                         //segment_count: 0,
+                        key: *key,
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
                         child_table: $table::new(),
@@ -86,10 +83,15 @@ macro_rules! create_branch {
                     at_depth,
                     self.end_depth
                 );
-                if at_depth == self.end_depth as usize {
-                    Peek::Branch(self.body.child_set)
-                } else {
-                    Peek::Fragment(self.fragment[index_start(self.start_depth as usize, at_depth)])
+                match at_depth {
+                    depth if depth == self.end_depth as usize => {
+                        Peek::Branch(self.body.child_set)
+                    }
+                    depth if depth < self.start_depth as usize + self.fragment.len() => {
+                        Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
+
+                    }
+                    depth => Peek::Fragment(self.body.key[depth]),
                 }
             }
 
@@ -183,29 +185,14 @@ macro_rules! create_branch {
             fn with_start_depth(
                 &self,
                 new_start_depth: usize,
-                key: &[u8; KEY_LEN],
+                _key: &[u8; KEY_LEN],
             ) -> Head<KEY_LEN> {
-                let actual_start_depth = max(
-                    new_start_depth as isize,
-                    self.end_depth as isize - HEAD_FRAGMENT_LEN as isize,
-                ) as usize;
+                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];                
+                new_fragment[..].copy_from_slice(&self.body.key[new_start_depth..new_start_depth+HEAD_FRAGMENT_LEN]);
 
-                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
-                for i in 0..new_fragment.len() {
-                    let depth = actual_start_depth + i;
-
-                    new_fragment[i] = if (depth < self.start_depth as usize) {
-                        key[depth]
-                    } else {
-                        match self.peek(depth) {
-                            Peek::Fragment(byte) => byte,
-                            Peek::Branch(_) => break,
-                        }
-                    }
-                }
                 Head::from(Self {
                     tag: HeadTag::$name,
-                    start_depth: actual_start_depth as u8,
+                    start_depth: new_start_depth as u8,
                     fragment: new_fragment,
                     end_depth: self.end_depth,
                     body: Arc::clone(&self.body),
@@ -238,6 +225,7 @@ macro_rules! create_grow {
                         //segment_count: self.segment_count,
                         hash: self.body.hash,
                         child_set: self.body.child_set,
+                        key: self.body.key,
                         child_table: self.body.child_table.grow(),
                     }),
                 })

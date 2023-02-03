@@ -31,7 +31,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Empty<KEY_LEN> {
     }
 
     fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-        Head::<KEY_LEN>::from(new_leaf(0, key)).wrap_path(0, key)
+        new_leaf(0, key)
     }
 
     fn get(&self, _at_depth: usize, _key: u8) -> Head<KEY_LEN> {

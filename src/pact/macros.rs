@@ -16,22 +16,6 @@ macro_rules! dispatch {
                     let $name = &($self.sharedleaf);
                     $call
                 }
-                HeadTag::Path14 => {
-                    let $name = &($self.path14);
-                    $call
-                }
-                HeadTag::Path30 => {
-                    let $name = &($self.path30);
-                    $call
-                }
-                HeadTag::Path46 => {
-                    let $name = &($self.path46);
-                    $call
-                }
-                HeadTag::Path62 => {
-                    let $name = &($self.path62);
-                    $call
-                }
                 HeadTag::Branch4 => {
                     let $name = &($self.branch4);
                     $call
@@ -79,22 +63,6 @@ macro_rules! dispatch_mut {
                 }
                 HeadTag::SharedLeaf => {
                     let $name = &mut ($self.sharedleaf);
-                    $call
-                }
-                HeadTag::Path14 => {
-                    let $name = &mut ($self.path14);
-                    $call
-                }
-                HeadTag::Path30 => {
-                    let $name = &mut ($self.path30);
-                    $call
-                }
-                HeadTag::Path46 => {
-                    let $name = &mut ($self.path46);
-                    $call
-                }
-                HeadTag::Path62 => {
-                    let $name = &mut ($self.path62);
                     $call
                 }
                 HeadTag::Branch4 => {

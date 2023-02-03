@@ -118,19 +118,17 @@ macro_rules! create_branch {
                             // The key diverged from what we already have, so we need to introduce
                             // a branch at the discriminating depth.
 
-                            let sibling_leaf =
-                                new_leaf(depth, key).wrap_path(depth, key);
+                            let sibling_leaf = new_leaf(depth, key);
 
                             let mut new_branch =
                                 Branch4::new(self.start_depth as usize, depth, key);
                             new_branch.insert(key, sibling_leaf);
                             new_branch.insert(
                                 key,
-                                Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
+                                self.clone().with_start(depth, key),
                             );
 
-                            return Head::from(new_branch)
-                                .wrap_path(self.start_depth as usize, key);
+                            return Head::from(new_branch);
                         }
                         Peek::Branch(children) if children.is_set(key_byte) => {
                             // We already have a child with the same byte as the key.
@@ -161,7 +159,7 @@ macro_rules! create_branch {
 
                             let mut displaced = self.insert(
                                 key,
-                                new_leaf(depth, key).wrap_path(depth, key),
+                                new_leaf(depth, key),
                             );
                             if None == displaced.key() {
                                 return Head::from(self.clone());
@@ -182,7 +180,7 @@ macro_rules! create_branch {
                 self.body.hash
             }
 
-            fn with_start_depth(
+            fn with_start(
                 &self,
                 new_start_depth: usize,
                 _key: &[u8; KEY_LEN],

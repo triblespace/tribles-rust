@@ -2,14 +2,12 @@ mod branch;
 mod empty;
 mod leaf;
 mod macros;
-mod path;
 mod setops;
 
 use branch::*;
 use empty::*;
 use leaf::*;
 use macros::*;
-use path::*;
 //use setops::*;
 
 use crate::bitset::ByteBitset;
@@ -115,9 +113,9 @@ trait HeadVariant<const KEY_LEN: usize>: Sized {
     //  in the subtree under this node.
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
-    fn with_start_depth(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+    fn with_start(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
         panic!(
-            "`with_start_depth` not supported by {}",
+            "`with_start` not supported by {}",
             type_name::<Self>()
         );
     }
@@ -155,10 +153,6 @@ enum HeadTag {
     Branch64,
     Branch128,
     Branch256,
-    Path14,
-    Path30,
-    Path46,
-    Path62,
     Leaf,
     SharedLeaf,
 }
@@ -174,10 +168,6 @@ pub union Head<const KEY_LEN: usize> {
     branch64: ManuallyDrop<Branch64<KEY_LEN>>,
     branch128: ManuallyDrop<Branch128<KEY_LEN>>,
     branch256: ManuallyDrop<Branch256<KEY_LEN>>,
-    path14: ManuallyDrop<Path14<KEY_LEN>>,
-    path30: ManuallyDrop<Path30<KEY_LEN>>,
-    path46: ManuallyDrop<Path46<KEY_LEN>>,
-    path62: ManuallyDrop<Path62<KEY_LEN>>,
     leaf: ManuallyDrop<Leaf<KEY_LEN>>,
     sharedleaf: ManuallyDrop<SharedLeaf<KEY_LEN>>,
 }
@@ -226,37 +216,7 @@ impl<const KEY_LEN: usize> Default for Head<KEY_LEN> {
     }
 }
 
-impl<const KEY_LEN: usize> Head<KEY_LEN> {
-    fn wrap_path(&self, start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
-        assert!(start_depth < KEY_LEN);
-        let expanded = self.with_start_depth(start_depth, key);
-
-        let actual_start_depth = expanded.start_depth() as usize;
-        if start_depth == actual_start_depth {
-            return expanded;
-        }
-
-        let path_length = actual_start_depth - start_depth;
-
-        if path_length <= 14 + HEAD_FRAGMENT_LEN {
-            return Path14::new(start_depth, &key, expanded).into();
-        }
-
-        if path_length <= 30 + HEAD_FRAGMENT_LEN {
-            return Path30::new(start_depth, &key, expanded).into();
-        }
-
-        if path_length <= 46 + HEAD_FRAGMENT_LEN {
-            return Path46::new(start_depth, &key, expanded).into();
-        }
-
-        if path_length <= 62 + HEAD_FRAGMENT_LEN {
-            return Path62::new(start_depth, &key, expanded).into();
-        }
-
-        panic!("Fragment too long for path to hold.");
-    }
-
+impl<const KEY_LEN: usize> Head<KEY_LEN> {    
     fn start_depth(&self) -> u8 {
         unsafe {
             if self.unknown.tag == HeadTag::Empty {
@@ -270,11 +230,11 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         dispatch!(self, variant, variant.count())
     }
 
-    fn with_start_depth(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+    fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
         dispatch!(
             self,
             variant,
-            variant.with_start_depth(new_start_depth, key)
+            variant.with_start(new_start_depth, key)
         )
     }
 
@@ -433,14 +393,6 @@ mod tests {
         assert_eq!(mem::size_of::<BranchBody64<64>>(), 64 * 17);
         assert_eq!(mem::size_of::<BranchBody128<64>>(), 64 * 33);
         assert_eq!(mem::size_of::<BranchBody256<64>>(), 64 * 65);
-    }
-
-    #[test]
-    fn fragment_size() {
-        assert_eq!(mem::size_of::<PathBody14<64>>(), 16 * 2);
-        assert_eq!(mem::size_of::<PathBody30<64>>(), 16 * 3);
-        assert_eq!(mem::size_of::<PathBody46<64>>(), 16 * 4);
-        assert_eq!(mem::size_of::<PathBody62<64>>(), 16 * 5);
     }
 
     proptest! {

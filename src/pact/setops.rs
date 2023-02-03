@@ -19,7 +19,7 @@ fn recursive_union<const KEY_LEN: usize>(
         }
     }
     if all_equal {
-        return first_node.clone();
+        return first_node.clone().with_start(at_depth, prefix);
     }
 
     let mut depth = at_depth;
@@ -44,7 +44,7 @@ fn recursive_union<const KEY_LEN: usize>(
             1 => {
                 prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
                 if depth == KEY_LEN - 1 {
-                    return new_leaf(depth, prefix).wrap_path(at_depth, prefix);
+                    return new_leaf(at_depth, prefix);
                 }
                 depth += 1;
             }
@@ -82,7 +82,7 @@ fn recursive_union<const KEY_LEN: usize>(
                     }
                 }
 
-                return branch_node.wrap_path(at_depth, prefix);
+                return Head::from(branch_node);
             }
         }
     }

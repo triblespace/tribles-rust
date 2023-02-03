@@ -63,17 +63,16 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
             match self.peek(depth) {
                 Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                 Peek::Fragment(_) => {
-                    let sibling_leaf = Head::<KEY_LEN>::from(Leaf::new(depth, key));
+                    let sibling_leaf = new_leaf(depth, key);
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(key, sibling_leaf);
                     new_branch.insert(
                         key,
-                        Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
+                        self.clone().with_start(depth, key)
                     );
 
-                    return Head::<KEY_LEN>::from(new_branch)
-                        .wrap_path(self.start_depth as usize, key);
+                    return Head::<KEY_LEN>::from(new_branch);
                 }
                 Peek::Branch(_) => panic!(),
             }
@@ -91,35 +90,37 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         return hasher.finish128().into();
     }
 
-    fn with_start_depth(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+    fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
         assert!(new_start_depth < KEY_LEN);
 
-        let actual_start_depth = max(
-            new_start_depth as isize,
-            KEY_LEN as isize - (LEAF_FRAGMENT_LEN as isize),
-        ) as usize;
-
-        let mut new_fragment = [0; LEAF_FRAGMENT_LEN];
-        for depth in actual_start_depth..KEY_LEN {
-            if depth == KEY_LEN {
-                break;
-            }
-
-            new_fragment[depth - actual_start_depth] = if depth < self.start_depth as usize {
-                key[depth]
-            } else {
-                match self.peek(depth) {
-                    Peek::Fragment(byte) => byte,
-                    Peek::Branch(_) => panic!(),
+        if KEY_LEN - new_start_depth < LEAF_FRAGMENT_LEN {
+            let mut new_fragment = [0; LEAF_FRAGMENT_LEN];
+            for depth in new_start_depth..KEY_LEN {
+                if depth == KEY_LEN {
+                    break;
+                }
+    
+                new_fragment[depth - new_start_depth] = if depth < self.start_depth as usize {
+                    key[depth]
+                } else {
+                    match self.peek(depth) {
+                        Peek::Fragment(byte) => byte,
+                        Peek::Branch(_) => panic!(),
+                    }
                 }
             }
-        }
+    
+            Head::<KEY_LEN>::from(Self {
+                _tag: HeadTag::Leaf,
+                start_depth: new_start_depth as u8,
+                fragment: new_fragment,
+            })
+        } else {
+            let mut old_key = *key;
+            old_key[self.start_depth as usize..].copy_from_slice(&self.fragment[KEY_LEN - self.start_depth as usize..]);
 
-        Head::<KEY_LEN>::from(Self {
-            _tag: HeadTag::Leaf,
-            start_depth: actual_start_depth as u8,
-            fragment: new_fragment,
-        })
+            return SharedLeaf::new(new_start_depth, &old_key).into()
+        }
     }
 }
 
@@ -206,11 +207,10 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for SharedLeaf<KEY_LEN> {
                     new_branch.insert(key, sibling_leaf);
                     new_branch.insert(
                         key,
-                        Head::<KEY_LEN>::from(self.clone()).wrap_path(depth, key),
+                        self.clone().with_start(depth, key),
                     );
 
-                    return Head::<KEY_LEN>::from(new_branch)
-                        .wrap_path(self.start_depth as usize, key);
+                    return Head::<KEY_LEN>::from(new_branch);
                 }
                 Peek::Branch(_) => panic!(),
             }
@@ -223,7 +223,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for SharedLeaf<KEY_LEN> {
         return hasher.finish128().into();
     }
 
-    fn with_start_depth(
+    fn with_start(
         &self,
         new_start_depth: usize,
         _key: &[u8; KEY_LEN],

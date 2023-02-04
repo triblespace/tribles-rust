@@ -121,6 +121,23 @@ fn tribleset_benchmark(c: &mut Criterion) {
             })
         });
     }
+
+    let total_unioned = 1000000;
+    for i in [1, 10, 100, 1000].iter() {
+        group.throughput(Throughput::Elements(total_unioned as u64));
+        group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let sets = samples.chunks(total_unioned / i).map(|samples| {
+                let mut set = TribleSet::new();
+                for t in samples {
+                    set.put(t);
+                }
+                set
+            });
+            b.iter(|| TribleSet::union(black_box(sets.clone())));
+        });
+    }
+
     group.finish();
 }
 

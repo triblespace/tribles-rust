@@ -49,18 +49,6 @@ fn index_start(infix_start: usize, index: usize) -> usize {
     index - infix_start
 }
 
-fn index_end(infix_len: usize, infix_end: usize, index: usize) -> usize {
-    (index + infix_len) - infix_end
-}
-
-fn copy_end(target: &mut [u8], source: &[u8], end_index: usize) {
-    let target_len = target.len();
-    let used_len = min(end_index as usize, target_len);
-    let target_range = &mut target[target_len - used_len..];
-    let source_range = &source[end_index - used_len..end_index];
-    target_range.copy_from_slice(source_range);
-}
-
 fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
     let target_len = target.len();
     let source_len = source.len();

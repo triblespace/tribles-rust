@@ -109,15 +109,25 @@ fn tribleset_benchmark(c: &mut Criterion) {
 
     for i in [1000000].iter() {
         group.throughput(Throughput::Elements(*i));
-        group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
+        group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
                 let mut set = TribleSet::new();
                 for t in black_box(&samples) {
-                    set.put(t);
+                    set.add(t);
                 }
                 let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
                 println!("The max amount that was used {}", peak_mem);
+            })
+        });
+    }
+
+    for i in [1000000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            b.iter(|| {
+                let _set = TribleSet::from_iter(black_box(samples.iter().copied()));
             })
         });
     }
@@ -130,7 +140,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             let sets = samples.chunks(total_unioned / i).map(|samples| {
                 let mut set = TribleSet::new();
                 for t in samples {
-                    set.put(t);
+                    set.add(t);
                 }
                 set
             });

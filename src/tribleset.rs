@@ -1,5 +1,6 @@
 use crate::pact::PACT;
 use crate::trible::Trible;
+use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
@@ -38,9 +39,21 @@ impl TribleSet {
         return self.eav.len();
     }
 
-    pub fn put(&mut self, trible: &Trible) {
+    pub fn add(&mut self, trible: &Trible) {
         self.eav.put(trible.order_eav());
         self.aev.put(trible.order_aev());
         self.ave.put(trible.order_ave());
+    }
+}
+
+impl FromIterator<Trible> for TribleSet {
+    fn from_iter<I: IntoIterator<Item=Trible>>(iter: I) -> Self {
+        let mut set = TribleSet::new();
+
+        for t in iter {
+            set.add(&t);
+        }
+
+        set
     }
 }

@@ -65,10 +65,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for InlineLeaf<KEY_LEN> {
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(key, sibling_leaf);
-                    new_branch.insert(
-                        key,
-                        self.clone().with_start(depth, key)
-                    );
+                    new_branch.insert(key, self.clone().with_start(depth, key));
 
                     return Head::<KEY_LEN>::from(new_branch);
                 }
@@ -97,7 +94,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for InlineLeaf<KEY_LEN> {
                 if depth == KEY_LEN {
                     break;
                 }
-    
+
                 new_fragment[depth - new_start_depth] = if depth < self.start_depth as usize {
                     key[depth]
                 } else {
@@ -107,7 +104,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for InlineLeaf<KEY_LEN> {
                     }
                 }
             }
-    
+
             Head::<KEY_LEN>::from(Self {
                 _tag: HeadTag::Leaf,
                 start_depth: new_start_depth as u8,
@@ -115,9 +112,10 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for InlineLeaf<KEY_LEN> {
             })
         } else {
             let mut old_key = *key;
-            old_key[self.start_depth as usize..].copy_from_slice(&self.fragment[KEY_LEN - self.start_depth as usize..]);
+            old_key[self.start_depth as usize..]
+                .copy_from_slice(&self.fragment[KEY_LEN - self.start_depth as usize..]);
 
-            return Leaf::new(new_start_depth, &old_key).into()
+            return Leaf::new(new_start_depth, &old_key).into();
         }
     }
 }
@@ -125,7 +123,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for InlineLeaf<KEY_LEN> {
 #[derive(Clone, Debug)]
 #[repr(C)]
 pub(super) struct LeafBody<const KEY_LEN: usize> {
-    key: [u8; KEY_LEN]
+    key: [u8; KEY_LEN],
 }
 
 #[derive(Clone, Debug)]
@@ -143,20 +141,17 @@ impl<const KEY_LEN: usize> From<Leaf<KEY_LEN>> for Head<KEY_LEN> {
     }
 }
 
-
 impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(super) fn new(start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
         let mut fragment = [0; 6];
 
-        fragment[..].copy_from_slice(&key[start_depth..start_depth+6]);
+        fragment[..].copy_from_slice(&key[start_depth..start_depth + 6]);
 
         Self {
             tag: HeadTag::SharedLeaf,
             start_depth: start_depth as u8,
             fragment,
-            key: Arc::new(LeafBody {
-                key: *key,
-            }),
+            key: Arc::new(LeafBody { key: *key }),
         }
     }
 }
@@ -177,7 +172,6 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         match at_depth {
             depth if depth < self.start_depth as usize + self.fragment.len() => {
                 Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
-
             }
             depth => Peek::Fragment(self.key.key[depth]),
         }
@@ -203,10 +197,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(key, sibling_leaf);
-                    new_branch.insert(
-                        key,
-                        self.clone().with_start(depth, key),
-                    );
+                    new_branch.insert(key, self.clone().with_start(depth, key));
 
                     return Head::<KEY_LEN>::from(new_branch);
                 }
@@ -221,13 +212,9 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
         return hasher.finish128().into();
     }
 
-    fn with_start(
-        &self,
-        new_start_depth: usize,
-        _key: &[u8; KEY_LEN],
-    ) -> Head<KEY_LEN> {
-        let mut fragment = [0; 6];                
-        fragment[..].copy_from_slice(&self.key.key[new_start_depth..new_start_depth+6]);
+    fn with_start(&self, new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+        let mut fragment = [0; 6];
+        fragment[..].copy_from_slice(&self.key.key[new_start_depth..new_start_depth + 6]);
 
         Head::from(Self {
             tag: HeadTag::SharedLeaf,
@@ -238,7 +225,10 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
     }
 }
 
-pub(super) fn new_leaf<const KEY_LEN: usize>(start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+pub(super) fn new_leaf<const KEY_LEN: usize>(
+    start_depth: usize,
+    key: &[u8; KEY_LEN],
+) -> Head<KEY_LEN> {
     if KEY_LEN - start_depth < LEAF_FRAGMENT_LEN {
         InlineLeaf::new(start_depth, key).into()
     } else {

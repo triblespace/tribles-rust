@@ -102,10 +102,7 @@ trait HeadVariant<const KEY_LEN: usize>: Sized {
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
     fn with_start(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-        panic!(
-            "`with_start` not supported by {}",
-            type_name::<Self>()
-        );
+        panic!("`with_start` not supported by {}", type_name::<Self>());
     }
 
     fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
@@ -204,17 +201,13 @@ impl<const KEY_LEN: usize> Default for Head<KEY_LEN> {
     }
 }
 
-impl<const KEY_LEN: usize> Head<KEY_LEN> {    
+impl<const KEY_LEN: usize> Head<KEY_LEN> {
     fn count(&self) -> u64 {
         dispatch!(self, variant, variant.count())
     }
 
     fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-        dispatch!(
-            self,
-            variant,
-            variant.with_start(new_start_depth, key)
-        )
+        dispatch!(self, variant, variant.with_start(new_start_depth, key))
     }
 
     fn peek(&self, at_depth: usize) -> Peek {

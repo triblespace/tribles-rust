@@ -33,7 +33,7 @@ macro_rules! create_branch {
         impl<const KEY_LEN: usize> $name<KEY_LEN> {
             pub(super) fn new(start_depth: usize, end_depth: usize, key: &[u8; KEY_LEN]) -> Self {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                fragment[..].copy_from_slice(&key[start_depth..start_depth+HEAD_FRAGMENT_LEN]);
+                fragment[..].copy_from_slice(&key[start_depth..start_depth + HEAD_FRAGMENT_LEN]);
 
                 Self {
                     tag: HeadTag::$name,
@@ -84,12 +84,9 @@ macro_rules! create_branch {
                     self.end_depth
                 );
                 match at_depth {
-                    depth if depth == self.end_depth as usize => {
-                        Peek::Branch(self.body.child_set)
-                    }
+                    depth if depth == self.end_depth as usize => Peek::Branch(self.body.child_set),
                     depth if depth < self.start_depth as usize + self.fragment.len() => {
                         Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
-
                     }
                     depth => Peek::Fragment(self.body.key[depth]),
                 }
@@ -123,10 +120,7 @@ macro_rules! create_branch {
                             let mut new_branch =
                                 Branch4::new(self.start_depth as usize, depth, key);
                             new_branch.insert(key, sibling_leaf);
-                            new_branch.insert(
-                                key,
-                                self.clone().with_start(depth, key),
-                            );
+                            new_branch.insert(key, self.clone().with_start(depth, key));
 
                             return Head::from(new_branch);
                         }
@@ -157,10 +151,7 @@ macro_rules! create_branch {
                         Peek::Branch(_) => {
                             // We don't have a child with the byte of the key.
 
-                            let mut displaced = self.insert(
-                                key,
-                                new_leaf(depth, key),
-                            );
+                            let mut displaced = self.insert(key, new_leaf(depth, key));
                             if None == displaced.key() {
                                 return Head::from(self.clone());
                             }
@@ -180,13 +171,11 @@ macro_rules! create_branch {
                 self.body.hash
             }
 
-            fn with_start(
-                &self,
-                new_start_depth: usize,
-                _key: &[u8; KEY_LEN],
-            ) -> Head<KEY_LEN> {
-                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];                
-                new_fragment[..].copy_from_slice(&self.body.key[new_start_depth..new_start_depth+HEAD_FRAGMENT_LEN]);
+            fn with_start(&self, new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
+                new_fragment[..].copy_from_slice(
+                    &self.body.key[new_start_depth..new_start_depth + HEAD_FRAGMENT_LEN],
+                );
 
                 Head::from(Self {
                     tag: HeadTag::$name,

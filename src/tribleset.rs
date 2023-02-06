@@ -20,11 +20,7 @@ impl TribleSet {
         let aev = PACT::union(iter.clone().map(|set| set.aev));
         let ave = PACT::union(iter.clone().map(|set| set.ave));
 
-        TribleSet {
-            eav,
-            aev,
-            ave,
-        }
+        TribleSet { eav, aev, ave }
     }
 
     pub fn new() -> TribleSet {
@@ -47,7 +43,7 @@ impl TribleSet {
 }
 
 impl FromIterator<Trible> for TribleSet {
-    fn from_iter<I: IntoIterator<Item=Trible>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = Trible>>(iter: I) -> Self {
         let mut set = TribleSet::new();
 
         for t in iter {

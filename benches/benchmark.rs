@@ -1,7 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use std::iter::FromIterator;
-use tribles::fucid::FUCID;
+use std::sync::Arc;
+//use tribles::fucid::FUCID;
 use tribles::trible::*;
 use tribles::ufoid::UFOID;
 
@@ -22,7 +23,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 
     let mut e = UFOID::new();
     let mut a = UFOID::new();
-    let mut v = UFOID::new();
+    
     for _i in 0..length {
         if rng.gen_bool(0.5) {
             e = UFOID::new();
@@ -30,7 +31,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
         if rng.gen_bool(0.5) {
             a = UFOID::new();
         }
-        v = UFOID::new();
+        let v = UFOID::new();
 
         vec.push(Trible::new(&e, &a, &v))
     }
@@ -69,7 +70,7 @@ fn pact_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let mut pact = PACT::<64>::new();
                 for t in black_box(&samples) {
-                    pact.put(t.data);
+                    pact.put(&Arc::new(t.data));
                 }
             })
         });
@@ -77,7 +78,7 @@ fn pact_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let mut pact = PACT::<64>::new();
             for t in black_box(&samples) {
-                pact.put(t.data);
+                pact.put(&Arc::new(t.data));
             }
             b.iter(|| pact.cursor().into_iter().count())
         });
@@ -91,7 +92,7 @@ fn pact_benchmark(c: &mut Criterion) {
             let pacts = samples.chunks(total_unioned / i).map(|samples| {
                 let mut pact = PACT::<64>::new();
                 for t in samples {
-                    pact.put(t.data);
+                    pact.put(&Arc::new(t.data));
                 }
                 pact
             });

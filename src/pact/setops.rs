@@ -1,10 +1,10 @@
 use super::*;
 
-fn recursive_union<const KEY_LEN: usize>(
+fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
     at_depth: usize,
-    unioned_nodes: &mut [Head<KEY_LEN>],
+    unioned_nodes: &mut [Head<KEY_LEN, K>],
     prefix: &mut [u8; KEY_LEN],
-) -> Head<KEY_LEN> {
+) -> Head<KEY_LEN, K> {
     if 0 == unioned_nodes.len() {
         return Head::from(Empty::new());
     }
@@ -44,12 +44,12 @@ fn recursive_union<const KEY_LEN: usize>(
             1 => {
                 prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
                 if depth == KEY_LEN - 1 {
-                    return new_leaf(at_depth, prefix);
+                    return new_leaf(at_depth, &Arc::new(*prefix));
                 }
                 depth += 1;
             }
             n => {
-                let mut branch_node: Head<KEY_LEN> = match n {
+                let mut branch_node: Head<KEY_LEN, K> = match n {
                     1..=4 => Branch4::new(at_depth, depth, prefix).into(),
                     5..=8 => Branch8::new(at_depth, depth, prefix).into(),
                     9..=16 => Branch16::new(at_depth, depth, prefix).into(),
@@ -70,7 +70,7 @@ fn recursive_union<const KEY_LEN: usize>(
                     }
 
                     let union_node = if depth == KEY_LEN - 1 {
-                        new_leaf(depth, prefix)
+                        new_leaf(depth, &Arc::new(*prefix))
                     } else {
                         recursive_union(depth, &mut children[..], prefix)
                     };
@@ -88,10 +88,10 @@ fn recursive_union<const KEY_LEN: usize>(
     }
 }
 
-impl<const KEY_LEN: usize> PACT<KEY_LEN> {
-    pub fn union<I>(trees: I) -> PACT<KEY_LEN>
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> PACT<KEY_LEN, K> {
+    pub fn union<I>(trees: I) -> PACT<KEY_LEN, K>
     where
-        I: IntoIterator<Item = PACT<KEY_LEN>>,
+        I: IntoIterator<Item = PACT<KEY_LEN, K>>,
     {
         let mut children = Vec::new();
 
@@ -122,11 +122,11 @@ mod tests {
 
             let mut trees = Vec::new();
             for entries in entriess {
-                let mut tree = PACT::<64>::new();
+                let mut tree = PACT::<64, IdentityOrder>::new();
                 for entry in entries {
                     let mut key = [0; 64];
                     key.iter_mut().set_from(entry.iter().cloned());
-                    tree.put(key);
+                    tree.put(&Arc::new(key));
                     set.insert(key);
                 }
                 trees.push(tree);

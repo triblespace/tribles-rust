@@ -1,12 +1,13 @@
-use crate::pact::PACT;
+use crate::pact::{ PACT, KeyProperties};
 use crate::trible::Trible;
 use std::iter::FromIterator;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    eav: PACT<64>,
-    aev: PACT<64>,
-    ave: PACT<64>,
+    eav: PACT<64, OrderEAV>,
+    aev: PACT<64, OrderEAV>,
+    ave: PACT<64, OrderEAV>,
 }
 
 impl TribleSet {
@@ -40,9 +41,10 @@ impl TribleSet {
     }
 
     pub fn add(&mut self, trible: &Trible) {
-        self.eav.put(trible.order_eav());
-        self.aev.put(trible.order_aev());
-        self.ave.put(trible.order_ave());
+        let key = Arc::new(trible.data);
+        self.eav.put(&key);
+        self.aev.put(&key);
+        self.ave.put(&key);
     }
 }
 
@@ -55,5 +57,14 @@ impl FromIterator<Trible> for TribleSet {
         }
 
         set
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct OrderEAV {}
+
+impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for OrderEAV {
+    fn reorder(depth: usize) -> usize {
+        depth
     }
 }

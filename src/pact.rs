@@ -27,6 +27,7 @@ use std::mem::ManuallyDrop;
 use std::mem::{transmute, MaybeUninit};
 use std::sync::Arc;
 use std::sync::Once;
+use std::marker::PhantomData;
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
@@ -57,42 +58,34 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
     let source_range = &source[start_index..start_index as usize + used_len];
     target_range.copy_from_slice(source_range);
 }
-/*
-/// We want to copy the last bytes of the key into the leaf fragment.
-/// Note how the position of the fragment changes relative to the key when the
-/// start_depth is outside of the range that can be covered by the fragment.
-///
-///
-/// Case: start_depth < fragment_range                     ┌──────────┐
-///    ┌───────────────────────────────────────────────────┤ fragment │
-///    │                             key                   └──────────┤
-///    └──────────────────────────────────────▲────────────▲──────────▲
-///                               start_depth─┘            │  KEY_LEN─┘
-///                                         fragment_range─┘
-///
-///
-/// Case: start_depth > fragment_range                          ┌──────────┐
-///    ┌────────────────────────────────────────────────────────┤ fragment │
-///    │                             key                        └─────┬────┘
-///    └───────────────────────────────────────────────────▲────▲─────▲
-///                                         fragment_range─┘    │     │
-///                                                 start_depth─┘     │
-///                                                           KEY_LEN─┘
-///
-*/
 
-trait HeadVariant<const KEY_LEN: usize>: Sized {
+type SharedKey<const KEY_LEN: usize> = Arc<[u8; KEY_LEN]>;
+
+pub trait KeyProperties<const KEY_LEN: usize>: Copy + Clone + Debug {
+    fn reorder(at_depth: usize) -> usize;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct IdentityOrder {}
+
+impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for IdentityOrder {
+    fn reorder(depth: usize) -> usize {
+        depth
+    }
+}
+
+trait HeadVariant<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>: Sized {
     /// Returns a path byte fragment or all possible branch options
     /// at the given depth.
     fn peek(&self, at_depth: usize) -> Peek;
 
     /// Return the child stored at the provided depth under the provided key.
     /// Will return `self` when the fragment matches the key at the depth.
-    fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN>;
+    fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN, K>;
 
     /// Stores the provided key in the node. This returns a new node
     /// which may or may not share structure with the provided node.
-    fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN>;
+    fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, K>;
 
     /// Returns the number of leafs in the subtree under this node.
     fn count(&self) -> u64;
@@ -101,22 +94,22 @@ trait HeadVariant<const KEY_LEN: usize>: Sized {
     //  in the subtree under this node.
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
-    fn with_start(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+    fn with_start(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN, K> {
         panic!(
             "`with_start` not supported by {}",
             type_name::<Self>()
         );
     }
 
-    fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+    fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
         panic!("`insert` not supported by {}", type_name::<Self>());
     }
 
-    fn reinsert(&mut self, _child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+    fn reinsert(&mut self, _child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
         panic!("`reinsert` not supported by {}", type_name::<Self>());
     }
 
-    fn grow(&self) -> Head<KEY_LEN> {
+    fn grow(&self) -> Head<KEY_LEN, K> {
         panic!("`grow` not supported by {}", type_name::<Self>());
     }
 }
@@ -146,21 +139,21 @@ enum HeadTag {
 }
 
 #[repr(C)]
-pub union Head<const KEY_LEN: usize> {
+pub union Head<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
     unknown: ManuallyDrop<Unknown>,
-    empty: ManuallyDrop<Empty<KEY_LEN>>,
-    branch4: ManuallyDrop<Branch4<KEY_LEN>>,
-    branch8: ManuallyDrop<Branch8<KEY_LEN>>,
-    branch16: ManuallyDrop<Branch16<KEY_LEN>>,
-    branch32: ManuallyDrop<Branch32<KEY_LEN>>,
-    branch64: ManuallyDrop<Branch64<KEY_LEN>>,
-    branch128: ManuallyDrop<Branch128<KEY_LEN>>,
-    branch256: ManuallyDrop<Branch256<KEY_LEN>>,
-    leaf: ManuallyDrop<Leaf<KEY_LEN>>,
-    sharedleaf: ManuallyDrop<SharedLeaf<KEY_LEN>>,
+    empty: ManuallyDrop<Empty<KEY_LEN, K>>,
+    branch4: ManuallyDrop<Branch4<KEY_LEN, K>>,
+    branch8: ManuallyDrop<Branch8<KEY_LEN, K>>,
+    branch16: ManuallyDrop<Branch16<KEY_LEN, K>>,
+    branch32: ManuallyDrop<Branch32<KEY_LEN, K>>,
+    branch64: ManuallyDrop<Branch64<KEY_LEN, K>>,
+    branch128: ManuallyDrop<Branch128<KEY_LEN, K>>,
+    branch256: ManuallyDrop<Branch256<KEY_LEN, K>>,
+    leaf: ManuallyDrop<Leaf<KEY_LEN, K>>,
+    sharedleaf: ManuallyDrop<SharedLeaf<KEY_LEN, K>>,
 }
 
-unsafe impl<const KEY_LEN: usize> ByteEntry for Head<KEY_LEN> {
+unsafe impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> ByteEntry for Head<KEY_LEN, K> {
     fn zeroed() -> Self {
         Empty::new().into()
     }
@@ -176,13 +169,13 @@ unsafe impl<const KEY_LEN: usize> ByteEntry for Head<KEY_LEN> {
     }
 }
 
-impl<const KEY_LEN: usize> fmt::Debug for Head<KEY_LEN> {
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> fmt::Debug for Head<KEY_LEN, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         dispatch!(self, variant, variant.fmt(f))
     }
 }
 
-impl<const KEY_LEN: usize> Clone for Head<KEY_LEN> {
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Clone for Head<KEY_LEN, K> {
     fn clone(&self) -> Self {
         dispatch!(
             self,
@@ -192,33 +185,24 @@ impl<const KEY_LEN: usize> Clone for Head<KEY_LEN> {
     }
 }
 
-impl<const KEY_LEN: usize> Drop for Head<KEY_LEN> {
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Drop for Head<KEY_LEN, K> {
     fn drop(&mut self) {
         dispatch_mut!(self, variant, ManuallyDrop::drop(variant))
     }
 }
 
-impl<const KEY_LEN: usize> Default for Head<KEY_LEN> {
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Default for Head<KEY_LEN, K> {
     fn default() -> Self {
         Empty::new().into()
     }
 }
 
-impl<const KEY_LEN: usize> Head<KEY_LEN> {    
-    fn start_depth(&self) -> u8 {
-        unsafe {
-            if self.unknown.tag == HeadTag::Empty {
-                panic!("Called `start_depth` on `Empty`.");
-            }
-            self.unknown.start_depth
-        }
-    }
-
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Head<KEY_LEN, K> {
     fn count(&self) -> u64 {
         dispatch!(self, variant, variant.count())
     }
 
-    fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+    fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, K> {
         dispatch!(
             self,
             variant,
@@ -234,7 +218,7 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
         dispatch!(self, variant, variant.get(at_depth, key))
     }
 
-    fn put(&mut self, key: &[u8; KEY_LEN]) -> Self {
+    fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Self {
         dispatch_mut!(self, variant, variant.put(key))
     }
 
@@ -256,13 +240,14 @@ impl<const KEY_LEN: usize> Head<KEY_LEN> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PACT<const KEY_LEN: usize> {
-    root: Head<KEY_LEN>,
+pub struct PACT<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
+    root: Head<KEY_LEN, K>,
 }
 
-impl<const KEY_LEN: usize> PACT<KEY_LEN>
+impl<const KEY_LEN: usize, K> PACT<KEY_LEN, K>
 where
-    [Head<KEY_LEN>; KEY_LEN]: Sized,
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
     pub fn new() -> Self {
         PACT {
@@ -270,32 +255,34 @@ where
         }
     }
 
-    pub fn put(&mut self, key: [u8; KEY_LEN]) {
-        self.root = self.root.put(&key);
+    pub fn put(&mut self, key: &SharedKey<KEY_LEN>) {
+        self.root = self.root.put(key);
     }
 
     pub fn len(&self) -> u64 {
         self.root.count()
     }
 
-    pub fn cursor(&self) -> PACTCursor<KEY_LEN> {
+    pub fn cursor(&self) -> PACTCursor<KEY_LEN, K> {
         return PACTCursor::new(self);
     }
 }
 
-pub struct PACTCursor<const KEY_LEN: usize>
+pub struct PACTCursor<const KEY_LEN: usize, K>
 where
-    [Head<KEY_LEN>; KEY_LEN]: Sized,
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
     depth: usize,
-    path: [Head<KEY_LEN>; KEY_LEN],
+    path: [Head<KEY_LEN, K>; KEY_LEN],
 }
 
-impl<const KEY_LEN: usize> PACTCursor<KEY_LEN>
+impl<const KEY_LEN: usize, K> PACTCursor<KEY_LEN, K>
 where
-    [Head<KEY_LEN>; KEY_LEN]: Sized,
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
-    pub fn new(tree: &PACT<KEY_LEN>) -> Self {
+    pub fn new(tree: &PACT<KEY_LEN, K>) -> Self {
         let mut new = Self {
             depth: 0,
             path: unsafe { mem::zeroed() },
@@ -305,9 +292,10 @@ where
     }
 }
 
-impl<const KEY_LEN: usize> ByteCursor for PACTCursor<KEY_LEN>
+impl<const KEY_LEN: usize, K> ByteCursor for PACTCursor<KEY_LEN, K>
 where
-    [Head<KEY_LEN>; KEY_LEN]: Sized,
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
     fn peek(&self) -> Peek {
         self.path[self.depth].peek(self.depth)
@@ -329,9 +317,10 @@ where
     }
 }
 
-impl<const KEY_LEN: usize> IntoIterator for PACTCursor<KEY_LEN>
+impl<const KEY_LEN: usize, K> IntoIterator for PACTCursor<KEY_LEN, K>
 where
-    [Head<KEY_LEN>; KEY_LEN]: Sized,
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
     type Item = [u8; KEY_LEN];
     type IntoIter = CursorIterator<Self, KEY_LEN>;
@@ -351,14 +340,14 @@ mod tests {
 
     #[test]
     fn head_size() {
-        assert_eq!(mem::size_of::<Head<64>>(), 16);
+        assert_eq!(mem::size_of::<Head<64, IdentityOrder>>(), 16);
     }
 
     #[test]
     fn empty_tree() {
         init();
 
-        let _tree = PACT::<64>::new();
+        let _tree = PACT::<64, IdentityOrder>::new();
     }
 
     #[test]
@@ -366,42 +355,42 @@ mod tests {
         init();
 
         const KEY_SIZE: usize = 64;
-        let mut tree = PACT::<KEY_SIZE>::new();
-        let key = [0; KEY_SIZE];
-        tree.put(key);
+        let mut tree = PACT::<KEY_SIZE, IdentityOrder>::new();
+        let key = Arc::new([0; KEY_SIZE]);
+        tree.put(&key);
     }
 
     #[test]
     fn branch_size() {
-        assert_eq!(mem::size_of::<ByteTable4<Head<64>>>(), 64);
-        assert_eq!(mem::size_of::<BranchBody4<64>>(), 64 * 2);
-        assert_eq!(mem::size_of::<BranchBody8<64>>(), 64 * 3);
-        assert_eq!(mem::size_of::<BranchBody16<64>>(), 64 * 5);
-        assert_eq!(mem::size_of::<BranchBody32<64>>(), 64 * 9);
-        assert_eq!(mem::size_of::<BranchBody64<64>>(), 64 * 17);
-        assert_eq!(mem::size_of::<BranchBody128<64>>(), 64 * 33);
-        assert_eq!(mem::size_of::<BranchBody256<64>>(), 64 * 65);
+        assert_eq!(mem::size_of::<ByteTable4<Head<64, IdentityOrder>>>(), 64);
+        assert_eq!(mem::size_of::<BranchBody4<64, IdentityOrder>>(), 64 * 2);
+        assert_eq!(mem::size_of::<BranchBody8<64, IdentityOrder>>(), 64 * 3);
+        assert_eq!(mem::size_of::<BranchBody16<64, IdentityOrder>>(), 64 * 5);
+        assert_eq!(mem::size_of::<BranchBody32<64, IdentityOrder>>(), 64 * 9);
+        assert_eq!(mem::size_of::<BranchBody64<64, IdentityOrder>>(), 64 * 17);
+        assert_eq!(mem::size_of::<BranchBody128<64, IdentityOrder>>(), 64 * 33);
+        assert_eq!(mem::size_of::<BranchBody256<64, IdentityOrder>>(), 64 * 65);
     }
 
     proptest! {
         #[test]
         fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64>::new();
+            let mut tree = PACT::<64, IdentityOrder>::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(key);
+                tree.put(&Arc::new(key));
             }
         }
 
         #[test]
         fn tree_len(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64>::new();
+            let mut tree = PACT::<64, IdentityOrder>::new();
             let mut set = HashSet::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(key);
+                tree.put(&Arc::new(key));
                 set.insert(key);
             }
             prop_assert_eq!(set.len() as u64, tree.len())
@@ -409,12 +398,12 @@ mod tests {
 
         #[test]
         fn tree_iter(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64>::new();
+            let mut tree = PACT::<64, IdentityOrder>::new();
             let mut set = HashSet::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(key);
+                tree.put(&Arc::new(key));
                 set.insert(key);
             }
             let tree_set = HashSet::from_iter(tree.cursor().into_iter());

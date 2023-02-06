@@ -4,33 +4,35 @@ macro_rules! create_branch {
     ($name:ident, $body_name:ident, $table:tt) => {
         #[derive(Clone, Debug)]
         #[repr(C)]
-        pub(super) struct $body_name<const KEY_LEN: usize> {
+        pub(super) struct $body_name<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
             leaf_count: u64,
             //rc: AtomicU16,
             //segment_count: u32, //TODO: increase this to a u48
             hash: u128,
             child_set: ByteBitset,
             key: [u8; KEY_LEN],
-            child_table: $table<Head<KEY_LEN>>,
+            key_properties: PhantomData<K>,
+            child_table: $table<Head<KEY_LEN, K>>,
         }
 
         #[derive(Clone, Debug)]
         #[repr(C)]
-        pub(super) struct $name<const KEY_LEN: usize> {
+        pub(super) struct $name<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
             tag: HeadTag,
             start_depth: u8,
             fragment: [u8; HEAD_FRAGMENT_LEN],
             end_depth: u8,
-            body: Arc<$body_name<KEY_LEN>>,
+            body: Arc<$body_name<KEY_LEN, K>>,
+            key_properties: PhantomData<K>,
         }
 
-        impl<const KEY_LEN: usize> From<$name<KEY_LEN>> for Head<KEY_LEN> {
-            fn from(head: $name<KEY_LEN>) -> Self {
+        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> From<$name<KEY_LEN, K>> for Head<KEY_LEN, K> {
+            fn from(head: $name<KEY_LEN, K>) -> Self {
                 unsafe { transmute(head) }
             }
         }
 
-        impl<const KEY_LEN: usize> $name<KEY_LEN> {
+        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> $name<KEY_LEN, K> {
             pub(super) fn new(start_depth: usize, end_depth: usize, key: &[u8; KEY_LEN]) -> Self {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
                 fragment[..].copy_from_slice(&key[start_depth..start_depth+HEAD_FRAGMENT_LEN]);
@@ -40,6 +42,7 @@ macro_rules! create_branch {
                     start_depth: start_depth as u8,
                     fragment: fragment,
                     end_depth: end_depth as u8,
+                    key_properties: PhantomData,
                     body: Arc::new($body_name {
                         leaf_count: 0,
                         //rc: AtomicU16::new(1),
@@ -47,18 +50,19 @@ macro_rules! create_branch {
                         key: *key,
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
+                        key_properties: PhantomData,
                         child_table: $table::new(),
                     }),
                 }
             }
         }
 
-        impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for $name<KEY_LEN> {
+        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> for $name<KEY_LEN, K> {
             fn count(&self) -> u64 {
                 self.body.leaf_count
             }
 
-            fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+            fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
                 if let Some(byte_key) = child.key() {
                     let body = Arc::make_mut(&mut self.body);
                     body.child_set.set(byte_key);
@@ -70,7 +74,7 @@ macro_rules! create_branch {
                 }
             }
 
-            fn reinsert(&mut self, child: Head<KEY_LEN>) -> Head<KEY_LEN> {
+            fn reinsert(&mut self, child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
                 let inner = Arc::make_mut(&mut self.body);
                 inner.child_table.put(child)
             }
@@ -95,7 +99,7 @@ macro_rules! create_branch {
                 }
             }
 
-            fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN> {
+            fn get(&self, at_depth: usize, key: u8) -> Head<KEY_LEN, K> {
                 match self.peek(at_depth) {
                     Peek::Fragment(byte) if byte == key => self.clone().into(),
                     Peek::Branch(children) if children.is_set(key) => self
@@ -108,7 +112,7 @@ macro_rules! create_branch {
                 }
             }
 
-            fn put(&mut self, key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
+            fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, K> {
                 let mut depth = self.start_depth as usize;
                 loop {
                     let key_byte = key[depth];
@@ -184,7 +188,7 @@ macro_rules! create_branch {
                 &self,
                 new_start_depth: usize,
                 _key: &[u8; KEY_LEN],
-            ) -> Head<KEY_LEN> {
+            ) -> Head<KEY_LEN, K> {
                 let mut new_fragment = [0; HEAD_FRAGMENT_LEN];                
                 new_fragment[..].copy_from_slice(&self.body.key[new_start_depth..new_start_depth+HEAD_FRAGMENT_LEN]);
 
@@ -193,6 +197,7 @@ macro_rules! create_branch {
                     start_depth: new_start_depth as u8,
                     fragment: new_fragment,
                     end_depth: self.end_depth,
+                    key_properties: PhantomData,
                     body: Arc::clone(&self.body),
                 })
             }
@@ -211,19 +216,21 @@ create_branch!(Branch256, BranchBody256, ByteTable256);
 macro_rules! create_grow {
     () => {};
     ($name:ident, $grown_name:ident, $grown_body_name:ident) => {
-        impl<const KEY_LEN: usize> $name<KEY_LEN> {
-            pub(super) fn grow(&self) -> Head<KEY_LEN> {
-                Head::<KEY_LEN>::from($grown_name {
+        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> $name<KEY_LEN, K> {
+            pub(super) fn grow(&self) -> Head<KEY_LEN, K> {
+                Head::<KEY_LEN, K>::from($grown_name {
                     tag: HeadTag::$grown_name,
                     start_depth: self.start_depth,
                     fragment: self.fragment,
                     end_depth: self.end_depth,
+                    key_properties: PhantomData,
                     body: Arc::new($grown_body_name {
                         leaf_count: self.body.leaf_count,
                         //segment_count: self.segment_count,
                         hash: self.body.hash,
                         child_set: self.body.child_set,
                         key: self.body.key,
+                        key_properties: PhantomData,
                         child_table: self.body.child_table.grow(),
                     }),
                 })
@@ -232,8 +239,8 @@ macro_rules! create_grow {
     };
 }
 
-impl<const KEY_LEN: usize> Branch256<KEY_LEN> {
-    pub(super) fn grow(&self) -> Head<KEY_LEN> {
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Branch256<KEY_LEN, K> {
+    pub(super) fn grow(&self) -> Head<KEY_LEN, K> {
         panic!("`grow` called on Branch256");
     }
 }

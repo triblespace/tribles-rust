@@ -156,8 +156,8 @@ pub union Head<const KEY_LEN: usize> {
     branch64: ManuallyDrop<Branch64<KEY_LEN>>,
     branch128: ManuallyDrop<Branch128<KEY_LEN>>,
     branch256: ManuallyDrop<Branch256<KEY_LEN>>,
-    leaf: ManuallyDrop<Leaf<KEY_LEN>>,
-    sharedleaf: ManuallyDrop<SharedLeaf<KEY_LEN>>,
+    leaf: ManuallyDrop<InlineLeaf<KEY_LEN>>,
+    sharedleaf: ManuallyDrop<Leaf<KEY_LEN>>,
 }
 
 unsafe impl<const KEY_LEN: usize> ByteEntry for Head<KEY_LEN> {
@@ -205,15 +205,6 @@ impl<const KEY_LEN: usize> Default for Head<KEY_LEN> {
 }
 
 impl<const KEY_LEN: usize> Head<KEY_LEN> {    
-    fn start_depth(&self) -> u8 {
-        unsafe {
-            if self.unknown.tag == HeadTag::Empty {
-                panic!("Called `start_depth` on `Empty`.");
-            }
-            self.unknown.start_depth
-        }
-    }
-
     fn count(&self) -> u64 {
         dispatch!(self, variant, variant.count())
     }
@@ -374,13 +365,13 @@ mod tests {
     #[test]
     fn branch_size() {
         assert_eq!(mem::size_of::<ByteTable4<Head<64>>>(), 64);
-        assert_eq!(mem::size_of::<BranchBody4<64>>(), 64 * 2);
-        assert_eq!(mem::size_of::<BranchBody8<64>>(), 64 * 3);
-        assert_eq!(mem::size_of::<BranchBody16<64>>(), 64 * 5);
-        assert_eq!(mem::size_of::<BranchBody32<64>>(), 64 * 9);
-        assert_eq!(mem::size_of::<BranchBody64<64>>(), 64 * 17);
-        assert_eq!(mem::size_of::<BranchBody128<64>>(), 64 * 33);
-        assert_eq!(mem::size_of::<BranchBody256<64>>(), 64 * 65);
+        assert_eq!(mem::size_of::<BranchBody4<64>>(), 64 * 3);
+        assert_eq!(mem::size_of::<BranchBody8<64>>(), 64 * 4);
+        assert_eq!(mem::size_of::<BranchBody16<64>>(), 64 * 6);
+        assert_eq!(mem::size_of::<BranchBody32<64>>(), 64 * 10);
+        assert_eq!(mem::size_of::<BranchBody64<64>>(), 64 * 18);
+        assert_eq!(mem::size_of::<BranchBody128<64>>(), 64 * 34);
+        assert_eq!(mem::size_of::<BranchBody256<64>>(), 64 * 66);
     }
 
     proptest! {

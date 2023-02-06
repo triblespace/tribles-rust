@@ -33,7 +33,7 @@ macro_rules! create_branch {
         impl<const KEY_LEN: usize> $name<KEY_LEN> {
             pub(super) fn new(start_depth: usize, end_depth: usize, key: &[u8; KEY_LEN]) -> Self {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                fragment[..].copy_from_slice(&key[start_depth..start_depth + HEAD_FRAGMENT_LEN]);
+                copy_start(fragment.as_mut_slice(), &key[..], start_depth);
 
                 Self {
                     tag: HeadTag::$name,
@@ -172,15 +172,13 @@ macro_rules! create_branch {
             }
 
             fn with_start(&self, new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
-                let mut new_fragment = [0; HEAD_FRAGMENT_LEN];
-                new_fragment[..].copy_from_slice(
-                    &self.body.key[new_start_depth..new_start_depth + HEAD_FRAGMENT_LEN],
-                );
+                let mut fragment = [0; HEAD_FRAGMENT_LEN];
+                copy_start(fragment.as_mut_slice(), &self.body.key[..], new_start_depth);
 
                 Head::from(Self {
                     tag: HeadTag::$name,
                     start_depth: new_start_depth as u8,
-                    fragment: new_fragment,
+                    fragment,
                     end_depth: self.end_depth,
                     body: Arc::clone(&self.body),
                 })

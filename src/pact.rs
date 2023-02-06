@@ -138,8 +138,8 @@ enum HeadTag {
     Branch64,
     Branch128,
     Branch256,
+    InlineLeaf,
     Leaf,
-    SharedLeaf,
 }
 
 #[repr(C)]
@@ -153,8 +153,8 @@ pub union Head<const KEY_LEN: usize> {
     branch64: ManuallyDrop<Branch64<KEY_LEN>>,
     branch128: ManuallyDrop<Branch128<KEY_LEN>>,
     branch256: ManuallyDrop<Branch256<KEY_LEN>>,
-    leaf: ManuallyDrop<InlineLeaf<KEY_LEN>>,
-    sharedleaf: ManuallyDrop<Leaf<KEY_LEN>>,
+    inlineleaf: ManuallyDrop<InlineLeaf<KEY_LEN>>,
+    leaf: ManuallyDrop<Leaf<KEY_LEN>>,
 }
 
 unsafe impl<const KEY_LEN: usize> ByteEntry for Head<KEY_LEN> {

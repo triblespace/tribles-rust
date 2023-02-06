@@ -20,18 +20,17 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 
     let mut vec = Vec::new();
 
-    let mut e = UFOID::new();
-    let mut a = UFOID::new();
-    let mut v = UFOID::new();
+    let mut e = FUCID::new();
+    let mut a = FUCID::new();
     for _i in 0..length {
         if rng.gen_bool(0.5) {
-            e = UFOID::new();
+            e = FUCID::new();
         }
         if rng.gen_bool(0.5) {
-            a = UFOID::new();
+            a = FUCID::new();
         }
-        v = UFOID::new();
 
+        let v = FUCID::new();
         vec.push(Trible::new(&e, &a, &v))
     }
     return vec;

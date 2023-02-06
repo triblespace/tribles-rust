@@ -21,7 +21,7 @@ impl<const KEY_LEN: usize> InlineLeaf<KEY_LEN> {
         copy_start(fragment.as_mut_slice(), &key[..], start_depth);
 
         Self {
-            _tag: HeadTag::Leaf,
+            _tag: HeadTag::InlineLeaf,
             start_depth: start_depth as u8,
             fragment,
         }
@@ -106,7 +106,7 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for InlineLeaf<KEY_LEN> {
             }
 
             Head::<KEY_LEN>::from(Self {
-                _tag: HeadTag::Leaf,
+                _tag: HeadTag::InlineLeaf,
                 start_depth: new_start_depth as u8,
                 fragment: new_fragment,
             })
@@ -148,7 +148,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         fragment[..].copy_from_slice(&key[start_depth..start_depth + 6]);
 
         Self {
-            tag: HeadTag::SharedLeaf,
+            tag: HeadTag::Leaf,
             start_depth: start_depth as u8,
             fragment,
             key: Arc::new(LeafBody { key: *key }),
@@ -214,10 +214,10 @@ impl<const KEY_LEN: usize> HeadVariant<KEY_LEN> for Leaf<KEY_LEN> {
 
     fn with_start(&self, new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN> {
         let mut fragment = [0; 6];
-        fragment[..].copy_from_slice(&self.key.key[new_start_depth..new_start_depth + 6]);
+        copy_start(fragment.as_mut_slice(), &self.key.key[..], new_start_depth);
 
         Head::from(Self {
-            tag: HeadTag::SharedLeaf,
+            tag: HeadTag::Leaf,
             start_depth: new_start_depth as u8,
             fragment,
             key: Arc::clone(&self.key),

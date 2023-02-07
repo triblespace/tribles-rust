@@ -57,29 +57,6 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
     let source_range = &source[start_index..start_index as usize + used_len];
     target_range.copy_from_slice(source_range);
 }
-/*
-/// We want to copy the last bytes of the key into the leaf fragment.
-/// Note how the position of the fragment changes relative to the key when the
-/// start_depth is outside of the range that can be covered by the fragment.
-///
-///
-/// Case: start_depth < fragment_range                     ┌──────────┐
-///    ┌───────────────────────────────────────────────────┤ fragment │
-///    │                             key                   └──────────┤
-///    └──────────────────────────────────────▲────────────▲──────────▲
-///                               start_depth─┘            │  KEY_LEN─┘
-///                                         fragment_range─┘
-///
-///
-/// Case: start_depth > fragment_range                          ┌──────────┐
-///    ┌────────────────────────────────────────────────────────┤ fragment │
-///    │                             key                        └─────┬────┘
-///    └───────────────────────────────────────────────────▲────▲─────▲
-///                                         fragment_range─┘    │     │
-///                                                 start_depth─┘     │
-///                                                           KEY_LEN─┘
-///
-*/
 
 trait HeadVariant<const KEY_LEN: usize>: Sized {
     /// Returns a path byte fragment or all possible branch options

@@ -1,6 +1,6 @@
 use crate::trible::{Id, Value};
 use arbitrary::Arbitrary;
-use rand::{ thread_rng };
+use rand::thread_rng;
 use std::convert::TryInto;
 use std::time::{SystemTime, UNIX_EPOCH};
 

@@ -8,12 +8,12 @@ macro_rules! dispatch {
                     let $name = &($self.empty);
                     $call
                 }
-                HeadTag::Leaf => {
-                    let $name = &($self.leaf);
+                HeadTag::InlineLeaf => {
+                    let $name = &($self.inlineleaf);
                     $call
                 }
-                HeadTag::SharedLeaf => {
-                    let $name = &($self.sharedleaf);
+                HeadTag::Leaf => {
+                    let $name = &($self.leaf);
                     $call
                 }
                 HeadTag::Branch4 => {
@@ -57,12 +57,12 @@ macro_rules! dispatch_mut {
                     let $name = &mut ($self.empty);
                     $call
                 }
-                HeadTag::Leaf => {
-                    let $name = &mut ($self.leaf);
+                HeadTag::InlineLeaf => {
+                    let $name = &mut ($self.inlineleaf);
                     $call
                 }
-                HeadTag::SharedLeaf => {
-                    let $name = &mut ($self.sharedleaf);
+                HeadTag::Leaf => {
+                    let $name = &mut ($self.leaf);
                     $call
                 }
                 HeadTag::Branch4 => {

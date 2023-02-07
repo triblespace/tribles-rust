@@ -95,10 +95,7 @@ trait HeadVariant<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>: Sized {
     fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
 
     fn with_start(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN, K> {
-        panic!(
-            "`with_start` not supported by {}",
-            type_name::<Self>()
-        );
+        panic!("`with_start` not supported by {}", type_name::<Self>());
     }
 
     fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
@@ -134,8 +131,8 @@ enum HeadTag {
     Branch64,
     Branch128,
     Branch256,
+    InlineLeaf,
     Leaf,
-    SharedLeaf,
 }
 
 #[repr(C)]
@@ -149,8 +146,8 @@ pub union Head<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
     branch64: ManuallyDrop<Branch64<KEY_LEN, K>>,
     branch128: ManuallyDrop<Branch128<KEY_LEN, K>>,
     branch256: ManuallyDrop<Branch256<KEY_LEN, K>>,
+    inlineleaf: ManuallyDrop<InlineLeaf<KEY_LEN, K>>,
     leaf: ManuallyDrop<Leaf<KEY_LEN, K>>,
-    sharedleaf: ManuallyDrop<SharedLeaf<KEY_LEN, K>>,
 }
 
 unsafe impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> ByteEntry for Head<KEY_LEN, K> {
@@ -203,11 +200,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Head<KEY_LEN, K> {
     }
 
     fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, K> {
-        dispatch!(
-            self,
-            variant,
-            variant.with_start(new_start_depth, key)
-        )
+        dispatch!(self, variant, variant.with_start(new_start_depth, key))
     }
 
     fn peek(&self, at_depth: usize) -> Peek {
@@ -362,14 +355,14 @@ mod tests {
 
     #[test]
     fn branch_size() {
-        assert_eq!(mem::size_of::<ByteTable4<Head<64, IdentityOrder>>>(), 64);
-        assert_eq!(mem::size_of::<BranchBody4<64, IdentityOrder>>(), 64 * 2);
-        assert_eq!(mem::size_of::<BranchBody8<64, IdentityOrder>>(), 64 * 3);
-        assert_eq!(mem::size_of::<BranchBody16<64, IdentityOrder>>(), 64 * 5);
-        assert_eq!(mem::size_of::<BranchBody32<64, IdentityOrder>>(), 64 * 9);
-        assert_eq!(mem::size_of::<BranchBody64<64, IdentityOrder>>(), 64 * 17);
-        assert_eq!(mem::size_of::<BranchBody128<64, IdentityOrder>>(), 64 * 33);
-        assert_eq!(mem::size_of::<BranchBody256<64, IdentityOrder>>(), 64 * 65);
+        assert_eq!(mem::size_of::<ByteTable4<Head<64>>>(), 64);
+        assert_eq!(mem::size_of::<BranchBody4<64, IdentityOrder>>(), 64 * 3);
+        assert_eq!(mem::size_of::<BranchBody8<64, IdentityOrder>>(), 64 * 4);
+        assert_eq!(mem::size_of::<BranchBody16<64, IdentityOrder>>(), 64 * 6);
+        assert_eq!(mem::size_of::<BranchBody32<64, IdentityOrder>>(), 64 * 10);
+        assert_eq!(mem::size_of::<BranchBody64<64, IdentityOrder>>(), 64 * 18);
+        assert_eq!(mem::size_of::<BranchBody128<64, IdentityOrder>>(), 64 * 34);
+        assert_eq!(mem::size_of::<BranchBody256<64, IdentityOrder>>(), 64 * 66);
     }
 
     proptest! {

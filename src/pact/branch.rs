@@ -120,7 +120,7 @@ macro_rules! create_branch {
                             // a branch at the discriminating depth.
 
                             let mut new_branch =
-                                Branch4::new(self.start_depth as usize, depth, key);
+                                Branch4::new(self.start_depth as usize, depth, &reordered::<KEY_LEN, K>(key));
                             new_branch.insert(Leaf::new(depth, key).into());
                             new_branch.insert(self.with_start(depth));
 

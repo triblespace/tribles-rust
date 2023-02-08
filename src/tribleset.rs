@@ -1,13 +1,13 @@
 use crate::pact::{ PACT, KeyProperties};
-use crate::trible::Trible;
+use crate::trible::{Trible, EAVOrder, AEVOrder, AVEOrder};
 use std::iter::FromIterator;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    eav: PACT<64, OrderEAV>,
-    aev: PACT<64, OrderEAV>,
-    ave: PACT<64, OrderEAV>,
+    eav: PACT<64, EAVOrder>,
+    aev: PACT<64, AEVOrder>,
+    ave: PACT<64, AVEOrder>,
 }
 
 impl TribleSet {
@@ -56,11 +56,23 @@ impl FromIterator<Trible> for TribleSet {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct OrderEAV {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use itertools::Itertools;
+    use proptest::prelude::*;
+    use std::collections::HashSet;
+    use std::iter::FromIterator;
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for OrderEAV {
-    fn reorder(depth: usize) -> usize {
-        depth
+    proptest! {
+        #[test]
+        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut set = TribleSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                set.add(&Trible{ data: key});
+            }
+        }
     }
 }

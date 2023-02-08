@@ -8,10 +8,6 @@ macro_rules! dispatch {
                     let $name = &($self.empty);
                     $call
                 }
-                HeadTag::InlineLeaf => {
-                    let $name = &($self.inlineleaf);
-                    $call
-                }
                 HeadTag::Leaf => {
                     let $name = &($self.leaf);
                     $call
@@ -55,10 +51,6 @@ macro_rules! dispatch_mut {
             match $self.unknown.tag {
                 HeadTag::Empty => {
                     let $name = &mut ($self.empty);
-                    $call
-                }
-                HeadTag::InlineLeaf => {
-                    let $name = &mut ($self.inlineleaf);
                     $call
                 }
                 HeadTag::Leaf => {

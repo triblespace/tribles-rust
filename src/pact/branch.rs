@@ -62,12 +62,12 @@ macro_rules! create_branch {
                 self.body.leaf_count
             }
 
-            fn insert(&mut self, key: &[u8; KEY_LEN], child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
+            fn insert(&mut self, child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
                 if let Some(byte_key) = child.key() {
                     let body = Arc::make_mut(&mut self.body);
                     body.child_set.set(byte_key);
                     body.leaf_count += child.count();
-                    body.hash ^= child.hash(key);
+                    body.hash ^= child.hash();
                     body.child_table.put(child)
                 } else {
                     Empty::new().into()
@@ -119,12 +119,10 @@ macro_rules! create_branch {
                             // The key diverged from what we already have, so we need to introduce
                             // a branch at the discriminating depth.
 
-                            let sibling_leaf = new_leaf(depth, key);
-
                             let mut new_branch =
                                 Branch4::new(self.start_depth as usize, depth, key);
-                            new_branch.insert(key, sibling_leaf);
-                            new_branch.insert(key, self.with_start(depth, key));
+                            new_branch.insert(Leaf::new(depth, key).into());
+                            new_branch.insert(self.with_start(depth));
 
                             return Head::from(new_branch);
                         }
@@ -136,13 +134,13 @@ macro_rules! create_branch {
                                 .child_table
                                 .get_mut(key_byte)
                                 .expect("table content should match child set content");
-                            let old_child_hash = old_child.hash(key);
+                            let old_child_hash = old_child.hash();
                             //let old_child_segment_count = old_child.segmentCount(depth);
                             let old_child_leaf_count = old_child.count();
 
                             let new_child = old_child.put(key);
 
-                            body.hash = (body.hash ^ old_child_hash) ^ new_child.hash(key);
+                            body.hash = (body.hash ^ old_child_hash) ^ new_child.hash();
                             //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(depth);
 
                             //body.segment_count = new_segment_count;
@@ -155,7 +153,7 @@ macro_rules! create_branch {
                         Peek::Branch(_) => {
                             // We don't have a child with the byte of the key.
 
-                            let mut displaced = self.insert(key, new_leaf(depth, key));
+                            let mut displaced = self.insert(Leaf::new(depth, key).into());
                             if None == displaced.key() {
                                 return Head::from(self.clone());
                             }
@@ -171,14 +169,13 @@ macro_rules! create_branch {
                 }
             }
 
-            fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
+            fn hash(&self) -> u128 {
                 self.body.hash
             }
 
             fn with_start(
                 &self,
-                new_start_depth: usize,
-                _key: &[u8; KEY_LEN],
+                new_start_depth: usize
             ) -> Head<KEY_LEN, K> {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
                 copy_start(fragment.as_mut_slice(), &self.body.key[..], new_start_depth);

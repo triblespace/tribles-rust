@@ -108,13 +108,13 @@ trait HeadVariant<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>: Sized {
 
     /// Returns the xored sum of all hashes of leafs
     //  in the subtree under this node.
-    fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128;
+    fn hash(&self) -> u128;
 
-    fn with_start(&self, _new_start_depth: usize, _key: &[u8; KEY_LEN]) -> Head<KEY_LEN, K> {
+    fn with_start(&self, _new_start_depth: usize) -> Head<KEY_LEN, K> {
         panic!("`with_start` not supported by {}", type_name::<Self>());
     }
 
-    fn insert(&mut self, _key: &[u8; KEY_LEN], _child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
+    fn insert(&mut self, _child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
         panic!("`insert` not supported by {}", type_name::<Self>());
     }
 
@@ -147,7 +147,6 @@ enum HeadTag {
     Branch64,
     Branch128,
     Branch256,
-    InlineLeaf,
     Leaf,
 }
 
@@ -162,7 +161,6 @@ pub union Head<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
     branch64: ManuallyDrop<Branch64<KEY_LEN, K>>,
     branch128: ManuallyDrop<Branch128<KEY_LEN, K>>,
     branch256: ManuallyDrop<Branch256<KEY_LEN, K>>,
-    inlineleaf: ManuallyDrop<InlineLeaf<KEY_LEN, K>>,
     leaf: ManuallyDrop<Leaf<KEY_LEN, K>>,
 }
 
@@ -215,8 +213,8 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Head<KEY_LEN, K> {
         dispatch!(self, variant, variant.count())
     }
 
-    fn with_start(&self, new_start_depth: usize, key: &[u8; KEY_LEN]) -> Head<KEY_LEN, K> {
-        dispatch!(self, variant, variant.with_start(new_start_depth, key))
+    fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, K> {
+        dispatch!(self, variant, variant.with_start(new_start_depth))
     }
 
     fn peek(&self, at_depth: usize) -> Peek {
@@ -231,8 +229,8 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Head<KEY_LEN, K> {
         dispatch_mut!(self, variant, variant.put(key))
     }
 
-    fn insert(&mut self, key: &[u8; KEY_LEN], child: Self) -> Self {
-        dispatch_mut!(self, variant, variant.insert(key, child))
+    fn insert(&mut self, child: Self) -> Self {
+        dispatch_mut!(self, variant, variant.insert(child))
     }
 
     fn reinsert(&mut self, child: Self) -> Self {
@@ -243,8 +241,8 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Head<KEY_LEN, K> {
         dispatch!(self, variant, variant.grow())
     }
 
-    fn hash(&self, prefix: &[u8; KEY_LEN]) -> u128 {
-        dispatch!(self, variant, variant.hash(prefix))
+    fn hash(&self) -> u128 {
+        dispatch!(self, variant, variant.hash())
     }
 }
 

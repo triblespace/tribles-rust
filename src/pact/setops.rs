@@ -9,17 +9,17 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
         return Head::from(Empty::new());
     }
     let first_node = &unioned_nodes[0];
-    let first_node_hash = first_node.hash(prefix);
+    let first_node_hash = first_node.hash();
 
     let mut all_equal = true;
     for other_node in &unioned_nodes[1..] {
-        if first_node_hash != other_node.hash(prefix) {
+        if first_node_hash != other_node.hash() {
             all_equal = false;
             break;
         }
     }
     if all_equal {
-        return first_node.with_start(at_depth, prefix);
+        return first_node.with_start(at_depth);
     }
 
     let mut depth = at_depth;
@@ -44,7 +44,7 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
             1 => {
                 prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
                 if depth == KEY_LEN - 1 {
-                    return new_leaf(at_depth, &Arc::new(*prefix));
+                    return Leaf::new(at_depth, &Arc::new(*prefix)).into();
                 }
                 depth += 1;
             }
@@ -70,12 +70,12 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
                     }
 
                     let union_node = if depth == KEY_LEN - 1 {
-                        new_leaf(depth, &Arc::new(*prefix))
+                        Leaf::new(depth, &Arc::new(*prefix)).into()
                     } else {
                         recursive_union(depth, &mut children[..], prefix)
                     };
 
-                    let mut displaced = branch_node.insert(prefix, union_node);
+                    let mut displaced = branch_node.insert(union_node);
                     while None != displaced.key() {
                         branch_node = branch_node.grow();
                         displaced = branch_node.reinsert(displaced);

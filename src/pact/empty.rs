@@ -33,14 +33,14 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
     }
 
     fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, K> {
-        new_leaf(0, key)
+        Leaf::new(0, key).into()
     }
 
     fn get(&self, _at_depth: usize, _key: u8) -> Head<KEY_LEN, K> {
         return Empty::new().into();
     }
 
-    fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
+    fn hash(&self) -> u128 {
         0
     }
 }

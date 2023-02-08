@@ -5,7 +5,7 @@ use super::*;
 pub(super) struct Leaf<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
     tag: HeadTag,
     start_depth: u8,
-    fragment: [u8; 6],
+    fragment: [u8; LEAF_FRAGMENT_LEN],
     key: SharedKey<KEY_LEN>,
     key_properties: PhantomData<K>,
 }
@@ -18,7 +18,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> From<Leaf<KEY_LEN, K>> for
 
 impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Leaf<KEY_LEN, K> {
     pub(super) fn new(start_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
-        let mut fragment = [0; 6];
+        let mut fragment = [0; LEAF_FRAGMENT_LEN];
 
         copy_start(fragment.as_mut_slice(), &reordered::<KEY_LEN, K>(key)[..], start_depth);
 
@@ -69,7 +69,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
             match self.peek(depth) {
                 Peek::Fragment(byte) if byte == key[K::reorder(depth)] => depth += 1,
                 Peek::Fragment(_) => {
-                    let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
+                    let mut new_branch = Branch4::new(self.start_depth as usize, depth, &reordered::<KEY_LEN, K>(key));
                     new_branch.insert(Leaf::new(depth, key).into());
                     new_branch.insert(self.with_start(depth));
 
@@ -90,7 +90,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
         &self,
         new_start_depth: usize
     ) -> Head<KEY_LEN, K> {
-        let mut fragment = [0; 6];
+        let mut fragment = [0; LEAF_FRAGMENT_LEN];
         copy_start(fragment.as_mut_slice(), &reordered::<KEY_LEN, K>(&self.key)[..], new_start_depth);
 
         Head::from(Self {

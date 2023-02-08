@@ -44,7 +44,7 @@ pub fn init() {
 }
 
 const HEAD_FRAGMENT_LEN: usize = 5;
-const LEAF_FRAGMENT_LEN: usize = 14;
+const LEAF_FRAGMENT_LEN: usize = 6;
 
 fn index_start(infix_start: usize, index: usize) -> usize {
     index - infix_start

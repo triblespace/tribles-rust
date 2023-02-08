@@ -47,7 +47,7 @@ macro_rules! create_branch {
                         leaf_count: 0,
                         //rc: AtomicU16::new(1),
                         //segment_count: 0,
-                        key: reordered::<KEY_LEN, K>(key),
+                        key: *key,
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
                         key_properties: PhantomData,

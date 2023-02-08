@@ -60,6 +60,13 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for EAVOrder {
     fn reorder(depth: usize) -> usize {
         depth
     }
+    fn segment(depth: usize) -> usize {
+        match depth {
+            d if d < 16 => 0,
+            d if d < 32 => 1,
+            _ => 2,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -73,6 +80,13 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AEVOrder {
             d => d,
         }
     }
+    fn segment(depth: usize) -> usize {
+        match depth {
+            d if d < 16 => 1,
+            d if d < 32 => 0,
+            _ => 2,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -84,6 +98,13 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AVEOrder {
             d if d < 16 => d + 16,
             d if d < 48 => d + 16,
             d => d - 48,
+        }
+    }
+    fn segment(depth: usize) -> usize {
+        match depth {
+            d if d < 16 => 1,
+            d if d < 48 => 2,
+            _ => 0,
         }
     }
 }

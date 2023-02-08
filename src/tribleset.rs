@@ -1,4 +1,4 @@
-use crate::pact::{ PACT, KeyProperties};
+use crate::pact::PACT;
 use crate::trible::{Trible, EAVOrder, AEVOrder, AVEOrder};
 use std::iter::FromIterator;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ impl TribleSet {
         }
     }
 
-    pub fn len(&self) -> u64 {
+    pub fn len(&self) -> u32 {
         return self.eav.len();
     }
 
@@ -61,8 +61,6 @@ mod tests {
     use super::*;
     use itertools::Itertools;
     use proptest::prelude::*;
-    use std::collections::HashSet;
-    use std::iter::FromIterator;
 
     proptest! {
         #[test]

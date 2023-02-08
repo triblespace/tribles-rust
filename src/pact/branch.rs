@@ -5,9 +5,8 @@ macro_rules! create_branch {
         #[derive(Clone, Debug)]
         #[repr(C)]
         pub(super) struct $body_name<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> {
-            leaf_count: u64,
-            //rc: AtomicU16,
-            //segment_count: u32, //TODO: increase this to a u48
+            leaf_count: u32,
+            segment_count: u32,
             hash: u128,
             child_set: ByteBitset,
             key: [u8; KEY_LEN],
@@ -45,8 +44,7 @@ macro_rules! create_branch {
                     key_properties: PhantomData,
                     body: Arc::new($body_name {
                         leaf_count: 0,
-                        //rc: AtomicU16::new(1),
-                        //segment_count: 0,
+                        segment_count: 0,
                         key: *key,
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
@@ -58,8 +56,16 @@ macro_rules! create_branch {
         }
 
         impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> for $name<KEY_LEN, K> {
-            fn count(&self) -> u64 {
+            fn count(&self) -> u32 {
                 self.body.leaf_count
+            }
+
+            fn count_segment(&self, at_depth: usize) -> u32 {
+                if K::segment(at_depth) != K::segment(self.end_depth as usize) {
+                    1
+                } else {
+                    self.body.segment_count
+                }
             }
 
             fn insert(&mut self, child: Head<KEY_LEN, K>) -> Head<KEY_LEN, K> {
@@ -67,6 +73,7 @@ macro_rules! create_branch {
                     let body = Arc::make_mut(&mut self.body);
                     body.child_set.set(byte_key);
                     body.leaf_count += child.count();
+                    body.segment_count += child.count_segment(self.end_depth as usize);
                     body.hash ^= child.hash();
                     body.child_table.put(child)
                 } else {
@@ -135,17 +142,16 @@ macro_rules! create_branch {
                                 .get_mut(key_byte)
                                 .expect("table content should match child set content");
                             let old_child_hash = old_child.hash();
-                            //let old_child_segment_count = old_child.segmentCount(depth);
+                            
+                            let old_child_segment_count = old_child.count_segment(depth);
                             let old_child_leaf_count = old_child.count();
 
                             let new_child = old_child.put(key);
 
                             body.hash = (body.hash ^ old_child_hash) ^ new_child.hash();
-                            //let new_segment_count = self.body.segment_count - old_child_segment_count + new_child.segmentCount(depth);
 
-                            //body.segment_count = new_segment_count;
-                            body.leaf_count = (body.leaf_count - old_child_leaf_count as u64)
-                                + new_child.count() as u64;
+                            body.segment_count = (body.segment_count - old_child_segment_count) + new_child.count_segment(depth);
+                            body.leaf_count = (body.leaf_count - old_child_leaf_count) + new_child.count();
                             body.child_table.put(new_child);
 
                             return self.clone().into();
@@ -214,7 +220,7 @@ macro_rules! create_grow {
                     key_properties: PhantomData,
                     body: Arc::new($grown_body_name {
                         leaf_count: self.body.leaf_count,
-                        //segment_count: self.segment_count,
+                        segment_count: self.body.segment_count,
                         hash: self.body.hash,
                         child_set: self.body.child_set,
                         key: self.body.key,

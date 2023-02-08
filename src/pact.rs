@@ -71,6 +71,7 @@ pub(crate) fn reordered<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(key: &[
 
 pub trait KeyProperties<const KEY_LEN: usize>: Copy + Clone + Debug {
     fn reorder(at_depth: usize) -> usize;
+    fn segment(at_depth: usize) -> usize;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -79,6 +80,10 @@ pub struct IdentityOrder {}
 impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for IdentityOrder {
     fn reorder(depth: usize) -> usize {
         depth
+    }
+
+    fn segment(_depth: usize) -> usize {
+        0
     }
 }
 
@@ -96,7 +101,10 @@ trait HeadVariant<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>: Sized {
     fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, K>;
 
     /// Returns the number of leafs in the subtree under this node.
-    fn count(&self) -> u64;
+    fn count(&self) -> u32;
+
+    /// Returns the number of segments in the subtree under this node.
+    fn count_segment(&self, at_depth: usize) -> u32;
 
     /// Returns the xored sum of all hashes of leafs
     //  in the subtree under this node.
@@ -201,8 +209,12 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Default for Head<KEY_LEN, 
 }
 
 impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Head<KEY_LEN, K> {
-    fn count(&self) -> u64 {
+    fn count(&self) -> u32 {
         dispatch!(self, variant, variant.count())
+    }
+
+    fn count_segment(&self, at_depth: usize) -> u32 {
+        dispatch!(self, variant, variant.count_segment(at_depth))
     }
 
     fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, K> {
@@ -258,7 +270,7 @@ where
         self.root = self.root.put(key);
     }
 
-    pub fn len(&self) -> u64 {
+    pub fn len(&self) -> u32 {
         self.root.count()
     }
 
@@ -392,7 +404,7 @@ mod tests {
                 tree.put(&Arc::new(key));
                 set.insert(key);
             }
-            prop_assert_eq!(set.len() as u64, tree.len())
+            prop_assert_eq!(set.len() as u32, tree.len())
         }
 
         #[test]

@@ -33,7 +33,11 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Leaf<KEY_LEN, K> {
 }
 
 impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> for Leaf<KEY_LEN, K> {
-    fn count(&self) -> u64 {
+    fn count(&self) -> u32 {
+        1
+    }
+
+    fn count_segment(&self, _at_depth: usize) -> u32 {
         1
     }
 

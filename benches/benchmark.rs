@@ -2,11 +2,11 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use rand::{thread_rng, Rng};
 use std::iter::FromIterator;
 use std::sync::Arc;
-//use tribles::fucid::FUCID;
+use tribles::fucid::FUCID;
 use tribles::trible::*;
 use tribles::ufoid::UFOID;
 
-use tribles::pact;
+use tribles::pact::{self, IdentityOrder};
 use tribles::pact::PACT;
 use tribles::tribleset::TribleSet;
 
@@ -68,7 +68,7 @@ fn pact_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let mut pact = PACT::<64>::new();
+                let mut pact = PACT::<64,IdentityOrder>::new();
                 for t in black_box(&samples) {
                     pact.put(&Arc::new(t.data));
                 }
@@ -76,7 +76,7 @@ fn pact_benchmark(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut pact = PACT::<64>::new();
+            let mut pact = PACT::<64, IdentityOrder>::new();
             for t in black_box(&samples) {
                 pact.put(&Arc::new(t.data));
             }
@@ -90,7 +90,7 @@ fn pact_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             let pacts = samples.chunks(total_unioned / i).map(|samples| {
-                let mut pact = PACT::<64>::new();
+                let mut pact = PACT::<64, IdentityOrder>::new();
                 for t in samples {
                     pact.put(&Arc::new(t.data));
                 }

@@ -71,7 +71,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(key, sibling_leaf);
-                    new_branch.insert(key, self.clone().with_start(depth, key));
+                    new_branch.insert(key, self.with_start(depth, key));
 
                     return Head::<KEY_LEN, K>::from(new_branch);
                 }
@@ -122,7 +122,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
             old_key[self.start_depth as usize..]
                 .copy_from_slice(&self.fragment[KEY_LEN - self.start_depth as usize..]);
 
-            let old_shared = Arc::new(old_key);
+            let old_shared = Arc::new(inverse_reordered::<KEY_LEN, K>(&old_key));
             return Leaf::new(new_start_depth, &old_shared).into()
         }
     }
@@ -148,8 +148,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Leaf<KEY_LEN, K> {
     pub(super) fn new(start_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
         let mut fragment = [0; 6];
 
-
-        fragment[..].copy_from_slice(&key[start_depth..start_depth + 6]);
+        copy_start(fragment.as_mut_slice(), &reordered::<KEY_LEN, K>(key)[..], start_depth);
 
         Self {
             tag: HeadTag::Leaf,
@@ -202,7 +201,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
 
                     let mut new_branch = Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(key, sibling_leaf);
-                    new_branch.insert(key, self.clone().with_start(depth, key));
+                    new_branch.insert(key, self.with_start(depth, key));
 
                     return Head::<KEY_LEN, K>::from(new_branch);
                 }
@@ -213,7 +212,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
 
     fn hash(&self, _prefix: &[u8; KEY_LEN]) -> u128 {
         let mut hasher = SipHasher24::new_with_key(unsafe { &SIP_KEY });
-        hasher.write(&self.key[..]);
+        hasher.write(&reordered::<KEY_LEN, K>(&self.key)[..]);
         return hasher.finish128().into();
     }
 
@@ -223,7 +222,7 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> fo
         _key: &[u8; KEY_LEN],
     ) -> Head<KEY_LEN, K> {
         let mut fragment = [0; 6];
-        copy_start(fragment.as_mut_slice(), &self.key.key[..], new_start_depth);
+        copy_start(fragment.as_mut_slice(), &reordered::<KEY_LEN, K>(&self.key)[..], new_start_depth);
 
         Head::from(Self {
             tag: HeadTag::Leaf,

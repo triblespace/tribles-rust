@@ -47,7 +47,7 @@ macro_rules! create_branch {
                         leaf_count: 0,
                         //rc: AtomicU16::new(1),
                         //segment_count: 0,
-                        key: *key,
+                        key: reordered::<KEY_LEN, K>(key),
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
                         key_properties: PhantomData,
@@ -112,7 +112,7 @@ macro_rules! create_branch {
             fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, K> {
                 let mut depth = self.start_depth as usize;
                 loop {
-                    let key_byte = key[depth];
+                    let key_byte = key[K::reorder(depth)];
                     match self.peek(depth) {
                         Peek::Fragment(byte) if byte == key_byte => depth += 1,
                         Peek::Fragment(_) => {
@@ -124,7 +124,7 @@ macro_rules! create_branch {
                             let mut new_branch =
                                 Branch4::new(self.start_depth as usize, depth, key);
                             new_branch.insert(key, sibling_leaf);
-                            new_branch.insert(key, self.clone().with_start(depth, key));
+                            new_branch.insert(key, self.with_start(depth, key));
 
                             return Head::from(new_branch);
                         }

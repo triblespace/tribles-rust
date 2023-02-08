@@ -61,6 +61,22 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
 
 type SharedKey<const KEY_LEN: usize> = Arc<[u8; KEY_LEN]>;
 
+fn reordered<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
+    let mut new_key = [0; KEY_LEN];
+    for i in 0..KEY_LEN {
+        new_key[i] = key[K::reorder(i)];
+    }
+    new_key
+}
+
+fn inverse_reordered<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
+    let mut new_key = [0; KEY_LEN];
+    for i in 0..KEY_LEN {
+        new_key[K::reorder(i)] = key[i];
+    }
+    new_key
+}
+
 pub trait KeyProperties<const KEY_LEN: usize>: Copy + Clone + Debug {
     fn reorder(at_depth: usize) -> usize;
 }
@@ -355,7 +371,7 @@ mod tests {
 
     #[test]
     fn branch_size() {
-        assert_eq!(mem::size_of::<ByteTable4<Head<64>>>(), 64);
+        assert_eq!(mem::size_of::<ByteTable4<Head<64, IdentityOrder>>>(), 64);
         assert_eq!(mem::size_of::<BranchBody4<64, IdentityOrder>>(), 64 * 3);
         assert_eq!(mem::size_of::<BranchBody8<64, IdentityOrder>>(), 64 * 4);
         assert_eq!(mem::size_of::<BranchBody16<64, IdentityOrder>>(), 64 * 6);

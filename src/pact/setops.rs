@@ -19,7 +19,7 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
         }
     }
     if all_equal {
-        return first_node.clone().with_start(at_depth, prefix);
+        return first_node.with_start(at_depth, prefix);
     }
 
     let mut depth = at_depth;

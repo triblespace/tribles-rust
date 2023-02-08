@@ -145,7 +145,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(super) fn new(start_depth: usize, key: &[u8; KEY_LEN]) -> Self {
         let mut fragment = [0; 6];
 
-        fragment[..].copy_from_slice(&key[start_depth..start_depth + 6]);
+        copy_start(fragment.as_mut_slice(), &key[..], start_depth);
 
         Self {
             tag: HeadTag::Leaf,

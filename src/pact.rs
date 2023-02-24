@@ -321,11 +321,6 @@ where
         self.path[self.depth] = unsafe { mem::zeroed() };
         self.depth -= 1;
     }
-
-    fn segment_count(&self) -> u32 {
-        return 0;
-        //return self.path[self.depth].segment_count(self.depth);
-    }
 }
 
 impl<const KEY_LEN: usize, K> IntoIterator for PACTCursor<KEY_LEN, K>

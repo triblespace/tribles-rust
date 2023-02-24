@@ -1,3 +1,7 @@
+mod patternconstraint;
+
+use patternconstraint::*;
+
 use crate::pact::PACT;
 use crate::trible::{Trible, EAVOrder, AEVOrder, AVEOrder};
 use std::iter::FromIterator;

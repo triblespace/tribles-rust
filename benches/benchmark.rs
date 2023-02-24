@@ -21,18 +21,18 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 
     let mut vec = Vec::new();
 
-    let mut e = FUCID::new();
-    let mut a = FUCID::new();
+    let mut e = UFOID::new();
+    let mut a = UFOID::new();
     
     for _i in 0..length {
         if rng.gen_bool(0.5) {
-            e = FUCID::new();
+            e = UFOID::new();
         }
         if rng.gen_bool(0.5) {
-            a = FUCID::new();
+            a = UFOID::new();
         }
 
-        let v = FUCID::new();
+        let v = UFOID::new();
         vec.push(Trible::new(&e, &a, &v))
     }
     return vec;
@@ -113,12 +113,13 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
+                let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = TribleSet::new();
                 for t in black_box(&samples) {
                     set.add(t);
                 }
-                let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
-                println!("The max amount that was used {}", peak_mem);
+                let after_mem = PEAK_ALLOC.current_usage_as_gb();
+                println!("Tribleset size: {}", after_mem-before_mem);
             })
         });
     }

@@ -1,5 +1,8 @@
 use crate::bitset::ByteBitset;
 
+type VariableId = u8;
+type VariableSet = ByteBitset;
+
 pub enum Peek {
     Fragment(u8),
     Branch(ByteBitset),
@@ -8,11 +11,21 @@ pub enum Peek {
 pub trait ByteCursor {
     fn peek(&self) -> Peek;
 
-    fn pop(&mut self);
-
     fn push(&mut self, byte: u8);
 
-    fn segment_count(&self) -> u32;
+    fn pop(&mut self);
+}
+
+pub trait VariableConstraint {
+    fn variables(&self) -> VariableSet;
+
+    fn blocked(&self) -> VariableSet;
+
+    fn estimate(&self, variable: VariableId) -> u32;
+
+    fn explore(&mut self, variable: VariableId);
+
+    fn retreat(&mut self);
 }
 
 #[derive(Debug, Copy, Clone)]

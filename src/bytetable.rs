@@ -146,7 +146,7 @@ macro_rules! create_bytetable {
         #[derive(Clone, Debug)]
         #[repr(transparent)]
         pub struct $name<T: ByteEntry + Clone + Debug> {
-            buckets: [ByteBucket<T>; $size],
+            pub buckets: [ByteBucket<T>; $size],
         }
 
         impl<T: ByteEntry + Clone + Debug> $name<T> {

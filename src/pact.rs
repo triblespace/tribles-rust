@@ -3,12 +3,14 @@ mod empty;
 mod leaf;
 mod macros;
 mod setops;
+mod paddingcursor;
 
 use branch::*;
 use empty::*;
 use leaf::*;
 use macros::*;
 //use setops::*;
+use paddingcursor::*;
 
 use crate::bitset::ByteBitset;
 use crate::bytetable;
@@ -72,6 +74,7 @@ pub(crate) fn reordered<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(key: &[
 pub trait KeyProperties<const KEY_LEN: usize>: Copy + Clone + Debug {
     fn reorder(at_depth: usize) -> usize;
     fn segment(at_depth: usize) -> usize;
+    fn padding(at_depth: usize) -> bool;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -81,9 +84,11 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for IdentityOrder {
     fn reorder(depth: usize) -> usize {
         depth
     }
-
     fn segment(_depth: usize) -> usize {
         0
+    }
+    fn padding(_depth: usize) -> bool {
+        false
     }
 }
 
@@ -277,6 +282,9 @@ where
     pub fn cursor(&self) -> PACTCursor<KEY_LEN, K> {
         return PACTCursor::new(self);
     }
+    pub fn padded_cursor(&self) -> PaddedCursor<KEY_LEN, K> {
+        return PaddedCursor::new(PACTCursor::new(self));
+    }
 }
 
 pub struct PACTCursor<const KEY_LEN: usize, K>
@@ -286,6 +294,16 @@ where
 {
     depth: usize,
     path: [Head<KEY_LEN, K>; KEY_LEN],
+}
+
+impl<const KEY_LEN: usize, K> PACTCursor<KEY_LEN, K>
+where
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
+{
+    fn count_segment(&self) -> u32 {
+        return self.path[self.depth].count_segment(self.depth);
+    }
 }
 
 impl<const KEY_LEN: usize, K> PACTCursor<KEY_LEN, K>

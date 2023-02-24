@@ -67,6 +67,9 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for EAVOrder {
             _ => 2,
         }
     }
+    fn padding(depth: usize) -> bool {
+        depth < 16 || (32 <= depth && depth < 48)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -87,6 +90,9 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AEVOrder {
             _ => 2,
         }
     }
+    fn padding(depth: usize) -> bool {
+        depth < 16 || (32 <= depth && depth < 48)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -106,6 +112,9 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AVEOrder {
             d if d < 48 => 2,
             _ => 0,
         }
+    }
+    fn padding(depth: usize) -> bool {
+        depth < 16 || (64 <= depth && depth < 80)
     }
 }
 

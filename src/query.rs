@@ -1,3 +1,7 @@
+mod constantconstraint;
+
+use constantconstraint::*;
+
 use crate::bitset::ByteBitset;
 
 type VariableId = u8;

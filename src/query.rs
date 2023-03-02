@@ -1,11 +1,13 @@
 mod constantconstraint;
+mod intersectionconstraint;
 
 use constantconstraint::*;
+use intersectionconstraint::*;
 
 use crate::bitset::ByteBitset;
 
-type VariableId = u8;
-type VariableSet = ByteBitset;
+pub type VariableId = u8;
+pub type VariableSet = ByteBitset;
 
 pub enum Peek {
     Fragment(u8),
@@ -20,7 +22,7 @@ pub trait ByteCursor {
     fn pop(&mut self);
 }
 
-pub trait VariableConstraint {
+pub trait VariableConstraint: ByteCursor {
     fn variables(&self) -> VariableSet;
 
     fn blocked(&self) -> VariableSet;

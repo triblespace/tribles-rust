@@ -6,8 +6,8 @@ use tribles::fucid::FUCID;
 use tribles::trible::*;
 use tribles::ufoid::UFOID;
 
-use tribles::pact::{self, IdentityOrder};
 use tribles::pact::PACT;
+use tribles::pact::{self, IdentityOrder};
 use tribles::tribleset::TribleSet;
 
 use im::OrdSet;
@@ -23,7 +23,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 
     let mut e = UFOID::new();
     let mut a = UFOID::new();
-    
+
     for _i in 0..length {
         if rng.gen_bool(0.5) {
             e = UFOID::new();
@@ -68,7 +68,7 @@ fn pact_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let mut pact = PACT::<64,IdentityOrder>::new();
+                let mut pact = PACT::<64, IdentityOrder>::new();
                 for t in black_box(&samples) {
                     pact.put(&Arc::new(t.data));
                 }
@@ -119,7 +119,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
                     set.add(t);
                 }
                 let after_mem = PEAK_ALLOC.current_usage_as_gb();
-                println!("Tribleset size: {}", after_mem-before_mem);
+                println!("Tribleset size: {}", after_mem - before_mem);
             })
         });
     }

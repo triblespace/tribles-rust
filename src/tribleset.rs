@@ -3,7 +3,7 @@ mod patternconstraint;
 use patternconstraint::*;
 
 use crate::pact::PACT;
-use crate::trible::{Trible, EAVOrder, AEVOrder, AVEOrder};
+use crate::trible::{AEVOrder, AVEOrder, EAVOrder, Trible};
 use std::iter::FromIterator;
 use std::sync::Arc;
 

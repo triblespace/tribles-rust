@@ -2,15 +2,15 @@ mod branch;
 mod empty;
 mod leaf;
 mod macros;
-mod setops;
 mod paddingcursor;
+mod setops;
 
 use branch::*;
 use empty::*;
 use leaf::*;
 use macros::*;
 //use setops::*;
-use paddingcursor::*;
+pub use paddingcursor::PaddedCursor;
 
 use crate::bitset::ByteBitset;
 use crate::bytetable;
@@ -21,15 +21,15 @@ use rand::thread_rng;
 use rand::RngCore;
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::any::type_name;
-use std::cmp::{max, min};
+use std::cmp::min;
 use std::fmt;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::mem;
 use std::mem::ManuallyDrop;
 use std::mem::{transmute, MaybeUninit};
 use std::sync::Arc;
 use std::sync::Once;
-use std::marker::PhantomData;
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
@@ -63,7 +63,9 @@ fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
 
 type SharedKey<const KEY_LEN: usize> = Arc<[u8; KEY_LEN]>;
 
-pub(crate) fn reordered<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
+pub(crate) fn reordered<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
+    key: &[u8; KEY_LEN],
+) -> [u8; KEY_LEN] {
     let mut new_key = [0; KEY_LEN];
     for i in 0..KEY_LEN {
         new_key[i] = key[K::reorder(i)];
@@ -265,6 +267,9 @@ where
     K: KeyProperties<KEY_LEN>,
     [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
+    //type Cursor = PACTCursor<KEY_LEN, K>;
+    //type PaddedCursor = PaddedCursor<KEY_LEN, K>;
+
     pub fn new() -> Self {
         PACT {
             root: Empty::new().into(),

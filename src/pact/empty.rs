@@ -23,7 +23,9 @@ impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> Empty<KEY_LEN, K> {
     }
 }
 
-impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> for Empty<KEY_LEN, K> {
+impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K>
+    for Empty<KEY_LEN, K>
+{
     fn count(&self) -> u32 {
         0
     }

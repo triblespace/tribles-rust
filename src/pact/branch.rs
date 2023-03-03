@@ -25,7 +25,9 @@ macro_rules! create_branch {
             key_properties: PhantomData<K>,
         }
 
-        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> From<$name<KEY_LEN, K>> for Head<KEY_LEN, K> {
+        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> From<$name<KEY_LEN, K>>
+            for Head<KEY_LEN, K>
+        {
             fn from(head: $name<KEY_LEN, K>) -> Self {
                 unsafe { transmute(head) }
             }
@@ -55,7 +57,9 @@ macro_rules! create_branch {
             }
         }
 
-        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K> for $name<KEY_LEN, K> {
+        impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> HeadVariant<KEY_LEN, K>
+            for $name<KEY_LEN, K>
+        {
             fn count(&self) -> u32 {
                 self.body.leaf_count
             }
@@ -126,8 +130,11 @@ macro_rules! create_branch {
                             // The key diverged from what we already have, so we need to introduce
                             // a branch at the discriminating depth.
 
-                            let mut new_branch =
-                                Branch4::new(self.start_depth as usize, depth, &reordered::<KEY_LEN, K>(key));
+                            let mut new_branch = Branch4::new(
+                                self.start_depth as usize,
+                                depth,
+                                &reordered::<KEY_LEN, K>(key),
+                            );
                             new_branch.insert(Leaf::new(depth, key).into());
                             new_branch.insert(self.with_start(depth));
 
@@ -142,7 +149,7 @@ macro_rules! create_branch {
                                 .get_mut(key_byte)
                                 .expect("table content should match child set content");
                             let old_child_hash = old_child.hash();
-                            
+
                             let old_child_segment_count = old_child.count_segment(depth);
                             let old_child_leaf_count = old_child.count();
 
@@ -150,8 +157,10 @@ macro_rules! create_branch {
 
                             body.hash = (body.hash ^ old_child_hash) ^ new_child.hash();
 
-                            body.segment_count = (body.segment_count - old_child_segment_count) + new_child.count_segment(depth);
-                            body.leaf_count = (body.leaf_count - old_child_leaf_count) + new_child.count();
+                            body.segment_count = (body.segment_count - old_child_segment_count)
+                                + new_child.count_segment(depth);
+                            body.leaf_count =
+                                (body.leaf_count - old_child_leaf_count) + new_child.count();
                             body.child_table.put(new_child);
 
                             return self.clone().into();
@@ -179,10 +188,7 @@ macro_rules! create_branch {
                 self.body.hash
             }
 
-            fn with_start(
-                &self,
-                new_start_depth: usize
-            ) -> Head<KEY_LEN, K> {
+            fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, K> {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
                 copy_start(fragment.as_mut_slice(), &self.body.key[..], new_start_depth);
 

@@ -3,15 +3,18 @@ mod patternconstraint;
 use patternconstraint::*;
 
 use crate::pact::PACT;
-use crate::trible::{AEVOrder, AVEOrder, EAVOrder, Trible};
+use crate::trible::{AEVOrder, AVEOrder, EAVOrder, EVAOrder, VEAOrder, VAEOrder, Trible};
 use std::iter::FromIterator;
 use triomphe::Arc;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
     eav: PACT<64, EAVOrder>,
+    eva: PACT<64, EVAOrder>,
     aev: PACT<64, AEVOrder>,
     ave: PACT<64, AVEOrder>,
+    vea: PACT<64, VEAOrder>,
+    vae: PACT<64, VAEOrder>,
 }
 
 impl TribleSet {
@@ -22,17 +25,24 @@ impl TribleSet {
     {
         let iter = sets.into_iter();
         let eav = PACT::union(iter.clone().map(|set| set.eav));
+        let eva = PACT::union(iter.clone().map(|set| set.eva));
         let aev = PACT::union(iter.clone().map(|set| set.aev));
         let ave = PACT::union(iter.clone().map(|set| set.ave));
+        let vea = PACT::union(iter.clone().map(|set| set.vea));
+        let vae = PACT::union(iter.clone().map(|set| set.vae));
 
-        TribleSet { eav, aev, ave }
+
+        TribleSet { eav, eva, aev, ave, vea, vae }
     }
 
     pub fn new() -> TribleSet {
         TribleSet {
             eav: PACT::new(),
+            eva: PACT::new(),
             aev: PACT::new(),
             ave: PACT::new(),
+            vea: PACT::new(),
+            vae: PACT::new(),
         }
     }
 
@@ -43,8 +53,11 @@ impl TribleSet {
     pub fn add(&mut self, trible: &Trible) {
         let key = Arc::new(trible.data);
         self.eav.put(&key);
+        self.eva.put(&key);
         self.aev.put(&key);
         self.ave.put(&key);
+        self.vea.put(&key);
+        self.vae.put(&key);
     }
 }
 

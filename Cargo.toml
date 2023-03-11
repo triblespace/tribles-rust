@@ -9,6 +9,7 @@ license-file = "LICENSE"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+triomphe = "0.1.8"
 rand = "0.8.5"
 ux = "0.1.5"
 siphasher = "0.3"

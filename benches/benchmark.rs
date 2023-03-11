@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use std::iter::FromIterator;
-use std::sync::Arc;
+use triomphe::Arc;
 use tribles::fucid::FUCID;
 use tribles::trible::*;
 use tribles::ufoid::UFOID;

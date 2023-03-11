@@ -28,8 +28,8 @@ use std::marker::PhantomData;
 use std::mem;
 use std::mem::ManuallyDrop;
 use std::mem::{transmute, MaybeUninit};
-use std::sync::Arc;
 use std::sync::Once;
+use triomphe::Arc;
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();

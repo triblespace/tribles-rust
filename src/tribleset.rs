@@ -5,7 +5,7 @@ use patternconstraint::*;
 use crate::pact::PACT;
 use crate::trible::{AEVOrder, AVEOrder, EAVOrder, Trible};
 use std::iter::FromIterator;
-use std::sync::Arc;
+use triomphe::Arc;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {

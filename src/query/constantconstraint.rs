@@ -1,12 +1,17 @@
+use std::rc::Rc;
+
 use super::*;
 
-pub struct ConstantConstraint {
-    variable: VariableId,
+pub struct ConstantCursor {
     depth: u8,
     constant: [u8; 32],
 }
+pub struct ConstantConstraint {
+    variable: VariableId,
+    constant: [u8; 32],
+}
 
-impl ByteCursor for ConstantConstraint {
+impl ByteCursor for ConstantCursor {
     fn peek(&self) -> Peek {
         Peek::Fragment(self.constant[self.depth as usize])
     }
@@ -17,6 +22,12 @@ impl ByteCursor for ConstantConstraint {
 
     fn pop(&mut self) {
         self.depth -= 1;
+    }
+}
+
+impl ConstantCursor {
+    fn new(constant: [u8; 32]) -> Rc<dyn ByteCursor> {
+        Rc::new(Self { depth: 0, constant })
     }
 }
 
@@ -33,7 +44,9 @@ impl VariableConstraint for ConstantConstraint {
         1
     }
 
-    fn explore(&mut self, _variable: VariableId) {}
+    fn explore(&mut self, _variable: VariableId) -> Rc<dyn ByteCursor> {
+        ConstantCursor::new(self.constant)
+    }
 
-    fn retreat(&mut self) {}
+    fn retreat(&mut self, variable: VariableId) {}
 }

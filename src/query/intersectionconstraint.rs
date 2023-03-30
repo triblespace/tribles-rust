@@ -1,19 +1,31 @@
+use std::rc::Rc;
+
 use super::*;
 
-pub struct IntersectionConstraint {
-    constraints: Vec<Box<dyn VariableConstraint>>,
-    active_constraints: Vec<usize>,
-    variable_stack: Vec<VariableId>,
+pub struct IntersectionCursor<const LEN: usize> {
+    cursors: [Option<Rc<dyn ByteCursor>>; LEN],
 }
 
-impl ByteCursor for IntersectionConstraint {
+impl<const LEN: usize> IntersectionCursor<LEN> {
+    fn new(cursors: [Option<Rc<dyn ByteCursor>>; LEN]) -> Rc<dyn ByteCursor> {
+        Rc::new(Self { cursors })
+    }
+}
+
+pub struct IntersectionConstraint<const LEN: usize> {
+    constraints: [Rc<dyn VariableConstraint>; LEN],
+}
+
+impl<const LEN: usize> ByteCursor for IntersectionCursor<LEN> {
     fn peek(&self) -> Peek {
         let mut intersection = ByteBitset::new_empty();
-        for constraint_idx in &self.active_constraints {
-            intersection = intersection.intersect(match self.constraints[*constraint_idx].peek() {
-                Peek::Fragment(byte) => ByteBitset::new_singleton(byte),
-                Peek::Branch(children_set) => children_set,
-            });
+        for cursor in &self.cursors {
+            if let Some(cursor) = cursor {
+                intersection = intersection.intersect(match cursor.peek() {
+                    Peek::Fragment(byte) => ByteBitset::new_singleton(byte),
+                    Peek::Branch(children_set) => children_set,
+                });
+            }
         }
         match intersection.count() {
             1 => Peek::Fragment(
@@ -26,19 +38,25 @@ impl ByteCursor for IntersectionConstraint {
     }
 
     fn push(&mut self, byte: u8) {
-        for constraint in self.constraints.iter_mut() {
-            constraint.push(byte);
+        for cursor in self.cursors.iter_mut() {
+            if let Some(cursor) = cursor {
+                cursor.push(byte);
+            }
         }
     }
 
     fn pop(&mut self) {
-        for constraint in self.constraints.iter_mut() {
-            constraint.pop();
+        for cursor in self.cursors.iter_mut() {
+            if let Some(cursor) = cursor {
+                cursor.pop();
+            }
         }
     }
 }
 
-impl VariableConstraint for IntersectionConstraint {
+const INIT: Option<Rc<dyn ByteCursor>> = None;
+
+impl<const LEN: usize> VariableConstraint for IntersectionConstraint<LEN> {
     fn variables(&self) -> VariableSet {
         let mut vars = VariableSet::new_empty();
         for constraint in &self.constraints {
@@ -65,29 +83,20 @@ impl VariableConstraint for IntersectionConstraint {
         min
     }
 
-    fn explore(&mut self, variable: VariableId) {
-        self.variable_stack.push(variable);
-        self.active_constraints.clear();
+    fn explore(&mut self, variable: VariableId) -> Rc<dyn ByteCursor> {
+        let mut cursors = [INIT; LEN];
         for (idx, constraint) in self.constraints.iter_mut().enumerate() {
             if constraint.variables().is_set(variable) {
-                constraint.push(variable);
-                self.active_constraints.push(idx);
+                cursors[idx] = Some(constraint.explore(variable));
             }
         }
+        IntersectionCursor::new(cursors)
     }
 
-    fn retreat(&mut self) {
-        for constraint_idx in &self.active_constraints {
-            self.constraints[*constraint_idx].pop();
-        }
-        self.active_constraints.clear();
-
-        self.variable_stack.pop();
-        if let Some(current_var) = self.variable_stack.last() {
-            for (idx, constraint) in self.constraints.iter().enumerate() {
-                if constraint.variables().is_set(*current_var) {
-                    self.active_constraints.push(idx);
-                }
+    fn retreat(&mut self, variable: VariableId) {
+        for constraint in self.constraints.iter_mut() {
+            if constraint.variables().is_set(variable) {
+                constraint.retreat(variable);
             }
         }
     }

@@ -210,6 +210,14 @@ impl ByteBitset {
             self.bits[word_index] = 0;
         }
     }
+
+    pub fn ascending(self) -> IterAscending {
+        IterAscending { set: self }
+    }
+
+    pub fn descending(self) -> IterDescending {
+        IterDescending { set: self }
+    }
 }
 
 impl fmt::Debug for ByteBitset {
@@ -227,6 +235,34 @@ impl fmt::Debug for ByteBitset {
         }
         write!(f, "}}\n")?;
         Ok(())
+    }
+}
+
+pub struct IterAscending {
+    set: ByteBitset,
+}
+
+impl Iterator for IterAscending {
+    // we will be counting with usize
+    type Item = u8;
+
+    // next() is the only required method
+    fn next(&mut self) -> Option<Self::Item> {
+        self.set.drain_next_ascending()
+    }
+}
+
+pub struct IterDescending {
+    set: ByteBitset,
+}
+
+impl Iterator for IterDescending {
+    // we will be counting with usize
+    type Item = u8;
+
+    // next() is the only required method
+    fn next(&mut self) -> Option<Self::Item> {
+        self.set.drain_next_descending()
     }
 }
 

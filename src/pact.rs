@@ -28,6 +28,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::mem::ManuallyDrop;
 use std::mem::{transmute, MaybeUninit};
+use std::rc::Rc;
 use std::sync::Once;
 use triomphe::Arc;
 
@@ -352,10 +353,10 @@ where
     [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
     type Item = [u8; KEY_LEN];
-    type IntoIter = CursorIterator<Self, KEY_LEN>;
+    type IntoIter = CursorIterator<KEY_LEN>;
 
     fn into_iter(self) -> Self::IntoIter {
-        CursorIterator::new(self)
+        CursorIterator::new(Rc::new(self))
     }
 }
 

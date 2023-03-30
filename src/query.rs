@@ -119,3 +119,88 @@ impl<CURSOR: ByteCursor, const MAX_DEPTH: usize> Iterator for CursorIterator<CUR
         }
     }
 }
+
+type Value = [u8; 32];
+
+#[derive(Copy, Clone)]
+struct Binding {
+    values: [Value; 256],
+}
+
+impl Default for Binding {
+    fn default() -> Self {
+        Self {
+            values: [[0; 32]; 256],
+        }
+    }
+}
+struct Query<C: VariableConstraint> {
+    constraint: C,
+    unexplored_variables: ByteBitset,
+    binding: Binding,
+    stack: [u8; 256],
+    depth: u8,
+}
+
+impl<C: VariableConstraint> Query<C> {
+    fn new(constraint: C) -> Self {
+        let unexplored_variables = constraint.variables();
+        Query {
+            constraint,
+            unexplored_variables,
+            binding: Default::default(),
+            stack: [0; 256],
+            depth: 0
+        }
+    }
+}
+/*
+impl<C: VariableConstraint> Iterator for Query<C> {
+    // we will be counting with usize
+    type Item = Binding;
+
+    // next() is the only required method
+    fn next(&mut self) -> Option<Self::Item> {
+        while !self.unexplored_variables.is_empty() {
+            let variables = self.unexplored_variables.subtract(self.constraint.blocked());
+
+            let next_variable = variables
+                .ascending()
+                .min_by_key(|v| self.constraint.estimate(*v));
+
+            if let Some(next_variable) = next_variable {
+                self.unexplored_variables.unset(next_variable);
+                self.stack[self.depth as usize] = next_variable;
+                let cursor = self.constraint.explore(next_variable);
+                let cursor:CursorIterator<32> = CursorIterator::new(cursor);
+                if let Some(assignment) = cursor.next() {
+                    self.binding.values[next_variable as usize] = assignment;
+                }
+                let var = self.stack[self.depth as usize];
+                self.constraint.retreat(var);
+                self.unexplored_variables.set(var);
+            } else {
+                panic!("Can't evaluate query: blocked dead end.");
+            }
+        }
+        Some(self.binding.clone())
+    }
+}
+*/
+/*
+pub fn findv0(constraint: impl VariableConstraint) -> Binding {
+
+}
+impl<const KEY_LEN: usize, K> IntoIterator for PACTCursor<KEY_LEN, K>
+where
+    K: KeyProperties<KEY_LEN>,
+    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
+{
+    type Item = [u8; KEY_LEN];
+    type IntoIter = CursorIterator<Self, KEY_LEN>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CursorIterator::new(self)
+    }
+}
+ */

@@ -23,7 +23,7 @@ pub enum Stack {
     VAE,
 }
 
-pub struct PatternConstraint {
+pub struct TribleConstraint {
     state: Stack,
     e_var: VariableId,
     a_var: VariableId,
@@ -33,15 +33,15 @@ pub struct PatternConstraint {
     ave_cursor: PaddedCursor<64, AVEOrder>,
 }
 
-impl PatternConstraint {
-    fn new(set: TribleSet, e: VariableId, a: VariableId, v: VariableId) -> PatternConstraint {
+impl TribleConstraint {
+    fn new(set: TribleSet, e: VariableId, a: VariableId, v: VariableId) -> TribleConstraint {
         if e == a || e == v || a == v {
             panic!(
               "Triple variables must be uniqe. Use explicit equality when inner constraints are required.",
             );
         }
 
-        PatternConstraint {
+        TribleConstraint {
             state: Stack::Empty,
             e_var: e,
             a_var: a,
@@ -53,7 +53,7 @@ impl PatternConstraint {
     }
 }
 
-impl ByteCursor for PatternConstraint {
+impl ByteCursor for TribleConstraint {
     fn peek(&self) -> Peek {
         match self.state {
             Stack::E | Stack::EA | Stack::EAV => self.eav_cursor.peek(),
@@ -90,7 +90,7 @@ impl ByteCursor for PatternConstraint {
     }
 }
 
-impl VariableConstraint for PatternConstraint {
+impl VariableConstraint for TribleConstraint {
     fn variables(&self) -> VariableSet {
         let mut var_set = VariableSet::new_empty();
         var_set.set(self.e_var);

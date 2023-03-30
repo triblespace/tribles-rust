@@ -1,6 +1,6 @@
-mod patternconstraint;
+mod tribleconstraint;
 
-use patternconstraint::*;
+use tribleconstraint::*;
 
 use crate::pact::PACT;
 use crate::trible::{AEVOrder, AVEOrder, EAVOrder, EVAOrder, VEAOrder, VAEOrder, Trible};

@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use std::iter::FromIterator;
-use triomphe::Arc;
 use tribles::fucid::FUCID;
 use tribles::trible::*;
 use tribles::ufoid::UFOID;
+use triomphe::Arc;
 
 use tribles::pact::PACT;
 use tribles::pact::{self, IdentityOrder};

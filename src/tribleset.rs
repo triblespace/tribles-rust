@@ -3,7 +3,7 @@ mod tribleconstraint;
 use tribleconstraint::*;
 
 use crate::pact::PACT;
-use crate::trible::{AEVOrder, AVEOrder, EAVOrder, EVAOrder, VEAOrder, VAEOrder, Trible};
+use crate::trible::{AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder};
 use std::iter::FromIterator;
 use triomphe::Arc;
 
@@ -31,8 +31,14 @@ impl TribleSet {
         let vea = PACT::union(iter.clone().map(|set| set.vea));
         let vae = PACT::union(iter.clone().map(|set| set.vae));
 
-
-        TribleSet { eav, eva, aev, ave, vea, vae }
+        TribleSet {
+            eav,
+            eva,
+            aev,
+            ave,
+            vea,
+            vae,
+        }
     }
 
     pub fn new() -> TribleSet {

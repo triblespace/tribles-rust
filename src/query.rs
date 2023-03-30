@@ -150,7 +150,7 @@ impl<C: VariableConstraint> Query<C> {
             unexplored_variables,
             binding: Default::default(),
             stack: [0; 256],
-            depth: 0
+            depth: 0,
         }
     }
 }

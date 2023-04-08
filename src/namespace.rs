@@ -33,16 +33,16 @@ pub fn encode_id(value: Value) -> Value {
 }
 
 pub fn encode_string(value: String) -> Value {
-    [1;32]
+    [1; 32]
 }
 
 pub fn factory() -> Value {
-    [0;32]
+    [0; 32]
 }
 
 mod knightsNS {
     pub mod id {
-        pub use crate::namespace::factory as factory;
+        pub use crate::namespace::factory;
     }
     pub mod ids {
         use hex_literal::hex;
@@ -51,8 +51,8 @@ mod knightsNS {
         pub const title: [u8; 16] = hex!("328f2c33d2fdd675e733388770b2d6c4");
     }
     pub mod encoders {
-        pub use crate::namespace::encode_string as name;
         pub use crate::namespace::encode_id as loves;
+        pub use crate::namespace::encode_string as name;
         pub use crate::namespace::encode_string as title;
     }
 
@@ -85,7 +85,6 @@ mod knightsNS {
         };
     }
     pub(crate) use entities;
-
 }
 
 #[cfg(test)]

@@ -173,6 +173,7 @@ mod tests {
 
     use super::*;
 
+    #[rustfmt::skip]
     #[test]
     fn order_eav() {
         let canonical_bytes = [
@@ -189,7 +190,7 @@ mod tests {
         assert_eq!(reordered::<64, EAVOrder>(&canonical_bytes), reordered_bytes);
     }
 
-
+    #[rustfmt::skip]
     #[test]
     fn order_eva() {
         let canonical_bytes = [
@@ -206,6 +207,7 @@ mod tests {
         assert_eq!(reordered::<64, EVAOrder>(&canonical_bytes), reordered_bytes);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn order_aev() {
         let canonical_bytes = [
@@ -221,6 +223,7 @@ mod tests {
         assert_eq!(reordered::<64, AEVOrder>(&canonical_bytes), reordered_bytes);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn order_ave() {
         let canonical_bytes = [
@@ -236,6 +239,7 @@ mod tests {
         assert_eq!(reordered::<64, AVEOrder>(&canonical_bytes), reordered_bytes);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn order_vea() {
         let canonical_bytes = [
@@ -252,6 +256,7 @@ mod tests {
         assert_eq!(reordered::<64, VEAOrder>(&canonical_bytes), reordered_bytes);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn order_vae() {
         let canonical_bytes = [

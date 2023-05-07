@@ -23,6 +23,7 @@ im = "15.1.0"
 itertools = "0.10.5"
 peak_alloc = "0.1.0"
 hex-literal = "0.3.4"
+blake2 = "0.10.6"
 
 [[bench]]
 name = "benchmark"

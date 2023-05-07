@@ -1,16 +1,20 @@
-use crate::trible::{Id, Value};
+use crate::namespace::{Id, Value};
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use std::convert::TryInto;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Arbitrary, Copy, Clone, PartialEq, Eq)]
+#[derive(Arbitrary, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct UFOID {
     data: [u8; 16],
 }
 
 impl UFOID {
+    pub const fn raw(data: [u8; 16]) -> UFOID {
+        UFOID { data }
+    }
+
     pub fn new() -> UFOID {
         let mut rng = thread_rng();
         let now_in_sys = SystemTime::now();
@@ -31,6 +35,31 @@ impl UFOID {
     }
 }
 
+impl Id for UFOID {
+    fn decode(data: [u8; 16]) -> Self {
+        UFOID { data }
+    }
+    fn encode(id: Self) -> [u8; 16] {
+        id.data
+    }
+    fn factory() -> Self {
+        UFOID::new()
+    }
+}
+
+impl Value for UFOID {
+    fn decode(data: [u8; 32], _blob: fn() -> Option<Vec<u8>>) -> Self {
+        UFOID {
+            data: data[16..32].try_into().unwrap(),
+        }
+    }
+    fn encode(value: Self) -> ([u8; 32], Option<Vec<u8>>) {
+        let mut data = [0; 32];
+        data[16..32].copy_from_slice(&value.data);
+        (data, None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -38,27 +67,5 @@ mod tests {
     #[test]
     fn unique() {
         assert!(UFOID::new() != UFOID::new());
-    }
-}
-
-impl Id for UFOID {
-    fn decode(data: [u8; 16]) -> Self {
-        UFOID { data }
-    }
-    fn encode(id: &Self) -> [u8; 16] {
-        id.data
-    }
-}
-
-impl Value for UFOID {
-    fn decode(data: [u8; 32]) -> Self {
-        UFOID {
-            data: data[16..32].try_into().unwrap(),
-        }
-    }
-    fn encode(value: &Self) -> [u8; 32] {
-        let mut data = [0; 32];
-        data[16..32].copy_from_slice(&value.data);
-        data
     }
 }

@@ -1,4 +1,4 @@
-use crate::trible::{Id, Value};
+use crate::namespace::{Id, Value};
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use rand::RngCore;
@@ -57,21 +57,24 @@ impl Id for FUCID {
     fn decode(data: [u8; 16]) -> Self {
         FUCID { data }
     }
-    fn encode(id: &Self) -> [u8; 16] {
+    fn encode(id: Self) -> [u8; 16] {
         id.data
+    }
+    fn factory() -> Self {
+        FUCID::new()
     }
 }
 
 impl Value for FUCID {
-    fn decode(data: [u8; 32]) -> Self {
+    fn decode(data: [u8; 32], _blob: fn() -> Option<Vec<u8>>) -> Self {
         FUCID {
             data: data[16..32].try_into().unwrap(),
         }
     }
-    fn encode(value: &Self) -> [u8; 32] {
+    fn encode(value: Self) -> ([u8; 32], Option<Vec<u8>>) {
         let mut data = [0; 32];
         data[16..32].copy_from_slice(&value.data);
-        data
+        (data, None)
     }
 }
 

@@ -1,14 +1,15 @@
+use crate::namespace::{Id, Value};
 use crate::pact::KeyProperties;
 use arbitrary::Arbitrary;
 
-#[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
 pub struct Trible {
     pub data: [u8; 64],
 }
 
 impl Trible {
-    pub fn new<E, A, V>(e: &E, a: &A, v: &V) -> Trible
+    pub fn new<E, A, V>(e: E, a: A, v: V) -> Trible
     where
         E: Id,
         A: Id,
@@ -17,20 +18,10 @@ impl Trible {
         let mut data = [0; 64];
         data[0..16].copy_from_slice(&mut Id::encode(e)[..]);
         data[16..32].copy_from_slice(&mut Id::encode(a)[..]);
-        data[32..64].copy_from_slice(&mut Value::encode(v)[..]);
+        data[32..64].copy_from_slice(&mut Value::encode(v).0[..]);
 
         Self { data }
     }
-}
-
-pub trait Id {
-    fn decode(data: [u8; 16]) -> Self;
-    fn encode(id: &Self) -> [u8; 16];
-}
-
-pub trait Value {
-    fn decode(data: [u8; 32]) -> Self;
-    fn encode(value: &Self) -> [u8; 32];
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -246,7 +237,7 @@ mod tests {
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
             24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
             46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-        ];
+        ]; 
         let reordered_bytes = [
             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
             48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,

@@ -33,7 +33,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
         }
 
         let v = UFOID::new();
-        vec.push(Trible::new(&e, &a, &v))
+        vec.push(Trible::new(e, a, v))
     }
     return vec;
 }

@@ -1,5 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
+use std::collections::HashSet;
 use std::iter::FromIterator;
 use tribles::fucid::FUCID;
 use tribles::trible::*;
@@ -36,6 +37,26 @@ fn random_tribles(length: usize) -> Vec<Trible> {
         vec.push(Trible::new(e, a, v))
     }
     return vec;
+}
+
+fn std_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("std");
+
+    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            b.iter(|| HashSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
+        });
+        group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let set = HashSet::<Trible>::from_iter(black_box(&samples).iter().copied());
+            b.iter(|| set.iter().count());
+        });
+    }
+    //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
+    //println!("The max amount that was used {}", peak_mem);
+    group.finish();
 }
 
 fn im_benchmark(c: &mut Criterion) {
@@ -153,5 +174,5 @@ fn tribleset_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, im_benchmark, pact_benchmark, tribleset_benchmark);
+criterion_group!(benches, std_benchmark, im_benchmark, pact_benchmark, tribleset_benchmark);
 criterion_main!(benches);

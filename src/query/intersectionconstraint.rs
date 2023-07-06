@@ -1,58 +1,15 @@
+use im::Vector;
+
 use super::*;
 
 pub struct IntersectionConstraint {
-    constraints: Vec<Box<dyn VariableConstraint>>,
-    active_constraints: Vec<usize>,
-    variable_stack: Vec<VariableId>,
+    constraints: Vec<Box<dyn Constraint>>,
 }
 
-impl ByteCursor for IntersectionConstraint {
-    fn peek(&self) -> Peek {
-        let mut intersection = ByteBitset::new_empty();
-        for constraint_idx in &self.active_constraints {
-            intersection = intersection.intersect(match self.constraints[*constraint_idx].peek() {
-                Peek::Fragment(byte) => ByteBitset::new_singleton(byte),
-                Peek::Branch(children_set) => children_set,
-            });
-        }
-        match intersection.count() {
-            1 => Peek::Fragment(
-                intersection
-                    .find_first_set()
-                    .expect("there should be 1 childbit"),
-            ),
-            _ => Peek::Branch(intersection),
-        }
-    }
-
-    fn push(&mut self, byte: u8) {
-        for constraint in self.constraints.iter_mut() {
-            constraint.push(byte);
-        }
-    }
-
-    fn pop(&mut self) {
-        for constraint in self.constraints.iter_mut() {
-            constraint.pop();
-        }
-    }
-}
-
-impl VariableConstraint for IntersectionConstraint {
+impl Constraint for IntersectionConstraint {
     fn variables(&self) -> VariableSet {
-        let mut vars = VariableSet::new_empty();
-        for constraint in &self.constraints {
-            vars = vars.union(constraint.variables());
-        }
-        vars
-    }
-
-    fn blocked(&self) -> VariableSet {
-        let mut blocked = VariableSet::new_empty();
-        for constraint in &self.constraints {
-            blocked = blocked.union(constraint.blocked());
-        }
-        blocked
+        self.constraints.iter().fold(VariableSet::new_empty(), 
+            |vs, c| vs.union(c.variables()))
     }
 
     fn estimate(&self, variable: VariableId) -> u32 {
@@ -65,30 +22,16 @@ impl VariableConstraint for IntersectionConstraint {
         min
     }
 
-    fn explore(&mut self, variable: VariableId) {
-        self.variable_stack.push(variable);
-        self.active_constraints.clear();
-        for (idx, constraint) in self.constraints.iter_mut().enumerate() {
-            if constraint.variables().is_set(variable) {
-                constraint.push(variable);
-                self.active_constraints.push(idx);
-            }
-        }
+    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value>> {
+        let relevant_constraints: Vec<_> = self.constraints.iter().filter(|c| c.variables().is_set(variable)).collect();
+        relevant_constraints.sort_by_key(|c| c.estimate(variable));
+        let proposer = relevant_constraints[0];
+        let confirms = relevant_constraints[1..];
+
+        proposer.propose(variable, binding).filter(|v| confirms.iter().all(|c| c.confirm(variable, v, binding)))
     }
 
-    fn retreat(&mut self) {
-        for constraint_idx in &self.active_constraints {
-            self.constraints[*constraint_idx].pop();
-        }
-        self.active_constraints.clear();
-
-        self.variable_stack.pop();
-        if let Some(current_var) = self.variable_stack.last() {
-            for (idx, constraint) in self.constraints.iter().enumerate() {
-                if constraint.variables().is_set(*current_var) {
-                    self.active_constraints.push(idx);
-                }
-            }
-        }
+    fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool {
+        self.constraints.iter().all(|c| c.confirm(variable, value, binding))
     }
 }

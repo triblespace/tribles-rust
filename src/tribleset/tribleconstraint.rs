@@ -1,3 +1,4 @@
+/*
 use crate::pact::PaddedCursor;
 use crate::query::*;
 use crate::trible::{AEVOrder, AVEOrder, EAVOrder};
@@ -146,3 +147,4 @@ impl VariableConstraint for TribleConstraint {
         }
     }
 }
+*/

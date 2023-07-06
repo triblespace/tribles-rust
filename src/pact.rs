@@ -2,6 +2,7 @@ mod branch;
 mod empty;
 mod leaf;
 mod macros;
+mod bytecursor;
 mod paddingcursor;
 mod setops;
 
@@ -10,12 +11,13 @@ use empty::*;
 use leaf::*;
 use macros::*;
 //use setops::*;
-pub use paddingcursor::PaddedCursor;
+//pub use bytecursor::*;
+//pub use paddingcursor::PaddedCursor;
+
 
 use crate::bitset::ByteBitset;
 use crate::bytetable;
 use crate::bytetable::*;
-use crate::query::{ByteCursor, CursorIterator, Peek};
 use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;
@@ -34,6 +36,9 @@ use triomphe::Arc;
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
 
+const HEAD_FRAGMENT_LEN: usize = 5;
+const LEAF_FRAGMENT_LEN: usize = 6;
+
 pub fn init() {
     INIT.call_once(|| {
         bytetable::init();
@@ -45,20 +50,9 @@ pub fn init() {
     });
 }
 
-const HEAD_FRAGMENT_LEN: usize = 5;
-const LEAF_FRAGMENT_LEN: usize = 6;
-
-fn index_start(infix_start: usize, index: usize) -> usize {
-    index - infix_start
-}
-
-fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
-    let target_len = target.len();
-    let source_len = source.len();
-    let used_len = min(source_len - start_index as usize, target_len);
-    let target_range = &mut target[0..used_len];
-    let source_range = &source[start_index..start_index as usize + used_len];
-    target_range.copy_from_slice(source_range);
+pub enum Peek {
+    Fragment(u8),
+    Branch(ByteBitset),
 }
 
 type SharedKey<const KEY_LEN: usize> = Arc<[u8; KEY_LEN]>;
@@ -287,9 +281,11 @@ where
     pub fn cursor(&self) -> PACTCursor<KEY_LEN, K> {
         return PACTCursor::new(self);
     }
+    /*
     pub fn padded_cursor(&self) -> PaddedCursor<KEY_LEN, K> {
         return PaddedCursor::new(PACTCursor::new(self));
     }
+    */
 }
 
 pub struct PACTCursor<const KEY_LEN: usize, K>
@@ -326,11 +322,14 @@ where
     }
 }
 
+/*
 impl<const KEY_LEN: usize, K> ByteCursor for PACTCursor<KEY_LEN, K>
 where
     K: KeyProperties<KEY_LEN>,
     [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
+    const LEN: usize = KEY_LEN;
+
     fn peek(&self) -> Peek {
         self.path[self.depth].peek(self.depth)
     }
@@ -345,18 +344,20 @@ where
         self.depth -= 1;
     }
 }
+*/
 
-impl<const KEY_LEN: usize, K> IntoIterator for PACTCursor<KEY_LEN, K>
-where
-    K: KeyProperties<KEY_LEN>,
-    [Head<KEY_LEN, K>; KEY_LEN]: Sized,
-{
-    type Item = [u8; KEY_LEN];
-    type IntoIter = CursorIterator<Self, KEY_LEN>;
+// Helpers
+fn index_start(infix_start: usize, index: usize) -> usize {
+    index - infix_start
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        CursorIterator::new(self)
-    }
+fn copy_start(target: &mut [u8], source: &[u8], start_index: usize) {
+    let target_len = target.len();
+    let source_len = source.len();
+    let used_len = min(source_len - start_index as usize, target_len);
+    let target_range = &mut target[0..used_len];
+    let source_range = &source[start_index..start_index as usize + used_len];
+    target_range.copy_from_slice(source_range);
 }
 
 #[cfg(test)]

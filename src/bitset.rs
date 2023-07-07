@@ -230,6 +230,26 @@ impl fmt::Debug for ByteBitset {
     }
 }
 
+pub struct ByteBitsetIterator(ByteBitset);
+
+impl Iterator for ByteBitsetIterator {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.drain_next_ascending()
+    }
+}
+
+impl IntoIterator for ByteBitset
+{
+    type Item = u8;
+    type IntoIter = ByteBitsetIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ByteBitsetIterator(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

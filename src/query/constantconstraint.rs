@@ -13,12 +13,12 @@ impl Constraint for ConstantConstraint {
     fn estimate(&self, _variable: VariableId) -> u64 {
         1
     }
-    
-    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value>> {
-        [self.constant].into()
+
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value>> {
+        Box::new(std::iter::once(self.constant))
     }
 
-    fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool {
+    fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {
         value == self.constant
     }
 }

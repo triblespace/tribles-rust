@@ -44,22 +44,26 @@ impl Default for Binding {
     }
 }
 
-pub trait Constraint {
+pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn estimate(&self, variable: VariableId) -> u64;
-    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value>>;
+    fn propose(
+        &'a self,
+        variable: VariableId,
+        binding: Binding,
+    ) -> Box<dyn Iterator<Item = Value> + 'a>;
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
-struct ConstraintIterator<C: Constraint> {
+struct ConstraintIterator<'a, C: Constraint<'a>> {
     constraint: C,
     binding: Binding,
     variables: VariableSet,
     variable_stack: [u8; 256],
-    iterator_stack: [Option<Box<dyn Iterator<Item = Value>>>; 256],
+    iterator_stack: [Option<Box<dyn Iterator<Item = Value> + 'a>>; 256],
     stack_depth: isize,
 }
 
-impl<C: Constraint> ConstraintIterator<C> {
+impl<'a, C: Constraint<'a>> ConstraintIterator<'a, C> {
     fn new(constraint: C) -> Self {
         let variables = constraint.variables();
         ConstraintIterator {
@@ -80,7 +84,7 @@ enum Search {
     Backtrack,
 }
 
-impl<C: Constraint> Iterator for ConstraintIterator<C> {
+impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<'a, C> {
     // we will be counting with usize
     type Item = Binding;
 
@@ -104,28 +108,35 @@ impl<C: Constraint> Iterator for ConstraintIterator<C> {
                     } {
                         self.stack_depth += 1;
                         self.variable_stack[self.stack_depth as usize] = next_variable;
-                        self.iterator_stack[self.stack_depth as usize] = Some(self.constraint.propose(next_variable, self.binding));
+                        self.iterator_stack[self.stack_depth as usize] =
+                            Some(self.constraint.propose(next_variable, self.binding));
                         mode = Search::Horizontal;
                     } else {
                         return Some(self.binding.clone());
                     }
                 }
                 Search::Horizontal => {
-                    if let Some(assignment) = self.iterator_stack[self.stack_depth as usize].unwrap().next() {
-                        self.binding.set(self.variable_stack[self.stack_depth as usize], assignment);
+                    if let Some(assignment) = self.iterator_stack[self.stack_depth as usize]
+                        .as_mut()
+                        .unwrap()
+                        .next()
+                    {
+                        self.binding
+                            .set(self.variable_stack[self.stack_depth as usize], assignment);
                         mode = Search::Vertical;
                     } else {
                         mode = Search::Backtrack;
                     }
                 }
                 Search::Backtrack => {
-                        self.binding.unset(self.variable_stack[self.stack_depth as usize]);
-                        self.iterator_stack[self.stack_depth as usize] = None;
-                        self.stack_depth -= 1;
-                        if self.stack_depth == -1 {
-                            return None;
-                        }
-                        mode = Search::Vertical;
+                    self.binding
+                        .unset(self.variable_stack[self.stack_depth as usize]);
+                    self.iterator_stack[self.stack_depth as usize] = None;
+                    self.stack_depth -= 1;
+                    if self.stack_depth == -1 {
+                        return None;
+                    }
+                    mode = Search::Vertical;
                 }
             }
         }

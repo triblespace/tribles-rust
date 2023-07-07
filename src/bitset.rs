@@ -240,8 +240,7 @@ impl Iterator for ByteBitsetIterator {
     }
 }
 
-impl IntoIterator for ByteBitset
-{
+impl IntoIterator for ByteBitset {
     type Item = u8;
     type IntoIter = ByteBitsetIterator;
 

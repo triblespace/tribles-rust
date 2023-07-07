@@ -174,5 +174,11 @@ fn tribleset_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, std_benchmark, im_benchmark, pact_benchmark, tribleset_benchmark);
+criterion_group!(
+    benches,
+    std_benchmark,
+    im_benchmark,
+    pact_benchmark,
+    tribleset_benchmark
+);
 criterion_main!(benches);

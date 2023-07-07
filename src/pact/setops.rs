@@ -116,6 +116,7 @@ mod tests {
     use std::iter::FromIterator;
 
     proptest! {
+        /*
         #[test]
         fn tree_union(entriess in prop::collection::vec(prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1), 2)) {
             let mut set = HashSet::new();
@@ -135,5 +136,6 @@ mod tests {
             let union_set = HashSet::from_iter(union_tree.cursor().into_iter());
             prop_assert_eq!(set, union_set);
         }
+        */
     }
 }

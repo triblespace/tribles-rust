@@ -5,7 +5,7 @@ pub struct ConstantConstraint {
     constant: Value,
 }
 
-impl Constraint for ConstantConstraint {
+impl Constraint<'_> for ConstantConstraint {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable)
     }
@@ -14,7 +14,11 @@ impl Constraint for ConstantConstraint {
         1
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value>> {
+    fn propose(
+        &self,
+        _variable: VariableId,
+        _binding: Binding,
+    ) -> Box<dyn Iterator<Item = Value> + '_> {
         Box::new(std::iter::once(self.constant))
     }
 

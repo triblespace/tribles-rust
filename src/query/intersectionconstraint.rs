@@ -2,36 +2,52 @@ use im::Vector;
 
 use super::*;
 
-pub struct IntersectionConstraint {
-    constraints: Vec<Box<dyn Constraint>>,
+pub struct IntersectionConstraint<'a> {
+    constraints: Vec<Box<dyn Constraint<'a>>>,
 }
 
-impl Constraint for IntersectionConstraint {
+impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
     fn variables(&self) -> VariableSet {
-        self.constraints.iter().fold(VariableSet::new_empty(), 
-            |vs, c| vs.union(c.variables()))
+        self.constraints
+            .iter()
+            .fold(VariableSet::new_empty(), |vs, c| vs.union(c.variables()))
     }
 
     fn estimate(&self, variable: VariableId) -> u64 {
-        let mut min = u64::MAX;
-        for constraint in &self.constraints {
-            if constraint.variables().is_set(variable) {
-                min = std::cmp::min(min, constraint.estimate(variable));
-            }
-        }
-        min
+        self.constraints
+            .iter()
+            .filter(|c| c.variables().is_set(variable))
+            .map(|c| c.estimate(variable))
+            .min()
+            .unwrap()
     }
 
-    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value>> {
-        let relevant_constraints: Vec<_> = self.constraints.iter().filter(|c| c.variables().is_set(variable)).collect();
+    fn propose(
+        &'a self,
+        variable: VariableId,
+        binding: Binding,
+    ) -> Box<dyn Iterator<Item = Value> + 'a> {
+        let mut relevant_constraints: Vec<_> = self
+            .constraints
+            .iter()
+            .filter(|c| c.variables().is_set(variable))
+            .collect();
         relevant_constraints.sort_by_key(|c| c.estimate(variable));
-        let proposer = relevant_constraints[0];
-        let confirms = &relevant_constraints[1..];
 
-        Box::new(proposer.propose(variable, binding).filter(|v| confirms.iter().all(|c| c.confirm(variable, *v, binding))))
+        Box::new(
+            relevant_constraints[0]
+                .propose(variable, binding)
+                .filter(move |v| {
+                    relevant_constraints[1..]
+                        .iter()
+                        .all(|c| c.confirm(variable, *v, binding))
+                }),
+        )
     }
 
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool {
-        self.constraints.iter().all(|c| c.confirm(variable, value, binding))
+        self.constraints
+            .iter()
+            .all(|c| c.confirm(variable, value, binding))
     }
 }

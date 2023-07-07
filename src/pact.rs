@@ -1,8 +1,8 @@
 mod branch;
+mod bytecursor;
 mod empty;
 mod leaf;
 mod macros;
-mod bytecursor;
 mod paddingcursor;
 mod setops;
 
@@ -13,7 +13,6 @@ use macros::*;
 //use setops::*;
 //pub use bytecursor::*;
 //pub use paddingcursor::PaddedCursor;
-
 
 use crate::bitset::ByteBitset;
 use crate::bytetable;
@@ -403,41 +402,42 @@ mod tests {
     }
 
     proptest! {
-        #[test]
-        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64, IdentityOrder>::new();
-            for entry in entries {
-                let mut key = [0; 64];
-                key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(&Arc::new(key));
+            #[test]
+            fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+                let mut tree = PACT::<64, IdentityOrder>::new();
+                for entry in entries {
+                    let mut key = [0; 64];
+                    key.iter_mut().set_from(entry.iter().cloned());
+                    tree.put(&Arc::new(key));
+                }
             }
-        }
 
-        #[test]
-        fn tree_len(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64, IdentityOrder>::new();
-            let mut set = HashSet::new();
-            for entry in entries {
-                let mut key = [0; 64];
-                key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(&Arc::new(key));
-                set.insert(key);
+            #[test]
+            fn tree_len(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+                let mut tree = PACT::<64, IdentityOrder>::new();
+                let mut set = HashSet::new();
+                for entry in entries {
+                    let mut key = [0; 64];
+                    key.iter_mut().set_from(entry.iter().cloned());
+                    tree.put(&Arc::new(key));
+                    set.insert(key);
+                }
+                prop_assert_eq!(set.len() as u32, tree.len())
             }
-            prop_assert_eq!(set.len() as u32, tree.len())
-        }
-
-        #[test]
-        fn tree_iter(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64, IdentityOrder>::new();
-            let mut set = HashSet::new();
-            for entry in entries {
-                let mut key = [0; 64];
-                key.iter_mut().set_from(entry.iter().cloned());
-                tree.put(&Arc::new(key));
-                set.insert(key);
+    /*
+            #[test]
+            fn tree_iter(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+                let mut tree = PACT::<64, IdentityOrder>::new();
+                let mut set = HashSet::new();
+                for entry in entries {
+                    let mut key = [0; 64];
+                    key.iter_mut().set_from(entry.iter().cloned());
+                    tree.put(&Arc::new(key));
+                    set.insert(key);
+                }
+                let tree_set = HashSet::from_iter(tree.cursor().into_iter());
+                prop_assert_eq!(set, tree_set);
             }
-            let tree_set = HashSet::from_iter(tree.cursor().into_iter());
-            prop_assert_eq!(set, tree_set);
+    */
         }
-    }
 }

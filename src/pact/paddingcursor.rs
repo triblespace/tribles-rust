@@ -26,7 +26,7 @@ where
     [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
     const LEN: usize = KEY_LEN;
-    
+
     fn peek(&self) -> Peek {
         if K::padding(self.depth as usize) {
             Peek::Fragment(0)

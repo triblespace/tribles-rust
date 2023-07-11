@@ -1,7 +1,9 @@
 mod constantconstraint;
+mod hashsetconstraint;
 mod intersectionconstraint;
 
 use constantconstraint::*;
+use hashsetconstraint::*;
 use intersectionconstraint::*;
 
 use crate::bitset::ByteBitset;
@@ -11,7 +13,7 @@ pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
 
 #[derive(Copy, Clone)]
-struct Binding {
+pub struct Binding {
     bound: VariableSet,
     values: [Value; 256],
 }
@@ -46,12 +48,8 @@ impl Default for Binding {
 
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
-    fn estimate(&self, variable: VariableId) -> u64;
-    fn propose(
-        &'a self,
-        variable: VariableId,
-        binding: Binding,
-    ) -> Box<dyn Iterator<Item = Value> + 'a>;
+    fn estimate(&self, variable: VariableId) -> usize;
+    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a>;
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
 struct ConstraintIterator<'a, C: Constraint<'a>> {

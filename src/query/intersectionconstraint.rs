@@ -1,9 +1,24 @@
-use im::Vector;
+use std::rc::Rc;
 
 use super::*;
 
+
+pub struct IntersectionConstraintIter<'a> {
+    proposer: Box<dyn Iterator<Item = Value> + 'a>,
+    confimers: Vec<&'a Box<dyn Constraint<'a> + 'a>>
+}
+/*
+impl<'a> Iterator for IntersectionConstraintIter<'a> {
+    type Item = Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        
+    }
+}
+*/
+
 pub struct IntersectionConstraint<'a> {
-    constraints: Vec<Box<dyn Constraint<'a>>>,
+    constraints: Vec<Box<dyn Constraint<'a> + 'a>>
 }
 
 impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
@@ -13,7 +28,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .fold(VariableSet::new_empty(), |vs, c| vs.union(c.variables()))
     }
 
-    fn estimate(&self, variable: VariableId) -> u64 {
+    fn estimate(&self, variable: VariableId) -> usize {
         self.constraints
             .iter()
             .filter(|c| c.variables().is_set(variable))
@@ -22,11 +37,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .unwrap()
     }
 
-    fn propose(
-        &'a self,
-        variable: VariableId,
-        binding: Binding,
-    ) -> Box<dyn Iterator<Item = Value> + 'a> {
+    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a> {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()

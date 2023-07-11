@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use super::*;
 
 pub struct ConstantConstraint {
@@ -5,20 +7,16 @@ pub struct ConstantConstraint {
     constant: Value,
 }
 
-impl Constraint<'_> for ConstantConstraint {
+impl<'a> Constraint<'a> for ConstantConstraint {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable)
     }
 
-    fn estimate(&self, _variable: VariableId) -> u64 {
+    fn estimate(&self, _variable: VariableId) -> usize {
         1
     }
 
-    fn propose(
-        &self,
-        _variable: VariableId,
-        _binding: Binding,
-    ) -> Box<dyn Iterator<Item = Value> + '_> {
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a> {
         Box::new(std::iter::once(self.constant))
     }
 

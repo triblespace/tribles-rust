@@ -1,12 +1,4 @@
-use std::rc::Rc;
-
 use super::*;
-
-
-pub struct IntersectionConstraintIter<'a> {
-    proposer: Box<dyn Iterator<Item = Value> + 'a>,
-    confimers: Vec<&'a Box<dyn Constraint<'a> + 'a>>
-}
 
 pub struct IntersectionConstraint<'a> {
     constraints: Vec<Box<dyn Constraint<'a> + 'a>>

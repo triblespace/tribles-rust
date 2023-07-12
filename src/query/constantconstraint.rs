@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use super::*;
 
 pub struct ConstantConstraint {
@@ -16,10 +14,8 @@ impl<'a> Constraint<'a> for ConstantConstraint {
         1
     }
 
-    fn propose<'b>(&'b self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b>
-    where 'a: 'b
-    {
-        Box::new(std::iter::once(self.constant))
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
+        Box::new(vec![self.constant])
     }
 
     fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {

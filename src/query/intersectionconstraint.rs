@@ -1,7 +1,7 @@
 use super::*;
 
 pub struct IntersectionConstraint<'a> {
-    constraints: Vec<Box<dyn Constraint<'a> + 'a>>
+    constraints: Vec<Box<dyn Constraint<'a> + 'a>>,
 }
 
 impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
@@ -20,9 +20,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .unwrap()
     }
 
-    fn propose<'b>(&'b self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b>
-    where 'a: 'b
-    {
+    fn propose(&self, variable: VariableId, binding: Binding) -> Box<Vec<Value>> {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
@@ -33,11 +31,13 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
         Box::new(
             relevant_constraints[0]
                 .propose(variable, binding)
-                .filter(move |v| {
+                .into_iter()
+                .filter(|v| {
                     relevant_constraints[1..]
                         .iter()
                         .all(|c| c.confirm(variable, *v, binding))
-                }),
+                })
+                .collect(),
         )
     }
 

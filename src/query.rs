@@ -49,20 +49,19 @@ impl Default for Binding {
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn estimate(&self, variable: VariableId) -> usize;
-    fn propose<'b>(&'b self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b>
-    where 'a: 'b;
+    fn propose(&self, variable: VariableId, binding: Binding) -> Box<Vec<Value>>;
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
-struct ConstraintIterator<'a, C: Constraint<'a>> {
+struct ConstraintIterator<C> {
     constraint: C,
     binding: Binding,
     variables: VariableSet,
     variable_stack: [u8; 256],
-    iterator_stack: [Option<Box<dyn Iterator<Item = Value> + 'a>>; 256],
+    value_stack: [Box<Vec<Value>>; 256],
     stack_depth: isize,
 }
 
-impl<'a, C: Constraint<'a>> ConstraintIterator<'a, C> {
+impl<'a, C: Constraint<'a>> ConstraintIterator<C> {
     fn new(constraint: C) -> Self {
         let variables = constraint.variables();
         ConstraintIterator {
@@ -70,7 +69,7 @@ impl<'a, C: Constraint<'a>> ConstraintIterator<'a, C> {
             binding: Default::default(),
             variables,
             variable_stack: [0; 256],
-            iterator_stack: std::array::from_fn(|_| None),
+            value_stack: std::array::from_fn(|_| Box::new(vec![])),
             stack_depth: -1,
         }
     }
@@ -83,7 +82,7 @@ enum Search {
     Backtrack,
 }
 
-impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<'a, C> {
+impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<C> {
     // we will be counting with usize
     type Item = Binding;
 
@@ -107,19 +106,15 @@ impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<'a, C> {
                     } {
                         self.stack_depth += 1;
                         self.variable_stack[self.stack_depth as usize] = next_variable;
-                        self.iterator_stack[self.stack_depth as usize] =
-                            Some(self.constraint.propose(next_variable, self.binding));
+                        self.value_stack[self.stack_depth as usize] =
+                            self.constraint.propose(next_variable, self.binding);
                         mode = Search::Horizontal;
                     } else {
                         return Some(self.binding.clone());
                     }
                 }
                 Search::Horizontal => {
-                    if let Some(assignment) = self.iterator_stack[self.stack_depth as usize]
-                        .as_mut()
-                        .unwrap()
-                        .next()
-                    {
+                    if let Some(assignment) = self.value_stack[self.stack_depth as usize].pop() {
                         self.binding
                             .set(self.variable_stack[self.stack_depth as usize], assignment);
                         mode = Search::Vertical;
@@ -130,7 +125,6 @@ impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<'a, C> {
                 Search::Backtrack => {
                     self.binding
                         .unset(self.variable_stack[self.stack_depth as usize]);
-                    self.iterator_stack[self.stack_depth as usize] = None;
                     self.stack_depth -= 1;
                     if self.stack_depth == -1 {
                         return None;
@@ -141,4 +135,3 @@ impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<'a, C> {
         }
     }
 }
-

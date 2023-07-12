@@ -33,11 +33,8 @@ where
         self.set.len()
     }
 
-    fn propose<'b>(&'b self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b> 
-    where 'a: 'b
-    {
-        let iter: Iter<'a, _> = self.set.iter();
-        Box::new(iter.map(|v| (*v).into()))
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
+        Box::new(self.set.iter().map(|v| (*v).into()).collect())
     }
 
     fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {

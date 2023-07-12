@@ -49,7 +49,8 @@ impl Default for Binding {
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn estimate(&self, variable: VariableId) -> usize;
-    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a>;
+    fn propose<'b>(&'b self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b>
+    where 'a: 'b;
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
 struct ConstraintIterator<'a, C: Constraint<'a>> {

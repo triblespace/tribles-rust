@@ -33,7 +33,9 @@ where
         self.set.len()
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a> {
+    fn propose<'b>(&'b self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b> 
+    where 'a: 'b
+    {
         let iter: Iter<'a, _> = self.set.iter();
         Box::new(iter.map(|v| (*v).into()))
     }

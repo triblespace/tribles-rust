@@ -16,7 +16,9 @@ impl<'a> Constraint<'a> for ConstantConstraint {
         1
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a> {
+    fn propose<'b>(&'b self, _variable: VariableId, _binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b>
+    where 'a: 'b
+    {
         Box::new(std::iter::once(self.constant))
     }
 

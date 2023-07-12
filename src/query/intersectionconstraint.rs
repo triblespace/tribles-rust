@@ -7,15 +7,6 @@ pub struct IntersectionConstraintIter<'a> {
     proposer: Box<dyn Iterator<Item = Value> + 'a>,
     confimers: Vec<&'a Box<dyn Constraint<'a> + 'a>>
 }
-/*
-impl<'a> Iterator for IntersectionConstraintIter<'a> {
-    type Item = Value;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        
-    }
-}
-*/
 
 pub struct IntersectionConstraint<'a> {
     constraints: Vec<Box<dyn Constraint<'a> + 'a>>
@@ -37,7 +28,9 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .unwrap()
     }
 
-    fn propose(&self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'a> {
+    fn propose<'b>(&'b self, variable: VariableId, binding: Binding) -> Box<dyn Iterator<Item = Value> + 'b>
+    where 'a: 'b
+    {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()

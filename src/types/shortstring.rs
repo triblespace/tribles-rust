@@ -2,7 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::namespace::*;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 pub struct ShortString {
     inner: String,
@@ -30,7 +30,7 @@ impl From<&ShortString> for Value {
 impl From<Value> for ShortString {
     fn from(bytes: Value) -> Self {
         ShortString {
-            inner: String::from_utf8(bytes.to_vec()).unwrap(),
+            inner: String::from_utf8(IntoIterator::into_iter(bytes).take_while(|x| *x != 0).collect()).unwrap(),
         }
     }
 }
@@ -39,7 +39,7 @@ impl TryFrom<&str> for ShortString {
     type Error = &'static str;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        if s.len() < 32 {
+        if s.len() <= 32 {
             Ok(ShortString { inner: s.to_string() })
         } else {
             Err("String too long.")

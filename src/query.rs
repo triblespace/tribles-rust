@@ -13,7 +13,7 @@ use crate::bitset::ByteBitset;
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Binding {
     bound: VariableSet,
     values: [Value; 256],
@@ -97,6 +97,7 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
         };
 
         loop {
+            println!("{:?}, {:?}, {:?}", mode, self.stack_depth, self.variable_stack);
             match mode {
                 Search::Vertical => {
                     if let Some(next_variable) = {
@@ -131,7 +132,7 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
                     if self.stack_depth == -1 {
                         return None;
                     }
-                    mode = Search::Vertical;
+                    mode = Search::Horizontal;
                 }
             }
         }
@@ -158,9 +159,11 @@ mod tests {
         movies.insert(ShortString::new("LOTR".into()).unwrap());
         movies.insert(ShortString::new("Highlander".into()).unwrap());
 
-        Query::new(IntersectionConstraint::new(vec![
+        let q: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
             Box::new(SetConstraint::new(0, &books)),
             Box::new(SetConstraint::new(0, &movies)),
-        ]));
+        ])).collect();
+
+        assert_eq!(q.len(), 2);
     }
 }

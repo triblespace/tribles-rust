@@ -1,10 +1,10 @@
-use std::{collections::HashSet, hash::Hash};
+use std::{collections::HashSet, hash::Hash, fmt::Debug};
 
 use super::*;
 
 pub struct SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Hash + From<Value>,
+    T: Eq + PartialEq + Hash + From<Value> + Debug,
     for<'b> &'b T: Into<Value>,
 {
     variable: VariableId,
@@ -13,7 +13,7 @@ where
 
 impl<'a, T> SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Hash + From<Value>,
+    T: Eq + PartialEq + Hash + From<Value> + Debug,
     for<'b> &'b T: Into<Value>,
 {
     pub fn new(variable: VariableId, set: &'a HashSet<T>) -> Self {
@@ -23,7 +23,7 @@ where
 
 impl<'a, T> Constraint<'a> for SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Hash + From<Value>,
+    T: Eq + PartialEq + Hash + From<Value> + Debug,
     for<'b> &'b T: Into<Value>,
 {
     fn variables(&self) -> VariableSet {

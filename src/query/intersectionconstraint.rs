@@ -4,6 +4,12 @@ pub struct IntersectionConstraint<'a> {
     constraints: Vec<Box<dyn Constraint<'a> + 'a>>,
 }
 
+impl<'a> IntersectionConstraint<'a> {
+    pub fn new(constraints: Vec<Box<dyn Constraint<'a> + 'a>>) -> Self {
+        IntersectionConstraint { constraints }
+    }
+}
+
 impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
     fn variables(&self) -> VariableSet {
         self.constraints

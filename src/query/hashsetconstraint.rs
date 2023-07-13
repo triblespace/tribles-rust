@@ -1,12 +1,11 @@
-use std::{collections::HashSet, hash::Hash, rc::Rc};
-
-use std::collections::hash_set::Iter;
+use std::{collections::HashSet, hash::Hash};
 
 use super::*;
 
 pub struct SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Copy + Hash + Into<Value> + From<Value>,
+    T: Eq + PartialEq + Hash + From<Value>,
+    for<'b> &'b T: Into<Value>,
 {
     variable: VariableId,
     set: &'a HashSet<T>,
@@ -14,16 +13,18 @@ where
 
 impl<'a, T> SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Copy + Hash + Into<Value> + From<Value>,
+    T: Eq + PartialEq + Hash + From<Value>,
+    for<'b> &'b T: Into<Value>,
 {
-    fn new(variable: VariableId, set: &'a HashSet<T>) -> Self {
+    pub fn new(variable: VariableId, set: &'a HashSet<T>) -> Self {
         SetConstraint { variable, set }
     }
 }
 
 impl<'a, T> Constraint<'a> for SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Copy + Hash + Into<Value> + From<Value>,
+    T: Eq + PartialEq + Hash + From<Value>,
+    for<'b> &'b T: Into<Value>,
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable)
@@ -34,7 +35,7 @@ where
     }
 
     fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
-        Box::new(self.set.iter().map(|v| (*v).into()).collect())
+        Box::new(self.set.iter().map(|v| v.into()).collect())
     }
 
     fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {

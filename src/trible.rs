@@ -1,4 +1,4 @@
-use crate::namespace::{Id, Value};
+use crate::namespace::*;
 use crate::pact::KeyProperties;
 use arbitrary::Arbitrary;
 
@@ -11,14 +11,13 @@ pub struct Trible {
 impl Trible {
     pub fn new<E, A, V>(e: E, a: A, v: V) -> Trible
     where
-        E: Id,
-        A: Id,
-        V: Value,
+        for<'a> Id: From<&'a E> + From<&'a A>,
+        for<'a> Value: From<&'a V>,
     {
         let mut data = [0; 64];
-        data[0..16].copy_from_slice(&mut Id::encode(e)[..]);
-        data[16..32].copy_from_slice(&mut Id::encode(a)[..]);
-        data[32..64].copy_from_slice(&mut Value::encode(v).0[..]);
+        data[0..16].copy_from_slice(&mut Id::from(&e)[..]);
+        data[16..32].copy_from_slice(&mut Id::from(&a)[..]);
+        data[32..64].copy_from_slice(&mut Value::from(&v)[..]);
 
         Self { data }
     }

@@ -1,6 +1,3 @@
-use blake2::digest::consts::U32;
-use blake2::{Blake2b, Digest};
-
 /*
 macro_rules! outer {
     ($mod_name:ident) => {
@@ -29,39 +26,25 @@ mod tests {
 }
 */
 
-pub trait Id {
-    fn decode(data: [u8; 16]) -> Self;
-    fn encode(id: Self) -> [u8; 16];
+pub type Id = [u8; 16];
+pub type Value = [u8; 32];
+pub type Blob = Vec<u8>;
+
+pub trait Factory {
     fn factory() -> Self;
-}
-
-pub trait Value {
-    fn decode(data: [u8; 32], blob: fn() -> Option<Vec<u8>>) -> Self;
-    fn encode(value: Self) -> ([u8; 32], Option<Vec<u8>>);
-}
-
-impl Value for String {
-    fn decode(data: [u8; 32], blob: fn() -> Option<Vec<u8>>) -> Self {
-        String::from_utf8(blob().unwrap()).unwrap()
-    }
-    fn encode(value: Self) -> ([u8; 32], Option<Vec<u8>>) {
-        let bytes = value.into_bytes();
-        let data: [u8; 32] = Blake2b::<U32>::digest(&bytes).into();
-        (data, Some(bytes))
-    }
 }
 
 /*
 mod knights {
-    pub use crate::ufoid::UFOID as id;
+    pub use crate::types::ufoid::UFOID as id;
     pub mod ids {
         use hex_literal::hex;
-        pub const name: crate::ufoid::UFOID  = crate::ufoid::UFOID::raw(hex!("328147856cc1984f0806dbb824d2b4cb"));
-        pub const loves: crate::ufoid::UFOID  = crate::ufoid::UFOID::raw(hex!("328edd7583de04e2bedd6bd4fd50e651"));
-        pub const title: crate::ufoid::UFOID  = crate::ufoid::UFOID::raw(hex!("328f2c33d2fdd675e733388770b2d6c4"));
+        pub const name: crate::types::ufoid::UFOID  = crate::types::ufoid::UFOID::raw(hex!("328147856cc1984f0806dbb824d2b4cb"));
+        pub const loves: crate::types::ufoid::UFOID  = crate::types::ufoid::UFOID::raw(hex!("328edd7583de04e2bedd6bd4fd50e651"));
+        pub const title: crate::types::ufoid::UFOID  = crate::types::ufoid::UFOID::raw(hex!("328f2c33d2fdd675e733388770b2d6c4"));
     }
     pub mod types {
-        pub use crate::ufoid::UFOID as loves;
+        pub use crate::types::ufoid::UFOID as loves;
         pub use std::string::String as name;
         pub use std::string::String as title;
     }
@@ -87,10 +70,10 @@ macro_rules! NS {
 pub(crate) use NS;
 
 NS! {
-    knights {crate::ufoid::UFOID,
-        loves: crate::ufoid::UFOID => crate::ufoid::UFOID::raw(hex_literal::hex!("328edd7583de04e2bedd6bd4fd50e651"));
-        name: String => crate::ufoid::UFOID::raw(hex_literal::hex!("328147856cc1984f0806dbb824d2b4cb"));
-        title: String => crate::ufoid::UFOID::raw(hex_literal::hex!("328f2c33d2fdd675e733388770b2d6c4"));
+    knights {crate::types::ufoid::UFOID,
+        loves: crate::types::ufoid::UFOID => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328edd7583de04e2bedd6bd4fd50e651"));
+        name: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328147856cc1984f0806dbb824d2b4cb"));
+        title: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328f2c33d2fdd675e733388770b2d6c4"));
     }
 }
 /*        lovedBy: UFOID => inv "328edd7583de04e2bedd6bd4fd50e651",
@@ -106,7 +89,7 @@ macro_rules! entity {
     };
     ($Namespace:path, {$($FieldName:ident : $Value:expr),*}) => {
         {
-            {let id = { use $Namespace as base; <base::Id as crate::namespace::Id>::factory() };
+            {let id = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };
                 [$(crate::trible::Trible::new(id,
                     { use $Namespace as base; base::ids::$FieldName },
                     { use $Namespace as base; base::types::$FieldName::from($Value) })),*]
@@ -119,7 +102,7 @@ pub(crate) use entity;
 macro_rules! entities {
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
-            $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Id>::factory() };)*
+            $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
             [$(entity!($Namespace, $Entity)),*]
         }
     };
@@ -131,6 +114,7 @@ mod tests {
     use super::entities;
     use super::entity;
     use super::knights;
+    use crate::types::shortstring::ShortString;
 
     #[test]
     fn ns_entity() {
@@ -139,9 +123,9 @@ mod tests {
         println!(
             "{:?}",
             entity!(knights, {romeo,
-                name: "Romeo",
+                name: ShortString::new("Romeo".to_string()).unwrap(),
                 loves: juliet,
-                title: "Prince"
+                title: ShortString::new("Prince".to_string()).unwrap()
             })
         );
     }
@@ -152,9 +136,9 @@ mod tests {
         println!(
             "{:?}",
             entity!(knights, {
-                name: "Romeo",
+                name: ShortString::new("Romeo".to_string()).unwrap(),
                 loves: juliet,
-                title: "Prince"
+                title: ShortString::new("Prince".to_string()).unwrap()
             })
         );
     }
@@ -165,14 +149,14 @@ mod tests {
             "{:?}",
             entities!(knights, (romeo, juliet),
             [{juliet,
-                name: "Juliet",
+                name: ShortString::new("Juliet".to_string()).unwrap(),
                 loves: romeo,
-                title: "Maiden"
+                title: ShortString::new("Maiden".to_string()).unwrap()
             },
             {romeo,
-                name: "Romeo",
+                name: ShortString::new("Romeo".to_string()).unwrap(),
                 loves: juliet,
-                title: "Prince"
+                title: ShortString::new("Prince".to_string()).unwrap()
             }])
         );
     }

@@ -1,4 +1,4 @@
-use crate::namespace::{Id, Value};
+use crate::namespace::*;
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use rand::RngCore;
@@ -21,6 +21,7 @@ thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen {
     }
 }));
 
+// Fast Unsafe Compressable IDs
 #[derive(Arbitrary, Copy, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct FUCID {
@@ -43,6 +44,40 @@ impl FUCID {
     }
 }
 
+impl From<Id> for FUCID {
+    fn from(data: Id) -> Self {
+        FUCID { data }
+    }
+}
+
+impl From<&FUCID> for Id {
+    fn from(id: &FUCID) -> Self {
+        id.data
+    }
+}
+
+impl Factory for FUCID {
+    fn factory() -> Self {
+        FUCID::new()
+    }
+}
+
+impl From<Value> for FUCID {
+    fn from(data: Value) -> Self {
+        FUCID {
+            data: data[16..32].try_into().unwrap(),
+        }
+    }
+}
+
+impl From<&FUCID> for Value {
+    fn from(id: &FUCID) -> Self {
+        let mut data = [0; 32];
+        data[16..32].copy_from_slice(&id.data);
+        data
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -52,38 +87,3 @@ mod tests {
         assert!(FUCID::new() != FUCID::new());
     }
 }
-
-impl Id for FUCID {
-    fn decode(data: [u8; 16]) -> Self {
-        FUCID { data }
-    }
-    fn encode(id: Self) -> [u8; 16] {
-        id.data
-    }
-    fn factory() -> Self {
-        FUCID::new()
-    }
-}
-
-impl Value for FUCID {
-    fn decode(data: [u8; 32], _blob: fn() -> Option<Vec<u8>>) -> Self {
-        FUCID {
-            data: data[16..32].try_into().unwrap(),
-        }
-    }
-    fn encode(value: Self) -> ([u8; 32], Option<Vec<u8>>) {
-        let mut data = [0; 32];
-        data[16..32].copy_from_slice(&value.data);
-        (data, None)
-    }
-}
-
-/*
-    pub fn decode(data: *const [32]u8) FUCID {
-        return FUCID{.data = data.*};
-    }
-
-    pub fn encode(self: *const FUCID) [32]u8 {
-        return self.data;
-    }
-*/

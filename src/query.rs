@@ -6,9 +6,10 @@ use constantconstraint::*;
 use hashsetconstraint::*;
 use intersectionconstraint::*;
 
+use crate::namespace::*;
+
 use crate::bitset::ByteBitset;
 
-pub type Value = [u8; 32];
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
 
@@ -52,7 +53,8 @@ pub trait Constraint<'a> {
     fn propose(&self, variable: VariableId, binding: Binding) -> Box<Vec<Value>>;
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
-struct ConstraintIterator<C> {
+
+struct Query<C> {
     constraint: C,
     binding: Binding,
     variables: VariableSet,
@@ -61,10 +63,10 @@ struct ConstraintIterator<C> {
     stack_depth: isize,
 }
 
-impl<'a, C: Constraint<'a>> ConstraintIterator<C> {
+impl<'a, C: Constraint<'a>> Query<C> {
     fn new(constraint: C) -> Self {
         let variables = constraint.variables();
-        ConstraintIterator {
+        Query {
             constraint,
             binding: Default::default(),
             variables,
@@ -82,7 +84,7 @@ enum Search {
     Backtrack,
 }
 
-impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<C> {
+impl<'a, C: Constraint<'a>> Iterator for Query<C> {
     // we will be counting with usize
     type Item = Binding;
 
@@ -133,5 +135,32 @@ impl<'a, C: Constraint<'a>> Iterator for ConstraintIterator<C> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    use crate::types::shortstring::ShortString;
+
+    #[test]
+    fn and_set() {
+        let mut books = HashSet::new();
+        let mut movies = HashSet::new();
+
+        books.insert(ShortString::new("LOTR".into()).unwrap());
+        books.insert(ShortString::new("Dragonrider".into()).unwrap());
+        books.insert(ShortString::new("Highlander".into()).unwrap());
+
+        movies.insert(ShortString::new("LOTR".into()).unwrap());
+        movies.insert(ShortString::new("Highlander".into()).unwrap());
+
+        Query::new(IntersectionConstraint::new(vec![
+            Box::new(SetConstraint::new(0, &books)),
+            Box::new(SetConstraint::new(0, &movies)),
+        ]));
     }
 }

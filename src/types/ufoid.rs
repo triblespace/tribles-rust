@@ -1,9 +1,10 @@
-use crate::namespace::{Id, Value};
+use crate::namespace::*;
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use std::convert::TryInto;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// Universal Forgettable Ordered IDs
 #[derive(Arbitrary, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct UFOID {
@@ -35,28 +36,37 @@ impl UFOID {
     }
 }
 
-impl Id for UFOID {
-    fn decode(data: [u8; 16]) -> Self {
+impl From<Id> for UFOID {
+    fn from(data: Id) -> Self {
         UFOID { data }
     }
-    fn encode(id: Self) -> [u8; 16] {
+}
+
+impl From<&UFOID> for Id {
+    fn from(id: &UFOID) -> Self {
         id.data
     }
+}
+
+impl Factory for UFOID {
     fn factory() -> Self {
         UFOID::new()
     }
 }
 
-impl Value for UFOID {
-    fn decode(data: [u8; 32], _blob: fn() -> Option<Vec<u8>>) -> Self {
+impl From<Value> for UFOID {
+    fn from(data: Value) -> Self {
         UFOID {
             data: data[16..32].try_into().unwrap(),
         }
     }
-    fn encode(value: Self) -> ([u8; 32], Option<Vec<u8>>) {
+}
+
+impl From<&UFOID> for Value {
+    fn from(id: &UFOID) -> Self {
         let mut data = [0; 32];
-        data[16..32].copy_from_slice(&value.data);
-        (data, None)
+        data[16..32].copy_from_slice(&id.data);
+        data
     }
 }
 

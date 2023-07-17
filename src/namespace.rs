@@ -13,7 +13,7 @@ macro_rules! entities_inner {
         $set.add(&crate::trible::Trible::new(
             $EntityId,
             { use $Namespace as base; base::ids::$FieldName },
-            { use $Namespace as base; base::types::$FieldName::from($Value) }))
+            { use $Namespace as base; let v: base::types::$FieldName = $Value; v}))
     };
     (@entity ($set:ident, $Namespace:path, {$EntityId:ident, $($FieldName:ident : $Value:expr),*})) => {
         $(entities_inner!(@triple ($set, $Namespace, $EntityId, $FieldName, $Value));)*
@@ -94,26 +94,26 @@ NS! {
 #[cfg(test)]
 mod tests {
     use super::knights;
-    use crate::types::shortstring::ShortString;
-
+    use std::convert::TryInto;
+    
     #[test]
     fn ns_entities() {
         println!(
             "{:?}",
             knights::entities!((romeo, juliet),
                 [{juliet,
-                    name: ShortString::new("Juliet".to_string()).unwrap(),
+                    name: "Juliet".try_into().unwrap(),
                     loves: romeo,
-                    title: ShortString::new("Maiden".to_string()).unwrap()
+                    title: "Maiden".try_into().unwrap()
                 },
                 {romeo,
-                    name: ShortString::new("Romeo".to_string()).unwrap(),
+                    name: "Romeo".try_into().unwrap(),
                     loves: juliet,
-                    title: ShortString::new("Prince".to_string()).unwrap()
+                    title: "Prince".try_into().unwrap()
                 },
                 {
-                    name: ShortString::new("Angelica".to_string()).unwrap(),
-                    title: ShortString::new("Nurse".to_string()).unwrap()
+                    name: "Angelica".try_into().unwrap(),
+                    title: "Nurse".try_into().unwrap()
                 }])
         );
     }

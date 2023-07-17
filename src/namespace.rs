@@ -60,7 +60,7 @@ macro_rules! NS {
             pub type Id = $IdType;
             pub mod ids {
                 #![allow(non_upper_case_globals)]
-                $(pub const $FieldName:$IdType = $FieldId;)*
+                $(pub const $FieldName:$IdType = <$IdType>::raw(hex_literal::hex!($FieldId));)*
             }
             pub mod types {
                 #![allow(non_camel_case_types)]
@@ -86,9 +86,9 @@ pub(crate) use NS;
 NS! {
     knights {
         @ crate::types::ufoid::UFOID;
-        loves: crate::types::ufoid::UFOID => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328edd7583de04e2bedd6bd4fd50e651"));
-        name: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328147856cc1984f0806dbb824d2b4cb"));
-        title: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328f2c33d2fdd675e733388770b2d6c4"));
+        loves: crate::types::ufoid::UFOID => "328edd7583de04e2bedd6bd4fd50e651";
+        name: crate::types::shortstring::ShortString => "328147856cc1984f0806dbb824d2b4cb";
+        title: crate::types::shortstring::ShortString => "328f2c33d2fdd675e733388770b2d6c4";
     }
 }
 

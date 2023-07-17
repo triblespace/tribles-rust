@@ -55,7 +55,7 @@ mod knights {
 */
 
 macro_rules! NS {
-    ($mod_name:ident {$IdType:ty, $($FieldName:ident: $FieldType:ty => $FieldId:expr;)*}) => {
+    ($mod_name:ident {@ $IdType:ty; $($FieldName:ident: $FieldType:ty => $FieldId:expr;)*}) => {
         pub mod $mod_name {
             pub type Id = $IdType;
             pub mod ids {
@@ -84,7 +84,8 @@ macro_rules! NS {
 pub(crate) use NS;
 
 NS! {
-    knights {crate::types::ufoid::UFOID,
+    knights {
+        @ crate::types::ufoid::UFOID;
         loves: crate::types::ufoid::UFOID => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328edd7583de04e2bedd6bd4fd50e651"));
         name: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328147856cc1984f0806dbb824d2b4cb"));
         title: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328f2c33d2fdd675e733388770b2d6c4"));

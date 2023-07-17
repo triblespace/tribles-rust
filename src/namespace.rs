@@ -5,6 +5,37 @@ pub type Blob = Vec<u8>;
 pub trait Factory {
     fn factory() -> Self;
 }
+/*        lovedBy: UFOID => inv "328edd7583de04e2bedd6bd4fd50e651",
+ */
+
+macro_rules! entities_inner {
+    (@triple ($set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
+        $set.add(&crate::trible::Trible::new(
+            $EntityId,
+            { use $Namespace as base; base::ids::$FieldName },
+            { use $Namespace as base; base::types::$FieldName::from($Value) }))
+    };
+    (@entity ($set:ident, $Namespace:path, {$EntityId:ident, $($FieldName:ident : $Value:expr),*})) => {
+        $(entities_inner!(@triple ($set, $Namespace, $EntityId, $FieldName, $Value));)*
+    };
+    (@entity ($set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),*})) => {
+        {
+            {
+                let id = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };
+                $(entities_inner!(@triple ($set, $Namespace, id, $FieldName, $Value));)*
+            }
+        }
+    };
+    ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
+        {
+            let mut set = crate::tribleset::TribleSet::new();
+            $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
+            $(entities_inner!(@entity (set, $Namespace, $Entity));)*
+            set
+        }
+    };
+}
+pub(crate) use entities_inner;
 
 /*
 mod knights {
@@ -35,7 +66,17 @@ macro_rules! NS {
                 #![allow(non_camel_case_types)]
                 $(pub type $FieldName = $FieldType;)*
             }
+            
+            pub(crate) use entities_inner;
 
+            #[macro_export]
+            macro_rules! entities {
+                ($vars:tt, $entities: tt) => {
+                    entities_inner!($mod_name, $vars, $entities)
+                };
+            }
+
+            pub use entities;
         }
     };
 }
@@ -49,41 +90,9 @@ NS! {
         title: crate::types::shortstring::ShortString => crate::types::ufoid::UFOID::raw(hex_literal::hex!("328f2c33d2fdd675e733388770b2d6c4"));
     }
 }
-/*        lovedBy: UFOID => inv "328edd7583de04e2bedd6bd4fd50e651",
- */
-
-macro_rules! entities {
-    (@triple ($Set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
-        $Set.add(&crate::trible::Trible::new(
-            $EntityId,
-            { use $Namespace as base; base::ids::$FieldName },
-            { use $Namespace as base; base::types::$FieldName::from($Value) }))
-    };
-    (@entity ($Set:ident, $Namespace:path, {$EntityId:ident, $($FieldName:ident : $Value:expr),*})) => {
-        $(entities!(@triple ($Set, $Namespace, $EntityId, $FieldName, $Value));)*
-    };
-    (@entity ($Set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),*})) => {
-        {
-            {
-                let id = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };
-                $(entities!(@triple ($Set, $Namespace, id, $FieldName, $Value));)*
-            }
-        }
-    };
-    ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
-        {
-            let mut set = crate::tribleset::TribleSet::new();
-            $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
-            $(entities!(@entity (set, $Namespace, $Entity));)*
-            set
-        }
-    };
-}
-pub(crate) use entities;
 
 #[cfg(test)]
 mod tests {
-    use super::entities;
     use super::knights;
     use crate::types::shortstring::ShortString;
 
@@ -91,21 +100,21 @@ mod tests {
     fn ns_entities() {
         println!(
             "{:?}",
-            entities!(knights, (romeo, juliet),
-            [{juliet,
-                name: ShortString::new("Juliet".to_string()).unwrap(),
-                loves: romeo,
-                title: ShortString::new("Maiden".to_string()).unwrap()
-            },
-            {romeo,
-                name: ShortString::new("Romeo".to_string()).unwrap(),
-                loves: juliet,
-                title: ShortString::new("Prince".to_string()).unwrap()
-            },
-            {
-                name: ShortString::new("Angelica".to_string()).unwrap(),
-                title: ShortString::new("Nurse".to_string()).unwrap()
-            }])
+            knights::entities!((romeo, juliet),
+                [{juliet,
+                    name: ShortString::new("Juliet".to_string()).unwrap(),
+                    loves: romeo,
+                    title: ShortString::new("Maiden".to_string()).unwrap()
+                },
+                {romeo,
+                    name: ShortString::new("Romeo".to_string()).unwrap(),
+                    loves: juliet,
+                    title: ShortString::new("Prince".to_string()).unwrap()
+                },
+                {
+                    name: ShortString::new("Angelica".to_string()).unwrap(),
+                    title: ShortString::new("Nurse".to_string()).unwrap()
+                }])
         );
     }
 }

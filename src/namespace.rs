@@ -15,7 +15,7 @@ macro_rules! entities_inner {
             { use $Namespace as base; base::ids::$FieldName },
             { use $Namespace as base; let v: base::types::$FieldName = $Value; v}))
     };
-    (@entity ($set:ident, $Namespace:path, {$EntityId:ident, $($FieldName:ident : $Value:expr),*})) => {
+    (@entity ($set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),*})) => {
         $(entities_inner!(@triple ($set, $Namespace, $EntityId, $FieldName, $Value));)*
     };
     (@entity ($set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),*})) => {
@@ -101,12 +101,12 @@ mod tests {
         println!(
             "{:?}",
             knights::entities!((romeo, juliet),
-                [{juliet,
+                [{juliet @
                     name: "Juliet".try_into().unwrap(),
                     loves: romeo,
                     title: "Maiden".try_into().unwrap()
                 },
-                {romeo,
+                {romeo @
                     name: "Romeo".try_into().unwrap(),
                     loves: juliet,
                     title: "Prince".try_into().unwrap()

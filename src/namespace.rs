@@ -1,31 +1,3 @@
-/*
-macro_rules! outer {
-    ($mod_name:ident) => {
-        pub mod $mod_name {
-            #[macro_export]
-            macro_rules! inner {
-                () => {
-                    1
-                };
-            }
-        }
-    };
-}
-
-outer!(some_mod);
-const X: usize = some_mod::entity!();
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn create_namespace() {
-        some_ns::entity(1);
-    }
-}
-*/
-
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
 pub type Blob = Vec<u8>;
@@ -63,6 +35,7 @@ macro_rules! NS {
                 #![allow(non_camel_case_types)]
                 $(pub type $FieldName = $FieldType;)*
             }
+
         }
     };
 }
@@ -79,31 +52,30 @@ NS! {
 /*        lovedBy: UFOID => inv "328edd7583de04e2bedd6bd4fd50e651",
  */
 
-macro_rules! entity {
-    ($Namespace:path, {$EntityId:ident, $($FieldName:ident : $Value:expr),*}) => {
-        {
-            [$(crate::trible::Trible::new($EntityId,
-                { use $Namespace as base; base::ids::$FieldName },
-                { use $Namespace as base; base::types::$FieldName::from($Value) })),*]
-        }
+macro_rules! entities {
+    (@triple ($Set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
+        $Set.add(&crate::trible::Trible::new(
+            $EntityId,
+            { use $Namespace as base; base::ids::$FieldName },
+            { use $Namespace as base; base::types::$FieldName::from($Value) }))
     };
-    ($Namespace:path, {$($FieldName:ident : $Value:expr),*}) => {
+    (@entity ($Set:ident, $Namespace:path, {$EntityId:ident, $($FieldName:ident : $Value:expr),*})) => {
+        $(entities!(@triple ($Set, $Namespace, $EntityId, $FieldName, $Value));)*
+    };
+    (@entity ($Set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),*})) => {
         {
-            {let id = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };
-                [$(crate::trible::Trible::new(id,
-                    { use $Namespace as base; base::ids::$FieldName },
-                    { use $Namespace as base; base::types::$FieldName::from($Value) })),*]
+            {
+                let id = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };
+                $(entities!(@triple ($Set, $Namespace, id, $FieldName, $Value));)*
             }
         }
     };
-}
-pub(crate) use entity;
-
-macro_rules! entities {
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
+            let mut set = crate::tribleset::TribleSet::new();
             $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
-            [$(entity!($Namespace, $Entity)),*]
+            $(entities!(@entity (set, $Namespace, $Entity));)*
+            set
         }
     };
 }
@@ -112,36 +84,8 @@ pub(crate) use entities;
 #[cfg(test)]
 mod tests {
     use super::entities;
-    use super::entity;
     use super::knights;
     use crate::types::shortstring::ShortString;
-
-    #[test]
-    fn ns_entity() {
-        let romeo = knights::Id::new();
-        let juliet = knights::Id::new();
-        println!(
-            "{:?}",
-            entity!(knights, {romeo,
-                name: ShortString::new("Romeo".to_string()).unwrap(),
-                loves: juliet,
-                title: ShortString::new("Prince".to_string()).unwrap()
-            })
-        );
-    }
-
-    #[test]
-    fn ns_entity_noid() {
-        let juliet = knights::Id::new();
-        println!(
-            "{:?}",
-            entity!(knights, {
-                name: ShortString::new("Romeo".to_string()).unwrap(),
-                loves: juliet,
-                title: ShortString::new("Prince".to_string()).unwrap()
-            })
-        );
-    }
 
     #[test]
     fn ns_entities() {
@@ -157,6 +101,10 @@ mod tests {
                 name: ShortString::new("Romeo".to_string()).unwrap(),
                 loves: juliet,
                 title: ShortString::new("Prince".to_string()).unwrap()
+            },
+            {
+                name: ShortString::new("Angelica".to_string()).unwrap(),
+                title: ShortString::new("Nurse".to_string()).unwrap()
             }])
         );
     }

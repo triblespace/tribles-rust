@@ -1,4 +1,4 @@
-use std::{collections::HashSet, hash::Hash, fmt::Debug};
+use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use super::*;
 
@@ -7,7 +7,7 @@ where
     T: Eq + PartialEq + Hash + From<Value> + Debug,
     for<'b> &'b T: Into<Value>,
 {
-    variable: VariableId,
+    variable: Variable<T>,
     set: &'a HashSet<T>,
 }
 
@@ -16,7 +16,7 @@ where
     T: Eq + PartialEq + Hash + From<Value> + Debug,
     for<'b> &'b T: Into<Value>,
 {
-    pub fn new(variable: VariableId, set: &'a HashSet<T>) -> Self {
+    pub fn new(variable: Variable<T>, set: &'a HashSet<T>) -> Self {
         SetConstraint { variable, set }
     }
 }
@@ -27,7 +27,7 @@ where
     for<'b> &'b T: Into<Value>,
 {
     fn variables(&self) -> VariableSet {
-        VariableSet::new_singleton(self.variable)
+        VariableSet::new_singleton(self.variable.index)
     }
 
     fn estimate(&self, _variable: VariableId) -> usize {

@@ -2,6 +2,8 @@ mod constantconstraint;
 mod hashsetconstraint;
 mod intersectionconstraint;
 
+use std::marker::PhantomData;
+
 use constantconstraint::*;
 use hashsetconstraint::*;
 use intersectionconstraint::*;
@@ -12,6 +14,29 @@ use crate::bitset::ByteBitset;
 
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
+
+#[derive(Debug)]
+pub struct Variable<T> {
+    index: VariableId,
+    typed: PhantomData<T>,
+}
+
+impl<T> Copy for Variable<T> {}
+
+impl<T> Clone for Variable<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Variable<T> {
+    pub fn new(index: VariableId) -> Self {
+        Variable {
+            index,
+            typed: PhantomData,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Binding {
@@ -97,7 +122,6 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
         };
 
         loop {
-            println!("{:?}, {:?}, {:?}", mode, self.stack_depth, self.variable_stack);
             match mode {
                 Search::Vertical => {
                     if let Some(next_variable) = {
@@ -159,11 +183,23 @@ mod tests {
         movies.insert(ShortString::new("LOTR".into()).unwrap());
         movies.insert(ShortString::new("Highlander".into()).unwrap());
 
-        let q: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(SetConstraint::new(0, &books)),
-            Box::new(SetConstraint::new(0, &movies)),
-        ])).collect();
+        let a = Variable::new(0);
+        let b = Variable::new(1);
 
-        assert_eq!(q.len(), 2);
+        let inter: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
+            Box::new(SetConstraint::new(a, &books)),
+            Box::new(SetConstraint::new(a, &movies)),
+        ]))
+        .collect();
+
+        assert_eq!(inter.len(), 2);
+
+        let cross: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
+            Box::new(SetConstraint::new(a, &books)),
+            Box::new(SetConstraint::new(b, &movies)),
+        ]))
+        .collect();
+
+        assert_eq!(cross.len(), 6);
     }
 }

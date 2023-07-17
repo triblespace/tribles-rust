@@ -1,4 +1,4 @@
-use blake2::{Digest, Blake2b, digest::typenum::U32};
+use blake2::{digest::typenum::U32, Blake2b, Digest};
 
 use crate::namespace::Value;
 
@@ -22,9 +22,7 @@ impl From<&LongString> for String {
 
 impl From<String> for LongString {
     fn from(string: String) -> Self {
-        LongString {
-            inner: string,
-        }
+        LongString { inner: string }
     }
 }
 

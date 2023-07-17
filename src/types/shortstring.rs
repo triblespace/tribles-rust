@@ -30,7 +30,12 @@ impl From<&ShortString> for Value {
 impl From<Value> for ShortString {
     fn from(bytes: Value) -> Self {
         ShortString {
-            inner: String::from_utf8(IntoIterator::into_iter(bytes).take_while(|x| *x != 0).collect()).unwrap(),
+            inner: String::from_utf8(
+                IntoIterator::into_iter(bytes)
+                    .take_while(|x| *x != 0)
+                    .collect(),
+            )
+            .unwrap(),
         }
     }
 }
@@ -39,11 +44,15 @@ impl TryFrom<&str> for ShortString {
     type Error = &'static str;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        if s.len() <= 32 {
-            Ok(ShortString { inner: s.to_string() })
-        } else {
-            Err("String too long.")
+        if s.len() > 32 {
+            return Err("string too long");
         }
+        if s.as_bytes().iter().any(|&x| x == 0) {
+            return Err("string may not contain null byte");
+        }
+        Ok(ShortString {
+            inner: s.to_string(),
+        })
     }
 }
 

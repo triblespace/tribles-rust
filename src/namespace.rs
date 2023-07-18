@@ -55,8 +55,8 @@ mod knights {
 */
 
 macro_rules! NS {
-    ($mod_name:ident {@ $IdType:ty; $($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
-        pub mod $mod_name {
+    ($visibility:vis namespace $mod_name:ident {@ $IdType:ty; $($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
+        $visibility mod $mod_name {
             pub type Id = $IdType;
             pub mod ids {
                 #![allow(non_upper_case_globals)]
@@ -83,8 +83,8 @@ macro_rules! NS {
 
 pub(crate) use NS;
 
-NS! {
-    knights {
+NS!{
+    pub namespace knights {
         @ crate::types::ufoid::UFOID;
         loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::ufoid::UFOID;
         name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::shortstring::ShortString;

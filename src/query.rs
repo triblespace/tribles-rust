@@ -17,7 +17,7 @@ pub type VariableSet = ByteBitset;
 
 #[derive(Debug)]
 pub struct Variable<T> {
-    index: VariableId,
+    pub index: VariableId,
     typed: PhantomData<T>,
 }
 

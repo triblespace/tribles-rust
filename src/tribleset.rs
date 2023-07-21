@@ -3,18 +3,18 @@ mod tribleconstraint;
 use tribleconstraint::*;
 
 use crate::pact::PACT;
-use crate::trible::{AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder};
+use crate::trible::{TribleSegmentation, AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder};
 use std::iter::FromIterator;
 use triomphe::Arc;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    eav: PACT<64, EAVOrder>,
-    eva: PACT<64, EVAOrder>,
-    aev: PACT<64, AEVOrder>,
-    ave: PACT<64, AVEOrder>,
-    vea: PACT<64, VEAOrder>,
-    vae: PACT<64, VAEOrder>,
+    eav: PACT<64, EAVOrder, TribleSegmentation>,
+    eva: PACT<64, EVAOrder, TribleSegmentation>,
+    aev: PACT<64, AEVOrder, TribleSegmentation>,
+    ave: PACT<64, AVEOrder, TribleSegmentation>,
+    vea: PACT<64, VEAOrder, TribleSegmentation>,
+    vae: PACT<64, VAEOrder, TribleSegmentation>,
 }
 
 impl TribleSet {

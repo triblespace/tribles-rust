@@ -148,3 +148,71 @@ impl VariableConstraint for TribleConstraint {
     }
 }
 */
+
+use std::{collections::HashSet, fmt::Debug, hash::Hash};
+
+use super::*;
+use crate::query::*;
+use crate::namespace::*;
+
+pub struct TribleSetConstraint<'a, E, A, V>
+where
+    E: From<Id>,
+    A: From<Id>,
+    V: From<Value>,
+    for<'b> &'b E: Into<Id>,
+    for<'b> &'b A: Into<Id>,
+    for<'b> &'b V: Into<Value>,
+{
+    variable_e: Variable<E>,
+    variable_a: Variable<A>,
+    variable_v: Variable<V>,
+    set: &'a TribleSet,
+}
+
+impl<'a, E, A, V> TribleSetConstraint<'a, E, A, V>
+where
+    E: From<Id>,
+    A: From<Id>,
+    V: From<Value>,
+    for<'b> &'b E: Into<Id>,
+    for<'b> &'b A: Into<Id>,
+    for<'b> &'b V: Into<Value>,
+{
+    pub fn new(variable_e: Variable<E>, variable_a: Variable<A>, variable_v: Variable<V>, set: &'a TribleSet) -> Self {
+        TribleSetConstraint { variable_e, variable_a, variable_v, set }
+    }
+}
+
+impl<'a, E, A, V> Constraint<'a> for TribleSetConstraint<'a, E, A, V>
+where
+    E: From<Id>,
+    A: From<Id>,
+    V: From<Value>,
+    for<'b> &'b E: Into<Id>,
+    for<'b> &'b A: Into<Id>,
+    for<'b> &'b V: Into<Value>,
+{
+    fn variables(&self) -> VariableSet {
+        let mut variables = VariableSet::new_empty();
+        variables.set(self.variable_e.index);
+        variables.set(self.variable_a.index);
+        variables.set(self.variable_v.index);
+        variables
+    }
+
+    fn estimate(&self, variable: VariableId) -> usize {
+        1
+        //self.set.count_infix()
+    }
+
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
+        Box::new(vec![])
+        //Box::new(self.set.iter().map(|v| v.into()).collect())
+    }
+
+    fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {
+        false
+        //self.set.contains(&(value.into()))
+    }
+}

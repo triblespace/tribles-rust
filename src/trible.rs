@@ -1,11 +1,19 @@
 use crate::namespace::*;
-use crate::pact::KeyProperties;
+use crate::pact::{KeyOrdering, KeySegmentation};
 use arbitrary::Arbitrary;
+
+const TRIBLE_LEN: usize = 64;
+const E_START: usize = 0;
+const E_END: usize = 15;
+const A_START: usize = 16;
+const A_END: usize = 15;
+const V_START: usize = 32;
+const V_END: usize = 63;
 
 #[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
 pub struct Trible {
-    pub data: [u8; 64],
+    pub data: [u8; TRIBLE_LEN],
 }
 
 impl Trible {
@@ -14,38 +22,42 @@ impl Trible {
         for<'a> Id: From<&'a E> + From<&'a A>,
         for<'a> Value: From<&'a V>,
     {
-        let mut data = [0; 64];
-        data[0..16].copy_from_slice(&mut Id::from(&e)[..]);
-        data[16..32].copy_from_slice(&mut Id::from(&a)[..]);
-        data[32..64].copy_from_slice(&mut Value::from(&v)[..]);
+        let mut data = [0; TRIBLE_LEN];
+        data[E_START..=E_END].copy_from_slice(&mut Id::from(&e)[..]);
+        data[A_START..=A_END].copy_from_slice(&mut Id::from(&a)[..]);
+        data[V_START..=V_END].copy_from_slice(&mut Value::from(&v)[..]);
 
         Self { data }
     }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct EAVOrder {}
+pub struct TribleSegmentation {}
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for EAVOrder {
-    fn reorder(depth: usize) -> usize {
-        depth
-    }
+impl KeySegmentation<64> for TribleSegmentation {
     fn segment(depth: usize) -> usize {
         match depth {
-            d if d < 16 => 0,
-            d if d < 32 => 1,
-            _ => 2,
+            E_START..=E_END => 0,
+            A_START..=A_END => 1,
+            V_START..=V_END => 2,
+            _ => panic!()
         }
     }
-    fn padding(depth: usize) -> bool {
-        depth < 16 || (32 <= depth && depth < 48)
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct EAVOrder {}
+
+impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EAVOrder {
+    fn reorder(depth: usize) -> usize {
+        depth
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct EVAOrder {}
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for EVAOrder {
+impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
     fn reorder(depth: usize) -> usize {
         match depth {
             d if d < 16 => d,
@@ -53,22 +65,12 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for EVAOrder {
             d => d - 32,
         }
     }
-    fn segment(depth: usize) -> usize {
-        match depth {
-            d if d < 16 => 0,
-            d if d < 48 => 2,
-            _ => 1,
-        }
-    }
-    fn padding(depth: usize) -> bool {
-        depth < 16 || (64 <= depth && depth < 80)
-    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct AEVOrder {}
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AEVOrder {
+impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
     fn reorder(depth: usize) -> usize {
         match depth {
             d if d < 16 => d + 16,
@@ -76,22 +78,12 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AEVOrder {
             d => d,
         }
     }
-    fn segment(depth: usize) -> usize {
-        match depth {
-            d if d < 16 => 1,
-            d if d < 32 => 0,
-            _ => 2,
-        }
-    }
-    fn padding(depth: usize) -> bool {
-        depth < 16 || (32 <= depth && depth < 48)
-    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct AVEOrder {}
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AVEOrder {
+impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
     fn reorder(depth: usize) -> usize {
         match depth {
             d if d < 16 => d + 16,
@@ -99,22 +91,12 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for AVEOrder {
             d => d - 48,
         }
     }
-    fn segment(depth: usize) -> usize {
-        match depth {
-            d if d < 16 => 1,
-            d if d < 48 => 2,
-            _ => 0,
-        }
-    }
-    fn padding(depth: usize) -> bool {
-        depth < 16 || (64 <= depth && depth < 80)
-    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct VEAOrder {}
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for VEAOrder {
+impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
     fn reorder(depth: usize) -> usize {
         match depth {
             d if d < 32 => d + 32,
@@ -122,38 +104,18 @@ impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for VEAOrder {
             d => d - 32,
         }
     }
-    fn segment(depth: usize) -> usize {
-        match depth {
-            d if d < 32 => 2,
-            d if d < 48 => 0,
-            _ => 1,
-        }
-    }
-    fn padding(depth: usize) -> bool {
-        (32 <= depth && depth < 48) || (64 <= depth && depth < 80)
-    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct VAEOrder {}
 
-impl<const KEY_LEN: usize> KeyProperties<KEY_LEN> for VAEOrder {
+impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VAEOrder {
     fn reorder(depth: usize) -> usize {
         match depth {
             d if d < 32 => d + 32,
             d if d < 48 => d - 16,
             d => d - 48,
         }
-    }
-    fn segment(depth: usize) -> usize {
-        match depth {
-            d if d < 32 => 2,
-            d if d < 48 => 1,
-            _ => 0,
-        }
-    }
-    fn padding(depth: usize) -> bool {
-        (32 <= depth && depth < 48) || (64 <= depth && depth < 80)
     }
 }
 

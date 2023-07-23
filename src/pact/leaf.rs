@@ -23,7 +23,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
         copy_start(
             fragment.as_mut_slice(),
-            &reordered::<KEY_LEN, O>(key)[..],
+            &O::tree_ordered(key)[..],
             start_depth,
         );
 
@@ -59,7 +59,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             depth if depth < self.start_depth as usize + self.fragment.len() => {
                 Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
             }
-            depth => Peek::Fragment(self.key[O::reorder(depth)]),
+            depth => Peek::Fragment(self.key[O::key_index(depth)]),
         }
     }
 
@@ -72,7 +72,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
     fn hash(&self) -> u128 {
         let mut hasher = SipHasher24::new_with_key(unsafe { &SIP_KEY });
-        hasher.write(&reordered::<KEY_LEN, O>(&self.key)[..]);
+        hasher.write(&O::tree_ordered(&self.key)[..]);
         return hasher.finish128().into();
     }
 
@@ -80,7 +80,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         let mut fragment = [0; LEAF_FRAGMENT_LEN];
         copy_start(
             fragment.as_mut_slice(),
-            &reordered::<KEY_LEN, O>(&self.key)[..],
+            &O::tree_ordered(&self.key)[..],
             new_start_depth,
         );
 
@@ -101,12 +101,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 return self.clone().into();
             }
             match self.peek(depth) {
-                Peek::Fragment(byte) if byte == key[O::reorder(depth)] => depth += 1,
+                Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
                 Peek::Fragment(_) => {
                     let mut new_branch = Branch4::new(
                         self.start_depth as usize,
                         depth,
-                        &reordered::<KEY_LEN, O>(key),
+                        &O::tree_ordered(key),
                     );
                     new_branch.insert(Leaf::new(depth, key).into());
                     new_branch.insert(self.with_start(depth));
@@ -118,16 +118,16 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, f: F)
+    fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, _end_depth: usize, mut f: F)
     where F: FnMut([u8; KEY_LEN]) {
         let mut depth = self.start_depth as usize;
         loop {
-            if depth == O::reorder(start_depth) {
+            if depth == start_depth {
                 f(*self.key.as_ref());
                 return
             }
             match self.peek(depth) {
-                Peek::Fragment(byte) if byte == key[O::reorder(depth)] => depth += 1,
+                Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
                 Peek::Fragment(_) => return,
                 Peek::Branch(_) => panic!(),
             }

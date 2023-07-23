@@ -56,18 +56,25 @@ pub enum Peek {
 
 type SharedKey<const KEY_LEN: usize> = Arc<[u8; KEY_LEN]>;
 
-pub(crate) fn reordered<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>>(
-    key: &[u8; KEY_LEN],
-) -> [u8; KEY_LEN] {
-    let mut new_key = [0; KEY_LEN];
-    for i in 0..KEY_LEN {
-        new_key[i] = key[O::reorder(i)];
-    }
-    new_key
-}
-
 pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
-    fn reorder(at_depth: usize) -> usize;
+    fn tree_index(key_index: usize) -> usize;
+    fn key_index(tree_index: usize) -> usize;
+
+    fn tree_ordered(key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
+        let mut new_key = [0; KEY_LEN];
+        for i in 0..KEY_LEN {
+            new_key[i] = key[Self::key_index(i)];
+        }
+        new_key
+    }
+
+    fn key_ordered(tree_key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
+        let mut new_key = [0; KEY_LEN];
+        for i in 0..KEY_LEN {
+            new_key[i] = tree_key[Self::tree_index(i)];
+        }
+        new_key
+    }
 }
 
 pub trait KeySegmentation<const KEY_LEN: usize>: Copy + Clone + Debug {
@@ -81,8 +88,11 @@ pub struct IdentityOrder {}
 pub struct SingleSegmentation {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for IdentityOrder {
-    fn reorder(depth: usize) -> usize {
-        depth
+    fn key_index(tree_index: usize) -> usize {
+        tree_index
+    }
+    fn tree_index(key_index: usize) -> usize {
+        key_index
     }
 }
 

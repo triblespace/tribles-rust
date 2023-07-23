@@ -69,7 +69,7 @@ macro_rules! create_branch {
             }
 
             fn count_segment(&self, at_depth: usize) -> u32 {
-                if S::segment(O::reorder(at_depth)) != S::segment(O::reorder(self.end_depth as usize)) {
+                if S::segment(O::key_index(at_depth)) != S::segment(O::key_index(self.end_depth as usize)) {
                     1
                 } else {
                     self.body.segment_count
@@ -124,10 +124,29 @@ macro_rules! create_branch {
                 }
             }
 
+            fn hash(&self) -> u128 {
+                self.body.hash
+            }
+
+            fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
+                let mut fragment = [0; HEAD_FRAGMENT_LEN];
+                copy_start(fragment.as_mut_slice(), &self.body.key[..], new_start_depth);
+
+                Head::from(Self {
+                    tag: HeadTag::$name,
+                    start_depth: new_start_depth as u8,
+                    fragment,
+                    end_depth: self.end_depth,
+                    key_ordering: PhantomData,
+                    key_segments: PhantomData,
+                    body: Arc::clone(&self.body),
+                })
+            }
+
             fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S> {
                 let mut depth = self.start_depth as usize;
                 loop {
-                    let key_byte = key[O::reorder(depth)];
+                    let key_byte = key[O::key_index(depth)];
                     match self.peek(depth) {
                         Peek::Fragment(byte) if byte == key_byte => depth += 1,
                         Peek::Fragment(_) => {
@@ -137,7 +156,7 @@ macro_rules! create_branch {
                             let mut new_branch = Branch4::new(
                                 self.start_depth as usize,
                                 depth,
-                                &reordered::<KEY_LEN, O>(key),
+                                &O::tree_ordered(key),
                             );
                             new_branch.insert(Leaf::new(depth, key).into());
                             new_branch.insert(self.with_start(depth));
@@ -188,23 +207,30 @@ macro_rules! create_branch {
                 }
             }
 
-            fn hash(&self) -> u128 {
-                self.body.hash
-            }
-
-            fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-                let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &self.body.key[..], new_start_depth);
-
-                Head::from(Self {
-                    tag: HeadTag::$name,
-                    start_depth: new_start_depth as u8,
-                    fragment,
-                    end_depth: self.end_depth,
-                    key_ordering: PhantomData,
-                    key_segments: PhantomData,
-                    body: Arc::clone(&self.body),
-                })
+            fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, mut f: F)
+            where F: FnMut([u8; KEY_LEN]) {
+                let mut depth = self.start_depth as usize;
+                loop {
+                    if depth == start_depth {
+                        if end_depth <= self.end_depth as usize {
+                            f(self.body.key);
+                        } else {
+                            for child in self.body.child_set {
+                                self.child(self.end_depth as usize, child).infixes(key, start_depth, end_depth, |x| f(x))
+                            }
+                        }
+                        return
+                    }
+                    match self.peek(depth) {
+                        Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
+                        Peek::Fragment(_) => return,
+                        Peek::Branch(children) => {
+                            for child in children {
+                                self.child(self.end_depth as usize, child).infixes(key, start_depth, end_depth, |x| f(x))
+                            }
+                        },
+                    }
+                }
             }
         }
     };

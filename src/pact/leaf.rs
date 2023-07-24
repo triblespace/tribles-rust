@@ -118,16 +118,15 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, _end_depth: usize, mut f: F)
-    where F: FnMut([u8; KEY_LEN]) {
+    fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, _end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>) {
         let mut depth = self.start_depth as usize;
         loop {
-            if depth == start_depth {
-                f(*self.key.as_ref());
+            if  start_depth <= depth {
+                out.push(*self.key.as_ref());
                 return
             }
             match self.peek(depth) {
-                Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
+                Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                 Peek::Fragment(_) => return,
                 Peek::Branch(_) => panic!(),
             }

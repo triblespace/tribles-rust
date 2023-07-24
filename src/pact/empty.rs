@@ -52,8 +52,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         Leaf::new(0, key).into()
     }
     
-    fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, f: F)
-    where F: FnMut([u8; KEY_LEN]) {
+    fn infixes(&self, _key: [u8;KEY_LEN], _start_depth: usize, _end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>) {
         return
     }
 }

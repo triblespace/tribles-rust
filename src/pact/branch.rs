@@ -207,26 +207,25 @@ macro_rules! create_branch {
                 }
             }
 
-            fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, mut f: F)
-            where F: FnMut([u8; KEY_LEN]) {
+            fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>) {
                 let mut depth = self.start_depth as usize;
                 loop {
-                    if depth == start_depth {
-                        if end_depth <= self.end_depth as usize {
-                            f(self.body.key);
+                    if start_depth <= depth {
+                        if end_depth < self.end_depth as usize {
+                            out.push(O::key_ordered(&self.body.key));
                         } else {
                             for child in self.body.child_set {
-                                self.child(self.end_depth as usize, child).infixes(key, start_depth, end_depth, |x| f(x))
+                                self.child(self.end_depth as usize, child).infixes(key, start_depth, end_depth, out);
                             }
                         }
                         return
                     }
                     match self.peek(depth) {
-                        Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
+                        Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                         Peek::Fragment(_) => return,
                         Peek::Branch(children) => {
                             for child in children {
-                                self.child(self.end_depth as usize, child).infixes(key, start_depth, end_depth, |x| f(x))
+                                self.child(self.end_depth as usize, child).infixes(key, start_depth, end_depth, out);
                             }
                         },
                     }

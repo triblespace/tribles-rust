@@ -142,8 +142,7 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
     fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S>;
 
     /// Enumerate the infixes given the provided key-prefix and infix range.
-    fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, f: F)
-    where F: FnMut([u8; KEY_LEN]);
+    fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>);
 }
 
 #[derive(Debug)]
@@ -268,10 +267,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         dispatch_mut!(self, variant, variant.put(key))
     }
 
-    fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, f: F)
-    where F: FnMut([u8; KEY_LEN])
-    {
-        dispatch!(self, variant, variant.infixes(key, start_depth, end_depth, f));
+    fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>) {
+        dispatch!(self, variant, variant.infixes(key, start_depth, end_depth, out));
     }
 }
 
@@ -301,11 +298,13 @@ where
         self.root.count()
     }
 
-    pub fn infixes<F>(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, f: F)
-    where
-        F: FnMut([u8; KEY_LEN])
-    {
-        self.root.infixes(key, start_depth, end_depth, f);
+    pub fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize) -> Vec<[u8; KEY_LEN]> {
+        let mut out = vec![];
+        self.root.infixes(O::tree_ordered(&key),
+                          O::tree_index(start_depth),
+                          O::tree_index(end_depth),
+                          &mut out);
+        out
     }
 }
 
@@ -329,6 +328,7 @@ mod tests {
     use itertools::Itertools;
     use proptest::prelude::*;
     use std::collections::HashSet;
+    use std::iter::FromIterator;
     use std::mem;
 
     #[test]
@@ -388,10 +388,10 @@ mod tests {
                 }
                 prop_assert_eq!(set.len() as u32, tree.len())
             }
-    /*
+
             #[test]
-            fn tree_iter(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-                let mut tree = PACT::<64, IdentityOrder>::new();
+            fn tree_infixes(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+                let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
                 let mut set = HashSet::new();
                 for entry in entries {
                     let mut key = [0; 64];
@@ -399,9 +399,13 @@ mod tests {
                     tree.put(&Arc::new(key));
                     set.insert(key);
                 }
-                let tree_set = HashSet::from_iter(tree.cursor().into_iter());
-                prop_assert_eq!(set, tree_set);
+                let mut set_vec = Vec::from_iter(set.into_iter());
+                let mut tree_vec = tree.infixes([0; 64], 0, 63);
+
+                set_vec.sort();
+                tree_vec.sort();
+
+                prop_assert_eq!(set_vec, tree_vec);
             }
-    */
         }
 }

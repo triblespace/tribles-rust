@@ -87,7 +87,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];

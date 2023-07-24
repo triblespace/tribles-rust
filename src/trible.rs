@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use crate::namespace::*;
 use crate::pact::KeyProperties;
 use arbitrary::Arbitrary;
@@ -20,6 +22,16 @@ impl Trible {
         data[32..64].copy_from_slice(&mut Value::from(&v)[..]);
 
         Self { data }
+    }
+
+    pub fn e(&self) -> Id {
+        self.data[0..16].try_into().unwrap()
+    }
+    pub fn a(&self) -> Id {
+        self.data[16..32].try_into().unwrap()
+    }
+    pub fn v(&self) -> Value {
+        self.data[32..64].try_into().unwrap()
     }
 }
 

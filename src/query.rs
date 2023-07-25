@@ -207,26 +207,26 @@ mod tests {
         let a = Variable::new(0);
         let b = Variable::new(1);
 
-        let inter: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(a.of(&books)),
-            Box::new(a.of(&movies)),
-        ]))
+        let inter: Vec<Binding> = Query::new(and!(
+            a.of(&books),
+            a.of(&movies),
+        ))
         .collect();
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(a.of(&books)),
-            Box::new(b.of(&movies)),
-        ]))
+        let cross: Vec<Binding> = Query::new(and!(
+            a.of(&books),
+            b.of(&movies)
+        ))
         .collect();
 
         assert_eq!(cross.len(), 6);
 
-        let one: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(a.of(&books)),
-            Box::new(a.is("LOTR".try_into().unwrap())),
-        ]))
+        let one: Vec<Binding> = Query::new(and!(
+            a.of(&books),
+            a.is("LOTR".try_into().unwrap())
+        ))
         .collect();
 
         assert_eq!(one.len(), 1);

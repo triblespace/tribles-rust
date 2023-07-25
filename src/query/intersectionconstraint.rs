@@ -51,3 +51,13 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .all(|c| c.confirm(variable, value, binding))
     }
 }
+
+macro_rules! and {
+    ($($c:expr),+ $(,)?) => (
+        IntersectionConstraint::new(vec![
+            $(Box::new($c)),+
+        ])
+    )
+}
+
+pub(crate) use and;

@@ -7,10 +7,12 @@ pub struct ConstantConstraint<T> {
 
 impl<T> ConstantConstraint<T> {
     pub fn new(variable: Variable<T>, constant: &T) -> Self
-    where for<'b> &'b T: Into<Value> {
+    where
+        for<'b> &'b T: Into<Value>,
+    {
         ConstantConstraint {
             variable,
-            constant: constant.into()
+            constant: constant.into(),
         }
     }
 }

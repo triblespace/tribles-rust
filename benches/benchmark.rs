@@ -8,8 +8,8 @@ use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use triomphe::Arc;
 
-use tribles::pact::{PACT, SingleSegmentation};
 use tribles::pact::{self, IdentityOrder};
+use tribles::pact::{SingleSegmentation, PACT};
 use tribles::tribleset::TribleSet;
 
 use im::OrdSet;

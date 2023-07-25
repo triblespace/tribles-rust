@@ -42,3 +42,14 @@ where
         self.set.contains(&(value.into()))
     }
 }
+
+impl<'a, T> Constrain<'a, T> for HashSet<T>
+where
+    T: Eq + PartialEq + Hash + From<Value> + Debug + 'a,
+    for<'b> &'b T: Into<Value> {
+    type Constraint = SetConstraint<'a, T>;
+
+    fn constrain(&'a self, v: Variable<T>) -> Self::Constraint {
+        SetConstraint::new(v, self)
+    }
+}

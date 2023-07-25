@@ -38,6 +38,27 @@ impl<T> Variable<T> {
     }
 }
 
+pub trait Constrain<'a, T> {
+    type Constraint: Constraint<'a>;
+
+    fn constrain(&'a self, v: Variable<T>) -> Self::Constraint;
+}
+
+impl<T> Variable<T> {
+    pub fn of<'a, C>(self, c: &'a C) -> C::Constraint
+    where C: Constrain<'a, T> {
+        c.constrain(self)
+    }
+}
+
+impl<T> Variable<T> {
+    pub fn is(self, constant: T) -> ConstantConstraint<T>
+    where for<'b> &'b T: Into<Value>
+    {
+        ConstantConstraint::new(self, &constant)
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Binding {
     pub bound: VariableSet,
@@ -165,7 +186,7 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, convert::TryInto};
 
     use super::*;
 
@@ -187,19 +208,42 @@ mod tests {
         let b = Variable::new(1);
 
         let inter: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(SetConstraint::new(a, &books)),
-            Box::new(SetConstraint::new(a, &movies)),
+            Box::new(a.of(&books)),
+            Box::new(a.of(&movies)),
         ]))
         .collect();
 
         assert_eq!(inter.len(), 2);
 
         let cross: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(SetConstraint::new(a, &books)),
-            Box::new(SetConstraint::new(b, &movies)),
+            Box::new(a.of(&books)),
+            Box::new(b.of(&movies)),
         ]))
         .collect();
 
         assert_eq!(cross.len(), 6);
+
+        let one: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
+            Box::new(a.of(&books)),
+            Box::new(a.is("LOTR".try_into().unwrap())),
+        ]))
+        .collect();
+
+        assert_eq!(one.len(), 1);
+
+        /*
+            query!((a),
+                and!(
+                    a.of(books),
+                    a.of(movies)
+                )
+            ).collect()
+
+            let inter: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
+            Box::new(SetConstraint::new(a, &books)),
+            Box::new(SetConstraint::new(a, &movies)),
+            ]))
+            .collect();
+        */
     }
 }

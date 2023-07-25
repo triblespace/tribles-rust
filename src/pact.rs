@@ -102,7 +102,9 @@ impl<const KEY_LEN: usize> KeySegmentation<KEY_LEN> for SingleSegmentation {
     }
 }
 
-trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>: Sized {
+trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>:
+    Sized
+{
     /// Returns a path byte fragment or all possible branch options
     /// at the given depth.
     fn peek(&self, at_depth: usize) -> Peek;
@@ -142,7 +144,19 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
     fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S>;
 
     /// Enumerate the infixes given the provided key-prefix and infix range.
-    fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>);
+    fn infixes<const INFIX_LEN: usize, F>(
+        &self,
+        key: [u8; KEY_LEN],
+        start_depth: usize,
+        end_depth: usize,
+        f: F,
+        out: &mut Vec<[u8; INFIX_LEN]>,
+    ) where
+        F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN];
+
+    fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool;
+
+    fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize;
 }
 
 #[derive(Debug)]
@@ -182,7 +196,9 @@ pub union Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation
     leaf: ManuallyDrop<Leaf<KEY_LEN, O, S>>,
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> ByteEntry for Head<KEY_LEN, O, S> {
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> ByteEntry
+    for Head<KEY_LEN, O, S>
+{
     fn zeroed() -> Self {
         Empty::new().into()
     }
@@ -198,13 +214,17 @@ unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KE
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> fmt::Debug for Head<KEY_LEN, O, S> {
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> fmt::Debug
+    for Head<KEY_LEN, O, S>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         dispatch!(self, variant, variant.fmt(f))
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Clone for Head<KEY_LEN, O, S> {
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Clone
+    for Head<KEY_LEN, O, S>
+{
     fn clone(&self) -> Self {
         dispatch!(
             self,
@@ -214,19 +234,25 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Drop for Head<KEY_LEN, O, S> {
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Drop
+    for Head<KEY_LEN, O, S>
+{
     fn drop(&mut self) {
         dispatch_mut!(self, variant, ManuallyDrop::drop(variant))
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Default for Head<KEY_LEN, O, S> {
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Default
+    for Head<KEY_LEN, O, S>
+{
     fn default() -> Self {
         Empty::new().into()
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Head<KEY_LEN, O, S> {
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    Head<KEY_LEN, O, S>
+{
     fn count(&self) -> u32 {
         dispatch!(self, variant, variant.count())
     }
@@ -267,8 +293,29 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         dispatch_mut!(self, variant, variant.put(key))
     }
 
-    fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize, out: &mut Vec<[u8; KEY_LEN]>) {
-        dispatch!(self, variant, variant.infixes(key, start_depth, end_depth, out));
+    fn infixes<const INFIX_LEN: usize, F>(
+        &self,
+        key: [u8; KEY_LEN],
+        start_depth: usize,
+        end_depth: usize,
+        f: F,
+        out: &mut Vec<[u8; INFIX_LEN]>,
+    ) where
+        F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
+    {
+        dispatch!(
+            self,
+            variant,
+            variant.infixes(key, start_depth, end_depth, f, out)
+        );
+    }
+
+    fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+        dispatch!(self, variant, variant.has_prefix(key, end_depth))
+    }
+
+    fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+        dispatch!(self, variant, variant.segmented_len(key, start_depth))
     }
 }
 
@@ -283,7 +330,6 @@ where
     S: KeySegmentation<KEY_LEN>,
     [Head<KEY_LEN, O, S>; KEY_LEN]: Sized,
 {
-
     pub fn new() -> Self {
         PACT {
             root: Empty::new().into(),
@@ -298,13 +344,35 @@ where
         self.root.count()
     }
 
-    pub fn infixes(&self, key: [u8;KEY_LEN], start_depth: usize, end_depth: usize) -> Vec<[u8; KEY_LEN]> {
+    pub fn infixes<const INFIX_LEN: usize, F>(
+        &self,
+        key: [u8; KEY_LEN],
+        start_depth: usize,
+        end_depth: usize,
+        f: F,
+    ) -> Vec<[u8; INFIX_LEN]>
+    where
+        F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
+    {
         let mut out = vec![];
-        self.root.infixes(O::tree_ordered(&key),
-                          O::tree_index(start_depth),
-                          O::tree_index(end_depth),
-                          &mut out);
+        self.root.infixes(
+            O::tree_ordered(&key),
+            O::tree_index(start_depth),
+            O::tree_index(end_depth),
+            f,
+            &mut out,
+        );
         out
+    }
+
+    pub fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+        self.root
+            .has_prefix(O::tree_ordered(&key), O::tree_index(end_depth))
+    }
+
+    pub fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+        self.root
+            .segmented_len(O::tree_ordered(&key), O::tree_index(start_depth))
     }
 }
 
@@ -333,7 +401,10 @@ mod tests {
 
     #[test]
     fn head_size() {
-        assert_eq!(mem::size_of::<Head<64, IdentityOrder, SingleSegmentation>>(), 16);
+        assert_eq!(
+            mem::size_of::<Head<64, IdentityOrder, SingleSegmentation>>(),
+            16
+        );
     }
 
     #[test]
@@ -355,57 +426,81 @@ mod tests {
 
     #[test]
     fn branch_size() {
-        assert_eq!(mem::size_of::<ByteTable4<Head<64, IdentityOrder, SingleSegmentation>>>(), 64);
-        assert_eq!(mem::size_of::<BranchBody4<64, IdentityOrder, SingleSegmentation>>(), 64 * 3);
-        assert_eq!(mem::size_of::<BranchBody8<64, IdentityOrder, SingleSegmentation>>(), 64 * 4);
-        assert_eq!(mem::size_of::<BranchBody16<64, IdentityOrder, SingleSegmentation>>(), 64 * 6);
-        assert_eq!(mem::size_of::<BranchBody32<64, IdentityOrder, SingleSegmentation>>(), 64 * 10);
-        assert_eq!(mem::size_of::<BranchBody64<64, IdentityOrder, SingleSegmentation>>(), 64 * 18);
-        assert_eq!(mem::size_of::<BranchBody128<64, IdentityOrder, SingleSegmentation>>(), 64 * 34);
-        assert_eq!(mem::size_of::<BranchBody256<64, IdentityOrder, SingleSegmentation>>(), 64 * 66);
+        assert_eq!(
+            mem::size_of::<ByteTable4<Head<64, IdentityOrder, SingleSegmentation>>>(),
+            64
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody4<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 3
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody8<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 4
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody16<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 6
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody32<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 10
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody64<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 18
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody128<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 34
+        );
+        assert_eq!(
+            mem::size_of::<BranchBody256<64, IdentityOrder, SingleSegmentation>>(),
+            64 * 66
+        );
     }
 
     proptest! {
-            #[test]
-            fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-                let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
-                for entry in entries {
-                    let mut key = [0; 64];
-                    key.iter_mut().set_from(entry.iter().cloned());
-                    tree.put(&Arc::new(key));
-                }
-            }
-
-            #[test]
-            fn tree_len(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-                let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
-                let mut set = HashSet::new();
-                for entry in entries {
-                    let mut key = [0; 64];
-                    key.iter_mut().set_from(entry.iter().cloned());
-                    tree.put(&Arc::new(key));
-                    set.insert(key);
-                }
-                prop_assert_eq!(set.len() as u32, tree.len())
-            }
-
-            #[test]
-            fn tree_infixes(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-                let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
-                let mut set = HashSet::new();
-                for entry in entries {
-                    let mut key = [0; 64];
-                    key.iter_mut().set_from(entry.iter().cloned());
-                    tree.put(&Arc::new(key));
-                    set.insert(key);
-                }
-                let mut set_vec = Vec::from_iter(set.into_iter());
-                let mut tree_vec = tree.infixes([0; 64], 0, 63);
-
-                set_vec.sort();
-                tree_vec.sort();
-
-                prop_assert_eq!(set_vec, tree_vec);
+        #[test]
+        fn tree_put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                tree.put(&Arc::new(key));
             }
         }
+
+        #[test]
+        fn tree_len(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut set = HashSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                tree.put(&Arc::new(key));
+                set.insert(key);
+            }
+            prop_assert_eq!(set.len() as u32, tree.len())
+        }
+
+        #[test]
+        fn tree_infixes(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut set = HashSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                tree.put(&Arc::new(key));
+                set.insert(key);
+            }
+            let mut set_vec = Vec::from_iter(set.into_iter());
+            let mut tree_vec = tree.infixes([0; 64], 0, 63, |x| x);
+
+            set_vec.sort();
+            tree_vec.sort();
+
+            prop_assert_eq!(set_vec, tree_vec);
+        }
+    }
 }

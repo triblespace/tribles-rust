@@ -3,7 +3,9 @@ mod tribleconstraint;
 use tribleconstraint::*;
 
 use crate::pact::PACT;
-use crate::trible::{TribleSegmentation, AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder};
+use crate::trible::{
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
+};
 use std::iter::FromIterator;
 use triomphe::Arc;
 

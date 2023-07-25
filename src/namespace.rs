@@ -66,7 +66,7 @@ macro_rules! NS {
                 #![allow(non_camel_case_types)]
                 $(pub type $FieldName = $FieldType;)*
             }
-            
+
             pub(crate) use entities_inner;
 
             #[macro_export]
@@ -83,7 +83,7 @@ macro_rules! NS {
 
 pub(crate) use NS;
 
-NS!{
+NS! {
     pub namespace knights {
         @ crate::types::ufoid::UFOID;
         loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::ufoid::UFOID;
@@ -96,26 +96,26 @@ NS!{
 mod tests {
     use super::knights;
     use std::convert::TryInto;
-    
+
     #[test]
     fn ns_entities() {
         println!(
             "{:?}",
             knights::entities!((romeo, juliet),
-                [{juliet @
-                    name: "Juliet".try_into().unwrap(),
-                    loves: romeo,
-                    title: "Maiden".try_into().unwrap()
-                },
-                {romeo @
-                    name: "Romeo".try_into().unwrap(),
-                    loves: juliet,
-                    title: "Prince".try_into().unwrap()
-                },
-                {
-                    name: "Angelica".try_into().unwrap(),
-                    title: "Nurse".try_into().unwrap()
-                }])
+            [{juliet @
+                name: "Juliet".try_into().unwrap(),
+                loves: romeo,
+                title: "Maiden".try_into().unwrap()
+            },
+            {romeo @
+                name: "Romeo".try_into().unwrap(),
+                loves: juliet,
+                title: "Prince".try_into().unwrap()
+            },
+            {
+                name: "Angelica".try_into().unwrap(),
+                title: "Nurse".try_into().unwrap()
+            }])
         );
     }
 }

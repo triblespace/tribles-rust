@@ -88,7 +88,9 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> PACT<KEY_LEN, O, S> {
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    PACT<KEY_LEN, O, S>
+{
     pub fn union<I>(trees: I) -> PACT<KEY_LEN, O, S>
     where
         I: IntoIterator<Item = PACT<KEY_LEN, O, S>>,

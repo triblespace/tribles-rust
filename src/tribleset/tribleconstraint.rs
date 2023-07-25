@@ -1,159 +1,11 @@
-/*
-use crate::pact::PaddedCursor;
-use crate::query::*;
-use crate::trible::{AEVOrder, AVEOrder, EAVOrder};
-
-use super::TribleSet;
-
-pub enum Stack {
-    Empty,
-    E,
-    A,
-    V,
-    EA,
-    EV,
-    AE,
-    AV,
-    VE,
-    VA,
-    EAV,
-    EVA,
-    AEV,
-    AVE,
-    VEA,
-    VAE,
-}
-
-pub struct TribleConstraint {
-    state: Stack,
-    e_var: VariableId,
-    a_var: VariableId,
-    v_var: VariableId,
-    eav_cursor: PaddedCursor<64, EAVOrder>,
-    aev_cursor: PaddedCursor<64, AEVOrder>,
-    ave_cursor: PaddedCursor<64, AVEOrder>,
-}
-
-impl TribleConstraint {
-    fn new(set: TribleSet, e: VariableId, a: VariableId, v: VariableId) -> TribleConstraint {
-        if e == a || e == v || a == v {
-            panic!(
-              "Triple variables must be uniqe. Use explicit equality when inner constraints are required.",
-            );
-        }
-
-        TribleConstraint {
-            state: Stack::Empty,
-            e_var: e,
-            a_var: a,
-            v_var: v,
-            eav_cursor: set.eav.padded_cursor(),
-            aev_cursor: set.aev.padded_cursor(),
-            ave_cursor: set.ave.padded_cursor(),
-        }
-    }
-}
-
-impl ByteCursor for TribleConstraint {
-    fn peek(&self) -> Peek {
-        match self.state {
-            Stack::E | Stack::EA | Stack::EAV => self.eav_cursor.peek(),
-            Stack::A | Stack::AE | Stack::AEV => self.aev_cursor.peek(),
-            Stack::AV | Stack::AVE => self.ave_cursor.peek(),
-            _ => panic!("unreachable"),
-        }
-    }
-
-    fn push(&mut self, byte: u8) {
-        match self.state {
-            Stack::A => {
-                self.aev_cursor.push(byte);
-                self.ave_cursor.push(byte)
-            }
-            Stack::E | Stack::EA | Stack::EAV => self.eav_cursor.push(byte),
-            Stack::AE | Stack::AEV => self.aev_cursor.push(byte),
-            Stack::AV | Stack::AVE => self.ave_cursor.push(byte),
-            _ => panic!("unreachable"),
-        }
-    }
-
-    fn pop(&mut self) {
-        match self.state {
-            Stack::A => {
-                self.aev_cursor.pop();
-                self.ave_cursor.pop()
-            }
-            Stack::E | Stack::EA | Stack::EAV => self.eav_cursor.pop(),
-            Stack::AE | Stack::AEV => self.aev_cursor.pop(),
-            Stack::AV | Stack::AVE => self.ave_cursor.pop(),
-            _ => panic!("unreachable"),
-        }
-    }
-}
-
-impl VariableConstraint for TribleConstraint {
-    fn variables(&self) -> VariableSet {
-        let mut var_set = VariableSet::new_empty();
-        var_set.set(self.e_var);
-        var_set.set(self.a_var);
-        var_set.set(self.v_var);
-        return var_set;
-    }
-
-    fn blocked(&self) -> VariableSet {
-        match self.state {
-            Stack::Empty | Stack::E => VariableSet::new_singleton(self.v_var),
-            _ => VariableSet::new_empty(),
-        }
-    }
-
-    fn estimate(&self, variable: VariableId) -> u32 {
-        match self.state {
-            Stack::Empty if variable == self.e_var => self.eav_cursor.count_segment(),
-            Stack::Empty if variable == self.a_var => self.aev_cursor.count_segment(),
-            Stack::E if variable == self.a_var => self.eav_cursor.count_segment(),
-            Stack::EA if variable == self.v_var => self.eav_cursor.count_segment(),
-            Stack::A if variable == self.e_var => self.aev_cursor.count_segment(),
-            Stack::A if variable == self.v_var => self.ave_cursor.count_segment(),
-            Stack::AE if variable == self.v_var => self.aev_cursor.count_segment(),
-            Stack::AV if variable == self.e_var => self.ave_cursor.count_segment(),
-            _ => panic!("unreachable"),
-        }
-    }
-
-    fn explore(&mut self, variable: VariableId) {
-        match self.state {
-            Stack::Empty if variable == self.e_var => self.state = Stack::E,
-            Stack::Empty if variable == self.a_var => self.state = Stack::A,
-            Stack::E if variable == self.a_var => self.state = Stack::EA,
-            Stack::EA if variable == self.v_var => self.state = Stack::EAV,
-            Stack::A if variable == self.e_var => self.state = Stack::AE,
-            Stack::A if variable == self.v_var => self.state = Stack::AV,
-            Stack::AE if variable == self.v_var => self.state = Stack::AEV,
-            Stack::AV if variable == self.e_var => self.state = Stack::AVE,
-            _ => panic!("unreachable"),
-        }
-    }
-
-    fn retreat(&mut self) {
-        match self.state {
-            Stack::E | Stack::A => self.state = Stack::Empty,
-            Stack::EA => self.state = Stack::E,
-            Stack::EAV => self.state = Stack::EA,
-            Stack::AE | Stack::AV => self.state = Stack::A,
-            Stack::AEV => self.state = Stack::AE,
-            Stack::AVE => self.state = Stack::AV,
-            _ => panic!("unreachable"),
-        }
-    }
-}
-*/
-
+use core::panic;
+use std::convert::TryInto;
 use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use super::*;
-use crate::query::*;
 use crate::namespace::*;
+use crate::query::*;
+use crate::trible::*;
 
 pub struct TribleSetConstraint<'a, E, A, V>
 where
@@ -179,8 +31,18 @@ where
     for<'b> &'b A: Into<Id>,
     for<'b> &'b V: Into<Value>,
 {
-    pub fn new(variable_e: Variable<E>, variable_a: Variable<A>, variable_v: Variable<V>, set: &'a TribleSet) -> Self {
-        TribleSetConstraint { variable_e, variable_a, variable_v, set }
+    pub fn new(
+        variable_e: Variable<E>,
+        variable_a: Variable<A>,
+        variable_v: Variable<V>,
+        set: &'a TribleSet,
+    ) -> Self {
+        TribleSetConstraint {
+            variable_e,
+            variable_a,
+            variable_v,
+            set,
+        }
     }
 }
 
@@ -201,18 +63,219 @@ where
         variables
     }
 
-    fn estimate(&self, variable: VariableId) -> usize {
-        1
-        //self.set.count_infix()
+    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        if let Some(trible) = Trible::raw_values(
+            binding.get(self.variable_e.index).unwrap_or([0; 32]),
+            binding.get(self.variable_a.index).unwrap_or([0; 32]),
+            binding.get(self.variable_v.index).unwrap_or([0; 32]),
+        ) {
+            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+                (false, false, false, true, false, false) => {
+                    self.set.eav.segmented_len(trible.data, E_START)
+                }
+                (false, false, false, false, true, false) => {
+                    self.set.aev.segmented_len(trible.data, A_START)
+                }
+                (false, false, false, false, false, true) => {
+                    self.set.vea.segmented_len(trible.data, V_START)
+                }
+
+                (true, false, false, false, true, false) => {
+                    self.set.eav.segmented_len(trible.data, A_START)
+                }
+                (true, false, false, false, false, true) => {
+                    self.set.eva.segmented_len(trible.data, V_START)
+                }
+
+                (false, true, false, true, false, false) => {
+                    self.set.aev.segmented_len(trible.data, E_START)
+                }
+                (false, true, false, false, false, true) => {
+                    self.set.ave.segmented_len(trible.data, V_START)
+                }
+
+                (false, false, true, true, false, false) => {
+                    self.set.vea.segmented_len(trible.data, E_START)
+                }
+                (false, false, true, false, true, false) => {
+                    self.set.vae.segmented_len(trible.data, A_START)
+                }
+
+                (false, true, true, true, false, false) => {
+                    self.set.ave.segmented_len(trible.data, E_START)
+                }
+                (true, false, true, false, true, false) => {
+                    self.set.eva.segmented_len(trible.data, A_START)
+                }
+                (true, true, false, false, false, true) => {
+                    self.set.eav.segmented_len(trible.data, V_START)
+                }
+                _ => panic!(),
+            }
+        } else {
+            0
+        }
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
-        Box::new(vec![])
-        //Box::new(self.set.iter().map(|v| v.into()).collect())
+    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        if let Some(trible) = Trible::raw_values(
+            binding.get(self.variable_e.index).unwrap_or([0; 32]),
+            binding.get(self.variable_a.index).unwrap_or([0; 32]),
+            binding.get(self.variable_v.index).unwrap_or([0; 32]),
+        ) {
+            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+                (false, false, false, true, false, false) => {
+                    self.set
+                        .eav
+                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                }
+                (false, false, false, false, true, false) => {
+                    self.set
+                        .aev
+                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                }
+                (false, false, false, false, false, true) => {
+                    self.set
+                        .vea
+                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                }
+
+                (true, false, false, false, true, false) => {
+                    self.set
+                        .eav
+                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                }
+                (true, false, false, false, false, true) => {
+                    self.set
+                        .eva
+                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                }
+
+                (false, true, false, true, false, false) => {
+                    self.set
+                        .aev
+                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                }
+                (false, true, false, false, false, true) => {
+                    self.set
+                        .ave
+                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                }
+
+                (false, false, true, true, false, false) => {
+                    self.set
+                        .vea
+                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                }
+                (false, false, true, false, true, false) => {
+                    self.set
+                        .vae
+                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                }
+
+                (false, true, true, true, false, false) => {
+                    self.set
+                        .ave
+                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                }
+                (true, false, true, false, true, false) => {
+                    self.set
+                        .eva
+                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                }
+                (true, true, false, false, false, true) => {
+                    self.set
+                        .eav
+                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                }
+                _ => panic!(),
+            }
+        } else {
+            vec![]
+        }
     }
 
-    fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {
-        false
-        //self.set.contains(&(value.into()))
+    fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool {
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        if let Some(trible) = Trible::raw_values(
+            binding
+                .get(self.variable_e.index)
+                .unwrap_or(if e_var { value } else { [0; 32] }),
+            binding
+                .get(self.variable_a.index)
+                .unwrap_or(if a_var { value } else { [0; 32] }),
+            binding
+                .get(self.variable_v.index)
+                .unwrap_or(if v_var { value } else { [0; 32] }),
+        ) {
+            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+                (false, false, false, true, false, false) => {
+                    self.set.eav.has_prefix(trible.data, E_END)
+                }
+                (false, false, false, false, true, false) => {
+                    self.set.aev.has_prefix(trible.data, A_END)
+                }
+                (false, false, false, false, false, true) => {
+                    self.set.vea.has_prefix(trible.data, V_END)
+                }
+
+                (true, false, false, false, true, false) => {
+                    self.set.eav.has_prefix(trible.data, A_END)
+                }
+                (true, false, false, false, false, true) => {
+                    self.set.eva.has_prefix(trible.data, V_END)
+                }
+
+                (false, true, false, true, false, false) => {
+                    self.set.aev.has_prefix(trible.data, E_END)
+                }
+                (false, true, false, false, false, true) => {
+                    self.set.ave.has_prefix(trible.data, V_END)
+                }
+
+                (false, false, true, true, false, false) => {
+                    self.set.vea.has_prefix(trible.data, E_END)
+                }
+                (false, false, true, false, true, false) => {
+                    self.set.vae.has_prefix(trible.data, A_END)
+                }
+
+                (false, true, true, true, false, false) => {
+                    self.set.ave.has_prefix(trible.data, E_END)
+                }
+                (true, false, true, false, true, false) => {
+                    self.set.eva.has_prefix(trible.data, A_END)
+                }
+                (true, true, false, false, false, true) => {
+                    self.set.eav.has_prefix(trible.data, V_END)
+                }
+                _ => panic!(),
+            }
+        } else {
+            false
+        }
     }
 }

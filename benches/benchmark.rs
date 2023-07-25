@@ -8,7 +8,7 @@ use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use triomphe::Arc;
 
-use tribles::pact::PACT;
+use tribles::pact::{PACT, SingleSegmentation};
 use tribles::pact::{self, IdentityOrder};
 use tribles::tribleset::TribleSet;
 
@@ -108,26 +108,26 @@ fn pact_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("pact");
 
-    // for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
-    //     group.throughput(Throughput::Elements(*i));
-    //     group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
-    //         let samples = random_tribles(i as usize);
-    //         b.iter(|| {
-    //             let mut pact = PACT::<64, IdentityOrder>::new();
-    //             for t in black_box(&samples) {
-    //                 pact.put(&Arc::new(t.data));
-    //             }
-    //         })
-    //     });
-    //     group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
-    //         let samples = random_tribles(i as usize);
-    //         let mut pact = PACT::<64, IdentityOrder>::new();
-    //         for t in black_box(&samples) {
-    //             pact.put(&Arc::new(t.data));
-    //         }
-    //         b.iter(|| pact.cursor().into_iter().count())
-    //     });
-    // }
+    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            b.iter(|| {
+                let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+                for t in black_box(&samples) {
+                    pact.put(&Arc::new(t.data));
+                }
+            })
+        });
+        group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            for t in black_box(&samples) {
+                pact.put(&Arc::new(t.data));
+            }
+            b.iter(|| pact.infixes([0; 64], 0, 63, |x| x))
+        });
+    }
 
     let total_unioned = 1000000;
     for i in [1, 10, 100, 1000].iter() {
@@ -135,7 +135,7 @@ fn pact_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             let pacts = samples.chunks(total_unioned / i).map(|samples| {
-                let mut pact = PACT::<64, IdentityOrder>::new();
+                let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in samples {
                     pact.put(&Arc::new(t.data));
                 }

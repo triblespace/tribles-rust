@@ -10,12 +10,12 @@ impl<'a> Constraint<'a> for ConstantConstraint {
         VariableSet::new_singleton(self.variable)
     }
 
-    fn estimate(&self, _variable: VariableId) -> usize {
+    fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
         1
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
-        Box::new(vec![self.constant])
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
+        vec![self.constant]
     }
 
     fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {

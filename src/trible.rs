@@ -4,13 +4,13 @@ use crate::namespace::*;
 use crate::pact::{KeyOrdering, KeySegmentation};
 use arbitrary::Arbitrary;
 
-const TRIBLE_LEN: usize = 64;
-const E_START: usize = 0;
-const E_END: usize = 15;
-const A_START: usize = 16;
-const A_END: usize = 31;
-const V_START: usize = 32;
-const V_END: usize = 63;
+pub const TRIBLE_LEN: usize = 64;
+pub const E_START: usize = 0;
+pub const E_END: usize = 15;
+pub const A_START: usize = 16;
+pub const A_END: usize = 31;
+pub const V_START: usize = 32;
+pub const V_END: usize = 63;
 
 #[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
@@ -32,14 +32,42 @@ impl Trible {
         Self { data }
     }
 
+    pub fn raw(data: [u8; 64]) -> Trible {
+        Self { data }
+    }
+
+    pub fn raw_values(e: Value, a: Value, v: Value) -> Option<Trible> {
+        if e[16..32].iter().any(|&x| x != 0) || a[16..32].iter().any(|&x| x != 0) {
+            return None;
+        }
+
+        let mut data = [0; TRIBLE_LEN];
+        data[E_START..=E_END].copy_from_slice(&e[16..32]);
+        data[A_START..=A_END].copy_from_slice(&a[16..32]);
+        data[V_START..=V_END].copy_from_slice(&v[..]);
+
+        Some(Self { data })
+    }
+
     pub fn e(&self) -> Id {
-        self.data[0..16].try_into().unwrap()
+        self.data[E_START..=E_END].try_into().unwrap()
     }
     pub fn a(&self) -> Id {
-        self.data[16..32].try_into().unwrap()
+        self.data[A_START..=A_END].try_into().unwrap()
     }
     pub fn v(&self) -> Value {
-        self.data[32..64].try_into().unwrap()
+        self.data[V_START..=V_END].try_into().unwrap()
+    }
+
+    pub fn e_as_value(&self) -> Value {
+        let mut o = [0u8; 32];
+        &mut o[16..=31].copy_from_slice(&self.data[E_START..=E_END]);
+        o
+    }
+    pub fn a_as_value(&self) -> Value {
+        let mut o = [0u8; 32];
+        &mut o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
+        o
     }
 }
 
@@ -52,7 +80,7 @@ impl KeySegmentation<64> for TribleSegmentation {
             E_START..=E_END => 0,
             A_START..=A_END => 1,
             V_START..=V_END => 2,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 }
@@ -79,7 +107,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
             d @ E_START..=E_END => d,
             d @ A_START..=A_END => d + 32,
             d @ V_START..=V_END => d - 16,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -101,7 +129,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
             d @ E_START..=E_END => d + 16,
             d @ A_START..=A_END => d - 16,
             d @ V_START..=V_END => d,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -123,7 +151,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
             d @ E_START..=E_END => d + 48,
             d @ A_START..=A_END => d - 16,
             d @ V_START..=V_END => d - 16,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -140,13 +168,12 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
 pub struct VEAOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
-
     fn tree_index(key_index: usize) -> usize {
         match key_index {
             d @ E_START..=E_END => d + 32,
             d @ A_START..=A_END => d + 32,
             d @ V_START..=V_END => d - 32,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -168,7 +195,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VAEOrder {
             d @ E_START..=E_END => d + 48,
             d @ A_START..=A_END => d + 16,
             d @ V_START..=V_END => d - 32,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 

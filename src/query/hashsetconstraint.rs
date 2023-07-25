@@ -30,12 +30,12 @@ where
         VariableSet::new_singleton(self.variable.index)
     }
 
-    fn estimate(&self, _variable: VariableId) -> usize {
+    fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
         self.set.len()
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Box<Vec<Value>> {
-        Box::new(self.set.iter().map(|v| v.into()).collect())
+    fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
+        self.set.iter().map(|v| v.into()).collect()
     }
 
     fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {

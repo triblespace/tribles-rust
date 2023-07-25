@@ -40,21 +40,21 @@ impl<T> Variable<T> {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Binding {
-    bound: VariableSet,
+    pub bound: VariableSet,
     values: [Value; 256],
 }
 
 impl Binding {
-    fn set(&mut self, variable: VariableId, value: Value) {
+    pub fn set(&mut self, variable: VariableId, value: Value) {
         self.values[variable as usize] = value;
         self.bound.set(variable);
     }
 
-    fn unset(&mut self, variable: VariableId) {
+    pub fn unset(&mut self, variable: VariableId) {
         self.bound.unset(variable);
     }
 
-    fn get(&self, variable: VariableId) -> Option<Value> {
+    pub fn get(&self, variable: VariableId) -> Option<Value> {
         if self.bound.is_set(variable) {
             Some(self.values[variable as usize])
         } else {
@@ -74,8 +74,8 @@ impl Default for Binding {
 
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
-    fn estimate(&self, variable: VariableId) -> usize;
-    fn propose(&self, variable: VariableId, binding: Binding) -> Box<Vec<Value>>;
+    fn estimate(&self, variable: VariableId, binding: Binding) -> usize;
+    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value>;
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
 
@@ -84,7 +84,7 @@ struct Query<C> {
     binding: Binding,
     variables: VariableSet,
     variable_stack: [u8; 256],
-    value_stack: [Box<Vec<Value>>; 256],
+    value_stack: [Vec<Value>; 256],
     stack_depth: isize,
 }
 
@@ -96,7 +96,7 @@ impl<'a, C: Constraint<'a>> Query<C> {
             binding: Default::default(),
             variables,
             variable_stack: [0; 256],
-            value_stack: std::array::from_fn(|_| Box::new(vec![])),
+            value_stack: std::array::from_fn(|_| vec![]),
             stack_depth: -1,
         }
     }
@@ -128,7 +128,7 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
                         let unbound_variables = self.variables.subtract(self.binding.bound);
                         let next_variable = unbound_variables
                             .into_iter()
-                            .min_by_key(|v| self.constraint.estimate(*v));
+                            .min_by_key(|v| self.constraint.estimate(*v, self.binding));
                         next_variable
                     } {
                         self.stack_depth += 1;

@@ -36,6 +36,11 @@ impl<T> Variable<T> {
             typed: PhantomData,
         }
     }
+
+    fn extract(self, binding: Binding) -> T
+    where T: From<Value>, {
+        binding.get(self.index).unwrap().into()
+    }
 }
 
 pub trait Constrain<'a, T> {
@@ -184,6 +189,23 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
     }
 }
 
+#[macro_export]
+macro_rules! query {
+    (($($Var:ident),*), $Constraint:expr) => {
+        {
+            let mut vindex = 0;
+            let mut set = crate::tribleset::TribleSet::new();
+            $(let $Var = Variable::new(vindex);
+              vindex += 1;)*
+            Query::new($Constraint).map(
+                move |binding| {
+                    ($($Var.extract(binding)),*)
+            })
+        }
+    };
+}
+pub use query;
+
 #[cfg(test)]
 mod tests {
     use std::{collections::HashSet, convert::TryInto};
@@ -204,10 +226,7 @@ mod tests {
         movies.insert(ShortString::new("LOTR".into()).unwrap());
         movies.insert(ShortString::new("Highlander".into()).unwrap());
 
-        let a = Variable::new(0);
-        let b = Variable::new(1);
-
-        let inter: Vec<Binding> = Query::new(and!(
+        let inter: Vec<_> = query!((a), and!(
             a.of(&books),
             a.of(&movies),
         ))
@@ -215,7 +234,8 @@ mod tests {
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<Binding> = Query::new(and!(
+        let cross: Vec<_> = query!((a, b),
+        and!(
             a.of(&books),
             b.of(&movies)
         ))
@@ -223,7 +243,7 @@ mod tests {
 
         assert_eq!(cross.len(), 6);
 
-        let one: Vec<Binding> = Query::new(and!(
+        let one: Vec<_> = query!((a), and!(
             a.of(&books),
             a.is("LOTR".try_into().unwrap())
         ))

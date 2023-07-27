@@ -4,9 +4,9 @@ mod intersectionconstraint;
 
 use std::marker::PhantomData;
 
-use constantconstraint::*;
-use hashsetconstraint::*;
-use intersectionconstraint::*;
+pub use constantconstraint::*;
+pub use hashsetconstraint::*;
+pub use intersectionconstraint::*;
 
 use crate::namespace::*;
 
@@ -37,8 +37,10 @@ impl<T> Variable<T> {
         }
     }
 
-    fn extract(self, binding: Binding) -> T
-    where T: From<Value>, {
+    pub fn extract(self, binding: Binding) -> T
+    where
+        T: From<Value>,
+    {
         binding.get(self.index).unwrap().into()
     }
 }
@@ -51,14 +53,17 @@ pub trait Constrain<'a, T> {
 
 impl<T> Variable<T> {
     pub fn of<'a, C>(self, c: &'a C) -> C::Constraint
-    where C: Constrain<'a, T> {
+    where
+        C: Constrain<'a, T>,
+    {
         c.constrain(self)
     }
 }
 
 impl<T> Variable<T> {
     pub fn is(self, constant: T) -> ConstantConstraint<T>
-    where for<'b> &'b T: Into<Value>
+    where
+        for<'b> &'b T: Into<Value>,
     {
         ConstantConstraint::new(self, &constant)
     }
@@ -105,7 +110,7 @@ pub trait Constraint<'a> {
     fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool;
 }
 
-struct Query<C> {
+pub struct Query<C> {
     constraint: C,
     binding: Binding,
     variables: VariableSet,
@@ -115,7 +120,7 @@ struct Query<C> {
 }
 
 impl<'a, C: Constraint<'a>> Query<C> {
-    fn new(constraint: C) -> Self {
+    pub fn new(constraint: C) -> Self {
         let variables = constraint.variables();
         Query {
             constraint,
@@ -195,9 +200,9 @@ macro_rules! query {
         {
             let mut vindex = 0;
             let mut set = crate::tribleset::TribleSet::new();
-            $(let $Var = Variable::new(vindex);
+            $(let $Var = $crate::query::Variable::new(vindex);
               vindex += 1;)*
-            Query::new($Constraint).map(
+              $crate::query::Query::new($Constraint).map(
                 move |binding| {
                     ($($Var.extract(binding)),*)
             })
@@ -226,28 +231,16 @@ mod tests {
         movies.insert(ShortString::new("LOTR".into()).unwrap());
         movies.insert(ShortString::new("Highlander".into()).unwrap());
 
-        let inter: Vec<_> = query!((a), and!(
-            a.of(&books),
-            a.of(&movies),
-        ))
-        .collect();
+        let inter: Vec<_> = query!((a), and!(a.of(&books), a.of(&movies),)).collect();
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<_> = query!((a, b),
-        and!(
-            a.of(&books),
-            b.of(&movies)
-        ))
-        .collect();
+        let cross: Vec<_> = query!((a, b), and!(a.of(&books), b.of(&movies))).collect();
 
         assert_eq!(cross.len(), 6);
 
-        let one: Vec<_> = query!((a), and!(
-            a.of(&books),
-            a.is("LOTR".try_into().unwrap())
-        ))
-        .collect();
+        let one: Vec<_> =
+            query!((a), and!(a.of(&books), a.is("LOTR".try_into().unwrap()))).collect();
 
         assert_eq!(one.len(), 1);
 

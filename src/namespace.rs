@@ -1,3 +1,5 @@
+use crate::query::{query, Query, Variable};
+
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
 pub type Blob = Vec<u8>;
@@ -36,6 +38,53 @@ macro_rules! entities_inner {
     };
 }
 pub(crate) use entities_inner;
+
+macro_rules! pattern_inner {
+    (@triple ($constraints:ident ,$set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
+        {
+            let a_var = $crate::query::Variable::new(0);
+            $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
+            $constraints.push(Box::new($set.pattern($EntityId, a_var, $Value)));
+        }
+
+    };
+    (@triple ($constraints:ident ,$set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
+        {
+            let a_var = $crate::query::Variable::new(0);
+            let v_var = $crate::query::Variable::new(0);
+            $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
+            $constraints.push({ use $Namespace as base; let v: base::types::$FieldName = $Value; Box::new(v_var.is(v))});
+            $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
+        }
+
+    };
+    (@entity ($constraints:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),*})) => {
+        $(pattern_inner!(@triple ($constraints, $set, $Namespace, $EntityId, $FieldName, $Value));)*
+    };
+    (@entity ($constraints:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),*})) => {
+        let e_var = $crate::query::Variable::new();
+        $constraints.push({ use $Namespace as base; let e: base::Id = $EntityId; e_var.is(e)});
+        $(pattern_inner!(@triple ($constraints, $set, $Namespace, e_var, $FieldName, $Value));)*
+    };
+
+    (@entity ($constraints:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),*})) => {
+        {
+            {
+                let e_var = $crate::query::Variable::new(0);
+                $(pattern_inner!(@triple ($constraints, $set, $Namespace, e_var, $FieldName, $Value));)*
+            }
+        }
+    };
+    ($Namespace:path, $set:expr, [$($Entity:tt),*]) => {
+        {
+            let set = $set;
+            let mut constraints: Vec<Box<dyn $crate::query::Constraint>> = vec!();
+            $(pattern_inner!(@entity (constraints, set, $Namespace, $Entity));)*
+            $crate::query::IntersectionConstraint::new(constraints)
+        }
+    };
+}
+pub(crate) use pattern_inner;
 
 /*
 mod knights {
@@ -77,6 +126,17 @@ macro_rules! NS {
             }
 
             pub use entities;
+
+            pub(crate) use pattern_inner;
+
+            #[macro_export]
+            macro_rules! pattern {
+                ($set:expr, $pattern: tt) => {
+                    pattern_inner!($mod_name, $set, $pattern)
+                };
+            }
+
+            pub use pattern;
         }
     };
 }
@@ -94,6 +154,8 @@ NS! {
 
 #[cfg(test)]
 mod tests {
+    use crate::query;
+
     use super::knights;
     use std::convert::TryInto;
 
@@ -115,6 +177,36 @@ mod tests {
             {
                 name: "Angelica".try_into().unwrap(),
                 title: "Nurse".try_into().unwrap()
+            }])
+        );
+    }
+
+    #[test]
+    fn ns_pattern() {
+        let kb = knights::entities!((romeo, juliet),
+        [{juliet @
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo,
+            title: "Maiden".try_into().unwrap()
+        },
+        {romeo @
+            name: "Romeo".try_into().unwrap(),
+            loves: juliet,
+            title: "Prince".try_into().unwrap()
+        },
+        {
+            name: "Angelica".try_into().unwrap(),
+            title: "Nurse".try_into().unwrap()
+        }]);
+        query!(
+            (juliet, name),
+            knights::pattern!(kb, [
+            {
+                name: ("Romeo".try_into().unwrap()),
+                loves: juliet
+            },
+            {juliet @
+                name: name
             }])
         );
     }

@@ -15,6 +15,26 @@ use crate::bitset::ByteBitset;
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
 
+
+#[derive(Debug)]
+pub struct VariableContext {
+    pub next_index: VariableId,
+}
+
+impl VariableContext {
+    pub fn new() -> Self {
+        VariableContext {
+            next_index: 0
+        }
+    }
+
+    pub fn next_variable<T>(&mut self) -> Variable<T> {
+        let v = Variable::new(self.next_index);
+        self.next_index += 1;
+        v
+    }
+}
+
 #[derive(Debug)]
 pub struct Variable<T> {
     pub index: VariableId,
@@ -196,12 +216,11 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
 
 #[macro_export]
 macro_rules! query {
-    (($($Var:ident),*), $Constraint:expr) => {
+    ($ctx:ident, ($($Var:ident),*), $Constraint:expr) => {
         {
-            let mut vindex = 0;
-            let mut set = crate::tribleset::TribleSet::new();
-            $(let $Var = $crate::query::Variable::new(vindex);
-              vindex += 1;)*
+            let mut $ctx = $crate::query::VariableContext::new();
+            let mut set = $crate::tribleset::TribleSet::new();
+            $(let $Var = $ctx.next_variable();)*
               $crate::query::Query::new($Constraint).map(
                 move |binding| {
                     ($($Var.extract(binding)),*)
@@ -231,16 +250,16 @@ mod tests {
         movies.insert(ShortString::new("LOTR".into()).unwrap());
         movies.insert(ShortString::new("Highlander".into()).unwrap());
 
-        let inter: Vec<_> = query!((a), and!(a.of(&books), a.of(&movies),)).collect();
+        let inter: Vec<_> = query!(ctx, (a), and!(a.of(&books), a.of(&movies),)).collect();
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<_> = query!((a, b), and!(a.of(&books), b.of(&movies))).collect();
+        let cross: Vec<_> = query!(ctx, (a, b), and!(a.of(&books), b.of(&movies))).collect();
 
         assert_eq!(cross.len(), 6);
 
         let one: Vec<_> =
-            query!((a), and!(a.of(&books), a.is("LOTR".try_into().unwrap()))).collect();
+            query!(ctx, (a), and!(a.of(&books), a.is("LOTR".try_into().unwrap()))).collect();
 
         assert_eq!(one.len(), 1);
 

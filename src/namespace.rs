@@ -30,7 +30,7 @@ macro_rules! entities_inner {
     };
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
-            let mut set = crate::tribleset::pacttribleset::PACTTribleSet::new();
+            let mut set = $crate::tribleset::pacttribleset::PACTTribleSet::new();
             $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
             $(entities_inner!(@entity (set, $Namespace, $Entity));)*
             set
@@ -40,44 +40,55 @@ macro_rules! entities_inner {
 pub(crate) use entities_inner;
 
 macro_rules! pattern_inner {
-    (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
-        {
-            let a_var = $ctx.next_variable();
-            $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
-            $constraints.push(Box::new($set.pattern($EntityId, a_var, $Value)));
-        }
-
-    };
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
-            let a_var = $ctx.next_variable();
-            let v_var = $ctx.next_variable();
+            use crate::tribleset::TribleSet;
+            let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
+            let v_var: $crate::query::Variable<base::types::$FieldName> = $ctx.next_variable();;
             $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
             $constraints.push({ use $Namespace as base; let v: base::types::$FieldName = $Value; Box::new(v_var.is(v))});
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
 
     };
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),*})) => {
-        $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, $EntityId, $FieldName, $Value));)*
+    (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
+        {
+            use crate::tribleset::TribleSet;
+            use $Namespace as base;
+            let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
+            let v_var: $crate::query::Variable<base::types::$FieldName> = $Value;
+            $constraints.push(Box::new(a_var.is(base::ids::$FieldName)));
+            $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
+        }
+
     };
+
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),*})) => {
-        let e_var = $ctx.next_variable();
-        $constraints.push({ use $Namespace as base; let e: base::Id = $EntityId; e_var.is(e)});
-        $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
+        {
+            let e_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
+            $constraints.push({ use $Namespace as base; let e: base::Id = $EntityId; e_var.is(e)});
+            $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
+        }
+    };
+
+    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),*})) => {
+        {
+            use $Namespace as base;
+            let e_var: $crate::query::Variable<base::Id> = $EntityId;
+            $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
+        }
     };
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),*})) => {
         {
-            {
-                let e_var = $crate::query::Variable::new(0);
-                $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
-            }
+            use $Namespace as base;
+            let e_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
+            $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
     ($Namespace:path, $ctx:ident, $set:expr, [$($Entity:tt),*]) => {
         {
-            let set = $set;
+            let set = &($set);
             let mut constraints: Vec<Box<dyn $crate::query::Constraint>> = vec!();
             $(pattern_inner!(@entity (constraints, $ctx, set, $Namespace, $Entity));)*
             $crate::query::IntersectionConstraint::new(constraints)
@@ -183,7 +194,8 @@ mod tests {
 
     #[test]
     fn ns_pattern() {
-        let kb = knights::entities!((romeo, juliet),
+        let juliet = knights::Id::new();
+        let kb = knights::entities!((romeo),
         [{juliet @
             name: "Juliet".try_into().unwrap(),
             loves: romeo,
@@ -198,7 +210,7 @@ mod tests {
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
         }]);
-        query!(ctx,
+        let r: Vec<_> = query!(ctx,
             (juliet, name),
             knights::pattern!(ctx, kb, [
             {
@@ -208,6 +220,7 @@ mod tests {
             {juliet @
                 name: name
             }])
-        );
+        ).collect();
+        assert_eq!(vec![(juliet, "Juliet".try_into().unwrap())], r);
     }
 }

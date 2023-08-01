@@ -1,4 +1,4 @@
-pub mod PACTTribleSet;
+pub mod pacttribleset;
 
 use crate::{query::{Constraint, Variable}, namespace::{Id, Value}};
 

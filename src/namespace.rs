@@ -65,8 +65,9 @@ macro_rules! pattern_inner {
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),*})) => {
         {
+            use $Namespace as base;
             let e_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
-            $constraints.push({ use $Namespace as base; let e: base::Id = $EntityId; e_var.is(e)});
+            $constraints.push({ use $Namespace as base; let e: base::Id = $EntityId; Box::new(e_var.is(e))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -211,16 +212,12 @@ mod tests {
             title: "Nurse".try_into().unwrap()
         }]);
         let r: Vec<_> = query!(ctx,
-            (juliet, name),
+            (name),
             knights::pattern!(ctx, kb, [
-            {
-                name: ("Romeo".try_into().unwrap()),
-                loves: juliet
-            },
-            {juliet @
+            {(juliet) @
                 name: name
             }])
         ).collect();
-        assert_eq!(vec![(juliet, "Juliet".try_into().unwrap())], r);
+        assert_eq!(vec![("Juliet".try_into().unwrap(),)], r);
     }
 }

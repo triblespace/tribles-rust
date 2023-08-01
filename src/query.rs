@@ -216,14 +216,14 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
 
 #[macro_export]
 macro_rules! query {
-    ($ctx:ident, ($($Var:ident),*), $Constraint:expr) => {
+    ($ctx:ident, ($($Var:ident),+), $Constraint:expr) => {
         {
             let mut $ctx = $crate::query::VariableContext::new();
             let mut set = $crate::tribleset::pacttribleset::PACTTribleSet::new();
             $(let $Var = $ctx.next_variable();)*
               $crate::query::Query::new($Constraint).map(
                 move |binding| {
-                    ($($Var.extract(binding)),*)
+                    ($($Var.extract(binding)),+,)
             })
         }
     };

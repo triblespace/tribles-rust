@@ -1,10 +1,10 @@
 use super::*;
 
-fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
+fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
     at_depth: usize,
-    unioned_nodes: &mut [Head<KEY_LEN, K>],
+    unioned_nodes: &mut [Head<KEY_LEN, O, S>],
     prefix: &mut [u8; KEY_LEN],
-) -> Head<KEY_LEN, K> {
+) -> Head<KEY_LEN, O, S> {
     if 0 == unioned_nodes.len() {
         return Head::from(Empty::new());
     }
@@ -34,7 +34,7 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
                 }
                 Peek::Branch(children_set) if !children_set.is_empty() => {
                     union_childbits = union_childbits.union(children_set);
-                    *node = node.get(depth, children_set.find_first_set().expect("child exists"));
+                    *node = node.child(depth, children_set.find_first_set().expect("child exists"));
                 }
                 Peek::Branch(_no_children) => {}
             }
@@ -49,7 +49,7 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
                 depth += 1;
             }
             n => {
-                let mut branch_node: Head<KEY_LEN, K> = match n {
+                let mut branch_node: Head<KEY_LEN, O, S> = match n {
                     1..=4 => Branch4::new(at_depth, depth, prefix).into(),
                     5..=8 => Branch8::new(at_depth, depth, prefix).into(),
                     9..=16 => Branch16::new(at_depth, depth, prefix).into(),
@@ -66,7 +66,7 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
                     let mut children = Vec::new();
                     for node in &mut *unioned_nodes {
                         //TODO filter empty
-                        children.push(node.get(depth, byte));
+                        children.push(node.child(depth, byte));
                     }
 
                     let union_node = if depth == KEY_LEN - 1 {
@@ -88,10 +88,12 @@ fn recursive_union<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>>(
     }
 }
 
-impl<const KEY_LEN: usize, K: KeyProperties<KEY_LEN>> PACT<KEY_LEN, K> {
-    pub fn union<I>(trees: I) -> PACT<KEY_LEN, K>
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    PACT<KEY_LEN, O, S>
+{
+    pub fn union<I>(trees: I) -> PACT<KEY_LEN, O, S>
     where
-        I: IntoIterator<Item = PACT<KEY_LEN, K>>,
+        I: IntoIterator<Item = PACT<KEY_LEN, O, S>>,
     {
         let mut children = Vec::new();
 

@@ -8,9 +8,9 @@ use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use triomphe::Arc;
 
-use tribles::pact::PACT;
 use tribles::pact::{self, IdentityOrder};
-use tribles::tribleset::TribleSet;
+use tribles::pact::{SingleSegmentation, PACT};
+use tribles::tribleset::PACTTribleSet;
 
 use im::OrdSet;
 
@@ -108,26 +108,26 @@ fn pact_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("pact");
 
-    // for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
-    //     group.throughput(Throughput::Elements(*i));
-    //     group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
-    //         let samples = random_tribles(i as usize);
-    //         b.iter(|| {
-    //             let mut pact = PACT::<64, IdentityOrder>::new();
-    //             for t in black_box(&samples) {
-    //                 pact.put(&Arc::new(t.data));
-    //             }
-    //         })
-    //     });
-    //     group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
-    //         let samples = random_tribles(i as usize);
-    //         let mut pact = PACT::<64, IdentityOrder>::new();
-    //         for t in black_box(&samples) {
-    //             pact.put(&Arc::new(t.data));
-    //         }
-    //         b.iter(|| pact.cursor().into_iter().count())
-    //     });
-    // }
+    for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            b.iter(|| {
+                let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+                for t in black_box(&samples) {
+                    pact.put(&Arc::new(t.data));
+                }
+            })
+        });
+        group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            for t in black_box(&samples) {
+                pact.put(&Arc::new(t.data));
+            }
+            b.iter(|| pact.infixes([0; 64], 0, 63, |x| x))
+        });
+    }
 
     let total_unioned = 1000000;
     for i in [1, 10, 100, 1000].iter() {
@@ -135,7 +135,7 @@ fn pact_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             let pacts = samples.chunks(total_unioned / i).map(|samples| {
-                let mut pact = PACT::<64, IdentityOrder>::new();
+                let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in samples {
                     pact.put(&Arc::new(t.data));
                 }
@@ -159,7 +159,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             b.iter(|| {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
-                let mut set = TribleSet::new();
+                let mut set = PACTTribleSet::new();
                 for t in black_box(&samples) {
                     set.add(t);
                 }
@@ -174,7 +174,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let _set = TribleSet::from_iter(black_box(samples.iter().copied()));
+                let _set = PACTTribleSet::from_iter(black_box(samples.iter().copied()));
             })
         });
     }
@@ -185,13 +185,13 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             let sets = samples.chunks(total_unioned / i).map(|samples| {
-                let mut set = TribleSet::new();
+                let mut set = PACTTribleSet::new();
                 for t in samples {
                     set.add(t);
                 }
                 set
             });
-            b.iter(|| TribleSet::union(black_box(sets.clone())));
+            b.iter(|| PACTTribleSet::union(black_box(sets.clone())));
         });
     }
 

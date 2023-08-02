@@ -76,9 +76,9 @@ where
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-                (false, false, false, true, false, false) => self.set.e.len(),
-                (false, false, false, false, true, false) => self.set.a.len(),
-                (false, false, false, false, false, true) => self.set.v.len(),
+                (false, false, false, true, false, false) => self.set.ea.len(),
+                (false, false, false, false, true, false) => self.set.ae.len(),
+                (false, false, false, false, false, true) => self.set.ve.len(),
 
                 (true, false, false, false, true, false) => {
                     self.set.ea.get(&trible.e()).map_or(0, |s| s.len())
@@ -146,18 +146,18 @@ where
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => self
                     .set
-                    .e
-                    .iter()
+                    .ea
+                    .keys()
                     .map(|e| as_value(e))
                     .collect::<Vec<Value>>(),
                 (false, false, false, false, true, false) => self
                     .set
-                    .a
-                    .iter()
+                    .ae
+                    .keys()
                     .map(|a| as_value(a))
                     .collect::<Vec<Value>>(),
                 (false, false, false, false, false, true) => {
-                    self.set.v.iter().copied().collect::<Vec<Value>>()
+                    self.set.ve.keys().copied().collect::<Vec<Value>>()
                 }
 
                 (true, false, false, false, true, false) => {
@@ -228,43 +228,187 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        /*
-        if let Some(trible) = Trible::raw_values(
-            binding
-                .get(self.variable_e.index)
-                .unwrap_or(if e_var { value } else { [0; 32] }),
-            binding
-                .get(self.variable_a.index)
-                .unwrap_or(if a_var { value } else { [0; 32] }),
-            binding
-                .get(self.variable_v.index)
-                .unwrap_or(if v_var { value } else { [0; 32] }),
-        ) {}
-        match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (false, false, false, true, false, false) => self.set.e.contains(&trible.e()),
-            (false, false, false, false, true, false) => self.set.a.contains(&trible.a()),
-            (false, false, false, false, false, true) => self.set.v.contains(&trible.v()),
-
-            (true, false, false, false, true, false) => self.set.ea.contains_key(&trible.e()),
-            (true, false, false, false, false, true) => self.set.ev.contains_key(&trible.e()),
-
-            (false, true, false, true, false, false) => self.set.ae.contains_key(&trible.a()),
-            (false, true, false, false, false, true) => self.set.av.contains_key(&trible.a()),
-
-            (false, false, true, true, false, false) => self.set.ve.contains_key(&trible.v()),
-            (false, false, true, false, true, false) => self.set.va.contains_key(&trible.v()),
-
-            (false, true, true, true, false, false) => {
-                self.set.ave.contains_key(&(trible.a(), trible.v()))
+        match (e_bound || e_var, a_bound || a_var, v_bound || v_var) {
+            (false, false, false) => panic!(),
+            (true, false, false) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.ea.contains_key(&trible.e())
+                    } else {
+                        false
+                    }
+                });
             }
-            (true, false, true, false, true, false) => {
-                self.set.eva.contains_key(&(trible.e(), trible.v()))
+            (false, true, false) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.ae.contains_key(&trible.a())
+                    } else {
+                        false
+                    }
+                });
             }
-            (true, true, false, false, false, true) => {
-                self.set.eav.contains_key(&(trible.e(), trible.a()))
+            (false, false, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.ve.contains_key(&trible.v())
+                    } else {
+                        false
+                    }
+                });
             }
-            _ => panic!(),
+
+            (true, true, false) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.eav.contains_key(&(trible.e(), trible.a()))
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            (true, false, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.eva.contains_key(&(trible.e(), trible.v()))
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            (false, true, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.ave.contains_key(&(trible.a(), trible.v()))
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            (true, true, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.all.contains(&trible)
+                    } else {
+                        false
+                    }
+                });
+            }
         }
-        */
     }
 }

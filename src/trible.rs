@@ -37,7 +37,7 @@ impl Trible {
     }
 
     pub fn raw_values(e: Value, a: Value, v: Value) -> Option<Trible> {
-        if e[16..32].iter().any(|&x| x != 0) || a[16..32].iter().any(|&x| x != 0) {
+        if e[0..16].iter().any(|&x| x != 0) || a[0..16].iter().any(|&x| x != 0) {
             return None;
         }
 

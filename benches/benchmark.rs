@@ -10,7 +10,7 @@ use triomphe::Arc;
 
 use tribles::pact::{self, IdentityOrder};
 use tribles::pact::{SingleSegmentation, PACT};
-use tribles::tribleset::PACTTribleSet;
+use tribles::pacttribleset::PACTTribleSet;
 
 use im::OrdSet;
 

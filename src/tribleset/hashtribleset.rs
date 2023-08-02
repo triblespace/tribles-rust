@@ -12,9 +12,6 @@ use super::TribleSet;
 
 #[derive(Debug, Clone)]
 pub struct HashTribleSet {
-    pub e: HashSet<Id>,
-    pub a: HashSet<Id>,
-    pub v: HashSet<Value>,
     pub ea: HashMap<Id, HashSet<Id>>,
     pub ev: HashMap<Id, HashSet<Value>>,
     pub ae: HashMap<Id, HashSet<Id>>,
@@ -30,9 +27,6 @@ pub struct HashTribleSet {
 impl HashTribleSet {
     pub fn new() -> HashTribleSet {
         HashTribleSet {
-            e: HashSet::new(),
-            a: HashSet::new(),
-            v: HashSet::new(),
             ea: HashMap::new(),
             ev: HashMap::new(),
             ae: HashMap::new(),
@@ -54,9 +48,6 @@ impl HashTribleSet {
         let e = trible.e();
         let a = trible.a();
         let v = trible.v();
-        self.e.insert(e);
-        self.a.insert(a);
-        self.v.insert(v);
         self.ea.entry(e).or_default().insert(a);
         self.ev.entry(e).or_default().insert(v);
         self.ae.entry(a).or_default().insert(e);

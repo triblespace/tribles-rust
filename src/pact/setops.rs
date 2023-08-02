@@ -50,13 +50,13 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
             }
             n => {
                 let mut branch_node: Head<KEY_LEN, O, S> = match n {
-                    1..=4 => Branch4::new(at_depth, depth, prefix).into(),
-                    5..=8 => Branch8::new(at_depth, depth, prefix).into(),
-                    9..=16 => Branch16::new(at_depth, depth, prefix).into(),
-                    17..=32 => Branch32::new(at_depth, depth, prefix).into(),
-                    33..=64 => Branch64::new(at_depth, depth, prefix).into(),
-                    65..=128 => Branch128::new(at_depth, depth, prefix).into(),
-                    129..=256 => Branch256::new(at_depth, depth, prefix).into(),
+                    1..=4 => Branch4::new(at_depth, depth, &Arc::new(*prefix)).into(),
+                    5..=8 => Branch8::new(at_depth, depth, &Arc::new(*prefix)).into(),
+                    9..=16 => Branch16::new(at_depth, depth, &Arc::new(*prefix)).into(),
+                    17..=32 => Branch32::new(at_depth, depth, &Arc::new(*prefix)).into(),
+                    33..=64 => Branch64::new(at_depth, depth, &Arc::new(*prefix)).into(),
+                    65..=128 => Branch128::new(at_depth, depth, &Arc::new(*prefix)).into(),
+                    129..=256 => Branch256::new(at_depth, depth, &Arc::new(*prefix)).into(),
                     _ => panic!("bad child count"),
                 };
 

@@ -110,7 +110,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
                 Peek::Fragment(_) => {
                     let mut new_branch =
-                        Branch4::new(self.start_depth as usize, depth, &O::tree_ordered(key));
+                        Branch4::new(self.start_depth as usize, depth, key);
                     new_branch.insert(Leaf::new(depth, key).into());
                     new_branch.insert(self.with_start(depth));
 

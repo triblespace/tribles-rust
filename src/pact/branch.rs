@@ -13,7 +13,7 @@ macro_rules! create_branch {
             segment_count: u32,
             hash: u128,
             child_set: ByteBitset,
-            key: [u8; KEY_LEN],
+            key: SharedKey<KEY_LEN>,
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
             child_table: $table<Head<KEY_LEN, O, S>>,
@@ -46,9 +46,9 @@ macro_rules! create_branch {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            pub(super) fn new(start_depth: usize, end_depth: usize, key: &[u8; KEY_LEN]) -> Self {
+            pub(super) fn new(start_depth: usize, end_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &key[..], start_depth);
+                copy_start(fragment.as_mut_slice(), &O::tree_ordered(&key), start_depth);
 
                 Self {
                     tag: HeadTag::$name,
@@ -60,7 +60,7 @@ macro_rules! create_branch {
                     body: Arc::new($body_name {
                         leaf_count: 0,
                         segment_count: 0,
-                        key: *key,
+                        key: Arc::clone(key),
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
                         key_ordering: PhantomData,
@@ -119,7 +119,7 @@ macro_rules! create_branch {
                     depth if depth < self.start_depth as usize + self.fragment.len() => {
                         Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
                     }
-                    depth => Peek::Fragment(self.body.key[depth]),
+                    depth => Peek::Fragment(self.body.key[O::key_index(depth)]),
                 }
             }
 
@@ -142,7 +142,7 @@ macro_rules! create_branch {
 
             fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
                 let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &self.body.key[..], new_start_depth);
+                copy_start(fragment.as_mut_slice(), &O::tree_ordered(&self.body.key), new_start_depth);
 
                 Head::from(Self {
                     tag: HeadTag::$name,
@@ -168,7 +168,7 @@ macro_rules! create_branch {
                             let mut new_branch = Branch4::new(
                                 self.start_depth as usize,
                                 depth,
-                                &O::tree_ordered(key),
+                                key,
                             );
                             new_branch.insert(Leaf::new(depth, key).into());
                             new_branch.insert(self.with_start(depth));
@@ -233,7 +233,7 @@ macro_rules! create_branch {
                 loop {
                     if start_depth <= depth {
                         if end_depth < self.end_depth as usize {
-                            out.push(f(O::key_ordered(&self.body.key)));
+                            out.push(f(*self.body.key));
                         } else {
                             for child in self.body.child_set {
                                 self.child(self.end_depth as usize, child).infixes(
@@ -336,7 +336,7 @@ macro_rules! create_grow {
                         segment_count: self.body.segment_count,
                         hash: self.body.hash,
                         child_set: self.body.child_set,
-                        key: self.body.key,
+                        key: Arc::clone(&self.body.key),
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
                         child_table: self.body.child_table.grow(),

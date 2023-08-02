@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use tribles::hashtribleset::HashTribleSet;
+use tribles::tribleset::hashtribleset::HashTribleSet;
 use tribles::trible::*;
 use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
@@ -10,7 +10,7 @@ use triomphe::Arc;
 
 use tribles::pact::{self, IdentityOrder};
 use tribles::pact::{SingleSegmentation, PACT};
-use tribles::pacttribleset::PACTTribleSet;
+use tribles::tribleset::pacttribleset::PACTTribleSet;
 
 use im::OrdSet;
 

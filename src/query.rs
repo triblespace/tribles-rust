@@ -1,5 +1,6 @@
 mod constantconstraint;
 mod hashsetconstraint;
+mod hashtriblesetconstraint;
 mod intersectionconstraint;
 
 use constantconstraint::*;
@@ -97,7 +98,10 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
         };
 
         loop {
-            println!("{:?}, {:?}, {:?}", mode, self.stack_depth, self.variable_stack);
+            println!(
+                "{:?}, {:?}, {:?}",
+                mode, self.stack_depth, self.variable_stack
+            );
             match mode {
                 Search::Vertical => {
                     if let Some(next_variable) = {
@@ -162,7 +166,8 @@ mod tests {
         let q: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
             Box::new(SetConstraint::new(0, &books)),
             Box::new(SetConstraint::new(0, &movies)),
-        ])).collect();
+        ]))
+        .collect();
 
         assert_eq!(q.len(), 2);
     }

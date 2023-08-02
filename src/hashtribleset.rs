@@ -6,19 +6,19 @@ use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
 pub struct HashTribleSet {
-    e: HashSet<Id>,
-    a: HashSet<Id>,
-    v: HashSet<Value>,
-    ea: HashMap<Id, HashSet<Id>>,
-    ev: HashMap<Id, HashSet<Value>>,
-    ae: HashMap<Id, HashSet<Id>>,
-    av: HashMap<Id, HashSet<Value>>,
-    ve: HashMap<Value, HashSet<Id>>,
-    va: HashMap<Value, HashSet<Id>>,
-    eav: HashMap<(Id, Id), HashSet<Value>>,
-    eva: HashMap<(Id, Value), HashSet<Id>>,
-    ave: HashMap<(Id, Value), HashSet<Id>>,
-    all: HashSet<Trible>,
+    pub e: HashSet<Id>,
+    pub a: HashSet<Id>,
+    pub v: HashSet<Value>,
+    pub ea: HashMap<Id, HashSet<Id>>,
+    pub ev: HashMap<Id, HashSet<Value>>,
+    pub ae: HashMap<Id, HashSet<Id>>,
+    pub av: HashMap<Id, HashSet<Value>>,
+    pub ve: HashMap<Value, HashSet<Id>>,
+    pub va: HashMap<Value, HashSet<Id>>,
+    pub eav: HashMap<(Id, Id), HashSet<Value>>,
+    pub eva: HashMap<(Id, Value), HashSet<Id>>,
+    pub ave: HashMap<(Id, Value), HashSet<Id>>,
+    pub all: HashSet<Trible>,
 }
 
 impl HashTribleSet {

@@ -1,6 +1,5 @@
 mod constantconstraint;
 mod hashsetconstraint;
-mod hashtriblesetconstraint;
 mod intersectionconstraint;
 
 use std::marker::PhantomData;
@@ -16,7 +15,6 @@ use crate::bitset::ByteBitset;
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
 
-
 #[derive(Debug)]
 pub struct VariableContext {
     pub next_index: VariableId,
@@ -24,9 +22,7 @@ pub struct VariableContext {
 
 impl VariableContext {
     pub fn new() -> Self {
-        VariableContext {
-            next_index: 0
-        }
+        VariableContext { next_index: 0 }
     }
 
     pub fn next_variable<T>(&mut self) -> Variable<T> {
@@ -259,8 +255,12 @@ mod tests {
 
         assert_eq!(cross.len(), 6);
 
-        let one: Vec<_> =
-            query!(ctx, (a), and!(a.of(&books), a.is("LOTR".try_into().unwrap()))).collect();
+        let one: Vec<_> = query!(
+            ctx,
+            (a),
+            and!(a.of(&books), a.is("LOTR".try_into().unwrap()))
+        )
+        .collect();
 
         assert_eq!(one.len(), 1);
 

@@ -95,15 +95,20 @@ impl TribleSet for PACTTribleSet {
      for<'b> &'b A: Into<Id>,
      for<'b> &'b V: Into<Value>;
 
-
-    fn pattern<'a, E, A, V>(&'a self, e: crate::query::Variable<E>, a: crate::query::Variable<A>, v: crate::query::Variable<V>) -> Self::PatternConstraint<'a, E, A, V>
+    fn pattern<'a, E, A, V>(
+        &'a self,
+        e: crate::query::Variable<E>,
+        a: crate::query::Variable<A>,
+        v: crate::query::Variable<V>,
+    ) -> Self::PatternConstraint<'a, E, A, V>
     where
-    E: From<Id>,
-    A: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b A: Into<Id>,
-    for<'b> &'b V: Into<Value> {
+        E: From<Id>,
+        A: From<Id>,
+        V: From<Value>,
+        for<'b> &'b E: Into<Id>,
+        for<'b> &'b A: Into<Id>,
+        for<'b> &'b V: Into<Value>,
+    {
         PACTTribleSetConstraint::new(e, a, v, self)
     }
 }

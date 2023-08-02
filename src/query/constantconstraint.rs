@@ -30,7 +30,7 @@ impl<'a, T> Constraint<'a> for ConstantConstraint<T> {
         vec![self.constant]
     }
 
-    fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {
-        value == self.constant
+    fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
+        proposals.retain(|v| *v == self.constant);
     }
 }

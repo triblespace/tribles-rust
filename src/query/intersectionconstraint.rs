@@ -34,21 +34,18 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .collect();
         relevant_constraints.sort_by_key(|c| c.estimate(variable, binding));
 
-        relevant_constraints[0]
-            .propose(variable, binding)
-            .into_iter()
-            .filter(|v| {
-                relevant_constraints[1..]
-                    .iter()
-                    .all(|c| c.confirm(variable, *v, binding))
-            })
-            .collect()
+        let mut proposal = relevant_constraints[0].propose(variable, binding);
+        relevant_constraints[1..]
+            .iter()
+            .for_each(|c| c.confirm(variable, binding, &mut proposal));
+
+        proposal
     }
 
-    fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool {
+    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
         self.constraints
             .iter()
-            .all(|c| c.confirm(variable, value, binding))
+            .for_each(|c| c.confirm(variable, binding, proposals));
     }
 }
 

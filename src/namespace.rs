@@ -211,13 +211,15 @@ mod tests {
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
         }]);
-        let r: Vec<_> = query!(ctx,
+        let r: Vec<_> = query!(
+            ctx,
             (name),
             knights::pattern!(ctx, kb, [
             {(juliet) @
                 name: name
             }])
-        ).collect();
+        )
+        .collect();
         assert_eq!(vec![("Juliet".try_into().unwrap(),)], r);
     }
 }

@@ -216,7 +216,7 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, value: Value, binding: Binding) -> bool {
+    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);
         let v_bound = binding.bound.is_set(self.variable_v.index);
@@ -225,6 +225,7 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
+        /*
         if let Some(trible) = Trible::raw_values(
             binding
                 .get(self.variable_e.index)
@@ -235,34 +236,32 @@ where
             binding
                 .get(self.variable_v.index)
                 .unwrap_or(if v_var { value } else { [0; 32] }),
-        ) {
-            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-                (false, false, false, true, false, false) => self.set.e.contains(&trible.e()),
-                (false, false, false, false, true, false) => self.set.a.contains(&trible.a()),
-                (false, false, false, false, false, true) => self.set.v.contains(&trible.v()),
+        ) {}
+        match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+            (false, false, false, true, false, false) => self.set.e.contains(&trible.e()),
+            (false, false, false, false, true, false) => self.set.a.contains(&trible.a()),
+            (false, false, false, false, false, true) => self.set.v.contains(&trible.v()),
 
-                (true, false, false, false, true, false) => self.set.ea.contains_key(&trible.e()),
-                (true, false, false, false, false, true) => self.set.ev.contains_key(&trible.e()),
+            (true, false, false, false, true, false) => self.set.ea.contains_key(&trible.e()),
+            (true, false, false, false, false, true) => self.set.ev.contains_key(&trible.e()),
 
-                (false, true, false, true, false, false) => self.set.ae.contains_key(&trible.a()),
-                (false, true, false, false, false, true) => self.set.av.contains_key(&trible.a()),
+            (false, true, false, true, false, false) => self.set.ae.contains_key(&trible.a()),
+            (false, true, false, false, false, true) => self.set.av.contains_key(&trible.a()),
 
-                (false, false, true, true, false, false) => self.set.ve.contains_key(&trible.v()),
-                (false, false, true, false, true, false) => self.set.va.contains_key(&trible.v()),
+            (false, false, true, true, false, false) => self.set.ve.contains_key(&trible.v()),
+            (false, false, true, false, true, false) => self.set.va.contains_key(&trible.v()),
 
-                (false, true, true, true, false, false) => {
-                    self.set.ave.contains_key(&(trible.a(), trible.v()))
-                }
-                (true, false, true, false, true, false) => {
-                    self.set.eva.contains_key(&(trible.e(), trible.v()))
-                }
-                (true, true, false, false, false, true) => {
-                    self.set.eav.contains_key(&(trible.e(), trible.a()))
-                }
-                _ => panic!(),
+            (false, true, true, true, false, false) => {
+                self.set.ave.contains_key(&(trible.a(), trible.v()))
             }
-        } else {
-            false
+            (true, false, true, false, true, false) => {
+                self.set.eva.contains_key(&(trible.e(), trible.v()))
+            }
+            (true, true, false, false, false, true) => {
+                self.set.eav.contains_key(&(trible.e(), trible.a()))
+            }
+            _ => panic!(),
         }
+        */
     }
 }

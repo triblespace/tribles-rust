@@ -38,8 +38,8 @@ where
         self.set.iter().map(|v| v.into()).collect()
     }
 
-    fn confirm(&self, _variable: VariableId, value: Value, _binding: Binding) -> bool {
-        self.set.contains(&(value.into()))
+    fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
+        proposals.retain(|v| self.set.contains(&((*v).into())));
     }
 }
 

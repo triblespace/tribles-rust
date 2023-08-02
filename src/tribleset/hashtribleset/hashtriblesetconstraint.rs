@@ -1,4 +1,7 @@
-use crate::{hashtribleset::HashTribleSet, trible::Trible};
+use crate::{
+    query::{Binding, Constraint, Variable, VariableId, VariableSet},
+    trible::Trible,
+};
 
 use super::*;
 
@@ -6,7 +9,7 @@ pub struct HashTribleSetConstraint<'a, E, A, V>
 where
     E: From<Id>,
     A: From<Id>,
-    E: From<Value>,
+    V: From<Value>,
     for<'b> &'b E: Into<Id>,
     for<'b> &'b A: Into<Id>,
     for<'b> &'b V: Into<Value>,
@@ -21,7 +24,7 @@ impl<'a, E, A, V> HashTribleSetConstraint<'a, E, A, V>
 where
     E: From<Id>,
     A: From<Id>,
-    E: From<Value>,
+    V: From<Value>,
     for<'b> &'b E: Into<Id>,
     for<'b> &'b A: Into<Id>,
     for<'b> &'b V: Into<Value>,
@@ -45,7 +48,7 @@ impl<'a, E, A, V> Constraint<'a> for HashTribleSetConstraint<'a, E, A, V>
 where
     E: From<Id>,
     A: From<Id>,
-    E: From<Value>,
+    V: From<Value>,
     for<'b> &'b E: Into<Id>,
     for<'b> &'b A: Into<Id>,
     for<'b> &'b V: Into<Value>,
@@ -131,7 +134,7 @@ where
 
         fn as_value(id: &Id) -> Value {
             let mut o: [u8; 32] = [0u8; 32];
-            &mut o[16..=31].copy_from_slice(id);
+            o[16..=31].copy_from_slice(id);
             o
         }
 

@@ -1,6 +1,5 @@
 mod constantconstraint;
 mod hashsetconstraint;
-mod hashtriblesetconstraint;
 mod intersectionconstraint;
 
 use std::marker::PhantomData;

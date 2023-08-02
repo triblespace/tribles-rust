@@ -1,8 +1,14 @@
+pub mod hashtriblesetconstraint;
+
 use std::collections::{HashMap, HashSet};
 
 use crate::namespace::{Id, Value};
 use crate::trible::Trible;
 use std::iter::FromIterator;
+
+use self::hashtriblesetconstraint::HashTribleSetConstraint;
+
+use super::TribleSet;
 
 #[derive(Debug, Clone)]
 pub struct HashTribleSet {
@@ -72,6 +78,35 @@ impl FromIterator<Trible> for HashTribleSet {
             set.add(&t);
         }
         set
+    }
+}
+
+impl TribleSet for HashTribleSet {
+    type PatternConstraint<'a, E, A, V>
+     = HashTribleSetConstraint<'a, E, A, V>
+     where
+     E: From<Id>,
+     A: From<Id>,
+     V: From<Value>,
+     for<'b> &'b E: Into<Id>,
+     for<'b> &'b A: Into<Id>,
+     for<'b> &'b V: Into<Value>;
+
+    fn pattern<'a, E, A, V>(
+        &'a self,
+        e: crate::query::Variable<E>,
+        a: crate::query::Variable<A>,
+        v: crate::query::Variable<V>,
+    ) -> Self::PatternConstraint<'a, E, A, V>
+    where
+        E: From<Id>,
+        A: From<Id>,
+        V: From<Value>,
+        for<'b> &'b E: Into<Id>,
+        for<'b> &'b A: Into<Id>,
+        for<'b> &'b V: Into<Value>,
+    {
+        HashTribleSetConstraint::new(e, a, v, self)
     }
 }
 

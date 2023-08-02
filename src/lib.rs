@@ -1,6 +1,5 @@
 pub mod bitset;
 pub mod bytetable;
-pub mod hashtribleset;
 pub mod namespace;
 pub mod pact;
 pub mod query;

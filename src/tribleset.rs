@@ -1,3 +1,4 @@
+pub mod hashtribleset;
 pub mod pacttribleset;
 
 use crate::{

@@ -220,8 +220,9 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (false, false, false, true, false, false) => {
+        match (e_bound || e_var, a_bound || a_var, v_bound || v_var) {
+            (false, false, false) => panic!(),
+            (true, false, false) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -246,7 +247,7 @@ where
                     }
                 });
             }
-            (false, false, false, false, true, false) => {
+            (false, true, false) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -271,7 +272,7 @@ where
                     }
                 });
             }
-            (false, false, false, false, false, true) => {
+            (false, false, true) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -297,7 +298,7 @@ where
                 });
             }
 
-            (true, false, false, false, true, false) => {
+            (true, true, false) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -322,7 +323,7 @@ where
                     }
                 });
             }
-            (true, false, false, false, false, true) => {
+            (true, false, true) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -348,33 +349,7 @@ where
                 });
             }
 
-            (false, true, false, true, false, false) => {
-                proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                    ) {
-                        self.set.aev.has_prefix(trible.data, E_END)
-                    } else {
-                        false
-                    }
-                });
-            }
-
-            (false, true, false, false, false, true) => {
+            (false, true, true) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -400,108 +375,7 @@ where
                 });
             }
 
-            (false, false, true, true, false, false) => {
-                proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                    ) {
-                        self.set.vea.has_prefix(trible.data, E_END)
-                    } else {
-                        false
-                    }
-                });
-            }
-            (false, false, true, false, true, false) => {
-                proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                    ) {
-                        self.set.vae.has_prefix(trible.data, A_END)
-                    } else {
-                        false
-                    }
-                });
-            }
-
-            (false, true, true, true, false, false) => {
-                proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                    ) {
-                        self.set.ave.has_prefix(trible.data, E_END)
-                    } else {
-                        false
-                    }
-                });
-            }
-            (true, false, true, false, true, false) => {
-                proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
-                            *value
-                        } else {
-                            [0; 32]
-                        }),
-                    ) {
-                        self.set.eva.has_prefix(trible.data, A_END)
-                    } else {
-                        false
-                    }
-                });
-            }
-            (true, true, false, false, false, true) => {
+            (true, true, true) => {
                 proposals.retain(|value| {
                     if let Some(trible) = Trible::raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
@@ -526,7 +400,6 @@ where
                     }
                 });
             }
-            _ => panic!(),
         }
     }
 }

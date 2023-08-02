@@ -30,7 +30,7 @@ macro_rules! entities_inner {
     };
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
-            let mut set = $crate::tribleset::hashtribleset::HashTribleSet::new();
+            let mut set = $crate::tribleset::pacttribleset::PACTTribleSet::new();
             $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
             $(entities_inner!(@entity (set, $Namespace, $Entity));)*
             set
@@ -213,13 +213,15 @@ mod tests {
         }]);
         let r: Vec<_> = query!(
             ctx,
-            (name),
+            (juliet, name),
             knights::pattern!(ctx, kb, [
-            {(juliet) @
+            {name: ("Romeo".try_into().unwrap()),
+             loves: juliet},
+            {juliet @
                 name: name
             }])
         )
         .collect();
-        assert_eq!(vec![("Juliet".try_into().unwrap(),)], r);
+        assert_eq!(vec![(juliet, "Juliet".try_into().unwrap(),)], r);
     }
 }

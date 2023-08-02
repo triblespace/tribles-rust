@@ -260,6 +260,7 @@ macro_rules! create_branch {
                                     out,
                                 );
                             }
+                            return;
                         }
                     }
                 }
@@ -274,8 +275,8 @@ macro_rules! create_branch {
                     match self.peek(depth) {
                         Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                         Peek::Fragment(_) => return false,
-                        Peek::Branch(children) => {
-                            self.child(depth, key[depth]).has_prefix(key, end_depth);
+                        Peek::Branch(_) => {
+                            return self.child(depth, key[depth]).has_prefix(key, end_depth);
                         }
                     }
                 }

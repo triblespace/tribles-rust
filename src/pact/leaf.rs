@@ -4,7 +4,6 @@ use super::*;
 #[repr(C)]
 pub(super) struct Leaf<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
     tag: HeadTag,
-    start_depth: u8,
     fragment: u8,
     key: SharedKey<KEY_LEN>,
     key_ordering: PhantomData<O>,
@@ -25,7 +24,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(super) fn new(start_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
         Self {
             tag: HeadTag::Leaf,
-            start_depth: start_depth as u8,
             fragment: key[O::key_index(start_depth)],
             key: Arc::clone(key),
             key_ordering: PhantomData,
@@ -65,7 +63,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
         Head::from(Self {
             tag: HeadTag::Leaf,
-            start_depth: new_start_depth as u8,
             fragment: self.key[O::key_index(new_start_depth)],
             key_ordering: PhantomData,
             key_segments: PhantomData,
@@ -73,8 +70,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         })
     }
 
-    fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
-        let mut depth = start_depth;
+    fn put(&mut self, key: &SharedKey<KEY_LEN>, at_depth: usize) -> Head<KEY_LEN, O, S> {
+        let mut depth = at_depth;
         loop {
             if depth == KEY_LEN {
                 return self.clone().into();
@@ -82,8 +79,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             match self.peek(depth) {
                 Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
                 Peek::Fragment(_) => {
-                    let mut new_branch =
-                        Branch4::new(self.start_depth as usize, depth, key);
+                    let mut new_branch: Branch4<KEY_LEN, O, S> =
+                        Branch4::new(at_depth, depth, key);
                     new_branch.insert(Leaf::new(depth, key).into());
                     new_branch.insert(self.with_start(depth));
 
@@ -97,6 +94,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     fn infixes<const INFIX_LEN: usize, F>(
         &self,
         key: [u8; KEY_LEN],
+        depth: usize,
         start_depth: usize,
         _end_depth: usize,
         f: F,
@@ -104,7 +102,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) where
         F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
     {
-        let mut depth = self.start_depth as usize;
+        let mut depth = depth;
         loop {
             if start_depth <= depth {
                 out.push(f(*self.key.as_ref()));
@@ -118,8 +116,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
-        let mut depth = self.start_depth as usize;
+    fn has_prefix(&self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+        let mut depth = depth;
         loop {
             if end_depth < depth {
                 return true;
@@ -132,7 +130,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+    fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {
         1
     }
 }

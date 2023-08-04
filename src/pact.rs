@@ -147,6 +147,7 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
     fn infixes<const INFIX_LEN: usize, F>(
         &self,
         key: [u8; KEY_LEN],
+        depth: usize,
         start_depth: usize,
         end_depth: usize,
         f: F,
@@ -154,18 +155,17 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
     ) where
         F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN];
 
-    fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool;
+    fn has_prefix(&self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool;
 
-    fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize;
+    fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize;
 }
 
 #[derive(Debug)]
 #[repr(C)]
 struct Unknown {
     tag: HeadTag,
-    start_depth: u8,
     key: u8,
-    ignore: [MaybeUninit<u8>; 13],
+    ignore: [MaybeUninit<u8>; 14],
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -296,6 +296,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     fn infixes<const INFIX_LEN: usize, F>(
         &self,
         key: [u8; KEY_LEN],
+        depth: usize,
         start_depth: usize,
         end_depth: usize,
         f: F,
@@ -306,16 +307,16 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         dispatch!(
             self,
             variant,
-            variant.infixes(key, start_depth, end_depth, f, out)
+            variant.infixes(key, depth, start_depth, end_depth, f, out)
         );
     }
 
-    fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
-        dispatch!(self, variant, variant.has_prefix(key, end_depth))
+    fn has_prefix(&self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+        dispatch!(self, variant, variant.has_prefix(depth, key, end_depth))
     }
 
-    fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
-        dispatch!(self, variant, variant.segmented_len(key, start_depth))
+    fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+        dispatch!(self, variant, variant.segmented_len(depth, key, start_depth))
     }
 }
 
@@ -357,6 +358,7 @@ where
         let mut out = vec![];
         self.root.infixes(
             O::tree_ordered(&key),
+            0,
             O::tree_index(start_depth),
             O::tree_index(end_depth),
             f,
@@ -367,12 +369,12 @@ where
 
     pub fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
         self.root
-            .has_prefix(O::tree_ordered(&key), O::tree_index(end_depth))
+            .has_prefix(0, O::tree_ordered(&key), O::tree_index(end_depth))
     }
 
     pub fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
         self.root
-            .segmented_len(O::tree_ordered(&key), O::tree_index(start_depth))
+            .segmented_len(0, O::tree_ordered(&key), O::tree_index(start_depth))
     }
 }
 

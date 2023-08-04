@@ -60,6 +60,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     fn infixes<const INFIX_LEN: usize, F>(
         &self,
         _key: [u8; KEY_LEN],
+        _depth: usize,
         _start_depth: usize,
         _end_depth: usize,
         _f: F,
@@ -70,11 +71,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         return;
     }
 
-    fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+    fn has_prefix(&self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
         false
     }
 
-    fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+    fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {
         0
     }
 }

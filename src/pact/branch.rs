@@ -27,7 +27,6 @@ macro_rules! create_branch {
             S: KeySegmentation<KEY_LEN>,
         > {
             tag: HeadTag,
-            start_depth: u8,
             fragment: u8,
             end_depth: u8,
             body: Arc<$body_name<KEY_LEN, O, S>>,
@@ -49,7 +48,6 @@ macro_rules! create_branch {
             pub(super) fn new(start_depth: usize, end_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
                 Self {
                     tag: HeadTag::$name,
-                    start_depth: start_depth as u8,
                     fragment: key[O::key_index(start_depth)],
                     end_depth: end_depth as u8,
                     key_ordering: PhantomData,
@@ -131,7 +129,6 @@ macro_rules! create_branch {
             fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
                 Head::from(Self {
                     tag: HeadTag::$name,
-                    start_depth: new_start_depth as u8,
                     fragment: self.body.key[O::key_index(new_start_depth)],
                     end_depth: self.end_depth,
                     key_ordering: PhantomData,
@@ -207,6 +204,7 @@ macro_rules! create_branch {
             fn infixes<const INFIX_LEN: usize, F>(
                 &self,
                 key: [u8; KEY_LEN],
+                depth: usize,
                 start_depth: usize,
                 end_depth: usize,
                 f: F,
@@ -214,7 +212,7 @@ macro_rules! create_branch {
             ) where
                 F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN] + Copy,
             {
-                let mut depth = self.start_depth as usize;
+                let mut depth = depth;
                 loop {
                     if start_depth <= depth {
                         if end_depth < self.end_depth as usize {
@@ -223,6 +221,7 @@ macro_rules! create_branch {
                             for child in self.body.child_set {
                                 self.child(self.end_depth as usize, child).infixes(
                                     key,
+                                    depth,
                                     start_depth,
                                     end_depth,
                                     f,
@@ -239,6 +238,7 @@ macro_rules! create_branch {
                             for child in children {
                                 self.child(depth, child).infixes(
                                     key,
+                                    depth,
                                     start_depth,
                                     end_depth,
                                     f,
@@ -251,8 +251,8 @@ macro_rules! create_branch {
                 }
             }
 
-            fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
-                let mut depth = self.start_depth as usize;
+            fn has_prefix(&self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+                let mut depth = depth;
                 loop {
                     if end_depth < depth {
                         return true;
@@ -261,14 +261,14 @@ macro_rules! create_branch {
                         Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                         Peek::Fragment(_) => return false,
                         Peek::Branch(_) => {
-                            return self.child(depth, key[depth]).has_prefix(key, end_depth);
+                            return self.child(depth, key[depth]).has_prefix(depth, key, end_depth);
                         }
                     }
                 }
             }
 
-            fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
-                let mut depth = self.start_depth as usize;
+            fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+                let mut depth = depth;
                 loop {
                     if start_depth <= depth {
                         if S::segment(O::key_index(start_depth))
@@ -285,7 +285,7 @@ macro_rules! create_branch {
                         Peek::Branch(children) => {
                             return self
                                 .child(depth, key[depth])
-                                .segmented_len(key, start_depth);
+                                .segmented_len(depth, key, start_depth);
                         }
                     }
                 }
@@ -311,7 +311,6 @@ macro_rules! create_grow {
             pub(super) fn grow(&self) -> Head<KEY_LEN, O, S> {
                 Head::<KEY_LEN, O, S>::from($grown_name {
                     tag: HeadTag::$grown_name,
-                    start_depth: self.start_depth,
                     fragment: self.fragment,
                     end_depth: self.end_depth,
                     key_ordering: PhantomData,

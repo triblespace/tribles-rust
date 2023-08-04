@@ -5,7 +5,7 @@ use super::*;
 pub(super) struct Leaf<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
     tag: HeadTag,
     start_depth: u8,
-    fragment: [u8; LEAF_FRAGMENT_LEN],
+    fragment: u8,
     key: SharedKey<KEY_LEN>,
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<S>,
@@ -23,18 +23,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Leaf<KEY_LEN, O, S>
 {
     pub(super) fn new(start_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
-        let mut fragment = [0; LEAF_FRAGMENT_LEN];
-
-        copy_start(
-            fragment.as_mut_slice(),
-            &O::tree_ordered(key)[..],
-            start_depth,
-        );
-
         Self {
             tag: HeadTag::Leaf,
             start_depth: start_depth as u8,
-            fragment,
+            fragment: key[O::key_index(start_depth)],
             key: Arc::clone(key),
             key_ordering: PhantomData,
             key_segments: PhantomData,
@@ -54,19 +46,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     fn peek(&self, at_depth: usize) -> Peek {
-        assert!(
-            self.start_depth as usize <= at_depth && at_depth < KEY_LEN as usize,
-            "Peek out of bounds: {} <= {} < {}",
-            self.start_depth,
-            at_depth,
-            KEY_LEN
-        );
-        match at_depth {
-            depth if depth < self.start_depth as usize + self.fragment.len() => {
-                Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
-            }
-            depth => Peek::Fragment(self.key[O::key_index(depth)]),
-        }
+        Peek::Fragment(self.key[O::key_index(at_depth)])
     }
 
     fn child(&self, at_depth: usize, key: u8) -> Head<KEY_LEN, O, S> {
@@ -83,17 +63,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-        let mut fragment = [0; LEAF_FRAGMENT_LEN];
-        copy_start(
-            fragment.as_mut_slice(),
-            &O::tree_ordered(&self.key)[..],
-            new_start_depth,
-        );
-
         Head::from(Self {
             tag: HeadTag::Leaf,
             start_depth: new_start_depth as u8,
-            fragment,
+            fragment: self.key[O::key_index(new_start_depth)],
             key_ordering: PhantomData,
             key_segments: PhantomData,
             key: Arc::clone(&self.key),

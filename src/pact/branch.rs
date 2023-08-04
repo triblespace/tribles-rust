@@ -28,7 +28,7 @@ macro_rules! create_branch {
         > {
             tag: HeadTag,
             start_depth: u8,
-            fragment: [u8; HEAD_FRAGMENT_LEN],
+            fragment: u8,
             end_depth: u8,
             body: Arc<$body_name<KEY_LEN, O, S>>,
             key_ordering: PhantomData<O>,
@@ -47,13 +47,10 @@ macro_rules! create_branch {
             $name<KEY_LEN, O, S>
         {
             pub(super) fn new(start_depth: usize, end_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
-                let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &O::tree_ordered(&key), start_depth);
-
                 Self {
                     tag: HeadTag::$name,
                     start_depth: start_depth as u8,
-                    fragment: fragment,
+                    fragment: key[O::key_index(start_depth)],
                     end_depth: end_depth as u8,
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
@@ -107,19 +104,10 @@ macro_rules! create_branch {
             }
 
             fn peek(&self, at_depth: usize) -> Peek {
-                assert!(
-                    self.start_depth as usize <= at_depth && at_depth <= self.end_depth as usize,
-                    "Peek out of bounds: {} <= {} <= {}",
-                    self.start_depth,
-                    at_depth,
-                    self.end_depth
-                );
-                match at_depth {
-                    depth if depth == self.end_depth as usize => Peek::Branch(self.body.child_set),
-                    depth if depth < self.start_depth as usize + self.fragment.len() => {
-                        Peek::Fragment(self.fragment[index_start(self.start_depth as usize, depth)])
-                    }
-                    depth => Peek::Fragment(self.body.key[O::key_index(depth)]),
+                if at_depth == self.end_depth as usize {
+                    Peek::Branch(self.body.child_set)
+                } else {
+                    Peek::Fragment(self.body.key[O::key_index(at_depth)])
                 }
             }
 
@@ -141,13 +129,10 @@ macro_rules! create_branch {
             }
 
             fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-                let mut fragment = [0; HEAD_FRAGMENT_LEN];
-                copy_start(fragment.as_mut_slice(), &O::tree_ordered(&self.body.key), new_start_depth);
-
                 Head::from(Self {
                     tag: HeadTag::$name,
                     start_depth: new_start_depth as u8,
-                    fragment,
+                    fragment: self.body.key[O::key_index(new_start_depth)],
                     end_depth: self.end_depth,
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
@@ -155,7 +140,7 @@ macro_rules! create_branch {
                 })
             }
 
-            fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S> {
+            fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
                 let mut depth = self.start_depth as usize;
                 loop {
                     let key_byte = key[O::key_index(depth)];
@@ -166,7 +151,7 @@ macro_rules! create_branch {
                             // a branch at the discriminating depth.
 
                             let mut new_branch = Branch4::new(
-                                self.start_depth as usize,
+                                start_depth,
                                 depth,
                                 key,
                             );

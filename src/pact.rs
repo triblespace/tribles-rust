@@ -35,8 +35,8 @@ use triomphe::Arc;
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
 
-const HEAD_FRAGMENT_LEN: usize = 5;
-const LEAF_FRAGMENT_LEN: usize = 6;
+const HEAD_FRAGMENT_LEN: usize = 1;
+const LEAF_FRAGMENT_LEN: usize = 1;
 
 pub fn init() {
     INIT.call_once(|| {

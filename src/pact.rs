@@ -141,7 +141,7 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
 
     /// Stores the provided key in the node. This returns a new node
     /// which may or may not share structure with the provided node.
-    fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S>;
+    fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S>;
 
     /// Enumerate the infixes given the provided key-prefix and infix range.
     fn infixes<const INFIX_LEN: usize, F>(
@@ -289,8 +289,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         dispatch!(self, variant, variant.hash())
     }
 
-    fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Self {
-        dispatch_mut!(self, variant, variant.put(key))
+    fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Self {
+        dispatch_mut!(self, variant, variant.put(key, start_depth))
     }
 
     fn infixes<const INFIX_LEN: usize, F>(
@@ -337,7 +337,7 @@ where
     }
 
     pub fn put(&mut self, key: &SharedKey<KEY_LEN>) {
-        self.root = self.root.put(key);
+        self.root = self.root.put(key, 0);
     }
 
     pub fn len(&self) -> u32 {

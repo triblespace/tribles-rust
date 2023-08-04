@@ -73,8 +73,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         })
     }
 
-    fn put(&mut self, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S> {
-        let mut depth = self.start_depth as usize;
+    fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
+        let mut depth = start_depth;
         loop {
             if depth == KEY_LEN {
                 return self.clone().into();

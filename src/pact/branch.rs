@@ -141,7 +141,7 @@ macro_rules! create_branch {
             }
 
             fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
-                let mut depth = self.start_depth as usize;
+                let mut depth = start_depth;
                 loop {
                     let key_byte = key[O::key_index(depth)];
                     match self.peek(depth) {
@@ -173,7 +173,7 @@ macro_rules! create_branch {
                             let old_child_segment_count = old_child.count_segment(depth);
                             let old_child_leaf_count = old_child.count();
 
-                            let new_child = old_child.put(key);
+                            let new_child = old_child.put(key, depth);
 
                             body.hash = (body.hash ^ old_child_hash) ^ new_child.hash();
 

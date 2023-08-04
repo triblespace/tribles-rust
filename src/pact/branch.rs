@@ -9,6 +9,7 @@ macro_rules! create_branch {
             O: KeyOrdering<KEY_LEN>,
             S: KeySegmentation<KEY_LEN>,
         > {
+            end_depth: u8,
             leaf_count: u32,
             segment_count: u32,
             hash: u128,
@@ -28,7 +29,6 @@ macro_rules! create_branch {
         > {
             tag: HeadTag,
             fragment: u8,
-            end_depth: u8,
             body: Arc<$body_name<KEY_LEN, O, S>>,
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
@@ -49,10 +49,10 @@ macro_rules! create_branch {
                 Self {
                     tag: HeadTag::$name,
                     fragment: key[O::key_index(start_depth)],
-                    end_depth: end_depth as u8,
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
                     body: Arc::new($body_name {
+                        end_depth: end_depth as u8,
                         leaf_count: 0,
                         segment_count: 0,
                         key: Arc::clone(key),
@@ -75,7 +75,7 @@ macro_rules! create_branch {
 
             fn count_segment(&self, at_depth: usize) -> u32 {
                 if S::segment(O::key_index(at_depth))
-                    != S::segment(O::key_index(self.end_depth as usize))
+                    != S::segment(O::key_index(self.body.end_depth as usize))
                 {
                     1
                 } else {
@@ -85,10 +85,11 @@ macro_rules! create_branch {
 
             fn insert(&mut self, child: Head<KEY_LEN, O, S>) -> Head<KEY_LEN, O, S> {
                 if let Some(byte_key) = child.key() {
+                    let end_depth = self.body.end_depth as usize;
                     let body = Arc::make_mut(&mut self.body);
                     body.child_set.set(byte_key);
                     body.leaf_count += child.count();
-                    body.segment_count += child.count_segment(self.end_depth as usize);
+                    body.segment_count += child.count_segment(end_depth);
                     body.hash ^= child.hash();
                     body.child_table.put(child)
                 } else {
@@ -102,7 +103,7 @@ macro_rules! create_branch {
             }
 
             fn peek(&self, at_depth: usize) -> Peek {
-                if at_depth == self.end_depth as usize {
+                if at_depth == self.body.end_depth as usize {
                     Peek::Branch(self.body.child_set)
                 } else {
                     Peek::Fragment(self.body.key[O::key_index(at_depth)])
@@ -130,7 +131,6 @@ macro_rules! create_branch {
                 Head::from(Self {
                     tag: HeadTag::$name,
                     fragment: self.body.key[O::key_index(new_start_depth)],
-                    end_depth: self.end_depth,
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
                     body: Arc::clone(&self.body),
@@ -215,11 +215,11 @@ macro_rules! create_branch {
                 let mut depth = depth;
                 loop {
                     if start_depth <= depth {
-                        if end_depth < self.end_depth as usize {
+                        if end_depth < self.body.end_depth as usize {
                             out.push(f(*self.body.key));
                         } else {
                             for child in self.body.child_set {
-                                self.child(self.end_depth as usize, child).infixes(
+                                self.child(self.body.end_depth as usize, child).infixes(
                                     key,
                                     depth,
                                     start_depth,
@@ -272,7 +272,7 @@ macro_rules! create_branch {
                 loop {
                     if start_depth <= depth {
                         if S::segment(O::key_index(start_depth))
-                            != S::segment(O::key_index(self.end_depth as usize))
+                            != S::segment(O::key_index(self.body.end_depth as usize))
                         {
                             return 1;
                         } else {
@@ -312,10 +312,10 @@ macro_rules! create_grow {
                 Head::<KEY_LEN, O, S>::from($grown_name {
                     tag: HeadTag::$grown_name,
                     fragment: self.fragment,
-                    end_depth: self.end_depth,
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
                     body: Arc::new($grown_body_name {
+                        end_depth: self.body.end_depth,
                         leaf_count: self.body.leaf_count,
                         segment_count: self.body.segment_count,
                         hash: self.body.hash,

@@ -3,8 +3,6 @@ use super::*;
 #[derive(Clone, Debug)]
 #[repr(C)]
 pub(super) struct Leaf<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
-    tag: HeadTag,
-    fragment: u8,
     key: SharedKey<KEY_LEN>,
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<S>,
@@ -21,14 +19,17 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Leaf<KEY_LEN, O, S>
 {
-    pub(super) fn new(start_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
-        Self {
-            tag: HeadTag::Leaf,
-            fragment: key[O::key_index(start_depth)],
+    pub(super) fn new(start_depth: usize, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S> {
+        let mut head: Head<KEY_LEN, O, S> = Self {
             key: Arc::clone(key),
             key_ordering: PhantomData,
             key_segments: PhantomData,
+        }.into();
+        unsafe {
+            (&mut head.unknown).tag = HeadTag::Leaf;
+            (&mut head.unknown).key = key[O::key_index(start_depth)];
         }
+        head
     }
 }
 
@@ -61,13 +62,16 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-        Head::from(Self {
-            tag: HeadTag::Leaf,
-            fragment: self.key[O::key_index(new_start_depth)],
+        let mut head = Head::from(Self {
             key_ordering: PhantomData,
             key_segments: PhantomData,
             key: Arc::clone(&self.key),
-        })
+        });
+        unsafe {
+            (&mut head.unknown).tag = HeadTag::Leaf;
+            (&mut head.unknown).key = self.key[O::key_index(new_start_depth)];
+        }
+        head
     }
 
     fn put(&mut self, key: &SharedKey<KEY_LEN>, at_depth: usize) -> Head<KEY_LEN, O, S> {
@@ -79,12 +83,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             match self.peek(depth) {
                 Peek::Fragment(byte) if byte == key[O::key_index(depth)] => depth += 1,
                 Peek::Fragment(_) => {
-                    let mut new_branch: Branch4<KEY_LEN, O, S> =
-                        Branch4::new(at_depth, depth, key);
+                    let mut new_branch = Branch4::new(at_depth, depth, key);
                     new_branch.insert(Leaf::new(depth, key).into());
                     new_branch.insert(self.with_start(depth));
 
-                    return Head::<KEY_LEN, O, S>::from(new_branch);
+                    return new_branch;
                 }
                 Peek::Branch(_) => panic!(),
             }

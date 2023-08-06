@@ -5,7 +5,7 @@ use super::*;
 pub(super) struct Empty<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 {
     tag: HeadTag,
-    ignore: [MaybeUninit<u8>; 15],
+    ignore: [MaybeUninit<u8>; 7],
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<S>,
 }
@@ -23,7 +23,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(super) fn new() -> Self {
         Self {
             tag: HeadTag::Empty,
-            ignore: [MaybeUninit::new(0); 15],
+            ignore: [MaybeUninit::new(0); 7],
             key_ordering: PhantomData,
             key_segments: PhantomData,
         }
@@ -54,7 +54,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
-        Leaf::new(0, key).into()
+        Leaf::new(0, key)
     }
 
     fn infixes<const INFIX_LEN: usize, F>(

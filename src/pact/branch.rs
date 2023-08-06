@@ -27,8 +27,6 @@ macro_rules! create_branch {
             O: KeyOrdering<KEY_LEN>,
             S: KeySegmentation<KEY_LEN>,
         > {
-            tag: HeadTag,
-            fragment: u8,
             body: Arc<$body_name<KEY_LEN, O, S>>,
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
@@ -45,10 +43,8 @@ macro_rules! create_branch {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            pub(super) fn new(start_depth: usize, end_depth: usize, key: &SharedKey<KEY_LEN>) -> Self {
-                Self {
-                    tag: HeadTag::$name,
-                    fragment: key[O::key_index(start_depth)],
+            pub(super) fn new(start_depth: usize, end_depth: usize, key: &SharedKey<KEY_LEN>) -> Head<KEY_LEN, O, S> {
+                let mut head: Head<KEY_LEN, O, S> = Self {
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
                     body: Arc::new($body_name {
@@ -62,7 +58,12 @@ macro_rules! create_branch {
                         key_segments: PhantomData,
                         child_table: $table::new(),
                     }),
+                }.into();
+                unsafe {
+                    (&mut head.unknown).tag = HeadTag::$name;
+                    (&mut head.unknown).key = key[O::key_index(start_depth)];
                 }
+                head
             }
         }
 
@@ -128,13 +129,16 @@ macro_rules! create_branch {
             }
 
             fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-                Head::from(Self {
-                    tag: HeadTag::$name,
-                    fragment: self.body.key[O::key_index(new_start_depth)],
+                let mut head = Head::from(Self {
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
                     body: Arc::clone(&self.body),
-                })
+                });
+                unsafe {
+                    (&mut head.unknown).tag = HeadTag::$name;
+                    (&mut head.unknown).key = self.body.key[O::key_index(new_start_depth)];
+                }
+                head
             }
 
             fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
@@ -155,7 +159,7 @@ macro_rules! create_branch {
                             new_branch.insert(Leaf::new(depth, key).into());
                             new_branch.insert(self.with_start(depth));
 
-                            return Head::from(new_branch);
+                            return new_branch;
                         }
                         Peek::Branch(children) if children.is_set(key_byte) => {
                             // We already have a child with the same byte as the key.
@@ -308,10 +312,8 @@ macro_rules! create_grow {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            pub(super) fn grow(&self) -> Head<KEY_LEN, O, S> {
-                Head::<KEY_LEN, O, S>::from($grown_name {
-                    tag: HeadTag::$grown_name,
-                    fragment: self.fragment,
+            pub(super) fn grow(&self, key: u8) -> Head<KEY_LEN, O, S> {
+                let mut head = Head::<KEY_LEN, O, S>::from($grown_name {
                     key_ordering: PhantomData,
                     key_segments: PhantomData,
                     body: Arc::new($grown_body_name {
@@ -325,7 +327,12 @@ macro_rules! create_grow {
                         key_segments: PhantomData,
                         child_table: self.body.child_table.grow(),
                     }),
-                })
+                });
+                unsafe {
+                    (&mut head.unknown).tag = HeadTag::$grown_name;
+                    (&mut head.unknown).key = key;
+                }
+                head
             }
         }
     };
@@ -334,7 +341,7 @@ macro_rules! create_grow {
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Branch256<KEY_LEN, O, S>
 {
-    pub(super) fn grow(&self) -> Head<KEY_LEN, O, S> {
+    pub(super) fn grow(&self, key: u8) -> Head<KEY_LEN, O, S> {
         panic!("`grow` called on Branch256");
     }
 }

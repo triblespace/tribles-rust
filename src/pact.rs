@@ -135,7 +135,7 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
         panic!("`reinsert` not supported by {}", type_name::<Self>());
     }
 
-    fn grow(&self) -> Head<KEY_LEN, O, S> {
+    fn grow(&self, key: u8) -> Head<KEY_LEN, O, S> {
         panic!("`grow` not supported by {}", type_name::<Self>());
     }
 
@@ -165,7 +165,7 @@ trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentat
 struct Unknown {
     tag: HeadTag,
     key: u8,
-    ignore: [MaybeUninit<u8>; 14],
+    ignore: [MaybeUninit<u8>; 6],
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -282,7 +282,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     fn grow(&self) -> Self {
-        dispatch!(self, variant, variant.grow())
+        let key = unsafe {self.unknown.key};
+        dispatch!(self, variant, variant.grow(key))
     }
 
     fn hash(&self) -> u128 {

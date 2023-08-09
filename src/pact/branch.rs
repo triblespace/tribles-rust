@@ -15,7 +15,7 @@ macro_rules! create_branch {
 
             rc: u32,
             end_depth: u32,
-            min: Head<KEY_LEN, O, S>,
+            min: *mut Leaf<KEY_LEN>,
             leaf_count: u64,
             segment_count: u64,
             hash: u128,
@@ -103,10 +103,10 @@ macro_rules! create_branch {
                 Head::new(HeadTag::$name, (*node).key[O::key_index(new_start_depth)], node.rc_inc())
             }
 
-            pub fn put(node: *mut Self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
+            pub fn put(node: *mut Self, entry: &Entry<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
                 let mut depth = start_depth;
                 loop {
-                    let key_byte = key[O::key_index(depth)];
+                    let key_byte = entry.peek::<O>(depth);
                     match Self::peek(node, depth) {
                         Peek::Fragment(byte) if byte == key_byte => depth += 1,
                         Peek::Fragment(_) => {
@@ -114,8 +114,8 @@ macro_rules! create_branch {
                             // a branch at the discriminating depth.
 
                             let mut new_branch = Branch4::new(depth);
-                            new_branch.insert(Leaf::new(depth, key).into());
-                            new_branch.insert(Self::with_start(node, depth));
+                            Branch4::insert(new_branch, entry.leaf(depth));
+                            Branch4::insert(new_branch, Self::with_start(node, depth));
 
                             return Branch4::with_start(new_branch, start_depth);
                         }
@@ -132,7 +132,7 @@ macro_rules! create_branch {
                             let old_child_segment_count = old_child.count_segment(depth);
                             let old_child_leaf_count = old_child.count();
 
-                            let new_child = old_child.put(key, depth);
+                            let new_child = old_child.put(entry, depth);
 
                             mutable.hash = (mutable.hash ^ old_child_hash) ^ new_child.hash();
 
@@ -148,12 +148,14 @@ macro_rules! create_branch {
                             // We don't have a child with the byte of the key.
 
                             let mutable = Self::rc_mut(node);
-                            let mut displaced = mutable.insert(Leaf::new(depth, key).into());
+                            let mut displaced = Self::insert(mutable, entry.leaf(depth));
+
+                            let mut new_head = Self::with_start(mutable, start_depth);
+
                             if None == displaced.key() {
-                                return mutable.with_start(start_depth);
+                                return new_head;
                             }
 
-                            let mut new_head = mutable.with_start(start_depth);
                             while None != displaced.key() {
                                 new_head = new_head.grow();
                                 displaced = new_head.reinsert(displaced);
@@ -167,7 +169,7 @@ macro_rules! create_branch {
             fn infixes<const INFIX_LEN: usize, F>(
                 node: *const Self,
                 key: [u8; KEY_LEN],
-                depth: usize,
+                at_depth: usize,
                 start_depth: usize,
                 end_depth: usize,
                 f: F,
@@ -175,11 +177,10 @@ macro_rules! create_branch {
             ) where
                 F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN] + Copy,
             {
-                let mut depth = depth;
-                loop {
+                for depth in at_depth..((*node).end_depth as usize) {
                     if start_depth <= depth {
                         if end_depth < (*node).end_depth as usize {
-                            out.push(f(*(*node).key));
+                            out.push(f((*(*node).min).key));
                         } else {
                             for child in (*node).child_set {
                                 Self::branch(node, child).infixes(
@@ -194,40 +195,33 @@ macro_rules! create_branch {
                         }
                         return;
                     }
-                    match Self::peek(node, depth) {
-                        Peek::Fragment(byte) if byte == key[depth] => depth += 1,
-                        Peek::Fragment(_) => return,
-                        Peek::Branch(children) => {
-                            for child in children {
-                                Self::branch(node, child).infixes(
-                                    key,
-                                    depth,
-                                    start_depth,
-                                    end_depth,
-                                    f,
-                                    out,
-                                );
-                            }
-                            return;
-                        }
+                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                        return;
                     }
+                }
+                for child in (*node).child_set {
+                    Self::branch(node, child).infixes(
+                        key,
+                        (*node).end_depth as usize,
+                        start_depth,
+                        end_depth,
+                        f,
+                        out,
+                    );
                 }
             }
 
-            fn has_prefix(node: *const Self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
-                let mut depth = depth;
-                loop {
+            fn has_prefix(node: *const Self, at_depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+                let node_end_depth = ((*node).end_depth as usize);
+                for depth in at_depth..node_end_depth {
                     if end_depth < depth {
                         return true;
                     }
-                    match Self::peek(node, depth) {
-                        Peek::Fragment(byte) if byte == key[depth] => depth += 1,
-                        Peek::Fragment(_) => return false,
-                        Peek::Branch(_) => {
-                            return Self::branch(node, key[depth]).has_prefix(depth, key, end_depth);
-                        }
+                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                        return false;
                     }
                 }
+                return Self::branch(node, key[node_end_depth]).has_prefix(node_end_depth, key, end_depth);
             }
 
             fn segmented_len(node: *const Self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {

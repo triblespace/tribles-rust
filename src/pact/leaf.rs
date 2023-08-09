@@ -2,7 +2,7 @@ use std::alloc::*;
 
 use super::*;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub(super) struct Entry<const KEY_LEN: usize> {
     ptr: *mut Leaf<KEY_LEN>,
@@ -31,6 +31,13 @@ impl<const KEY_LEN: usize> Entry<KEY_LEN>
     }
 }
 
+impl<const KEY_LEN: usize> Clone for Entry<KEY_LEN> {
+    fn clone(&self) -> Self {
+        Self { ptr: Leaf::rc_inc(self.ptr) }
+    }
+}
+
+
 impl<const KEY_LEN: usize> Drop for Entry<KEY_LEN> {
     fn drop(&mut self) {
         Leaf::rc_dec(self.ptr);
@@ -40,7 +47,7 @@ impl<const KEY_LEN: usize> Drop for Entry<KEY_LEN> {
 #[derive(Clone, Debug)]
 #[repr(C)]
 pub(super) struct Leaf<const KEY_LEN: usize> {
-    key: [u8; KEY_LEN],
+    pub key: [u8; KEY_LEN],
     rc: u32,
 }
 

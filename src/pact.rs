@@ -284,7 +284,16 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     fn child(&self, at_depth: usize, key: u8) -> Self {
-        dispatch!(self, variant, variant.child(at_depth, key))
+        match self.peek(at_depth) {
+            Peek::Fragment(byte) if byte == key => self.clone(),
+            Peek::Branch(children) if children.is_set(key) => self
+                .body
+                .child_table
+                .get(key)
+                .expect("child table should match child set")
+                .clone(),
+            _ => Empty::new().into(),
+        }
     }
 
     fn insert(&mut self, child: Self) -> Self {

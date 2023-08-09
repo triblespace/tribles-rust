@@ -4,14 +4,12 @@
 
 mod branch;
 mod bytecursor;
-mod empty;
 mod leaf;
 mod macros;
 mod paddingcursor;
 mod setops;
 
 use branch::*;
-use empty::*;
 use leaf::*;
 use macros::*;
 
@@ -22,13 +20,12 @@ use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;
 use siphasher::sip128::{Hasher128, SipHasher24};
-use std::any::type_name;
 use std::cmp::min;
 use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
-use std::mem::{transmute, MaybeUninit};
+use std::mem::transmute;
 use std::sync::Once;
 use triomphe::Arc;
 
@@ -102,72 +99,6 @@ impl<const KEY_LEN: usize> KeySegmentation<KEY_LEN> for SingleSegmentation {
     }
 }
 
-trait HeadVariant<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>:
-    Sized
-{
-    /// Returns a path byte fragment or all possible branch options
-    /// at the given depth.
-    fn peek(&self, at_depth: usize) -> Peek;
-
-    /// Return the child stored at the provided depth under the provided key.
-    /// Will return `self` when the fragment matches the key at the depth.
-    fn child(&self, at_depth: usize, key: u8) -> Head<KEY_LEN, O, S>;
-
-    /// Returns the number of leafs in the subtree under this node.
-    fn count(&self) -> u32;
-
-    /// Returns the number of segments in the subtree under this node.
-    fn count_segment(&self, at_depth: usize) -> u32;
-
-    /// Returns the xored sum of all hashes of leafs
-    //  in the subtree under this node.
-    fn hash(&self) -> u128;
-
-    fn with_start(&self, _new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-        panic!("`with_start` not supported by {}", type_name::<Self>());
-    }
-
-    fn insert(&mut self, _child: Head<KEY_LEN, O, S>) -> Head<KEY_LEN, O, S> {
-        panic!("`insert` not supported by {}", type_name::<Self>());
-    }
-
-    fn reinsert(&mut self, _child: Head<KEY_LEN, O, S>) -> Head<KEY_LEN, O, S> {
-        panic!("`reinsert` not supported by {}", type_name::<Self>());
-    }
-
-    fn grow(&self, key: u8) -> Head<KEY_LEN, O, S> {
-        panic!("`grow` not supported by {}", type_name::<Self>());
-    }
-
-    /// Stores the provided key in the node. This returns a new node
-    /// which may or may not share structure with the provided node.
-    fn put(&mut self, key: &SharedKey<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S>;
-
-    /// Enumerate the infixes given the provided key-prefix and infix range.
-    fn infixes<const INFIX_LEN: usize, F>(
-        &self,
-        key: [u8; KEY_LEN],
-        depth: usize,
-        start_depth: usize,
-        end_depth: usize,
-        f: F,
-        out: &mut Vec<[u8; INFIX_LEN]>,
-    ) where
-        F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN];
-
-    fn has_prefix(&self, depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool;
-
-    fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize;
-}
-
-#[derive(Debug)]
-#[repr(C)]
-struct Unknown {
-    tag: HeadTag,
-    key: u8,
-    ignore: [MaybeUninit<u8>; 6],
-}
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 enum HeadTag {
@@ -183,90 +114,173 @@ enum HeadTag {
 }
 
 #[repr(C)]
-pub union Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
-    unknown: ManuallyDrop<Unknown>,
-    empty: ManuallyDrop<Empty<KEY_LEN, O, S>>,
-    branch4: ManuallyDrop<Branch4<KEY_LEN, O, S>>,
-    branch8: ManuallyDrop<Branch8<KEY_LEN, O, S>>,
-    branch16: ManuallyDrop<Branch16<KEY_LEN, O, S>>,
-    branch32: ManuallyDrop<Branch32<KEY_LEN, O, S>>,
-    branch64: ManuallyDrop<Branch64<KEY_LEN, O, S>>,
-    branch128: ManuallyDrop<Branch128<KEY_LEN, O, S>>,
-    branch256: ManuallyDrop<Branch256<KEY_LEN, O, S>>,
-    leaf: ManuallyDrop<Leaf<KEY_LEN, O, S>>,
+pub struct Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+    tptr: u64,
+    key_ordering: PhantomData<O>,
+    key_segments: PhantomData<S>,
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> ByteEntry
-    for Head<KEY_LEN, O, S>
-{
-    fn zeroed() -> Self {
-        Empty::new().into()
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Head<KEY_LEN, O, S> {
+    pub fn empty() -> Self {
+        Self {
+            tptr: 0,
+            key_ordering: PhantomData,
+            key_segments: PhantomData
+        }
     }
 
-    fn key(&self) -> Option<u8> {
+    pub unsafe fn new<T>(tag: HeadTag, key: u8, ptr: *mut T) -> Self {
+        Self {
+            tptr: (ptr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
+                  | ((key as u64) << 48)
+                  | ((tag as u64) << 56),
+            key_ordering: PhantomData,
+            key_segments: PhantomData
+        }
+    }
+
+    pub fn tag(&self) -> HeadTag {
         unsafe {
-            if self.unknown.tag == HeadTag::Empty {
-                None
-            } else {
-                Some(self.unknown.key)
+            transmute((self.tptr >> 56) as u8)
+        }
+    }
+
+    pub fn key(&self) -> Option<u8> {
+        if self.tag() == HeadTag::Empty {
+            None
+        } else {
+            Some((self.tptr >> 48) as u8)
+        }
+    }
+
+    pub fn set_key(&mut self, key: u8) {
+        self.tptr = (self.tptr & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48);
+    }
+
+    pub unsafe fn ptr<T>(&self) -> *mut T {
+        (((self.tptr << 16 as usize) as isize) >> 16 as usize) as *mut T
+    }
+
+    // Node
+    fn count(&self) -> u64 {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => {
+                    0
+                }
+                HeadTag::Leaf => {
+                    1
+                }
+                HeadTag::Branch4 => {
+                    Branch4::count(self.ptr::<Branch4<KEY_LEN, O, S>>())
+                }
+                HeadTag::Branch8 => {
+                    Branch8::count(self.ptr::<Branch8<KEY_LEN, O, S>>())
+                }
+                HeadTag::Branch16 => {
+                    Branch16::count(self.ptr::<Branch16<KEY_LEN, O, S>>())
+                }
+                HeadTag::Branch32 => {
+                    Branch32::count(self.ptr::<Branch32<KEY_LEN, O, S>>())
+                }
+                HeadTag::Branch64 => {
+                    Branch64::count(self.ptr::<Branch64<KEY_LEN, O, S>>())
+                }
+                HeadTag::Branch128 => {
+                    Branch128::count(self.ptr::<Branch128<KEY_LEN, O, S>>())
+                }
+                HeadTag::Branch256 => {
+                    Branch256::count(self.ptr::<Branch256<KEY_LEN, O, S>>())
+                }
             }
         }
     }
-}
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> fmt::Debug
-    for Head<KEY_LEN, O, S>
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        dispatch!(self, variant, variant.fmt(f))
-    }
-}
-
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Clone
-    for Head<KEY_LEN, O, S>
-{
-    fn clone(&self) -> Self {
-        dispatch!(
-            self,
-            variant,
-            Head::from(ManuallyDrop::into_inner(variant.clone()))
-        )
-    }
-}
-
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Drop
-    for Head<KEY_LEN, O, S>
-{
-    fn drop(&mut self) {
-        dispatch_mut!(self, variant, ManuallyDrop::drop(variant))
-    }
-}
-
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Default
-    for Head<KEY_LEN, O, S>
-{
-    fn default() -> Self {
-        Empty::new().into()
-    }
-}
-
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
-    Head<KEY_LEN, O, S>
-{
-    fn count(&self) -> u32 {
-        dispatch!(self, variant, variant.count())
-    }
-
-    fn count_segment(&self, at_depth: usize) -> u32 {
-        dispatch!(self, variant, variant.count_segment(at_depth))
+    fn count_segment(&self, at_depth: usize) -> u64 {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => {
+                    0
+                }
+                HeadTag::Leaf => {
+                    1
+                }
+                HeadTag::Branch4 => {
+                    Branch4::count_segment(self.ptr::<Branch4<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch8 => {
+                    Branch8::count_segment(self.ptr::<Branch8<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch16 => {
+                    Branch16::count_segment(self.ptr::<Branch16<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::count_segment(self.ptr::<Branch32<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::count_segment(self.ptr::<Branch64<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch128 => {
+                    Branch128::count_segment(self.ptr::<Branch128<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::count_segment(self.ptr::<Branch256<KEY_LEN, O, S>>(), at_depth)
+                }
+            }
+        }
     }
 
     fn with_start(&self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-        dispatch!(self, variant, variant.with_start(new_start_depth))
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => {
+                    Self::empty()
+                }
+                _ => {
+                    if let Peek::Fragment(key) = self.peek(new_start_depth) {
+                        let mut clone = self.clone();
+                        clone.set_key(key);
+                        clone
+                    } else {
+                        panic!("bad new_start_depth!");
+                    }
+                }
+            }
+        }
     }
 
     fn peek(&self, at_depth: usize) -> Peek {
-        dispatch!(self, variant, variant.peek(at_depth))
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => {
+                    Peek::Branch(ByteBitset::new_empty())
+                }
+                HeadTag::Leaf => {
+                    Peek::Fragment(Leaf::peek::<O>(self.ptr::<Leaf<KEY_LEN>>(), at_depth))
+                }
+                HeadTag::Branch4 => {
+                    Branch4::peek(self.ptr::<Branch4<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch8 => {
+                    Branch8::peek(self.ptr::<Branch8<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch16 => {
+                    Branch16::peek(self.ptr::<Branch16<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::peek(self.ptr::<Branch32<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::peek(self.ptr::<Branch64<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch128 => {
+                    Branch128::peek(self.ptr::<Branch128<KEY_LEN, O, S>>(), at_depth)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::peek(self.ptr::<Branch256<KEY_LEN, O, S>>(), at_depth)
+                }
+            }
+        }
     }
 
     fn child(&self, at_depth: usize, key: u8) -> Self {
@@ -318,6 +332,60 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
     fn segmented_len(&self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {
         dispatch!(self, variant, variant.segmented_len(depth, key, start_depth))
+    }
+}
+
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> ByteEntry
+    for Head<KEY_LEN, O, S>
+{
+    fn zeroed() -> Self {
+        Self::empty()
+    }
+
+    fn key(&self) -> Option<u8> {
+        unsafe {
+            if self.tag() == HeadTag::Empty {
+                None
+            } else {
+                Some(self.key())
+            }
+        }
+    }
+}
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> fmt::Debug
+    for Head<KEY_LEN, O, S>
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        dispatch!(self, variant, variant.fmt(f))
+    }
+}
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Clone
+    for Head<KEY_LEN, O, S>
+{
+    fn clone(&self) -> Self {
+        dispatch!(
+            self,
+            variant,
+            Head::from(ManuallyDrop::into_inner(variant.clone()))
+        )
+    }
+}
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Drop
+    for Head<KEY_LEN, O, S>
+{
+    fn drop(&mut self) {
+        dispatch_mut!(self, variant, ManuallyDrop::drop(variant))
+    }
+}
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Default
+    for Head<KEY_LEN, O, S>
+{
+    fn default() -> Self {
+        Empty::new().into()
     }
 }
 
@@ -434,31 +502,31 @@ mod tests {
             64
         );
         assert_eq!(
-            mem::size_of::<BranchBody4<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch4<64, IdentityOrder, SingleSegmentation>>(),
             64 * 3
         );
         assert_eq!(
-            mem::size_of::<BranchBody8<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch8<64, IdentityOrder, SingleSegmentation>>(),
             64 * 4
         );
         assert_eq!(
-            mem::size_of::<BranchBody16<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch16<64, IdentityOrder, SingleSegmentation>>(),
             64 * 6
         );
         assert_eq!(
-            mem::size_of::<BranchBody32<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch32<64, IdentityOrder, SingleSegmentation>>(),
             64 * 10
         );
         assert_eq!(
-            mem::size_of::<BranchBody64<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch64<64, IdentityOrder, SingleSegmentation>>(),
             64 * 18
         );
         assert_eq!(
-            mem::size_of::<BranchBody128<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch128<64, IdentityOrder, SingleSegmentation>>(),
             64 * 34
         );
         assert_eq!(
-            mem::size_of::<BranchBody256<64, IdentityOrder, SingleSegmentation>>(),
+            mem::size_of::<Branch256<64, IdentityOrder, SingleSegmentation>>(),
             64 * 66
         );
     }

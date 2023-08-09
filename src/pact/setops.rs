@@ -1,12 +1,12 @@
 use super::*;
-
+/*
 fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
     at_depth: usize,
     unioned_nodes: &mut [Head<KEY_LEN, O, S>],
     prefix: &mut [u8; KEY_LEN],
 ) -> Head<KEY_LEN, O, S> {
     if 0 == unioned_nodes.len() {
-        return Head::from(Empty::new());
+        return Head::empty();
     }
     let first_node = &unioned_nodes[0];
     let first_node_hash = first_node.hash();
@@ -141,3 +141,4 @@ mod tests {
         */
     }
 }
+*/

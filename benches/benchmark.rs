@@ -2,8 +2,8 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use tribles::tribleset::hashtribleset::HashTribleSet;
 use tribles::trible::*;
+use tribles::tribleset::hashtribleset::HashTribleSet;
 use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use triomphe::Arc;

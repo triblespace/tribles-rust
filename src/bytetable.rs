@@ -115,7 +115,7 @@ fn compress_hash(bucket_count: u8, hash: u8) -> u8 {
 }
 
 macro_rules! create_grow {
-    ($name:ident,) => {}; 
+    ($name:ident,) => {};
     ($name:ident, $grown_name:ident) => {
         pub fn grow(&self) -> $grown_name<T> {
             let buckets_len = self.buckets.len();

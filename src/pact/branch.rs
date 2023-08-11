@@ -1,6 +1,21 @@
 use super::*;
 use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 
+fn min_key<const KEY_LEN: usize>(
+    l: *const Leaf<KEY_LEN>,
+    r: *const Leaf<KEY_LEN>,
+) -> *const Leaf<KEY_LEN> {
+    if l.is_null() {
+        return r;
+    }
+    if r.is_null() {
+        return l;
+    }
+    unsafe {
+        return if (*l).key < (*r).key { l } else { r };
+    }
+}
+
 macro_rules! create_branch {
     ($name:ident, $table:tt) => {
         #[derive(Clone, Debug)]
@@ -15,7 +30,7 @@ macro_rules! create_branch {
 
             rc: u32,
             end_depth: u32,
-            min: *mut Leaf<KEY_LEN>,
+            pub min: *const Leaf<KEY_LEN>,
             leaf_count: u64,
             segment_count: u64,
             hash: u128,
@@ -37,7 +52,7 @@ macro_rules! create_branch {
                     key_segments: PhantomData,
                     rc: 1,
                     end_depth: end_depth as u32,
-                    min: Head::empty(),
+                    min: std::ptr::null_mut(),
                     leaf_count: 0,
                     segment_count: 0,
                     hash: 0,
@@ -48,7 +63,54 @@ macro_rules! create_branch {
                 ptr
             }
 
-            
+            pub(super) fn rc_inc(node: *mut Self) -> *mut Self {
+                //TODO copy on overflow
+                unsafe {
+                    (*node).rc = (*node).rc + 1;
+                    node
+                }
+            }
+
+            pub(super) fn rc_dec(node: *mut Self) {
+                unsafe {
+                    if (*node).rc == 1 {
+                        let layout = Layout::new::<Self>();
+                        let ptr = node as *mut u8;
+                        dealloc(ptr, layout);
+                    } else {
+                        (*node).rc = (*node).rc - 1
+                    }
+                }
+            }
+
+            pub(super) fn rc_mut(node: *mut Self) -> *mut Self {
+                unsafe {
+                    if (*node).rc == 1 {
+                        node
+                    } else {
+                        let layout = Layout::new::<Self>();
+                        let ptr = alloc(layout) as *mut Self;
+                        if ptr.is_null() {
+                            panic!("Allocation failed!");
+                        }
+                        *ptr = Self {
+                            key_ordering: PhantomData,
+                            key_segments: PhantomData,
+                            rc: 1,
+                            end_depth: (*node).end_depth,
+                            min: (*node).min,
+                            leaf_count: (*node).leaf_count,
+                            segment_count: (*node).segment_count,
+                            hash: (*node).hash,
+                            child_set: (*node).child_set,
+                            child_table: (*node).child_table,
+                        };
+
+                        ptr
+                    }
+                }
+            }
+
             pub fn count(node: *const Self) -> u64 {
                 (*node).leaf_count
             }
@@ -66,6 +128,7 @@ macro_rules! create_branch {
             pub fn insert(node: *mut Self, child: Head<KEY_LEN, O, S>) -> Head<KEY_LEN, O, S> {
                 if let Some(byte_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
+                    (*node).min = min_key((*node).min, child.min());
                     (*node).child_set.set(byte_key);
                     (*node).leaf_count += child.count();
                     (*node).segment_count += child.count_segment(end_depth);
@@ -84,15 +147,12 @@ macro_rules! create_branch {
                 if at_depth == (*node).end_depth as usize {
                     Peek::Branch((*node).child_set)
                 } else {
-                    Peek::Fragment((*node).key[O::key_index(at_depth)])
+                    Peek::Fragment(Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth))
                 }
             }
 
             pub fn branch(node: *const Self, key: u8) -> Head<KEY_LEN, O, S> {
-                (*node).child_table
-                    .get(key)
-                    .expect("no such child")
-                    .clone()
+                (*node).child_table.get(key).expect("no such child").clone()
             }
 
             pub fn hash(node: *const Self) -> u128 {
@@ -100,10 +160,18 @@ macro_rules! create_branch {
             }
 
             pub fn with_start(node: *const Self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-                Head::new(HeadTag::$name, (*node).key[O::key_index(new_start_depth)], node.rc_inc())
+                Head::new(
+                    HeadTag::$name,
+                    (*node).key[O::key_index(new_start_depth)],
+                    node.rc_inc(),
+                )
             }
 
-            pub fn put(node: *mut Self, entry: &Entry<KEY_LEN>, start_depth: usize) -> Head<KEY_LEN, O, S> {
+            pub fn put(
+                node: *mut Self,
+                entry: &Entry<KEY_LEN>,
+                start_depth: usize,
+            ) -> Head<KEY_LEN, O, S> {
                 let mut depth = start_depth;
                 loop {
                     let key_byte = entry.peek::<O>(depth);
@@ -136,9 +204,10 @@ macro_rules! create_branch {
 
                             mutable.hash = (mutable.hash ^ old_child_hash) ^ new_child.hash();
 
-                            mutable.segment_count = (mutable.segment_count - old_child_segment_count)
+                            mutable.segment_count = (mutable.segment_count
+                                - old_child_segment_count)
                                 + new_child.count_segment(depth);
-                                mutable.leaf_count =
+                            mutable.leaf_count =
                                 (mutable.leaf_count - old_child_leaf_count) + new_child.count();
                             mutable.child_table.put(new_child);
 
@@ -211,7 +280,12 @@ macro_rules! create_branch {
                 }
             }
 
-            fn has_prefix(node: *const Self, at_depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+            fn has_prefix(
+                node: *const Self,
+                at_depth: usize,
+                key: [u8; KEY_LEN],
+                end_depth: usize,
+            ) -> bool {
                 let node_end_depth = ((*node).end_depth as usize);
                 for depth in at_depth..node_end_depth {
                     if end_depth < depth {
@@ -221,10 +295,19 @@ macro_rules! create_branch {
                         return false;
                     }
                 }
-                return Self::branch(node, key[node_end_depth]).has_prefix(node_end_depth, key, end_depth);
+                return Self::branch(node, key[node_end_depth]).has_prefix(
+                    node_end_depth,
+                    key,
+                    end_depth,
+                );
             }
 
-            fn segmented_len(node: *const Self, depth: usize, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+            fn segmented_len(
+                node: *const Self,
+                depth: usize,
+                key: [u8; KEY_LEN],
+                start_depth: usize,
+            ) -> usize {
                 let mut depth = depth;
                 loop {
                     if start_depth <= depth {
@@ -240,8 +323,11 @@ macro_rules! create_branch {
                         Peek::Fragment(byte) if byte == key[depth] => depth += 1,
                         Peek::Fragment(_) => return 0,
                         Peek::Branch(children) => {
-                            return Self::branch(node, key[depth])
-                                    .segmented_len(depth, key, start_depth);
+                            return Self::branch(node, key[depth]).segmented_len(
+                                depth,
+                                key,
+                                start_depth,
+                            );
                         }
                     }
                 }

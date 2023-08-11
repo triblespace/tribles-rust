@@ -1,4 +1,4 @@
-use crate::query::{query, Query, Variable};
+//use crate::query::{query, Query, Variable};
 
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
@@ -10,6 +10,7 @@ pub trait Factory {
 /*        lovedBy: UFOID => inv "328edd7583de04e2bedd6bd4fd50e651",
  */
 
+#[allow(unused_macros)]
 macro_rules! entities_inner {
     (@triple ($set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
         $set.add(&crate::trible::Trible::new(
@@ -37,14 +38,15 @@ macro_rules! entities_inner {
         }
     };
 }
-pub(crate) use entities_inner;
+//pub(crate) use entities_inner;
 
+#[allow(unused_macros)]
 macro_rules! pattern_inner {
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
             use crate::tribleset::TribleSet;
             let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
-            let v_var: $crate::query::Variable<base::types::$FieldName> = $ctx.next_variable();;
+            let v_var: $crate::query::Variable<base::types::$FieldName> = $ctx.next_variable();
             $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
             $constraints.push({ use $Namespace as base; let v: base::types::$FieldName = $Value; Box::new(v_var.is(v))});
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
@@ -96,7 +98,8 @@ macro_rules! pattern_inner {
         }
     };
 }
-pub(crate) use pattern_inner;
+
+//pub(crate) use pattern_inner;
 
 /*
 mod knights {
@@ -128,23 +131,25 @@ macro_rules! NS {
                 $(pub type $FieldName = $FieldType;)*
             }
 
-            pub(crate) use entities_inner;
-
             #[macro_export]
             macro_rules! entities {
                 ($vars:tt, $entities: tt) => {
-                    entities_inner!($mod_name, $vars, $entities)
+                    {
+                        use entities_inner;
+                        entities_inner!($mod_name, $vars, $entities)
+                    }
                 };
             }
 
             pub use entities;
 
-            pub(crate) use pattern_inner;
-
             #[macro_export]
             macro_rules! pattern {
                 ($ctx:ident, $set:expr, $pattern: tt) => {
-                    pattern_inner!($mod_name, $ctx, $set, $pattern)
+                    {
+                        use pattern_inner;
+                        pattern_inner!($mod_name, $ctx, $set, $pattern)
+                    }
                 };
             }
 

@@ -1,5 +1,7 @@
-use super::*;
 /*
+
+use super::*;
+
 pub trait ByteCursor {
     const LEN: usize;
 

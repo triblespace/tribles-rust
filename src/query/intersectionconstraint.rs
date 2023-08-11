@@ -49,6 +49,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
     }
 }
 
+#[macro_export]
 macro_rules! and {
     ($($c:expr),+ $(,)?) => (
         IntersectionConstraint::new(vec![
@@ -57,4 +58,4 @@ macro_rules! and {
     )
 }
 
-pub(crate) use and;
+pub use and;

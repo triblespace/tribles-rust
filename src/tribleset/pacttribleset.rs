@@ -3,12 +3,11 @@ mod pacttribleconstraint;
 use pacttribleconstraint::*;
 
 use crate::namespace::{Id, Value};
-use crate::pact::PACT;
+use crate::pact::{Entry, PACT};
 use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
 };
 use std::iter::FromIterator;
-use triomphe::Arc;
 
 use super::TribleSet;
 
@@ -23,6 +22,7 @@ pub struct PACTTribleSet {
 }
 
 impl PACTTribleSet {
+    /*
     pub fn union<I>(sets: I) -> PACTTribleSet
     where
         I: IntoIterator<Item = PACTTribleSet>,
@@ -45,6 +45,7 @@ impl PACTTribleSet {
             vae,
         }
     }
+    */
 
     pub fn new() -> PACTTribleSet {
         PACTTribleSet {
@@ -57,12 +58,12 @@ impl PACTTribleSet {
         }
     }
 
-    pub fn len(&self) -> u32 {
+    pub fn len(&self) -> u64 {
         return self.eav.len();
     }
 
     pub fn add(&mut self, trible: &Trible) {
-        let key = Arc::new(trible.data);
+        let key = Entry::new(&trible.data);
         self.eav.put(&key);
         self.eva.put(&key);
         self.aev.put(&key);

@@ -48,7 +48,7 @@ macro_rules! create_branch {
                     if ptr.is_null() {
                         panic!("Allocation failed!");
                     }
-                    *ptr = Self {
+                    std::ptr::write(ptr, Self {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
                         rc: 1,
@@ -59,7 +59,7 @@ macro_rules! create_branch {
                         hash: 0,
                         child_set: ByteBitset::new_empty(),
                         child_table: $table::new(),
-                    };
+                    });
 
                     ptr
                 }
@@ -85,17 +85,18 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) unsafe fn rc_mut(node: *mut Self) -> *mut Self {
+            pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S>) -> *mut Self {
                 unsafe {
+                    let node: *const Self = head.ptr();
                     if (*node).rc == 1 {
-                        node
+                        node as *mut Self
                     } else {
                         let layout = Layout::new::<Self>();
                         let ptr = alloc(layout) as *mut Self;
                         if ptr.is_null() {
                             panic!("Allocation failed!");
                         }
-                        *ptr = Self {
+                        std::ptr::write(ptr, Self {
                             key_ordering: PhantomData,
                             key_segments: PhantomData,
                             rc: 1,
@@ -106,7 +107,9 @@ macro_rules! create_branch {
                             hash: (*node).hash,
                             child_set: (*node).child_set,
                             child_table: (*node).child_table.clone(),
-                        };
+                        });
+
+                        *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
 
                         ptr
                     }
@@ -170,16 +173,17 @@ macro_rules! create_branch {
                 Head::new(
                     HeadTag::$name,
                     Leaf::<KEY_LEN>::peek::<O>((*node).min, new_start_depth),
-                    Self::rc_inc(node),
+                    node,
                 )
             }
 
             pub unsafe fn put(
-                node: *mut Self,
+                head: &mut Head<KEY_LEN, O, S>,
                 entry: &Entry<KEY_LEN>,
                 start_depth: usize,
-            ) -> Head<KEY_LEN, O, S> {
+            ) {
                 let mut depth = start_depth;
+                let node: *const Self = head.ptr();
                 loop {
                     let key_byte = entry.peek::<O>(depth);
                     match Self::peek(node, depth) {
@@ -190,53 +194,46 @@ macro_rules! create_branch {
 
                             let new_branch = Branch4::new(depth);
                             Branch4::insert(new_branch, entry.leaf(depth));
-                            Branch4::insert(new_branch, Self::with_start(node, depth));
+                            Branch4::insert(new_branch, head.with_start(depth));
 
-                            return Branch4::with_start(new_branch, start_depth);
+                            *head = Branch4::with_start(new_branch, start_depth);
+                            return;
                         }
                         Peek::Branch(children) if children.is_set(key_byte) => {
                             // We already have a child with the same byte as the key.
 
-                            let mutable = Self::rc_mut(node);
-                            let old_child = (*mutable)
+                            let inner = Self::rc_mut(head);
+                            let child = (*inner)
                                 .child_table
                                 .get_mut(key_byte)
                                 .expect("table content should match child set content");
-                            let old_child_hash = old_child.hash();
 
-                            let old_child_segment_count = old_child.count_segment(depth);
-                            let old_child_leaf_count = old_child.count();
+                            let old_child_hash = child.hash();
+                            let old_child_segment_count = child.count_segment(depth);
+                            let old_child_leaf_count = child.count();
 
-                            let new_child = old_child.put(entry, depth);
+                            child.put(entry, depth);
 
-                            (*mutable).hash = ((*mutable).hash ^ old_child_hash) ^ new_child.hash();
-
-                            (*mutable).segment_count = ((*mutable).segment_count
+                            (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
+                            (*inner).segment_count = ((*inner).segment_count
                                 - old_child_segment_count)
-                                + new_child.count_segment(depth);
-                            (*mutable).leaf_count =
-                                ((*mutable).leaf_count - old_child_leaf_count) + new_child.count();
-                            (*mutable).child_table.put(new_child);
+                                + child.count_segment(depth);
+                            (*inner).leaf_count =
+                                ((*inner).leaf_count - old_child_leaf_count) + child.count();
 
-                            return Self::with_start(mutable, start_depth);
+                            return;
                         }
                         Peek::Branch(_) => {
                             // We don't have a child with the byte of the key.
 
-                            let mutable = Self::rc_mut(node);
-                            let mut displaced = Self::insert(mutable, entry.leaf(depth));
-
-                            let mut new_head = Self::with_start(mutable, start_depth);
-
-                            if None == displaced.key() {
-                                return new_head;
-                            }
+                            let inner = Self::rc_mut(head);
+                            let mut displaced = Self::insert(inner, entry.leaf(depth));
 
                             while None != displaced.key() {
-                                new_head = new_head.grow();
-                                displaced = new_head.reinsert(displaced);
+                                head.grow();
+                                displaced = head.reinsert(displaced);
                             }
-                            return new_head;
+                            return;
                         }
                     }
                 }
@@ -359,14 +356,15 @@ macro_rules! create_grow {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            pub(super) fn grow(node: *const $name<KEY_LEN, O, S>, key: u8) -> Head<KEY_LEN, O, S> {
+            pub(super) fn grow(head: &mut Head<KEY_LEN, O, S>) {
                 unsafe {
+                    let node: *const Self = head.ptr();
                     let layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();
                     let ptr = alloc(layout) as *mut $grown_name<KEY_LEN, O, S>;
                     if ptr.is_null() {
                         panic!("Allocation failed!");
                     }
-                    *ptr = $grown_name::<KEY_LEN, O, S> {
+                    std::ptr::write(ptr, $grown_name::<KEY_LEN, O, S> {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
                         rc: 1,
@@ -377,9 +375,9 @@ macro_rules! create_grow {
                         hash: (*node).hash,
                         child_set: (*node).child_set,
                         child_table: (*node).child_table.grow(),
-                    };
+                    });
 
-                    Head::new(HeadTag::$grown_name, key, ptr)
+                    *head = Head::new(HeadTag::$grown_name, head.key().unwrap(), ptr);
                 }
             }
         }

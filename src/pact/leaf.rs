@@ -18,7 +18,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             if ptr.is_null() {
                 panic!("Allocation failed!");
             }
-            *ptr = Self { key: *key, rc: 1 };
+            std::ptr::write(ptr, Self { key: *key, rc: 1 });
 
             ptr
         }
@@ -70,21 +70,21 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     }
 
     pub(crate) unsafe fn put<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
-        node: *mut Self,
+        head: &mut Head<KEY_LEN, O, S>,
         entry: &Entry<KEY_LEN>,
         at_depth: usize,
-    ) -> Head<KEY_LEN, O, S> {
+    ) {
         unsafe {
+            let node: *const Self = head.ptr();
             for depth in at_depth..KEY_LEN {
                 if Self::peek::<O>(node, depth) != entry.peek::<O>(depth) {
                     let new_branch = Branch4::new(depth);
                     Branch4::insert(new_branch, entry.leaf(depth).into());
-                    Branch4::insert(new_branch, Self::with_start(node, depth));
+                    Branch4::insert(new_branch, head.with_start(depth));
 
-                    return Branch4::with_start(new_branch, at_depth);
+                    *head = Branch4::with_start(new_branch, at_depth);
                 }
             }
-            return Self::with_start(node, at_depth);
         }
     }
 

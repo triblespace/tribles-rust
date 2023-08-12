@@ -22,8 +22,8 @@ impl<const KEY_LEN: usize> Entry<KEY_LEN> {
         unsafe {
             Head::new(
                 HeadTag::Leaf,
-                (*self.ptr).key[O::key_index(start_depth)],
-                self.ptr,
+                Leaf::peek::<O>(self.ptr, start_depth),
+                Leaf::rc_inc(self.ptr),
             )
         }
     }

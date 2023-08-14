@@ -133,6 +133,7 @@ macro_rules! create_branch {
             pub unsafe fn insert(
                 node: *mut Self,
                 child: Head<KEY_LEN, O, S>,
+                child_hash: u128,
             ) -> Head<KEY_LEN, O, S> {
                 if let Some(byte_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
@@ -140,7 +141,7 @@ macro_rules! create_branch {
                     (*node).child_set.set(byte_key);
                     (*node).leaf_count += child.count();
                     (*node).segment_count += child.count_segment(end_depth);
-                    (*node).hash ^= child.hash();
+                    (*node).hash ^= child_hash;
                     (*node).child_table.put(child)
                 } else {
                     Head::empty()
@@ -193,8 +194,8 @@ macro_rules! create_branch {
                             // a branch at the discriminating depth.
 
                             let new_branch = Branch4::new(depth);
-                            Branch4::insert(new_branch, entry.leaf(depth));
-                            Branch4::insert(new_branch, head.with_start(depth));
+                            Branch4::insert(new_branch, entry.leaf(depth), entry.hash);
+                            Branch4::insert(new_branch, head.with_start(depth), head.hash());
 
                             *head = Branch4::with_start(new_branch, start_depth);
                             return;
@@ -227,7 +228,7 @@ macro_rules! create_branch {
                             // We don't have a child with the byte of the key.
 
                             let inner = Self::rc_mut(head);
-                            let mut displaced = Self::insert(inner, entry.leaf(depth));
+                            let mut displaced = Self::insert(inner, entry.leaf(depth), entry.hash);
 
                             while None != displaced.key() {
                                 head.grow();

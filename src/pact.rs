@@ -244,18 +244,18 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn insert(&mut self, child: Self) -> Self {
+    pub(crate) fn insert(&mut self, child: Self, hash: u128) -> Self {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => panic!("insert on empty"),
                 HeadTag::Leaf => panic!("insert on leaf"),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::insert(self.ptr(), child),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::insert(self.ptr(), child),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::insert(self.ptr(), child),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::insert(self.ptr(), child),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::insert(self.ptr(), child),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::insert(self.ptr(), child),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::insert(self.ptr(), child),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
             }
         }
     }
@@ -296,7 +296,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         unsafe {
             match self.tag() {
                 HeadTag::Empty => 0,
-                HeadTag::Leaf => Leaf::hash::<O>(self.ptr()),
+                HeadTag::Leaf => Leaf::<KEY_LEN>::hash(self.ptr()),
                 HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).hash,
                 HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).hash,
                 HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).hash,

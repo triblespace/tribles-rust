@@ -30,8 +30,6 @@ static INIT: Once = Once::new();
 
 pub fn init() {
     INIT.call_once(|| {
-        bytetable::init();
-
         let mut rng = thread_rng();
         unsafe {
             rng.fill_bytes(&mut SIP_KEY[..]);

@@ -169,14 +169,14 @@ NS! {
     }
 }
 
-//#[cfg(test)]
+#[cfg(test)]
 mod tests {
     use crate::query;
 
     use super::knights;
     use std::convert::TryInto;
 
-    //#[test]
+    #[test]
     fn ns_entities() {
         println!(
             "{:?}",
@@ -198,7 +198,7 @@ mod tests {
         );
     }
 
-    //#[test]
+    #[test]
     fn ns_pattern() {
         let juliet = knights::Id::new();
         let kb = knights::entities!((romeo),

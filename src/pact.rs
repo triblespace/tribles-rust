@@ -785,6 +785,7 @@ mod tests {
                 tree.put(&entry);
                 set.insert(key);
             }
+            
             prop_assert_eq!(set.len() as u64, tree.len())
         }
 

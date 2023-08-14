@@ -8,7 +8,7 @@ use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use triomphe::Arc;
 
-use tribles::pact::{self, IdentityOrder};
+use tribles::pact::{self, IdentityOrder, Entry};
 use tribles::pact::{SingleSegmentation, PACT};
 use tribles::tribleset::pacttribleset::PACTTribleSet;
 
@@ -115,7 +115,8 @@ fn pact_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in black_box(&samples) {
-                    pact.put(&Arc::new(t.data));
+                    let entry: Entry<64> = Entry::new(&t.data);
+                    pact.put(&entry);
                 }
             })
         });
@@ -123,12 +124,14 @@ fn pact_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
             for t in black_box(&samples) {
-                pact.put(&Arc::new(t.data));
+                let entry: Entry<64> = Entry::new(&t.data);
+                pact.put(&entry);
             }
             b.iter(|| pact.infixes([0; 64], 0, 63, |x| x))
         });
     }
 
+    /*
     let total_unioned = 1000000;
     for i in [1, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
@@ -144,6 +147,7 @@ fn pact_benchmark(c: &mut Criterion) {
             b.iter(|| PACT::union(black_box(pacts.clone())));
         });
     }
+    */
 
     group.finish();
 }
@@ -179,6 +183,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         });
     }
 
+    /*
     let total_unioned = 1000000;
     for i in [1, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
@@ -194,7 +199,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             b.iter(|| PACTTribleSet::union(black_box(sets.clone())));
         });
     }
-
+    */
     group.finish();
 }
 

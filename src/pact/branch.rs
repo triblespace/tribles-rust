@@ -1,5 +1,6 @@
 use super::*;
-use std::alloc::{alloc, dealloc, Layout};
+use std::alloc::{Allocator, Global, Layout};
+use std::ptr::NonNull;
 
 fn min_key<const KEY_LEN: usize>(
     l: *const Leaf<KEY_LEN>,
@@ -44,10 +45,8 @@ macro_rules! create_branch {
             pub(super) fn new(end_depth: usize) -> *mut Self {
                 unsafe {
                     let layout = Layout::new::<Self>();
-                    let ptr = alloc(layout) as *mut Self;
-                    if ptr.is_null() {
-                        panic!("Allocation failed!");
-                    }
+                    let ptr = Global.allocate(layout).unwrap().as_ptr() as *mut Self;
+
                     std::ptr::write(ptr, Self {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
@@ -78,7 +77,7 @@ macro_rules! create_branch {
                     if (*node).rc == 1 {
                         let layout = Layout::new::<Self>();
                         let ptr = node as *mut u8;
-                        dealloc(ptr, layout);
+                        Global.deallocate(NonNull::new(ptr).unwrap(), layout);
                     } else {
                         (*node).rc = (*node).rc - 1
                     }
@@ -92,10 +91,8 @@ macro_rules! create_branch {
                         node as *mut Self
                     } else {
                         let layout = Layout::new::<Self>();
-                        let ptr = alloc(layout) as *mut Self;
-                        if ptr.is_null() {
-                            panic!("Allocation failed!");
-                        }
+                        let ptr = Global.allocate(layout).unwrap().as_ptr() as *mut Self;
+
                         std::ptr::write(ptr, Self {
                             key_ordering: PhantomData,
                             key_segments: PhantomData,
@@ -360,25 +357,35 @@ macro_rules! create_grow {
             pub(super) fn grow(head: &mut Head<KEY_LEN, O, S>) {
                 unsafe {
                     let node: *const Self = head.ptr();
-                    let layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();
-                    let ptr = alloc(layout) as *mut $grown_name<KEY_LEN, O, S>;
-                    if ptr.is_null() {
-                        panic!("Allocation failed!");
+                    if (*node).rc == 1 {
+                        let key = head.key().unwrap();
+                        let node: *mut Self = head.ptr();
+                        let old_layout = Layout::new::<$name<KEY_LEN, O, S>>();
+                        let new_layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();
+                        let ptr = Global.grow_zeroed(NonNull::new(node as *mut u8).unwrap(), old_layout, new_layout).unwrap().as_ptr() as *mut $grown_name<KEY_LEN, O, S>;
+                        
+                        (*ptr).child_table.grow_repair();
+    
+                        std::ptr::write(head, Head::new(HeadTag::$grown_name, key, ptr));
+                    } else {
+                        let node: *const Self = head.ptr();
+                        let layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();
+                        let ptr = Global.allocate(layout).unwrap().as_ptr() as *mut $grown_name<KEY_LEN, O, S>;
+                        std::ptr::write(ptr, $grown_name::<KEY_LEN, O, S> {
+                            key_ordering: PhantomData,
+                            key_segments: PhantomData,
+                            rc: 1,
+                            end_depth: (*node).end_depth,
+                            leaf_count: (*node).leaf_count,
+                            segment_count: (*node).segment_count,
+                            min: (*node).min,
+                            hash: (*node).hash,
+                            child_set: (*node).child_set,
+                            child_table: (*node).child_table.grow(),
+                        });
+    
+                        *head = Head::new(HeadTag::$grown_name, head.key().unwrap(), ptr);
                     }
-                    std::ptr::write(ptr, $grown_name::<KEY_LEN, O, S> {
-                        key_ordering: PhantomData,
-                        key_segments: PhantomData,
-                        rc: 1,
-                        end_depth: (*node).end_depth,
-                        leaf_count: (*node).leaf_count,
-                        segment_count: (*node).segment_count,
-                        min: (*node).min,
-                        hash: (*node).hash,
-                        child_set: (*node).child_set,
-                        child_table: (*node).child_table.grow(),
-                    });
-
-                    *head = Head::new(HeadTag::$grown_name, head.key().unwrap(), ptr);
                 }
             }
         }

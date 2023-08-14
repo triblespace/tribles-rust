@@ -115,7 +115,25 @@ fn compress_hash(bucket_count: u8, hash: u8) -> u8 {
 }
 
 macro_rules! create_grow {
-    ($name:ident,) => {};
+    ($name:ident,) => {
+        pub fn grow_repair(&mut self) {
+            let grown_buckets_len = self.buckets.len() as u8;
+            let buckets_len = self.buckets.len() / 2;
+            let (lower_portion, upper_portion) = self.buckets.split_at_mut(buckets_len);
+            for bucket_index in 0..buckets_len {
+                for entry in &mut lower_portion[bucket_index].entries {
+                    if let Some(byte_key) = entry.key() {
+                        let ideal_index = compress_hash(grown_buckets_len, ideal_hash(byte_key));
+                        let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
+
+                        if bucket_index as u8 != ideal_index && bucket_index as u8 != rand_index {
+                            std::mem::swap(upper_portion[bucket_index].find_empty().unwrap(), entry);
+                        }
+                    }
+                }
+            }
+        }
+    };
     ($name:ident, $grown_name:ident) => {
         pub fn grow(&self) -> $grown_name<T> {
             let buckets_len = self.buckets.len();
@@ -137,6 +155,24 @@ macro_rules! create_grow {
                 }
             }
             return grown;
+        }
+
+        pub fn grow_repair(&mut self) {
+            let grown_buckets_len = self.buckets.len() as u8;
+            let buckets_len = self.buckets.len() / 2;
+            let (lower_portion, upper_portion) = self.buckets.split_at_mut(buckets_len);
+            for bucket_index in 0..buckets_len {
+                for entry in &mut lower_portion[bucket_index].entries {
+                    if let Some(byte_key) = entry.key() {
+                        let ideal_index = compress_hash(grown_buckets_len, ideal_hash(byte_key));
+                        let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
+
+                        if bucket_index as u8 != ideal_index && bucket_index as u8 != rand_index {
+                            std::mem::swap(upper_portion[bucket_index].find_empty().unwrap(), entry);
+                        }
+                    }
+                }
+            }
         }
     };
 }

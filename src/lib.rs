@@ -1,3 +1,5 @@
+#![feature(allocator_api)]
+
 pub mod bitset;
 pub mod bytetable;
 pub mod namespace;

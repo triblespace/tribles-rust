@@ -185,60 +185,46 @@ macro_rules! create_branch {
                 entry: &Entry<KEY_LEN>,
                 start_depth: usize,
             ) {
-                let mut depth = start_depth;
+
                 let node: *const Self = head.ptr();
-                loop {
-                    let key_byte = entry.peek::<O>(depth);
-                    match Self::peek(node, depth) {
-                        Peek::Fragment(byte) if byte == key_byte => depth += 1,
-                        Peek::Fragment(_) => {
-                            // The key diverged from what we already have, so we need to introduce
-                            // a branch at the discriminating depth.
+                let end_depth = (*node).end_depth as usize;
 
-                            let new_branch = Branch4::new(depth);
-                            Branch4::insert(new_branch, entry.leaf(depth), entry.hash);
-                            Branch4::insert(new_branch, head.with_start(depth), head.hash());
+                for depth in start_depth..end_depth {
+                    if Leaf::peek::<O>((*node).min, depth) != entry.peek::<O>(depth) {
+                        let new_branch = Branch4::new(depth);
+                        Branch4::insert(new_branch, entry.leaf(depth), entry.hash);
+                        Branch4::insert(new_branch, head.with_start(depth), head.hash());
 
-                            *head = Branch4::with_start(new_branch, start_depth);
-                            return;
-                        }
-                        Peek::Branch(children) if children.is_set(key_byte) => {
-                            // We already have a child with the same byte as the key.
-
-                            let inner = Self::rc_mut(head);
-                            let child = (*inner)
-                                .child_table
-                                .get_mut(key_byte)
-                                .expect("table content should match child set content");
-
-                            let old_child_hash = child.hash();
-                            let old_child_segment_count = child.count_segment(depth);
-                            let old_child_leaf_count = child.count();
-
-                            child.put(entry, depth);
-
-                            (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
-                            (*inner).segment_count = ((*inner).segment_count
-                                - old_child_segment_count)
-                                + child.count_segment(depth);
-                            (*inner).leaf_count =
-                                ((*inner).leaf_count - old_child_leaf_count) + child.count();
-
-                            return;
-                        }
-                        Peek::Branch(_) => {
-                            // We don't have a child with the byte of the key.
-
-                            let inner = Self::rc_mut(head);
-                            let mut displaced = Self::insert(inner, entry.leaf(depth), entry.hash);
-
-                            while None != displaced.key() {
-                                head.grow();
-                                displaced = head.reinsert(displaced);
-                            }
-                            return;
-                        }
+                        *head = Branch4::with_start(new_branch, start_depth);
+                        return;
                     }
+                }
+
+                let inner = Self::rc_mut(head);
+
+                if let Some(child) = (*inner).child_table.get_mut(entry.peek::<O>(end_depth)) {
+                    let old_child_hash = child.hash();
+                    let old_child_segment_count = child.count_segment(end_depth);
+                    let old_child_leaf_count = child.count();
+
+                    child.put(entry, end_depth);
+
+                    (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
+                    (*inner).segment_count = ((*inner).segment_count
+                        - old_child_segment_count)
+                        + child.count_segment(end_depth);
+                    (*inner).leaf_count =
+                        ((*inner).leaf_count - old_child_leaf_count) + child.count();
+
+                    return;
+                } else {
+                    let mut displaced = Self::insert(inner, entry.leaf(end_depth), entry.hash);
+
+                    while None != displaced.key() {
+                        head.grow();
+                        displaced = head.reinsert(displaced);
+                    }
+                    return;
                 }
             }
 
@@ -259,7 +245,7 @@ macro_rules! create_branch {
                             out.push(f((*(*node).min).key));
                         } else {
                             for child in (*node).child_set {
-                                Self::branch(node, child).infixes(
+                                (*node).child_table.get(child).unwrap().infixes(
                                     key,
                                     depth,
                                     start_depth,
@@ -276,7 +262,7 @@ macro_rules! create_branch {
                     }
                 }
                 for child in (*node).child_set {
-                    Self::branch(node, child).infixes(
+                    (*node).child_table.get(child).unwrap().infixes(
                         key,
                         (*node).end_depth as usize,
                         start_depth,
@@ -302,11 +288,14 @@ macro_rules! create_branch {
                         return false;
                     }
                 }
-                return Self::branch(node, key[node_end_depth]).has_prefix(
-                    node_end_depth,
-                    key,
-                    end_depth,
-                );
+                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                    return child.has_prefix(
+                        node_end_depth,
+                        key,
+                        end_depth,
+                    );
+                }
+                return false;
             }
 
             pub(super) unsafe fn segmented_len(

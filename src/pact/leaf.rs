@@ -34,7 +34,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             let mut current = (*node).rc.load(Relaxed);
             loop {
                 if current == u32::MAX {
-                    return Self::new(&(*node).key);
+                    panic!("max refcount exceeded");
                 }
                 match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
                     Ok(_) => return node,

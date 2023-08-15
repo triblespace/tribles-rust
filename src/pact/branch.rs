@@ -10,12 +10,7 @@ fn min_key<const KEY_LEN: usize>(
     if l.is_null() {
         return r;
     }
-    if r.is_null() {
-        return l;
-    }
-    unsafe {
-        return if (*l).key < (*r).key { l } else { r };
-    }
+    return l;
 }
 
 macro_rules! create_branch {
@@ -72,23 +67,7 @@ macro_rules! create_branch {
                     let mut current = (*node).rc.load(Relaxed);
                     loop {
                         if current == u32::MAX {
-                            let layout = Layout::new::<Self>();
-                            let ptr = alloc(layout) as *mut Self;
-                            if ptr.is_null() {
-                                panic!("Allocation failed!");
-                            }
-                            std::ptr::write(ptr, Self {
-                                key_ordering: PhantomData,
-                                key_segments: PhantomData,
-                                rc: atomic::AtomicU32::new(1),
-                                end_depth: (*node).end_depth,
-                                min: (*node).min,
-                                leaf_count: (*node).leaf_count,
-                                segment_count: (*node).segment_count,
-                                hash: (*node).hash,
-                                child_set: (*node).child_set,
-                                child_table: (*node).child_table.clone(),
-                            });
+                            panic!("max refcount exceeded");
                         }
                         match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
                             Ok(_) => return node,

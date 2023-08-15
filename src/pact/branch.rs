@@ -3,7 +3,7 @@ use std::alloc::{alloc, dealloc, Layout};
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 
-fn min_key<const KEY_LEN: usize>(
+fn min_key<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>>(
     l: *const Leaf<KEY_LEN>,
     r: *const Leaf<KEY_LEN>,
 ) -> *const Leaf<KEY_LEN> {
@@ -14,7 +14,7 @@ fn min_key<const KEY_LEN: usize>(
         return l;
     }
     unsafe {
-        return if (*l).key < (*r).key { l } else { r };
+        return if O::tree_ordered(&(*l).key) < O::tree_ordered(&(*r).key) { l } else { r };
     }
 }
 
@@ -55,7 +55,7 @@ macro_rules! create_branch {
                         key_segments: PhantomData,
                         rc: atomic::AtomicU32::new(1),
                         end_depth: end_depth as u32,
-                        min: std::ptr::null_mut(),
+                        min: std::ptr::null(),
                         leaf_count: 0,
                         segment_count: 0,
                         hash: 0,
@@ -82,13 +82,17 @@ macro_rules! create_branch {
                                 key_segments: PhantomData,
                                 rc: atomic::AtomicU32::new(1),
                                 end_depth: (*node).end_depth,
-                                min: (*node).min,
+                                min: std::ptr::null(),
                                 leaf_count: (*node).leaf_count,
                                 segment_count: (*node).segment_count,
                                 hash: (*node).hash,
                                 child_set: (*node).child_set,
                                 child_table: (*node).child_table.clone(),
                             });
+
+                            Self::reset_min(ptr);
+
+                            return ptr;
                         }
                         match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
                             Ok(_) => return node,
@@ -125,7 +129,7 @@ macro_rules! create_branch {
                             key_segments: PhantomData,
                             rc: atomic::AtomicU32::new(1),
                             end_depth: (*node).end_depth,
-                            min: (*node).min,
+                            min: std::ptr::null(),
                             leaf_count: (*node).leaf_count,
                             segment_count: (*node).segment_count,
                             hash: (*node).hash,
@@ -133,10 +137,17 @@ macro_rules! create_branch {
                             child_table: (*node).child_table.clone(),
                         });
 
+                        Self::reset_min(ptr);
+
                         *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
                     }
                     head.ptr()
                 }
+            }
+
+            pub unsafe fn reset_min(node: *mut Self) {
+                let min_key = (*node).child_set.find_first_set().expect("must have childen");
+                (*node).min = (*node).child_table.get(min_key).expect("min_key child must exist").min();
             }
 
             pub unsafe fn count(node: *const Self) -> u64 {
@@ -160,7 +171,7 @@ macro_rules! create_branch {
             ) -> Head<KEY_LEN, O, S> {
                 if let Some(byte_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
-                    (*node).min = min_key((*node).min, child.min());
+                    (*node).min = std::ptr::null();
                     (*node).child_set.set(byte_key);
                     (*node).leaf_count += child.count();
                     (*node).segment_count += child.count_segment(end_depth);
@@ -220,6 +231,8 @@ macro_rules! create_branch {
                             Branch4::insert(new_branch, entry.leaf(depth), entry.hash);
                             Branch4::insert(new_branch, head.with_start(depth), head.hash());
 
+                            Branch4::reset_min(new_branch);
+
                             *head = Branch4::with_start(new_branch, start_depth);
                             return;
                         }
@@ -257,6 +270,7 @@ macro_rules! create_branch {
                                 head.grow();
                                 displaced = head.reinsert(displaced);
                             }
+                            head.reset_min();
                             return;
                         }
                     }
@@ -395,7 +409,7 @@ macro_rules! create_grow {
                         end_depth: (*node).end_depth,
                         leaf_count: (*node).leaf_count,
                         segment_count: (*node).segment_count,
-                        min: (*node).min,
+                        min: std::ptr::null(),
                         hash: (*node).hash,
                         child_set: (*node).child_set,
                         child_table: (*node).child_table.grow(),

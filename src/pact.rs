@@ -204,6 +204,22 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    pub(crate) fn reset_min(&self) {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("no min on empty"),
+                HeadTag::Leaf => panic!("no min on leaf"),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::reset_min(self.ptr()),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::reset_min(self.ptr()),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::reset_min(self.ptr()),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::reset_min(self.ptr()),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::reset_min(self.ptr()),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::reset_min(self.ptr()),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::reset_min(self.ptr()),
+            }
+        }
+    }
+
     pub(crate) fn peek(&self, at_depth: usize) -> Peek {
         unsafe {
             match self.tag() {

@@ -144,7 +144,7 @@ macro_rules! create_grow {
 macro_rules! create_bytetable {
     ($name:ident, $size:expr, $($grown_name:ident)?) => {
         #[derive(Clone, Debug)]
-        #[repr(align(32))]
+        #[repr(transparent)]
         pub struct $name<T: ByteEntry + Clone + Debug> {
             pub buckets: [ByteBucket<T>; $size],
         }

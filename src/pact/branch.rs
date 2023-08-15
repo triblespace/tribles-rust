@@ -1,5 +1,7 @@
 use super::*;
 use std::alloc::{alloc, dealloc, Layout};
+use core::sync::atomic;
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 
 fn min_key<const KEY_LEN: usize>(
     l: *const Leaf<KEY_LEN>,
@@ -18,7 +20,7 @@ fn min_key<const KEY_LEN: usize>(
 
 macro_rules! create_branch {
     ($name:ident, $table:tt) => {
-        #[derive(Clone, Debug)]
+        #[derive(Debug)]
         #[repr(C)]
         pub(super) struct $name<
             const KEY_LEN: usize,
@@ -28,7 +30,7 @@ macro_rules! create_branch {
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
 
-            rc: u32,
+            rc: atomic::AtomicU32,
             pub end_depth: u32,
             pub min: *const Leaf<KEY_LEN>,
             pub leaf_count: u64,
@@ -51,7 +53,7 @@ macro_rules! create_branch {
                     std::ptr::write(ptr, Self {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
-                        rc: 1,
+                        rc: atomic::AtomicU32::new(1),
                         end_depth: end_depth as u32,
                         min: std::ptr::null_mut(),
                         leaf_count: 0,
@@ -66,31 +68,53 @@ macro_rules! create_branch {
             }
 
             pub(super) unsafe fn rc_inc(node: *mut Self) -> *mut Self {
-                //TODO copy on overflow
                 unsafe {
-                    (*node).rc = (*node).rc + 1;
-                    node
+                    let mut current = (*node).rc.load(Relaxed);
+                    loop {
+                        if current == u32::MAX {
+                            let layout = Layout::new::<Self>();
+                            let ptr = alloc(layout) as *mut Self;
+                            if ptr.is_null() {
+                                panic!("Allocation failed!");
+                            }
+                            std::ptr::write(ptr, Self {
+                                key_ordering: PhantomData,
+                                key_segments: PhantomData,
+                                rc: atomic::AtomicU32::new(1),
+                                end_depth: (*node).end_depth,
+                                min: (*node).min,
+                                leaf_count: (*node).leaf_count,
+                                segment_count: (*node).segment_count,
+                                hash: (*node).hash,
+                                child_set: (*node).child_set,
+                                child_table: (*node).child_table.clone(),
+                            });
+                        }
+                        match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
+                            Ok(_) => return node,
+                            Err(v) => current = v,
+                        }
+                    }
                 }
             }
 
             pub(super) unsafe fn rc_dec(node: *mut Self) {
                 unsafe {
-                    if (*node).rc == 1 {
-                        let layout = Layout::new::<Self>();
-                        let ptr = node as *mut u8;
-                        dealloc(ptr, layout);
-                    } else {
-                        (*node).rc = (*node).rc - 1
+                    if (*node).rc.fetch_sub(1, Release) != 1 {
+                        return;
                     }
+                    (*node).rc.load(Acquire);
+        
+                    let layout = Layout::new::<Self>();
+                    let ptr = node as *mut u8;
+                    dealloc(ptr, layout);
                 }
             }
 
             pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S>) -> *mut Self {
                 unsafe {
                     let node: *const Self = head.ptr();
-                    if (*node).rc == 1 {
-                        node as *mut Self
-                    } else {
+                    if (*node).rc.load(Acquire) != 1 {
                         let layout = Layout::new::<Self>();
                         let ptr = alloc(layout) as *mut Self;
                         if ptr.is_null() {
@@ -99,7 +123,7 @@ macro_rules! create_branch {
                         std::ptr::write(ptr, Self {
                             key_ordering: PhantomData,
                             key_segments: PhantomData,
-                            rc: 1,
+                            rc: atomic::AtomicU32::new(1),
                             end_depth: (*node).end_depth,
                             min: (*node).min,
                             leaf_count: (*node).leaf_count,
@@ -110,9 +134,8 @@ macro_rules! create_branch {
                         });
 
                         *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
-
-                        ptr
                     }
+                    head.ptr()
                 }
             }
 
@@ -368,7 +391,7 @@ macro_rules! create_grow {
                     std::ptr::write(ptr, $grown_name::<KEY_LEN, O, S> {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
-                        rc: 1,
+                        rc: atomic::AtomicU32::new(1),
                         end_depth: (*node).end_depth,
                         leaf_count: (*node).leaf_count,
                         segment_count: (*node).segment_count,

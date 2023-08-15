@@ -6,14 +6,14 @@ use std::mem;
 use std::sync::Once;
 
 /// The number of slots per bucket.
-const BUCKET_ENTRY_COUNT: usize = 4;
+const BUCKET_ENTRY_COUNT: usize = 2;
 
 /// The maximum number of buckets per table.
 const MAX_BUCKET_COUNT: usize = 256 / BUCKET_ENTRY_COUNT;
 
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
-const MAX_RETRIES: usize = 4;
+const MAX_RETRIES: usize = 8;
 
 static mut RAND: u8 = 4; // Choosen by fair dice roll.
 static mut RANDOM_PERMUTATION_RAND: [u8; 256] = [0; 256];
@@ -102,7 +102,7 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 }
 
 fn ideal_hash(byte_key: u8) -> u8 {
-    byte_key.reverse_bits()
+    byte_key
 }
 
 fn rand_hash(byte_key: u8) -> u8 {
@@ -275,13 +275,14 @@ macro_rules! create_bytetable {
     };
 }
 
-create_bytetable!(ByteTable4, 1, ByteTable8);
-create_bytetable!(ByteTable8, 2, ByteTable16);
-create_bytetable!(ByteTable16, 4, ByteTable32);
-create_bytetable!(ByteTable32, 8, ByteTable64);
-create_bytetable!(ByteTable64, 16, ByteTable128);
-create_bytetable!(ByteTable128, 32, ByteTable256);
-create_bytetable!(ByteTable256, 64,);
+create_bytetable!(ByteTable2, 1, ByteTable4);
+create_bytetable!(ByteTable4, 2, ByteTable8);
+create_bytetable!(ByteTable8, 4, ByteTable16);
+create_bytetable!(ByteTable16, 8, ByteTable32);
+create_bytetable!(ByteTable32, 16, ByteTable64);
+create_bytetable!(ByteTable64, 32, ByteTable128);
+create_bytetable!(ByteTable128, 64, ByteTable256);
+create_bytetable!(ByteTable256, 128,);
 
 #[cfg(test)]
 mod tests {
@@ -379,7 +380,8 @@ mod tests {
                 };
             }
 
-            let mut table4: ByteTable4<DummyEntry> = ByteTable4::new();
+            let mut table2= ByteTable2::<DummyEntry>::new();
+            put_step!(table2, table4);
             put_step!(table4, table8);
             put_step!(table8, table16);
             put_step!(table16, table32);

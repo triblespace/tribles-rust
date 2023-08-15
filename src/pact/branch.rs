@@ -193,11 +193,11 @@ macro_rules! create_branch {
                             // The key diverged from what we already have, so we need to introduce
                             // a branch at the discriminating depth.
 
-                            let new_branch = Branch4::new(depth);
-                            Branch4::insert(new_branch, entry.leaf(depth), entry.hash);
-                            Branch4::insert(new_branch, head.with_start(depth), head.hash());
+                            let new_branch = Branch2::new(depth);
+                            Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
+                            Branch2::insert(new_branch, head.with_start(depth), head.hash());
 
-                            *head = Branch4::with_start(new_branch, start_depth);
+                            *head = Branch2::with_start(new_branch, start_depth);
                             return;
                         }
                         Peek::Branch(children) if children.is_set(key_byte) => {
@@ -343,6 +343,7 @@ macro_rules! create_branch {
     };
 }
 
+create_branch!(Branch2, ByteTable2);
 create_branch!(Branch4, ByteTable4);
 create_branch!(Branch8, ByteTable8);
 create_branch!(Branch16, ByteTable16);
@@ -385,6 +386,7 @@ macro_rules! create_grow {
     };
 }
 
+create_grow!(Branch2, Branch4);
 create_grow!(Branch4, Branch8);
 create_grow!(Branch8, Branch16);
 create_grow!(Branch16, Branch32);

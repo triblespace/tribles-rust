@@ -182,6 +182,7 @@ macro_rules! create_bytetable {
                 }
             }
 
+            /// An entry with the same key must not exist in the table yet.
             pub fn put(&mut self, entry: T) -> T {
                 if let Some(mut byte_key) = entry.key() {
                     let max_grown = $size == MAX_BUCKET_COUNT;
@@ -232,14 +233,6 @@ macro_rules! create_bytetable {
             }
 
             create_grow!($name, $($grown_name)?);
-
-            /*
-                // Contract: Key looked up must exist. Ensure with has.
-                unsafe fn get_existing(&self, byte_key: u8) -> Self::Entry;
-
-                // Contract: Key looked up must exist. Ensure with has.
-                unsafe fn put_existing(&mut self, entry: T);
-            */
 
             pub fn keys(&self) -> ByteBitset {
                 let mut bitset = ByteBitset::new_empty();

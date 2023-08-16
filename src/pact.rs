@@ -760,39 +760,43 @@ mod tests {
         tree.put(&entry);
     }
 
-    //#[test]
+    #[test]
     fn branch_size() {
         assert_eq!(
-            mem::size_of::<ByteTable4<Head<64, IdentityOrder, SingleSegmentation>>>(),
+            mem::size_of::<ByteTable2<Head<64, IdentityOrder, SingleSegmentation>>>(),
+            16
+        );
+        assert_eq!(
+            mem::size_of::<Branch2<64, IdentityOrder, SingleSegmentation>>(),
             64
         );
         assert_eq!(
             mem::size_of::<Branch4<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 3
+            48 + 16 * 2
         );
         assert_eq!(
             mem::size_of::<Branch8<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 4
+            48 + 16 * 4
         );
         assert_eq!(
             mem::size_of::<Branch16<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 6
+            48 + 16 * 8
         );
         assert_eq!(
             mem::size_of::<Branch32<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 10
+            48 + 16 * 16
         );
         assert_eq!(
             mem::size_of::<Branch64<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 18
+            48 + 16 * 32
         );
         assert_eq!(
             mem::size_of::<Branch128<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 34
+            48 + 16 * 64
         );
         assert_eq!(
             mem::size_of::<Branch256<64, IdentityOrder, SingleSegmentation>>(),
-            64 * 66
+            48 + 16 * 128
         );
     }
 

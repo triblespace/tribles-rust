@@ -13,7 +13,7 @@ const MAX_BUCKET_COUNT: usize = 256 / BUCKET_ENTRY_COUNT;
 
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
-const MAX_RETRIES: usize = 8;
+const MAX_RETRIES: usize = 4;
 
 static mut RAND: u8 = 4; // Choosen by fair dice roll.
 static mut RANDOM_PERMUTATION_RAND: [u8; 256] = [0; 256];

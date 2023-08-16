@@ -50,7 +50,7 @@ pub unsafe trait ByteEntry {
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct ByteBucket<T: ByteEntry + Clone + Debug> {
-    entries: [T; BUCKET_ENTRY_COUNT],
+    pub entries: [T; BUCKET_ENTRY_COUNT],
 }
 
 impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
@@ -144,7 +144,7 @@ macro_rules! create_grow {
 macro_rules! create_bytetable {
     ($name:ident, $size:expr, $($grown_name:ident)?) => {
         #[derive(Clone, Debug)]
-        #[repr(align(32))]
+        #[repr(transparent)]
         pub struct $name<T: ByteEntry + Clone + Debug> {
             pub buckets: [ByteBucket<T>; $size],
         }
@@ -165,17 +165,11 @@ macro_rules! create_bytetable {
             }
 
             pub fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-                let ideal_entry =
-                    self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key);
-                if ideal_entry.is_some() {
-                    return self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize]
-                        .get_mut(byte_key);
+                if let Some(_) = self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key) {
+                    return self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key)
                 }
-                let rand_entry =
-                    self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get_mut(byte_key);
-                if rand_entry.is_some() {
-                    return self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize]
-                        .get_mut(byte_key);
+                if let Some(entry) = self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get_mut(byte_key) {
+                    return Some(entry);
                 }
                 return None;
             }
@@ -190,19 +184,6 @@ macro_rules! create_bytetable {
 
             pub fn put(&mut self, entry: T) -> T {
                 if let Some(mut byte_key) = entry.key() {
-                    if let Some(existing_entry) =
-                        self.buckets[compress_hash($size, ideal_hash(byte_key)) as usize].get_mut(byte_key)
-                    {
-                        *existing_entry = entry;
-                        return T::zeroed();
-                    }
-                    if let Some(existing_entry) =
-                        self.buckets[compress_hash($size, rand_hash(byte_key)) as usize].get_mut(byte_key)
-                    {
-                        *existing_entry = entry;
-                        return T::zeroed();
-                    }
-
                     let max_grown = $size == MAX_BUCKET_COUNT;
                     let min_grown = $size == 1;
 
@@ -271,6 +252,8 @@ macro_rules! create_bytetable {
                 }
                 return bitset;
             }
+
+            // TODO Add iterator.
         }
     };
 }

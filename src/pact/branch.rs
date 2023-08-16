@@ -1,5 +1,7 @@
 use super::*;
 use std::alloc::{alloc, dealloc, Layout};
+use core::sync::atomic;
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 
 fn min_key<const KEY_LEN: usize>(
     l: *const Leaf<KEY_LEN>,
@@ -8,17 +10,12 @@ fn min_key<const KEY_LEN: usize>(
     if l.is_null() {
         return r;
     }
-    if r.is_null() {
-        return l;
-    }
-    unsafe {
-        return if (*l).key < (*r).key { l } else { r };
-    }
+    return l;
 }
 
 macro_rules! create_branch {
     ($name:ident, $table:tt) => {
-        #[derive(Clone, Debug)]
+        #[derive(Debug)]
         #[repr(C)]
         pub(super) struct $name<
             const KEY_LEN: usize,
@@ -28,13 +25,12 @@ macro_rules! create_branch {
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
 
-            rc: u32,
+            rc: atomic::AtomicU32,
             pub end_depth: u32,
             pub min: *const Leaf<KEY_LEN>,
             pub leaf_count: u64,
             segment_count: u64,
             pub hash: u128,
-            child_set: ByteBitset,
             child_table: $table<Head<KEY_LEN, O, S>>,
         }
 
@@ -51,13 +47,12 @@ macro_rules! create_branch {
                     std::ptr::write(ptr, Self {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
-                        rc: 1,
+                        rc: atomic::AtomicU32::new(1),
                         end_depth: end_depth as u32,
                         min: std::ptr::null_mut(),
                         leaf_count: 0,
                         segment_count: 0,
                         hash: 0,
-                        child_set: ByteBitset::new_empty(),
                         child_table: $table::new(),
                     });
 
@@ -66,31 +61,37 @@ macro_rules! create_branch {
             }
 
             pub(super) unsafe fn rc_inc(node: *mut Self) -> *mut Self {
-                //TODO copy on overflow
                 unsafe {
-                    (*node).rc = (*node).rc + 1;
-                    node
+                    let mut current = (*node).rc.load(Relaxed);
+                    loop {
+                        if current == u32::MAX {
+                            panic!("max refcount exceeded");
+                        }
+                        match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
+                            Ok(_) => return node,
+                            Err(v) => current = v,
+                        }
+                    }
                 }
             }
 
             pub(super) unsafe fn rc_dec(node: *mut Self) {
                 unsafe {
-                    if (*node).rc == 1 {
-                        let layout = Layout::new::<Self>();
-                        let ptr = node as *mut u8;
-                        dealloc(ptr, layout);
-                    } else {
-                        (*node).rc = (*node).rc - 1
+                    if (*node).rc.fetch_sub(1, Release) != 1 {
+                        return;
                     }
+                    (*node).rc.load(Acquire);
+        
+                    let layout = Layout::new::<Self>();
+                    let ptr = node as *mut u8;
+                    dealloc(ptr, layout);
                 }
             }
 
             pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S>) -> *mut Self {
                 unsafe {
                     let node: *const Self = head.ptr();
-                    if (*node).rc == 1 {
-                        node as *mut Self
-                    } else {
+                    if (*node).rc.load(Acquire) != 1 {
                         let layout = Layout::new::<Self>();
                         let ptr = alloc(layout) as *mut Self;
                         if ptr.is_null() {
@@ -99,20 +100,18 @@ macro_rules! create_branch {
                         std::ptr::write(ptr, Self {
                             key_ordering: PhantomData,
                             key_segments: PhantomData,
-                            rc: 1,
+                            rc: atomic::AtomicU32::new(1),
                             end_depth: (*node).end_depth,
                             min: (*node).min,
                             leaf_count: (*node).leaf_count,
                             segment_count: (*node).segment_count,
                             hash: (*node).hash,
-                            child_set: (*node).child_set,
                             child_table: (*node).child_table.clone(),
                         });
 
                         *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
-
-                        ptr
                     }
+                    head.ptr()
                 }
             }
 
@@ -138,7 +137,6 @@ macro_rules! create_branch {
                 if let Some(byte_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
                     (*node).min = min_key((*node).min, child.min());
-                    (*node).child_set.set(byte_key);
                     (*node).leaf_count += child.count();
                     (*node).segment_count += child.count_segment(end_depth);
                     (*node).hash ^= child_hash;
@@ -156,11 +154,7 @@ macro_rules! create_branch {
             }
 
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> Peek {
-                if at_depth == (*node).end_depth as usize {
-                    Peek::Branch((*node).child_set)
-                } else {
-                    Peek::Fragment(Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth))
-                }
+                Peek::Fragment(Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth))
             }
 
             pub unsafe fn branch(node: *const Self, key: u8) -> Head<KEY_LEN, O, S> {
@@ -183,16 +177,12 @@ macro_rules! create_branch {
                 entry: &Entry<KEY_LEN>,
                 start_depth: usize,
             ) {
-                let mut depth = start_depth;
-                let node: *const Self = head.ptr();
-                loop {
-                    let key_byte = entry.peek::<O>(depth);
-                    match Self::peek(node, depth) {
-                        Peek::Fragment(byte) if byte == key_byte => depth += 1,
-                        Peek::Fragment(_) => {
-                            // The key diverged from what we already have, so we need to introduce
-                            // a branch at the discriminating depth.
 
+                let node: *const Self = head.ptr();
+                let end_depth = (*node).end_depth as usize;
+
+                for depth in start_depth..end_depth {
+                    if Leaf::peek::<O>((*node).min, depth) != entry.peek::<O>(depth) {
                             let new_branch = Branch2::new(depth);
                             Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                             Branch2::insert(new_branch, head.with_start(depth), head.hash());
@@ -200,43 +190,33 @@ macro_rules! create_branch {
                             *head = Branch2::with_start(new_branch, start_depth);
                             return;
                         }
-                        Peek::Branch(children) if children.is_set(key_byte) => {
-                            // We already have a child with the same byte as the key.
+                }
 
-                            let inner = Self::rc_mut(head);
-                            let child = (*inner)
-                                .child_table
-                                .get_mut(key_byte)
-                                .expect("table content should match child set content");
+                let inner = Self::rc_mut(head);
 
-                            let old_child_hash = child.hash();
-                            let old_child_segment_count = child.count_segment(depth);
-                            let old_child_leaf_count = child.count();
+                if let Some(child) = (*inner).child_table.get_mut(entry.peek::<O>(end_depth)) {
+                    let old_child_hash = child.hash();
+                    let old_child_segment_count = child.count_segment(end_depth);
+                    let old_child_leaf_count = child.count();
 
-                            child.put(entry, depth);
+                    child.put(entry, end_depth);
 
-                            (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
-                            (*inner).segment_count = ((*inner).segment_count
-                                - old_child_segment_count)
-                                + child.count_segment(depth);
-                            (*inner).leaf_count =
-                                ((*inner).leaf_count - old_child_leaf_count) + child.count();
+                    (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
+                    (*inner).segment_count = ((*inner).segment_count
+                        - old_child_segment_count)
+                        + child.count_segment(end_depth);
+                    (*inner).leaf_count =
+                        ((*inner).leaf_count - old_child_leaf_count) + child.count();
 
-                            return;
-                        }
-                        Peek::Branch(_) => {
-                            // We don't have a child with the byte of the key.
+                    return;
+                } else {
+                    let mut displaced = Self::insert(inner, entry.leaf(end_depth), entry.hash);
 
-                            let inner = Self::rc_mut(head);
-                            let mut displaced = Self::insert(inner, entry.leaf(depth), entry.hash);
-
-                            while None != displaced.key() {
-                                head.grow();
-                                displaced = head.reinsert(displaced);
-                            }
-                            return;
-                        }
+                    while None != displaced.key() {
+                        head.grow();
+                        displaced = head.reinsert(displaced);
                     }
+                    return;
                 }
             }
 
@@ -256,15 +236,19 @@ macro_rules! create_branch {
                         if end_depth < (*node).end_depth as usize {
                             out.push(f((*(*node).min).key));
                         } else {
-                            for child in (*node).child_set {
-                                Self::branch(node, child).infixes(
-                                    key,
-                                    depth,
-                                    start_depth,
-                                    end_depth,
-                                    f,
-                                    out,
-                                );
+                            for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
+                                for entry in &bucket.entries {
+                                    if entry.key().is_some() {
+                                        entry.infixes(
+                                            key,
+                                            depth,
+                                            start_depth,
+                                            end_depth,
+                                            f,
+                                            out,
+                                        )
+                                    }
+                                }
                             }
                         }
                         return;
@@ -273,15 +257,17 @@ macro_rules! create_branch {
                         return;
                     }
                 }
-                for child in (*node).child_set {
-                    Self::branch(node, child).infixes(
-                        key,
-                        (*node).end_depth as usize,
-                        start_depth,
-                        end_depth,
-                        f,
-                        out,
-                    );
+                for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
+                    for entry in &bucket.entries {
+                        entry.infixes(
+                            key,
+                            (*node).end_depth as usize,
+                            start_depth,
+                            end_depth,
+                            f,
+                            out,
+                        );
+                    }
                 }
             }
 
@@ -300,44 +286,45 @@ macro_rules! create_branch {
                         return false;
                     }
                 }
-                return Self::branch(node, key[node_end_depth]).has_prefix(
-                    node_end_depth,
-                    key,
-                    end_depth,
-                );
+                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                    return child.has_prefix(
+                        node_end_depth,
+                        key,
+                        end_depth,
+                    );
+                }
+                return false;
             }
 
             pub(super) unsafe fn segmented_len(
                 node: *const Self,
-                depth: usize,
+                at_depth: usize,
                 key: [u8; KEY_LEN],
                 start_depth: usize,
             ) -> usize {
-                let mut depth = depth;
-                loop {
+                let node_end_depth = ((*node).end_depth as usize);
+                for depth in at_depth..node_end_depth {
                     if start_depth <= depth {
                         if S::segment(O::key_index(start_depth))
-                            != S::segment(O::key_index((*node).end_depth as usize))
+                            != S::segment(O::key_index(node_end_depth))
                         {
                             return 1;
                         } else {
                             return (*node).segment_count as usize;
                         }
                     }
-                    match Self::peek(node, depth) {
-                        Peek::Fragment(byte) if byte == key[depth] => depth += 1,
-                        Peek::Branch(children) if children.is_set(key[depth]) => {
-                            return Self::branch(node, key[depth]).segmented_len(
-                                depth,
-                                key,
-                                start_depth,
-                            );
-                        }
-                        _ => {
-                            return 0;
-                        }
+                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                        return 0;
                     }
                 }
+                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                    return child.segmented_len(
+                        node_end_depth,
+                        key,
+                        start_depth,
+                    );
+                }
+                return 0;
             }
         }
     };
@@ -369,13 +356,12 @@ macro_rules! create_grow {
                     std::ptr::write(ptr, $grown_name::<KEY_LEN, O, S> {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
-                        rc: 1,
+                        rc: atomic::AtomicU32::new(1),
                         end_depth: (*node).end_depth,
                         leaf_count: (*node).leaf_count,
                         segment_count: (*node).segment_count,
                         min: (*node).min,
                         hash: (*node).hash,
-                        child_set: (*node).child_set,
                         child_table: (*node).child_table.grow(),
                     });
 

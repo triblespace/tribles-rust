@@ -1,13 +1,15 @@
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::alloc::*;
+use core::sync::atomic;
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 
 use super::*;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub(crate) struct Leaf<const KEY_LEN: usize> {
     pub key: [u8; KEY_LEN],
-    rc: u32,
+    rc: atomic::AtomicU32,
 }
 
 impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
@@ -18,29 +20,40 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             if ptr.is_null() {
                 panic!("Allocation failed!");
             }
-            std::ptr::write(ptr, Self { key: *key, rc: 1 });
+            std::ptr::write(ptr, Self {
+                key: *key,
+                rc: atomic::AtomicU32::new(1)
+            });
 
             ptr
         }
     }
 
     pub(crate) unsafe fn rc_inc(node: *mut Self) -> *mut Self {
-        //TODO copy on overflow
         unsafe {
-            (*node).rc = (*node).rc + 1;
-            node
+            let mut current = (*node).rc.load(Relaxed);
+            loop {
+                if current == u32::MAX {
+                    panic!("max refcount exceeded");
+                }
+                match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
+                    Ok(_) => return node,
+                    Err(v) => current = v,
+                }
+            }
         }
     }
 
     pub(crate) unsafe fn rc_dec(node: *mut Self) {
         unsafe {
-            if (*node).rc == 1 {
-                let layout = Layout::new::<Self>();
-                let ptr = node as *mut u8;
-                dealloc(ptr, layout);
-            } else {
-                (*node).rc = (*node).rc - 1
+            if (*node).rc.fetch_sub(1, Release) != 1 {
+                return;
             }
+            (*node).rc.load(Acquire);
+
+            let layout = Layout::new::<Self>();
+            let ptr = node as *mut u8;
+            dealloc(ptr, layout);
         }
     }
 

@@ -244,15 +244,19 @@ macro_rules! create_branch {
                         if end_depth < (*node).end_depth as usize {
                             out.push(f((*(*node).min).key));
                         } else {
-                            for child in (*node).child_set {
-                                (*node).child_table.get(child).unwrap().infixes(
-                                    key,
-                                    depth,
-                                    start_depth,
-                                    end_depth,
-                                    f,
-                                    out,
-                                );
+                            for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
+                                for entry in &bucket.entries {
+                                    if entry.key().is_some() {
+                                        entry.infixes(
+                                            key,
+                                            depth,
+                                            start_depth,
+                                            end_depth,
+                                            f,
+                                            out,
+                                        )
+                                    }
+                                }
                             }
                         }
                         return;
@@ -261,15 +265,17 @@ macro_rules! create_branch {
                         return;
                     }
                 }
-                for child in (*node).child_set {
-                    (*node).child_table.get(child).unwrap().infixes(
-                        key,
-                        (*node).end_depth as usize,
-                        start_depth,
-                        end_depth,
-                        f,
-                        out,
-                    );
+                for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
+                    for entry in &bucket.entries {
+                        entry.infixes(
+                            key,
+                            (*node).end_depth as usize,
+                            start_depth,
+                            end_depth,
+                            f,
+                            out,
+                        );
+                    }
                 }
             }
 
@@ -300,35 +306,33 @@ macro_rules! create_branch {
 
             pub(super) unsafe fn segmented_len(
                 node: *const Self,
-                depth: usize,
+                at_depth: usize,
                 key: [u8; KEY_LEN],
                 start_depth: usize,
             ) -> usize {
-                let mut depth = depth;
-                loop {
+                let node_end_depth = ((*node).end_depth as usize);
+                for depth in at_depth..node_end_depth {
                     if start_depth <= depth {
                         if S::segment(O::key_index(start_depth))
-                            != S::segment(O::key_index((*node).end_depth as usize))
+                            != S::segment(O::key_index(node_end_depth))
                         {
                             return 1;
                         } else {
                             return (*node).segment_count as usize;
                         }
                     }
-                    match Self::peek(node, depth) {
-                        Peek::Fragment(byte) if byte == key[depth] => depth += 1,
-                        Peek::Branch(children) if children.is_set(key[depth]) => {
-                            return Self::branch(node, key[depth]).segmented_len(
-                                depth,
-                                key,
-                                start_depth,
-                            );
-                        }
-                        _ => {
-                            return 0;
-                        }
+                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                        return 0;
                     }
                 }
+                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                    return child.segmented_len(
+                        node_end_depth,
+                        key,
+                        start_depth,
+                    );
+                }
+                return 0;
             }
         }
     };

@@ -50,7 +50,7 @@ pub unsafe trait ByteEntry {
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct ByteBucket<T: ByteEntry + Clone + Debug> {
-    entries: [T; BUCKET_ENTRY_COUNT],
+    pub entries: [T; BUCKET_ENTRY_COUNT],
 }
 
 impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
@@ -165,7 +165,7 @@ macro_rules! create_bytetable {
             }
 
             pub fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-                if let Some(entry) = self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key) {
+                if let Some(_) = self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key) {
                     return self.buckets[compress_hash(self.buckets.len() as u8, ideal_hash(byte_key)) as usize].get_mut(byte_key)
                 }
                 if let Some(entry) = self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get_mut(byte_key) {
@@ -252,6 +252,8 @@ macro_rules! create_bytetable {
                 }
                 return bitset;
             }
+
+            // TODO Add iterator.
         }
     };
 }

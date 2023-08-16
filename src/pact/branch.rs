@@ -31,7 +31,6 @@ macro_rules! create_branch {
             pub leaf_count: u64,
             segment_count: u64,
             pub hash: u128,
-            child_set: ByteBitset,
             child_table: $table<Head<KEY_LEN, O, S>>,
         }
 
@@ -54,7 +53,6 @@ macro_rules! create_branch {
                         leaf_count: 0,
                         segment_count: 0,
                         hash: 0,
-                        child_set: ByteBitset::new_empty(),
                         child_table: $table::new(),
                     });
 
@@ -108,7 +106,6 @@ macro_rules! create_branch {
                             leaf_count: (*node).leaf_count,
                             segment_count: (*node).segment_count,
                             hash: (*node).hash,
-                            child_set: (*node).child_set,
                             child_table: (*node).child_table.clone(),
                         });
 
@@ -140,7 +137,6 @@ macro_rules! create_branch {
                 if let Some(byte_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
                     (*node).min = min_key((*node).min, child.min());
-                    (*node).child_set.set(byte_key);
                     (*node).leaf_count += child.count();
                     (*node).segment_count += child.count_segment(end_depth);
                     (*node).hash ^= child_hash;
@@ -158,11 +154,7 @@ macro_rules! create_branch {
             }
 
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> Peek {
-                if at_depth == (*node).end_depth as usize {
-                    Peek::Branch((*node).child_set)
-                } else {
-                    Peek::Fragment(Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth))
-                }
+                Peek::Fragment(Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth))
             }
 
             pub unsafe fn branch(node: *const Self, key: u8) -> Head<KEY_LEN, O, S> {
@@ -369,7 +361,6 @@ macro_rules! create_grow {
                         segment_count: (*node).segment_count,
                         min: (*node).min,
                         hash: (*node).hash,
-                        child_set: (*node).child_set,
                         child_table: (*node).child_table.grow(),
                     });
 

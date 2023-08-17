@@ -39,11 +39,6 @@ pub fn init() {
     });
 }
 
-pub enum Peek {
-    Fragment(u8),
-    Branch(ByteBitset),
-}
-
 pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
     fn tree_index(key_index: usize) -> usize;
     fn key_index(tree_index: usize) -> usize;
@@ -196,22 +191,19 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         match self.tag() {
             HeadTag::Empty => Self::empty(),
             _ => {
-                if let Peek::Fragment(key) = self.peek(new_start_depth) {
-                    let mut clone = self.clone();
-                    clone.set_key(key);
-                    clone
-                } else {
-                    panic!("bad new_start_depth!");
-                }
+                let key = self.peek(new_start_depth);
+                let mut clone = self.clone();
+                clone.set_key(key);
+                clone
             }
         }
     }
 
-    pub(crate) fn peek(&self, at_depth: usize) -> Peek {
+    pub(crate) fn peek(&self, at_depth: usize) -> u8 {
         unsafe {
             match self.tag() {
-                HeadTag::Empty => Peek::Branch(ByteBitset::new_empty()),
-                HeadTag::Leaf => Peek::Fragment(Leaf::peek::<O>(self.ptr(), at_depth)),
+                HeadTag::Empty => panic!("peeked on empty"),
+                HeadTag::Leaf => Leaf::peek::<O>(self.ptr(), at_depth),
                 HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
                 HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
                 HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
@@ -241,6 +233,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    /*
     pub(crate) fn child(&self, at_depth: usize, key: u8) -> Self {
         match self.peek(at_depth) {
             Peek::Fragment(byte) if byte == key => self.clone(),
@@ -248,6 +241,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             _ => Head::empty(),
         }
     }
+    */
 
     pub(crate) fn insert(&mut self, child: Self, hash: u128) -> Self {
         unsafe {

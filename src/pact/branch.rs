@@ -153,8 +153,8 @@ macro_rules! create_branch {
                 (*node).child_table.put(child)
             }
 
-            pub unsafe fn peek(node: *const Self, at_depth: usize) -> Peek {
-                Peek::Fragment(Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth))
+            pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
+                Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth)
             }
 
             pub unsafe fn branch(node: *const Self, key: u8) -> Head<KEY_LEN, O, S> {

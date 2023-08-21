@@ -299,7 +299,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             match self.tag() {
                 HeadTag::Empty => 0,
                 HeadTag::Leaf => Leaf::<KEY_LEN>::hash(self.ptr()),
-                HeadTag::Branch2 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).hash,
+                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S>>()).hash,
                 HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).hash,
                 HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).hash,
                 HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).hash,
@@ -311,12 +311,30 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    pub(crate) fn end_depth(&self) -> usize {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("called end_depth on empty"),
+                HeadTag::Leaf => KEY_LEN as usize,
+                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S>>()).end_depth as usize,
+                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S>>()).end_depth as usize,
+            }
+        }
+    }
+
+    //TODO rename
     pub(crate) unsafe fn min(&self) -> *const Leaf<KEY_LEN> {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => std::ptr::null_mut(),
                 HeadTag::Leaf => self.ptr::<Leaf<KEY_LEN>>(),
-                HeadTag::Branch2 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).min,
+                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S>>()).min,
                 HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).min,
                 HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).min,
                 HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).min,

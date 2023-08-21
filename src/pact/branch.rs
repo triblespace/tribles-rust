@@ -231,37 +231,30 @@ macro_rules! create_branch {
             ) where
                 F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN] + Copy,
             {
-                for depth in at_depth..((*node).end_depth as usize) {
-                    if start_depth <= depth {
-                        if end_depth < (*node).end_depth as usize {
-                            out.push(f((*(*node).min).key));
-                        } else {
-                            for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
-                                for entry in &bucket.entries {
-                                    if entry.key().is_some() {
-                                        entry.infixes(
-                                            key,
-                                            depth,
-                                            start_depth,
-                                            end_depth,
-                                            f,
-                                            out,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        return;
-                    }
+                let node_end_depth = ((*node).end_depth as usize);
+                for depth in at_depth..std::cmp::min(node_end_depth as usize, start_depth) {
                     if Leaf::peek::<O>((*node).min, depth) != key[depth] {
                         return;
                     }
+                }
+
+                if end_depth < node_end_depth as usize {
+                    out.push(f((*(*node).min).key));
+                    return;
+                }
+                if start_depth > node_end_depth as usize {
+                    if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                        child.infixes(
+                            key, node_end_depth, start_depth, end_depth, f, out
+                        );
+                    }
+                    return;
                 }
                 for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
                     for entry in &bucket.entries {
                         entry.infixes(
                             key,
-                            (*node).end_depth as usize,
+                            node_end_depth,
                             start_depth,
                             end_depth,
                             f,

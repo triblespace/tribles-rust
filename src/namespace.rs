@@ -10,10 +10,10 @@ pub trait Factory {
 /*        lovedBy: UFOID => inv "328edd7583de04e2bedd6bd4fd50e651",
  */
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! entities_inner {
     (@triple ($set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
-        $set.add(&crate::trible::Trible::new(
+        $set.add(&$crate::trible::Trible::new(
             $EntityId,
             { use $Namespace as base; base::ids::$FieldName },
             { use $Namespace as base; let v: base::types::$FieldName = $Value; v}))
@@ -24,7 +24,7 @@ macro_rules! entities_inner {
     (@entity ($set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),*})) => {
         {
             {
-                let id = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };
+                let id = { use $Namespace as base; <base::Id as $crate::namespace::Factory>::factory() };
                 $(entities_inner!(@triple ($set, $Namespace, id, $FieldName, $Value));)*
             }
         }
@@ -32,19 +32,19 @@ macro_rules! entities_inner {
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
             let mut set = $crate::tribleset::pacttribleset::PACTTribleSet::new();
-            $(let $Var = { use $Namespace as base; <base::Id as crate::namespace::Factory>::factory() };)*
+            $(let $Var = { use $Namespace as base; <base::Id as $crate::namespace::Factory>::factory() };)*
             $(entities_inner!(@entity (set, $Namespace, $Entity));)*
             set
         }
     };
 }
-//pub(crate) use entities_inner;
+pub use entities_inner;
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! pattern_inner {
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
-            use crate::tribleset::TribleSet;
+            use $crate::tribleset::TribleSet;
             let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<base::types::$FieldName> = $ctx.next_variable();
             $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
@@ -55,7 +55,7 @@ macro_rules! pattern_inner {
     };
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
         {
-            use crate::tribleset::TribleSet;
+            use $crate::tribleset::TribleSet;
             use $Namespace as base;
             let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<base::types::$FieldName> = $Value;
@@ -99,7 +99,7 @@ macro_rules! pattern_inner {
     };
 }
 
-//pub(crate) use pattern_inner;
+pub use pattern_inner;
 
 /*
 mod knights {
@@ -135,7 +135,7 @@ macro_rules! NS {
             macro_rules! entities {
                 ($vars:tt, $entities: tt) => {
                     {
-                        use entities_inner;
+                        use $crate::namespace::entities_inner;
                         entities_inner!($mod_name, $vars, $entities)
                     }
                 };
@@ -147,7 +147,7 @@ macro_rules! NS {
             macro_rules! pattern {
                 ($ctx:ident, $set:expr, $pattern: tt) => {
                     {
-                        use pattern_inner;
+                        use $crate::namespace::pattern_inner;
                         pattern_inner!($mod_name, $ctx, $set, $pattern)
                     }
                 };

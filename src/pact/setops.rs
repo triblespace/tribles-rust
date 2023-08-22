@@ -1,4 +1,3 @@
-
 use super::*;
 /*
 fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
@@ -13,7 +12,7 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
     let first_node_hash = first_node.hash();
 
     let rest_nodes = &unioned_nodes[1..];
-    
+
     if rest_nodes.iter().all(|node| node.hash() == first_node_hash) {
         return first_node.with_start(at_depth);
     }
@@ -28,7 +27,7 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
             branch_with
         }
     }
-    
+
     let mut depth = at_depth;
 
     loop {

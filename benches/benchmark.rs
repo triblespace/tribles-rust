@@ -1,14 +1,16 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
+use std::convert::TryInto;
 use std::iter::FromIterator;
-use tribles::trible::*;
+use tribles::namespace::knights;
 use tribles::tribleset::hashtribleset::HashTribleSet;
 use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
+use tribles::{query, trible::*};
 use triomphe::Arc;
 
-use tribles::pact::{self, IdentityOrder, Entry};
+use tribles::pact::{self, Entry, IdentityOrder};
 use tribles::pact::{SingleSegmentation, PACT};
 use tribles::tribleset::pacttribleset::PACTTribleSet;
 
@@ -203,12 +205,55 @@ fn tribleset_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+fn query_benchmark(c: &mut Criterion) {
+    pact::init();
+
+    let mut group = c.benchmark_group("query");
+
+    group.throughput(Throughput::Elements(1));
+    group.bench_function(BenchmarkId::new("pattern", 1), |b| {
+        let juliet = knights::Id::new();
+        let kb = knights::entities!((romeo),
+        [{juliet @
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo,
+            title: "Maiden".try_into().unwrap()
+        },
+        {romeo @
+            name: "Romeo".try_into().unwrap(),
+            loves: juliet,
+            title: "Prince".try_into().unwrap()
+        },
+        {
+            name: "Angelica".try_into().unwrap(),
+            title: "Nurse".try_into().unwrap()
+        }]);
+        b.iter(|| {
+            let r: Vec<_> = query!(
+                ctx,
+                (juliet, name),
+                knights::pattern!(ctx, kb, [
+                {name: ("Romeo".try_into().unwrap()),
+                 loves: juliet},
+                {juliet @
+                    name: name
+                }])
+            )
+            .collect();
+            black_box(&r);
+        })
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     std_benchmark,
     im_benchmark,
     pact_benchmark,
     tribleset_benchmark,
+    query_benchmark,
     hashtribleset_benchmark,
 );
 criterion_main!(benches);

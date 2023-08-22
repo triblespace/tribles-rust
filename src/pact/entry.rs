@@ -40,7 +40,7 @@ impl<const KEY_LEN: usize> Clone for Entry<KEY_LEN> {
         unsafe {
             Self {
                 ptr: Leaf::rc_inc(self.ptr),
-                hash: self.hash
+                hash: self.hash,
             }
         }
     }

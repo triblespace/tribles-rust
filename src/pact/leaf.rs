@@ -1,7 +1,7 @@
-use siphasher::sip128::{Hasher128, SipHasher24};
-use std::alloc::*;
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use siphasher::sip128::{Hasher128, SipHasher24};
+use std::alloc::*;
 
 use super::*;
 
@@ -20,10 +20,13 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             if ptr.is_null() {
                 panic!("Allocation failed!");
             }
-            std::ptr::write(ptr, Self {
-                key: *key,
-                rc: atomic::AtomicU32::new(1)
-            });
+            std::ptr::write(
+                ptr,
+                Self {
+                    key: *key,
+                    rc: atomic::AtomicU32::new(1),
+                },
+            );
 
             ptr
         }
@@ -36,7 +39,10 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 if current == u32::MAX {
                     panic!("max refcount exceeded");
                 }
-                match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
+                match (*node)
+                    .rc
+                    .compare_exchange(current, current + 1, Relaxed, Relaxed)
+                {
                     Ok(_) => return node,
                     Err(v) => current = v,
                 }

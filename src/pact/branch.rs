@@ -1,7 +1,7 @@
 use super::*;
-use std::alloc::{alloc, dealloc, Layout};
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use std::alloc::{alloc, dealloc, Layout};
 
 fn min_key<const KEY_LEN: usize>(
     l: *const Leaf<KEY_LEN>,
@@ -44,17 +44,20 @@ macro_rules! create_branch {
                     if ptr.is_null() {
                         panic!("Allocation failed!");
                     }
-                    std::ptr::write(ptr, Self {
-                        key_ordering: PhantomData,
-                        key_segments: PhantomData,
-                        rc: atomic::AtomicU32::new(1),
-                        end_depth: end_depth as u32,
-                        min: std::ptr::null_mut(),
-                        leaf_count: 0,
-                        segment_count: 0,
-                        hash: 0,
-                        child_table: $table::new(),
-                    });
+                    std::ptr::write(
+                        ptr,
+                        Self {
+                            key_ordering: PhantomData,
+                            key_segments: PhantomData,
+                            rc: atomic::AtomicU32::new(1),
+                            end_depth: end_depth as u32,
+                            min: std::ptr::null_mut(),
+                            leaf_count: 0,
+                            segment_count: 0,
+                            hash: 0,
+                            child_table: $table::new(),
+                        },
+                    );
 
                     ptr
                 }
@@ -67,7 +70,10 @@ macro_rules! create_branch {
                         if current == u32::MAX {
                             panic!("max refcount exceeded");
                         }
-                        match (*node).rc.compare_exchange(current, current + 1, Relaxed, Relaxed) {
+                        match (*node)
+                            .rc
+                            .compare_exchange(current, current + 1, Relaxed, Relaxed)
+                        {
                             Ok(_) => return node,
                             Err(v) => current = v,
                         }
@@ -81,7 +87,7 @@ macro_rules! create_branch {
                         return;
                     }
                     (*node).rc.load(Acquire);
-        
+
                     let layout = Layout::new::<Self>();
                     let ptr = node as *mut u8;
                     dealloc(ptr, layout);
@@ -97,17 +103,20 @@ macro_rules! create_branch {
                         if ptr.is_null() {
                             panic!("Allocation failed!");
                         }
-                        std::ptr::write(ptr, Self {
-                            key_ordering: PhantomData,
-                            key_segments: PhantomData,
-                            rc: atomic::AtomicU32::new(1),
-                            end_depth: (*node).end_depth,
-                            min: (*node).min,
-                            leaf_count: (*node).leaf_count,
-                            segment_count: (*node).segment_count,
-                            hash: (*node).hash,
-                            child_table: (*node).child_table.clone(),
-                        });
+                        std::ptr::write(
+                            ptr,
+                            Self {
+                                key_ordering: PhantomData,
+                                key_segments: PhantomData,
+                                rc: atomic::AtomicU32::new(1),
+                                end_depth: (*node).end_depth,
+                                min: (*node).min,
+                                leaf_count: (*node).leaf_count,
+                                segment_count: (*node).segment_count,
+                                hash: (*node).hash,
+                                child_table: (*node).child_table.clone(),
+                            },
+                        );
 
                         *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
                     }
@@ -177,19 +186,18 @@ macro_rules! create_branch {
                 entry: &Entry<KEY_LEN>,
                 start_depth: usize,
             ) {
-
                 let node: *const Self = head.ptr();
                 let end_depth = (*node).end_depth as usize;
 
                 for depth in start_depth..end_depth {
                     if Leaf::peek::<O>((*node).min, depth) != entry.peek::<O>(depth) {
-                            let new_branch = Branch2::new(depth);
-                            Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
-                            Branch2::insert(new_branch, head.with_start(depth), head.hash());
+                        let new_branch = Branch2::new(depth);
+                        Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
+                        Branch2::insert(new_branch, head.with_start(depth), head.hash());
 
-                            *head = Branch2::with_start(new_branch, start_depth);
-                            return;
-                        }
+                        *head = Branch2::with_start(new_branch, start_depth);
+                        return;
+                    }
                 }
 
                 let inner = Self::rc_mut(head);
@@ -202,8 +210,7 @@ macro_rules! create_branch {
                     child.put(entry, end_depth);
 
                     (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
-                    (*inner).segment_count = ((*inner).segment_count
-                        - old_child_segment_count)
+                    (*inner).segment_count = ((*inner).segment_count - old_child_segment_count)
                         + child.count_segment(end_depth);
                     (*inner).leaf_count =
                         ((*inner).leaf_count - old_child_leaf_count) + child.count();
@@ -244,22 +251,14 @@ macro_rules! create_branch {
                 }
                 if start_depth > node_end_depth {
                     if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
-                        child.infixes(
-                            key, node_end_depth, start_depth, end_depth, f, out
-                        );
+                        child.infixes(key, node_end_depth, start_depth, end_depth, f, out);
                     }
                     return;
                 }
-                for bucket in &(*node).child_table.buckets { // TODO replace this with iterator
+                for bucket in &(*node).child_table.buckets {
+                    // TODO replace this with iterator
                     for entry in &bucket.entries {
-                        entry.infixes(
-                            key,
-                            node_end_depth,
-                            start_depth,
-                            end_depth,
-                            f,
-                            out,
-                        );
+                        entry.infixes(key, node_end_depth, start_depth, end_depth, f, out);
                     }
                 }
             }
@@ -280,11 +279,7 @@ macro_rules! create_branch {
                     return true;
                 }
                 if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
-                    return child.has_prefix(
-                        node_end_depth,
-                        key,
-                        end_depth,
-                    );
+                    return child.has_prefix(node_end_depth, key, end_depth);
                 }
                 return false;
             }
@@ -311,11 +306,7 @@ macro_rules! create_branch {
                     }
                 }
                 if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
-                    return child.segmented_len(
-                        node_end_depth,
-                        key,
-                        start_depth,
-                    );
+                    return child.segmented_len(node_end_depth, key, start_depth);
                 }
                 return 0;
             }
@@ -346,17 +337,20 @@ macro_rules! create_grow {
                     if ptr.is_null() {
                         panic!("Allocation failed!");
                     }
-                    std::ptr::write(ptr, $grown_name::<KEY_LEN, O, S> {
-                        key_ordering: PhantomData,
-                        key_segments: PhantomData,
-                        rc: atomic::AtomicU32::new(1),
-                        end_depth: (*node).end_depth,
-                        leaf_count: (*node).leaf_count,
-                        segment_count: (*node).segment_count,
-                        min: (*node).min,
-                        hash: (*node).hash,
-                        child_table: (*node).child_table.grow(),
-                    });
+                    std::ptr::write(
+                        ptr,
+                        $grown_name::<KEY_LEN, O, S> {
+                            key_ordering: PhantomData,
+                            key_segments: PhantomData,
+                            rc: atomic::AtomicU32::new(1),
+                            end_depth: (*node).end_depth,
+                            leaf_count: (*node).leaf_count,
+                            segment_count: (*node).segment_count,
+                            min: (*node).min,
+                            hash: (*node).hash,
+                            child_table: (*node).child_table.grow(),
+                        },
+                    );
 
                     *head = Head::new(HeadTag::$grown_name, head.key().unwrap(), ptr);
                 }

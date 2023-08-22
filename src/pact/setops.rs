@@ -2,12 +2,12 @@ use super::*;
 /*
 fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
     at_depth: usize,
-    unioned_nodes: &mut [Head<KEY_LEN, O, S>],
-    prefix: &mut [u8; KEY_LEN],
+    unioned_nodes: Vec<&Head<KEY_LEN, O, S>>
 ) -> Head<KEY_LEN, O, S> {
     if 0 == unioned_nodes.len() {
         return Head::empty();
     }
+
     let first_node = &unioned_nodes[0];
     let first_node_hash = first_node.hash();
 
@@ -22,9 +22,15 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
                                            .min().unwrap();
 
     for depth in at_depth..branch_depth {
-        let first_peek = first_node.peek(depth);
-        if !rest_nodes.iter().all(|node| node.peek(depth) == first_peek) {
-            branch_with
+        let mut byte_keys = ByteBitset::new_empty();
+        unioned_nodes.iter().for_each(|node| byte_keys.set(node.peek(depth)));
+        if byte_keys.count() != 1 {
+            let branch = branch_for_size(byte_keys.count());
+            for byte_key in byte_keys {
+                let byte_nodes: Vec<_> = unioned_nodes.iter().copied().filter(|&node| node.peek(depth) == byte_key).collect();
+                let byte_union = recursive_union(depth, byte_nodes);
+                branch.insert(byte_union);
+            }
         }
     }
 
@@ -48,9 +54,8 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
         match union_childbits.count() {
             0 => return Head::from(Empty::new()),
             1 => {
-                prefix[depth] = union_childbits.find_first_set().expect("bitcount is one");
                 if depth == KEY_LEN - 1 {
-                    return Leaf::new(at_depth, &Arc::new(*prefix)).into();
+                    return Leaf::new(at_depth).into();
                 }
                 depth += 1;
             }
@@ -80,7 +85,7 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
                     }
 
                     let union_node = if depth == KEY_LEN - 1 {
-                        Leaf::new(depth, &Arc::new(*prefix)).into()
+                        Leaf::new(depth).into()
                     } else {
                         recursive_union(depth, &mut children[..])
                     };
@@ -98,23 +103,21 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN> + 'static, S: KeySegmentation<KEY_LEN> + 'static>
     PACT<KEY_LEN, O, S>
 {
-    pub fn union<I>(trees: I) -> PACT<KEY_LEN, O, S>
+    pub fn union<'a, I>(trees: I) -> PACT<KEY_LEN, O, S>
     where
-        I: IntoIterator<Item = PACT<KEY_LEN, O, S>>,
+        I: IntoIterator<Item = &'a PACT<KEY_LEN, O, S>>,
     {
         let mut children = Vec::new();
 
         for tree in trees {
-            children.push(tree.root)
+            children.push(&tree.root)
         }
 
-        let mut prefix = [0u8; KEY_LEN];
-
         return PACT {
-            root: recursive_union(0, &mut children[..], &mut prefix),
+            root: recursive_union(0, children),
         };
     }
 }
@@ -128,27 +131,32 @@ mod tests {
     use std::iter::FromIterator;
 
     proptest! {
-        /*
         #[test]
         fn tree_union(entriess in prop::collection::vec(prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1), 2)) {
             let mut set = HashSet::new();
 
             let mut trees = Vec::new();
             for entries in entriess {
-                let mut tree = PACT::<64, IdentityOrder>::new();
+                let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
                 for entry in entries {
                     let mut key = [0; 64];
                     key.iter_mut().set_from(entry.iter().cloned());
-                    tree.put(&Arc::new(key));
+                    let entry = Entry::new(&key);
+                    tree.put(&entry);
                     set.insert(key);
                 }
                 trees.push(tree);
             }
-            let union_tree = PACT::union(trees);
-            let union_set = HashSet::from_iter(union_tree.cursor().into_iter());
-            prop_assert_eq!(set, union_set);
+            let union_tree = PACT::union(trees.iter());
+            
+            let mut set_vec = Vec::from_iter(set.into_iter());
+            let mut tree_vec = union_tree.infixes([0; 64], 0, 63, |x| x);
+
+            set_vec.sort();
+            tree_vec.sort();
+
+            prop_assert_eq!(set_vec, tree_vec);
         }
-        */
     }
 }
 */

@@ -114,7 +114,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
-        node: *mut Self,
+        node: *const Self,
         key: [u8; KEY_LEN],
         at_depth: usize,
         start_depth: usize,
@@ -134,7 +134,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     }
 
     pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>>(
-        node: *mut Self,
+        node: *const Self,
         at_depth: usize,
         key: [u8; KEY_LEN],
         end_depth: usize,
@@ -148,7 +148,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     }
 
     pub(crate) unsafe fn segmented_len<O: KeyOrdering<KEY_LEN>>(
-        node: *mut Self,
+        node: *const Self,
         at_depth: usize,
         key: [u8; KEY_LEN],
         start_depth: usize,

@@ -29,11 +29,11 @@ impl ByteBitset {
         (self.bits[0] == 0) && (self.bits[1] == 0) && (self.bits[2] == 0) && (self.bits[3] == 0)
     }
     /// Count the number of elements in the set.
-    pub fn count(&self) -> u32 {
-        self.bits[0].count_ones()
+    pub fn count(&self) -> usize {
+        (self.bits[0].count_ones()
             + self.bits[1].count_ones()
             + self.bits[2].count_ones()
-            + self.bits[3].count_ones()
+            + self.bits[3].count_ones()) as usize
     }
     /// Set the given value in the set.
     pub fn set(&mut self, index: u8) {

@@ -25,12 +25,13 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
         let mut byte_keys = ByteBitset::new_empty();
         unioned_nodes.iter().for_each(|node| byte_keys.set(node.peek(depth)));
         if byte_keys.count() != 1 {
-            let branch = branch_for_size(byte_keys.count());
+            let branch = branch_for_size(byte_keys.count() as usize, depth);
             for byte_key in byte_keys {
                 let byte_nodes: Vec<_> = unioned_nodes.iter().copied().filter(|&node| node.peek(depth) == byte_key).collect();
                 let byte_union = recursive_union(depth, byte_nodes);
                 branch.insert(byte_union);
             }
+            return branch.with_start(at_depth)
         }
     }
 
@@ -60,17 +61,7 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
                 depth += 1;
             }
             n => {
-                let mut branch_node: Head<KEY_LEN, O, S> = match n {
-                    1..=2 => unsafe {Head::new(HeadTag::Branch2, 0, Branch2::new(depth))},
-                    2..=4 => unsafe {Head::new(HeadTag::Branch4, 0, Branch4::new(depth))},
-                    5..=8 => unsafe {Head::new(HeadTag::Branch8, 0, Branch8::new(depth))},
-                    9..=16 => unsafe {Head::new(HeadTag::Branch16, 0, Branch16::new(depth))},
-                    17..=32 => unsafe {Head::new(HeadTag::Branch32, 0, Branch32::new(depth))},
-                    33..=64 => unsafe {Head::new(HeadTag::Branch64, 0, Branch64::new(depth))},
-                    65..=128 => unsafe {Head::new(HeadTag::Branch128, 0, Branch128::new(depth))},
-                    129..=256 => unsafe {Head::new(HeadTag::Branch256, 0, Branch256::new(depth))},
-                    _ => panic!("bad child count"),
-                };
+                let mut 
 
                 while let Some(byte) = union_childbits.drain_next_ascending() {
                     let mut children = Vec::new();
@@ -159,4 +150,5 @@ mod tests {
         }
     }
 }
+
 */

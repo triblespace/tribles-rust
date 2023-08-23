@@ -243,9 +243,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
     */
 
-    pub(crate) fn insert(&mut self, child: Self, hash: u128) -> Self {
+    pub(crate) fn insert(&mut self, child: Self, hash: u128) {
         unsafe {
-            match self.tag() {
+            let displaced = match self.tag() {
                 HeadTag::Empty => panic!("insert on empty"),
                 HeadTag::Leaf => panic!("insert on leaf"),
                 HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
@@ -256,41 +256,53 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
                 HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
                 HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::insert(self.ptr(), child, hash),
-            }
+            };
+            self.growing_reinsert(displaced);
         }
     }
 
-    pub(crate) fn reinsert(&mut self, child: Self) -> Self {
+    pub(crate) fn growing_reinsert(&mut self, child: Self) {
         unsafe {
-            match self.tag() {
-                HeadTag::Empty => panic!("insert on empty"),
-                HeadTag::Leaf => panic!("insert on leaf"),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::reinsert(self.ptr(), child),
+            let mut displaced = child;
+            if self.tag() == HeadTag::Branch2 {
+                Branch2::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch4::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
             }
-        }
-    }
-
-    pub(crate) fn grow(&mut self) {
-        unsafe {
-            match self.tag() {
-                HeadTag::Empty => panic!("grow on empty"),
-                HeadTag::Leaf => panic!("grow on leaf"),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::grow(self),
-                HeadTag::Branch256 => panic!("grow on branch256"),
+            if self.tag() == HeadTag::Branch4 {
+                Branch4::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch8::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
             }
+            if self.tag() == HeadTag::Branch8 {
+                Branch8::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch16::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
+            }
+            if self.tag() == HeadTag::Branch16 {
+                Branch16::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch32::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
+            }
+            if self.tag() == HeadTag::Branch32 {
+                Branch32::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch64::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
+            }
+            if self.tag() == HeadTag::Branch64 {
+                Branch64::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch128::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
+            }
+            if self.tag() == HeadTag::Branch128 {
+                Branch128::<KEY_LEN, O, S>::grow(self);
+                displaced = Branch256::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                if displaced.key() == None {return;}
+            }
+            if self.tag() == HeadTag::Branch256 {
+                panic!("failed to insert on Branch256");
+            }
+            panic!("failed to insert on non branch");
         }
     }
 

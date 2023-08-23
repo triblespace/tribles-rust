@@ -148,7 +148,7 @@ mod tests {
                 trees.push(tree);
             }
             let union_tree = PACT::union(trees.iter());
-            
+
             let mut set_vec = Vec::from_iter(set.into_iter());
             let mut tree_vec = union_tree.infixes([0; 64], 0, 63, |x| x);
 

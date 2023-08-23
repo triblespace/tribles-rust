@@ -143,7 +143,7 @@ macro_rules! create_branch {
                 child: Head<KEY_LEN, O, S>,
                 child_hash: u128,
             ) -> Head<KEY_LEN, O, S> {
-                if let Some(byte_key) = child.key() {
+                if let Some(_) = child.key() {
                     let end_depth = (*node).end_depth as usize;
                     (*node).min = min_key((*node).min, child.min());
                     (*node).leaf_count += child.count();
@@ -201,7 +201,6 @@ macro_rules! create_branch {
                 }
 
                 let inner = Self::rc_mut(head);
-
                 if let Some(child) = (*inner).child_table.get_mut(entry.peek::<O>(end_depth)) {
                     let old_child_hash = child.hash();
                     let old_child_segment_count = child.count_segment(end_depth);
@@ -217,11 +216,9 @@ macro_rules! create_branch {
 
                     return;
                 } else {
-                    let mut displaced = Self::insert(inner, entry.leaf(end_depth), entry.hash);
-
-                    while None != displaced.key() {
-                        head.grow();
-                        displaced = head.reinsert(displaced);
+                    let displaced = Self::insert(inner, entry.leaf(end_depth), entry.hash);
+                    if None != displaced.key() {
+                        head.growing_reinsert(displaced);
                     }
                     return;
                 }
@@ -329,7 +326,7 @@ macro_rules! create_grow {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            pub(super) fn grow(head: &mut Head<KEY_LEN, O, S>) {
+            pub(super) unsafe fn grow(head: &mut Head<KEY_LEN, O, S>) {
                 unsafe {
                     let node: *const Self = head.ptr();
                     let layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();

@@ -25,6 +25,9 @@ use std::marker::PhantomData;
 use std::mem::transmute;
 use std::sync::Once;
 
+#[cfg(not(target_pointer_width = "64"))]
+compile_error!("compilation is only allowed for 64-bit targets");
+
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
 
@@ -102,7 +105,7 @@ pub(crate) enum HeadTag {
 
 #[repr(C)]
 pub(crate) struct Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
-    tptr: u64,
+    tptr: *mut u8,
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<S>,
 }
@@ -112,7 +115,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 {
     pub(crate) fn empty() -> Self {
         Self {
-            tptr: 0,
+            tptr: std::ptr::null_mut(),
             key_ordering: PhantomData,
             key_segments: PhantomData,
         }
@@ -120,32 +123,32 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
     pub(crate) unsafe fn new<T>(tag: HeadTag, key: u8, ptr: *mut T) -> Self {
         Self {
-            tptr: (ptr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
+            tptr: ((ptr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
                 | ((key as u64) << 48)
-                | ((tag as u64) << 56),
+                | ((tag as u64) << 56)) as *mut u8,
             key_ordering: PhantomData,
             key_segments: PhantomData,
         }
     }
 
     pub(crate) fn tag(&self) -> HeadTag {
-        unsafe { transmute((self.tptr >> 56) as u8) }
+        unsafe { transmute((self.tptr as u64 >> 56) as u8) }
     }
 
     pub(crate) fn key(&self) -> Option<u8> {
         if self.tag() == HeadTag::Empty {
             None
         } else {
-            Some((self.tptr >> 48) as u8)
+            Some((self.tptr as u64 >> 48) as u8)
         }
     }
 
     pub(crate) fn set_key(&mut self, key: u8) {
-        self.tptr = (self.tptr & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48);
+        self.tptr = ((self.tptr as u64 & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48)) as *mut u8;
     }
 
     pub(crate) unsafe fn ptr<T>(&self) -> *mut T {
-        (((self.tptr << 16 as usize) as isize) >> 16 as usize) as *mut T
+        ((((self.tptr as u64) << 16) as i64) >> 16 as u64) as *mut T
     }
 
     // Node

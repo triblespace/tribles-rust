@@ -29,9 +29,9 @@ macro_rules! create_branch {
             pub end_depth: u32,
             pub min: *const Leaf<KEY_LEN>,
             pub leaf_count: u64,
-            segment_count: u64,
+            pub segment_count: u64,
             pub hash: u128,
-            child_table: $table<Head<KEY_LEN, O, S>>,
+            pub child_table: $table<Head<KEY_LEN, O, S>>,
         }
 
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
@@ -164,10 +164,6 @@ macro_rules! create_branch {
 
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
                 Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth)
-            }
-
-            pub unsafe fn branch(node: *const Self, key: u8) -> Head<KEY_LEN, O, S> {
-                (*node).child_table.get(key).expect("no such child").clone()
             }
 
             pub unsafe fn with_start(

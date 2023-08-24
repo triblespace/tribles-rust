@@ -1,5 +1,5 @@
 use super::*;
-/*
+
 fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
     at_depth: usize,
     unioned_nodes: Vec<&Head<KEY_LEN, O, S>>
@@ -150,5 +150,3 @@ mod tests {
         }
     }
 }
-
-*/

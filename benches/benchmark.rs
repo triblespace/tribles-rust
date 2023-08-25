@@ -8,7 +8,6 @@ use tribles::tribleset::hashtribleset::HashTribleSet;
 use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use tribles::{query, trible::*};
-use triomphe::Arc;
 
 use tribles::pact::{self, Entry, IdentityOrder};
 use tribles::pact::{SingleSegmentation, PACT};
@@ -134,7 +133,7 @@ fn pact_benchmark(c: &mut Criterion) {
     }
 
     let total_unioned = 1000000;
-    for i in [1, 10, 100, 1000].iter() {
+    for i in [2, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples: Vec<Trible> = random_tribles(total_unioned as usize);
@@ -189,7 +188,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
     }
 
     let total_unioned = 1000000;
-    for i in [1, 10, 100, 1000].iter() {
+    for i in [2, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples = random_tribles(total_unioned as usize);

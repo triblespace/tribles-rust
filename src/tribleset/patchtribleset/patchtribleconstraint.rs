@@ -7,7 +7,7 @@ use crate::namespace::*;
 use crate::query::*;
 use crate::trible::*;
 
-pub struct PACTTribleSetConstraint<'a, E, A, V>
+pub struct PATCHTribleSetConstraint<'a, E, A, V>
 where
     E: From<Id>,
     A: From<Id>,
@@ -19,10 +19,10 @@ where
     variable_e: Variable<E>,
     variable_a: Variable<A>,
     variable_v: Variable<V>,
-    set: &'a PACTTribleSet,
+    set: &'a PATCHTribleSet,
 }
 
-impl<'a, E, A, V> PACTTribleSetConstraint<'a, E, A, V>
+impl<'a, E, A, V> PATCHTribleSetConstraint<'a, E, A, V>
 where
     E: From<Id>,
     A: From<Id>,
@@ -35,9 +35,9 @@ where
         variable_e: Variable<E>,
         variable_a: Variable<A>,
         variable_v: Variable<V>,
-        set: &'a PACTTribleSet,
+        set: &'a PATCHTribleSet,
     ) -> Self {
-        PACTTribleSetConstraint {
+        PATCHTribleSetConstraint {
             variable_e,
             variable_a,
             variable_v,
@@ -46,7 +46,7 @@ where
     }
 }
 
-impl<'a, E, A, V> Constraint<'a> for PACTTribleSetConstraint<'a, E, A, V>
+impl<'a, E, A, V> Constraint<'a> for PATCHTribleSetConstraint<'a, E, A, V>
 where
     E: From<Id>,
     A: From<Id>,

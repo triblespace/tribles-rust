@@ -1,5 +1,5 @@
 pub mod hashtribleset;
-pub mod pacttribleset;
+pub mod patchtribleset;
 
 use crate::{
     namespace::{Id, Value},

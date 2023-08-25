@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use crate::namespace::*;
-use crate::pact::{KeyOrdering, KeySegmentation};
+use crate::patch::{KeyOrdering, KeySegmentation};
 use arbitrary::Arbitrary;
 
 pub const TRIBLE_LEN: usize = 64;

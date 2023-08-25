@@ -68,11 +68,11 @@ impl<
         const KEY_LEN: usize,
         O: KeyOrdering<KEY_LEN> + 'static,
         S: KeySegmentation<KEY_LEN> + 'static,
-    > PACT<KEY_LEN, O, S>
+    > PATCH<KEY_LEN, O, S>
 {
-    pub fn union<'a, I>(trees: I) -> PACT<KEY_LEN, O, S>
+    pub fn union<'a, I>(trees: I) -> PATCH<KEY_LEN, O, S>
     where
-        I: IntoIterator<Item = &'a PACT<KEY_LEN, O, S>>,
+        I: IntoIterator<Item = &'a PATCH<KEY_LEN, O, S>>,
     {
         let mut children = Vec::new();
 
@@ -80,7 +80,7 @@ impl<
             children.push(&tree.root)
         }
 
-        return PACT {
+        return PATCH {
             root: recursive_union(0, children),
         };
     }
@@ -101,7 +101,7 @@ mod tests {
 
             let mut trees = Vec::new();
             for entries in entriess {
-                let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+                let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                 for entry in entries {
                     let mut key = [0; 64];
                     key.iter_mut().set_from(entry.iter().cloned());
@@ -111,7 +111,7 @@ mod tests {
                 }
                 trees.push(tree);
             }
-            let union_tree = PACT::union(trees.iter());
+            let union_tree = PATCH::union(trees.iter());
 
             let mut set_vec = Vec::from_iter(set.into_iter());
             let mut tree_vec = union_tree.infixes([0; 64], 0, 63, |x| x);
@@ -155,7 +155,7 @@ mod tests {
 
         let mut trees = Vec::new();
         for entries in entriess {
-            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
@@ -165,7 +165,7 @@ mod tests {
             }
             trees.push(tree);
         }
-        let union_tree = PACT::union(trees.iter());
+        let union_tree = PATCH::union(trees.iter());
 
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = union_tree.infixes([0; 64], 0, 63, |x| x);

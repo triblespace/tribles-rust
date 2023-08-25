@@ -1,9 +1,9 @@
-mod pacttribleconstraint;
+mod patchtribleconstraint;
 
-use pacttribleconstraint::*;
+use patchtribleconstraint::*;
 
 use crate::namespace::{Id, Value};
-use crate::pact::{Entry, PACT};
+use crate::patch::{Entry, PATCH};
 use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
 };
@@ -12,28 +12,28 @@ use std::iter::FromIterator;
 use super::TribleSet;
 
 #[derive(Debug, Clone)]
-pub struct PACTTribleSet {
-    eav: PACT<64, EAVOrder, TribleSegmentation>,
-    eva: PACT<64, EVAOrder, TribleSegmentation>,
-    aev: PACT<64, AEVOrder, TribleSegmentation>,
-    ave: PACT<64, AVEOrder, TribleSegmentation>,
-    vea: PACT<64, VEAOrder, TribleSegmentation>,
-    vae: PACT<64, VAEOrder, TribleSegmentation>,
+pub struct PATCHTribleSet {
+    eav: PATCH<64, EAVOrder, TribleSegmentation>,
+    eva: PATCH<64, EVAOrder, TribleSegmentation>,
+    aev: PATCH<64, AEVOrder, TribleSegmentation>,
+    ave: PATCH<64, AVEOrder, TribleSegmentation>,
+    vea: PATCH<64, VEAOrder, TribleSegmentation>,
+    vae: PATCH<64, VAEOrder, TribleSegmentation>,
 }
 
-impl PACTTribleSet {
-    pub fn union<'a, I>(iter: I) -> PACTTribleSet
+impl PATCHTribleSet {
+    pub fn union<'a, I>(iter: I) -> PATCHTribleSet
     where
-        I: Iterator<Item = &'a PACTTribleSet> + Clone,
+        I: Iterator<Item = &'a PATCHTribleSet> + Clone,
     {
-        let eav = PACT::union(iter.clone().map(|set| &set.eav));
-        let eva = PACT::union(iter.clone().map(|set| &set.eva));
-        let aev = PACT::union(iter.clone().map(|set| &set.aev));
-        let ave = PACT::union(iter.clone().map(|set| &set.ave));
-        let vea = PACT::union(iter.clone().map(|set| &set.vea));
-        let vae = PACT::union(iter.clone().map(|set| &set.vae));
+        let eav = PATCH::union(iter.clone().map(|set| &set.eav));
+        let eva = PATCH::union(iter.clone().map(|set| &set.eva));
+        let aev = PATCH::union(iter.clone().map(|set| &set.aev));
+        let ave = PATCH::union(iter.clone().map(|set| &set.ave));
+        let vea = PATCH::union(iter.clone().map(|set| &set.vea));
+        let vae = PATCH::union(iter.clone().map(|set| &set.vae));
 
-        PACTTribleSet {
+        PATCHTribleSet {
             eav,
             eva,
             aev,
@@ -43,14 +43,14 @@ impl PACTTribleSet {
         }
     }
 
-    pub fn new() -> PACTTribleSet {
-        PACTTribleSet {
-            eav: PACT::new(),
-            eva: PACT::new(),
-            aev: PACT::new(),
-            ave: PACT::new(),
-            vea: PACT::new(),
-            vae: PACT::new(),
+    pub fn new() -> PATCHTribleSet {
+        PATCHTribleSet {
+            eav: PATCH::new(),
+            eva: PATCH::new(),
+            aev: PATCH::new(),
+            ave: PATCH::new(),
+            vea: PATCH::new(),
+            vae: PATCH::new(),
         }
     }
 
@@ -69,9 +69,9 @@ impl PACTTribleSet {
     }
 }
 
-impl FromIterator<Trible> for PACTTribleSet {
+impl FromIterator<Trible> for PATCHTribleSet {
     fn from_iter<I: IntoIterator<Item = Trible>>(iter: I) -> Self {
-        let mut set = PACTTribleSet::new();
+        let mut set = PATCHTribleSet::new();
 
         for t in iter {
             set.add(&t);
@@ -81,9 +81,9 @@ impl FromIterator<Trible> for PACTTribleSet {
     }
 }
 
-impl TribleSet for PACTTribleSet {
+impl TribleSet for PATCHTribleSet {
     type PatternConstraint<'a, E, A, V>
-     = PACTTribleSetConstraint<'a, E, A, V>
+     = PATCHTribleSetConstraint<'a, E, A, V>
      where
      E: From<Id>,
      A: From<Id>,
@@ -106,7 +106,7 @@ impl TribleSet for PACTTribleSet {
         for<'b> &'b A: Into<Id>,
         for<'b> &'b V: Into<Value>,
     {
-        PACTTribleSetConstraint::new(e, a, v, self)
+        PATCHTribleSetConstraint::new(e, a, v, self)
     }
 }
 
@@ -119,7 +119,7 @@ mod tests {
     proptest! {
         #[test]
         fn put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut set = PACTTribleSet::new();
+            let mut set = PATCHTribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());

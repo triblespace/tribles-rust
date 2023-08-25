@@ -1,7 +1,7 @@
 pub mod bitset;
 pub mod bytetable;
 pub mod namespace;
-pub mod pact;
+pub mod patch;
 pub mod query;
 pub mod trible;
 pub mod tribleset;

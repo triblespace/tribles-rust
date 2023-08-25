@@ -31,7 +31,7 @@ macro_rules! entities_inner {
     };
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
-            let mut set = $crate::tribleset::pacttribleset::PACTTribleSet::new();
+            let mut set = $crate::tribleset::patchtribleset::PATCHTribleSet::new();
             $(let $Var = { use $Namespace as base; <base::Id as $crate::namespace::Factory>::factory() };)*
             $(entities_inner!(@entity (set, $Namespace, $Entity));)*
             set

@@ -216,7 +216,7 @@ macro_rules! query {
     ($ctx:ident, ($($Var:ident),+), $Constraint:expr) => {
         {
             let mut $ctx = $crate::query::VariableContext::new();
-            //let set = $crate::tribleset::pacttribleset::PACTTribleSet::new();
+            //let set = $crate::tribleset::patchtribleset::PATCHTribleSet::new();
             $(let $Var = $ctx.next_variable();)*
               $crate::query::Query::new($Constraint).map(
                 move |binding| {

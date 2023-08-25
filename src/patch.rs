@@ -1,6 +1,4 @@
-//Persitent Adaptive Cuckoo Trie
-// Should be renamed to PATCH
-// Persistent Adaptive Trie with Compression and Hashing
+// Persistent Adaptive Trie with Cuckoos and Hashes
 
 mod branch;
 mod bytecursor;
@@ -763,17 +761,17 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 }
 
 #[derive(Debug, Clone)]
-pub struct PACT<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+pub struct PATCH<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
     root: Head<KEY_LEN, O, S>,
 }
 
-impl<const KEY_LEN: usize, O, S> PACT<KEY_LEN, O, S>
+impl<const KEY_LEN: usize, O, S> PATCH<KEY_LEN, O, S>
 where
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
 {
     pub fn new() -> Self {
-        PACT {
+        PATCH {
             root: Head::<KEY_LEN, O, S>::empty(),
         }
     }
@@ -870,7 +868,7 @@ mod tests {
     fn empty_tree() {
         init();
 
-        let _tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+        let _tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
     }
 
     #[test]
@@ -878,7 +876,7 @@ mod tests {
         init();
 
         const KEY_SIZE: usize = 64;
-        let mut tree = PACT::<KEY_SIZE, IdentityOrder, SingleSegmentation>::new();
+        let mut tree = PATCH::<KEY_SIZE, IdentityOrder, SingleSegmentation>::new();
         let entry = Entry::new(&[0; KEY_SIZE]);
         tree.put(&entry);
     }
@@ -926,7 +924,7 @@ mod tests {
     proptest! {
         #[test]
         fn tree_put(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();
                 let entry = Entry::new(&key);
@@ -936,7 +934,7 @@ mod tests {
 
         #[test]
         fn tree_len(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             let mut set = HashSet::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();
@@ -950,7 +948,7 @@ mod tests {
 
         #[test]
         fn tree_infixes(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             let mut set = HashSet::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();

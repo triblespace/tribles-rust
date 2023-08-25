@@ -6,7 +6,7 @@ where
     K: KeyProperties<KEY_LEN>,
     [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
-    inner: PACTCursor<KEY_LEN, K>,
+    inner: PATCHCursor<KEY_LEN, K>,
     depth: u8,
 }
 
@@ -15,7 +15,7 @@ where
     K: KeyProperties<KEY_LEN>,
     [Head<KEY_LEN, K>; KEY_LEN]: Sized,
 {
-    pub fn new(inner: PACTCursor<KEY_LEN, K>) -> Self {
+    pub fn new(inner: PATCHCursor<KEY_LEN, K>) -> Self {
         Self { inner, depth: 0 }
     }
 }

@@ -2,15 +2,15 @@ mod tribleconstraint;
 
 use tribleconstraint::*;
 
-use crate::pact::PACT;
+use crate::patch::PATCH;
 use crate::trible::{AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder};
 use std::iter::FromIterator;
 use triomphe::Arc;
 
 #[derive(Debug, Clone)]
 pub struct BlobCache<const limit:usize> {
-    weak: PACT<32, IdentityOrder>,
-    strong: PACT<64, VAEOrder>,
+    weak: PATCH<32, IdentityOrder>,
+    strong: PATCH<64, VAEOrder>,
 }
 
 impl BlobCache {
@@ -20,12 +20,12 @@ impl BlobCache {
         I::IntoIter: Clone,
     {
         let iter = sets.into_iter();
-        let eav = PACT::union(iter.clone().map(|set| set.eav));
-        let eva = PACT::union(iter.clone().map(|set| set.eva));
-        let aev = PACT::union(iter.clone().map(|set| set.aev));
-        let ave = PACT::union(iter.clone().map(|set| set.ave));
-        let vea = PACT::union(iter.clone().map(|set| set.vea));
-        let vae = PACT::union(iter.clone().map(|set| set.vae));
+        let eav = PATCH::union(iter.clone().map(|set| set.eav));
+        let eva = PATCH::union(iter.clone().map(|set| set.eva));
+        let aev = PATCH::union(iter.clone().map(|set| set.aev));
+        let ave = PATCH::union(iter.clone().map(|set| set.ave));
+        let vea = PATCH::union(iter.clone().map(|set| set.vea));
+        let vae = PATCH::union(iter.clone().map(|set| set.vae));
 
         TribleSet {
             eav,
@@ -39,12 +39,12 @@ impl BlobCache {
 
     pub fn new() -> TribleSet {
         TribleSet {
-            eav: PACT::new(),
-            eva: PACT::new(),
-            aev: PACT::new(),
-            ave: PACT::new(),
-            vea: PACT::new(),
-            vae: PACT::new(),
+            eav: PATCH::new(),
+            eva: PATCH::new(),
+            aev: PATCH::new(),
+            ave: PATCH::new(),
+            vea: PATCH::new(),
+            vae: PATCH::new(),
         }
     }
 

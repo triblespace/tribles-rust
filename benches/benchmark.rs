@@ -9,9 +9,9 @@ use tribles::types::fucid::FUCID;
 use tribles::types::ufoid::UFOID;
 use tribles::{query, trible::*};
 
-use tribles::pact::{self, Entry, IdentityOrder};
-use tribles::pact::{SingleSegmentation, PACT};
-use tribles::tribleset::pacttribleset::PACTTribleSet;
+use tribles::patch::{self, Entry, IdentityOrder};
+use tribles::patch::{SingleSegmentation, PATCH};
+use tribles::tribleset::patchtribleset::PATCHTribleSet;
 
 use im::OrdSet;
 
@@ -104,31 +104,31 @@ fn im_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-fn pact_benchmark(c: &mut Criterion) {
-    pact::init();
+fn patch_benchmark(c: &mut Criterion) {
+    patch::init();
 
-    let mut group = c.benchmark_group("pact");
+    let mut group = c.benchmark_group("patch");
 
     for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+                let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in black_box(&samples) {
                     let entry: Entry<64> = Entry::new(&t.data);
-                    pact.put(&entry);
+                    patch.put(&entry);
                 }
             })
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             for t in black_box(&samples) {
                 let entry: Entry<64> = Entry::new(&t.data);
-                pact.put(&entry);
+                patch.put(&entry);
             }
-            b.iter(|| pact.infixes([0; 64], 0, 63, |x| x))
+            b.iter(|| patch.infixes([0; 64], 0, 63, |x| x))
         });
     }
 
@@ -137,19 +137,19 @@ fn pact_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(total_unioned as u64));
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
             let samples: Vec<Trible> = random_tribles(total_unioned as usize);
-            let pacts: Vec<_> = samples
+            let patchs: Vec<_> = samples
                 .chunks(total_unioned / i)
                 .map(|samples| {
-                    let mut pact: PACT<64, IdentityOrder, SingleSegmentation> =
-                        PACT::<64, IdentityOrder, SingleSegmentation>::new();
+                    let mut patch: PATCH<64, IdentityOrder, SingleSegmentation> =
+                        PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                     for t in samples {
                         let entry: Entry<64> = Entry::new(&t.data);
-                        pact.put(&entry);
+                        patch.put(&entry);
                     }
-                    pact
+                    patch
                 })
                 .collect();
-            b.iter(|| black_box(PACT::union(pacts.iter())));
+            b.iter(|| black_box(PATCH::union(patchs.iter())));
         });
     }
 
@@ -157,7 +157,7 @@ fn pact_benchmark(c: &mut Criterion) {
 }
 
 fn tribleset_benchmark(c: &mut Criterion) {
-    pact::init();
+    patch::init();
 
     let mut group = c.benchmark_group("tribleset");
 
@@ -167,7 +167,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             b.iter(|| {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
-                let mut set = PACTTribleSet::new();
+                let mut set = PATCHTribleSet::new();
                 for t in black_box(&samples) {
                     set.add(t);
                 }
@@ -182,7 +182,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let _set = PACTTribleSet::from_iter(black_box(samples.iter().copied()));
+                let _set = PATCHTribleSet::from_iter(black_box(samples.iter().copied()));
             })
         });
     }
@@ -195,7 +195,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             let sets: Vec<_> = samples
                 .chunks(total_unioned / i)
                 .map(|samples| {
-                    let mut set = PACTTribleSet::new();
+                    let mut set = PATCHTribleSet::new();
                     for t in samples {
                         set.add(t);
                     }
@@ -203,7 +203,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
                 })
                 .collect();
             b.iter(|| {
-                black_box(PACTTribleSet::union(sets.iter()).len())
+                black_box(PATCHTribleSet::union(sets.iter()).len())
             });
         });
     }
@@ -212,7 +212,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
 }
 
 fn query_benchmark(c: &mut Criterion) {
-    pact::init();
+    patch::init();
 
     let mut group = c.benchmark_group("query");
 
@@ -257,7 +257,7 @@ criterion_group!(
     benches,
     std_benchmark,
     im_benchmark,
-    pact_benchmark,
+    patch_benchmark,
     tribleset_benchmark,
     query_benchmark,
     hashtribleset_benchmark,

@@ -124,10 +124,6 @@ macro_rules! create_branch {
                 }
             }
 
-            pub unsafe fn count(node: *const Self) -> u64 {
-                (*node).leaf_count
-            }
-
             pub unsafe fn count_segment(node: *const Self, at_depth: usize) -> u64 {
                 if S::segment(O::key_index(at_depth))
                     != S::segment(O::key_index((*node).end_depth as usize))
@@ -155,26 +151,8 @@ macro_rules! create_branch {
                 }
             }
 
-            pub unsafe fn reinsert(
-                node: *mut Self,
-                child: Head<KEY_LEN, O, S>,
-            ) -> Head<KEY_LEN, O, S> {
-                (*node).child_table.put(child)
-            }
-
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
                 Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth)
-            }
-
-            pub unsafe fn with_start(
-                node: *mut Self,
-                new_start_depth: usize,
-            ) -> Head<KEY_LEN, O, S> {
-                Head::new(
-                    HeadTag::$name,
-                    Leaf::<KEY_LEN>::peek::<O>((*node).min, new_start_depth),
-                    node,
-                )
             }
 
             pub unsafe fn put(
@@ -191,7 +169,7 @@ macro_rules! create_branch {
                         Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                         Branch2::insert(new_branch, head.with_start(depth), head.hash());
 
-                        *head = Branch2::with_start(new_branch, start_depth);
+                        *head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
                         return;
                     }
                 }

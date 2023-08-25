@@ -61,12 +61,12 @@ impl Trible {
 
     pub fn e_as_value(&self) -> Value {
         let mut o = [0u8; 32];
-        &mut o[16..=31].copy_from_slice(&self.data[E_START..=E_END]);
+        o[16..=31].copy_from_slice(&self.data[E_START..=E_END]);
         o
     }
     pub fn a_as_value(&self) -> Value {
         let mut o = [0u8; 32];
-        &mut o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
+        o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
         o
     }
 }

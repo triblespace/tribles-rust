@@ -156,14 +156,38 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             match self.tag() {
                 HeadTag::Empty => 0,
                 HeadTag::Leaf => 1,
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::count(self.ptr()),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::count(self.ptr()),
+                HeadTag::Branch2 => {
+                    let node: *const Branch2<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch4 => {
+                    let node: *const Branch4<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch8 => {
+                    let node: *const Branch8<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch16 => {
+                    let node: *const Branch16<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch32 => {
+                    let node: *const Branch32<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch64 => {
+                    let node: *const Branch64<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch128 => {
+                    let node: *const Branch128<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
+                HeadTag::Branch256 => {
+                    let node: *const Branch256<KEY_LEN, O, S> = self.ptr();
+                    (*node).leaf_count
+                }
             }
         }
     }
@@ -349,49 +373,56 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             let mut displaced = child;
             if self.tag() == HeadTag::Branch2 {
                 Branch2::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch4::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch4::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }
             }
             if self.tag() == HeadTag::Branch4 {
                 Branch4::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch8::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch8::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }
             }
             if self.tag() == HeadTag::Branch8 {
                 Branch8::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch16::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch16::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }
             }
             if self.tag() == HeadTag::Branch16 {
                 Branch16::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch32::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch32::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }
             }
             if self.tag() == HeadTag::Branch32 {
                 Branch32::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch64::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch64::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }
             }
             if self.tag() == HeadTag::Branch64 {
                 Branch64::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch128::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch128::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }
             }
             if self.tag() == HeadTag::Branch128 {
                 Branch128::<KEY_LEN, O, S>::grow(self);
-                displaced = Branch256::<KEY_LEN, O, S>::reinsert(self.ptr(), displaced);
+                let node: *mut Branch256::<KEY_LEN, O, S> = self.ptr();
+                displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
                 }

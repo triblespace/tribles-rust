@@ -88,7 +88,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                     Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                     Branch2::insert(new_branch, head.with_start(depth), head.hash());
 
-                    *head = Branch2::with_start(new_branch, at_depth);
+                    *head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
                     return;
                 }
             }

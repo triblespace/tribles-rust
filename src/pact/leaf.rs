@@ -75,19 +75,6 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
     }
 
-    pub(crate) unsafe fn with_start<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
-        node: *mut Self,
-        new_start_depth: usize,
-    ) -> Head<KEY_LEN, O, S> {
-        unsafe {
-            Head::new(
-                HeadTag::Leaf,
-                (*node).key[O::key_index(new_start_depth)],
-                node,
-            )
-        }
-    }
-
     pub(crate) unsafe fn put<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
         head: &mut Head<KEY_LEN, O, S>,
         entry: &Entry<KEY_LEN>,

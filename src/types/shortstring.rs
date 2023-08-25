@@ -10,11 +10,13 @@ pub struct ShortString {
 
 impl ShortString {
     pub fn new(s: String) -> Result<ShortString, &'static str> {
-        if s.len() < 32 {
-            Ok(ShortString { inner: s })
-        } else {
-            Err("String too long.")
+        if s.len() >= 32 {
+            return Err("String too long.");
         }
+        if s.as_bytes().iter().any(|&b| b == 0) {
+            return Err("ShortString must not contain null.");
+        }
+        Ok(ShortString { inner: s })
     }
 }
 
@@ -32,7 +34,7 @@ impl From<Value> for ShortString {
         ShortString {
             inner: String::from_utf8(
                 IntoIterator::into_iter(bytes)
-                    .take_while(|x| *x != 0)
+                    .take_while(|&x| x != 0)
                     .collect(),
             )
             .unwrap(),

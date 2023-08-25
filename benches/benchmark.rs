@@ -133,23 +133,26 @@ fn pact_benchmark(c: &mut Criterion) {
         });
     }
 
-    /*
     let total_unioned = 1000000;
     for i in [1, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
-            let samples = random_tribles(i as usize);
-            let pacts = samples.chunks(total_unioned / i).map(|samples| {
-                let mut pact = PACT::<64, IdentityOrder, SingleSegmentation>::new();
-                for t in samples {
-                    pact.put(&Arc::new(t.data));
-                }
-                pact
-            });
-            b.iter(|| PACT::union(black_box(pacts.clone())));
+            let samples: Vec<Trible> = random_tribles(total_unioned as usize);
+            let pacts: Vec<_> = samples
+                .chunks(total_unioned / i)
+                .map(|samples| {
+                    let mut pact: PACT<64, IdentityOrder, SingleSegmentation> =
+                        PACT::<64, IdentityOrder, SingleSegmentation>::new();
+                    for t in samples {
+                        let entry: Entry<64> = Entry::new(&t.data);
+                        pact.put(&entry);
+                    }
+                    pact
+                })
+                .collect();
+            b.iter(|| black_box(PACT::union(pacts.iter())));
         });
     }
-    */
 
     group.finish();
 }
@@ -185,23 +188,27 @@ fn tribleset_benchmark(c: &mut Criterion) {
         });
     }
 
-    /*
     let total_unioned = 1000000;
     for i in [1, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
         group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
-            let samples = random_tribles(i as usize);
-            let sets = samples.chunks(total_unioned / i).map(|samples| {
-                let mut set = PACTTribleSet::new();
-                for t in samples {
-                    set.add(t);
-                }
-                set
+            let samples = random_tribles(total_unioned as usize);
+            let sets: Vec<_> = samples
+                .chunks(total_unioned / i)
+                .map(|samples| {
+                    let mut set = PACTTribleSet::new();
+                    for t in samples {
+                        set.add(t);
+                    }
+                    set
+                })
+                .collect();
+            b.iter(|| {
+                black_box(PACTTribleSet::union(sets.iter()).len())
             });
-            b.iter(|| PACTTribleSet::union(black_box(sets.clone())));
         });
     }
-    */
+
     group.finish();
 }
 

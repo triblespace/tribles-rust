@@ -360,16 +360,71 @@ create_grow!(Branch32, Branch64);
 create_grow!(Branch64, Branch128);
 create_grow!(Branch128, Branch256);
 
-pub(super) fn branch_for_size<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(n: usize, end_depth: usize) -> Head<KEY_LEN, O, S> {
+pub(super) fn branch_for_size<
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+>(
+    n: usize,
+    end_depth: usize,
+) -> Head<KEY_LEN, O, S> {
     match n {
-        1..=2 => unsafe {Head::new(HeadTag::Branch2, 0, Branch2::<KEY_LEN, O, S>::new(end_depth))},
-        3..=4 => unsafe {Head::new(HeadTag::Branch4, 0, Branch4::<KEY_LEN, O, S>::new(end_depth))},
-        5..=8 => unsafe {Head::new(HeadTag::Branch8, 0, Branch8::<KEY_LEN, O, S>::new(end_depth))},
-        9..=16 => unsafe {Head::new(HeadTag::Branch16, 0, Branch16::<KEY_LEN, O, S>::new(end_depth))},
-        17..=32 => unsafe {Head::new(HeadTag::Branch32, 0, Branch32::<KEY_LEN, O, S>::new(end_depth))},
-        33..=64 => unsafe {Head::new(HeadTag::Branch64, 0, Branch64::<KEY_LEN, O, S>::new(end_depth))},
-        65..=128 => unsafe {Head::new(HeadTag::Branch128, 0, Branch128::<KEY_LEN, O, S>::new(end_depth))},
-        129..=256 => unsafe {Head::new(HeadTag::Branch256, 0, Branch256::<KEY_LEN, O, S>::new(end_depth))},
+        1..=2 => unsafe {
+            Head::new(
+                HeadTag::Branch2,
+                0,
+                Branch2::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        3..=4 => unsafe {
+            Head::new(
+                HeadTag::Branch4,
+                0,
+                Branch4::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        5..=8 => unsafe {
+            Head::new(
+                HeadTag::Branch8,
+                0,
+                Branch8::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        9..=16 => unsafe {
+            Head::new(
+                HeadTag::Branch16,
+                0,
+                Branch16::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        17..=32 => unsafe {
+            Head::new(
+                HeadTag::Branch32,
+                0,
+                Branch32::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        33..=64 => unsafe {
+            Head::new(
+                HeadTag::Branch64,
+                0,
+                Branch64::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        65..=128 => unsafe {
+            Head::new(
+                HeadTag::Branch128,
+                0,
+                Branch128::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
+        129..=256 => unsafe {
+            Head::new(
+                HeadTag::Branch256,
+                0,
+                Branch256::<KEY_LEN, O, S>::new(end_depth),
+            )
+        },
         _ => panic!("bad child count for branch"),
     }
 }

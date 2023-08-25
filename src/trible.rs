@@ -32,11 +32,11 @@ impl Trible {
         Self { data }
     }
 
-    pub fn raw(data: [u8; 64]) -> Trible {
+    pub fn new_raw(data: [u8; 64]) -> Trible {
         Self { data }
     }
 
-    pub fn raw_values(e: Value, a: Value, v: Value) -> Option<Trible> {
+    pub fn new_raw_values(e: Value, a: Value, v: Value) -> Option<Trible> {
         if e[0..16].iter().any(|&x| x != 0) || a[0..16].iter().any(|&x| x != 0) {
             return None;
         }

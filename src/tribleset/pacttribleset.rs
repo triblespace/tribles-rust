@@ -22,19 +22,16 @@ pub struct PACTTribleSet {
 }
 
 impl PACTTribleSet {
-    /*
-    pub fn union<I>(sets: I) -> PACTTribleSet
+    pub fn union<'a, I>(iter: I) -> PACTTribleSet
     where
-        I: IntoIterator<Item = PACTTribleSet>,
-        I::IntoIter: Clone,
+        I: Iterator<Item = &'a PACTTribleSet> + Clone,
     {
-        let iter = sets.into_iter();
-        let eav = PACT::union(iter.clone().map(|set| set.eav));
-        let eva = PACT::union(iter.clone().map(|set| set.eva));
-        let aev = PACT::union(iter.clone().map(|set| set.aev));
-        let ave = PACT::union(iter.clone().map(|set| set.ave));
-        let vea = PACT::union(iter.clone().map(|set| set.vea));
-        let vae = PACT::union(iter.clone().map(|set| set.vae));
+        let eav = PACT::union(iter.clone().map(|set| &set.eav));
+        let eva = PACT::union(iter.clone().map(|set| &set.eva));
+        let aev = PACT::union(iter.clone().map(|set| &set.aev));
+        let ave = PACT::union(iter.clone().map(|set| &set.ave));
+        let vea = PACT::union(iter.clone().map(|set| &set.vea));
+        let vae = PACT::union(iter.clone().map(|set| &set.vae));
 
         PACTTribleSet {
             eav,
@@ -45,7 +42,6 @@ impl PACTTribleSet {
             vae,
         }
     }
-    */
 
     pub fn new() -> PACTTribleSet {
         PACTTribleSet {

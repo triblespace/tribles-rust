@@ -72,7 +72,7 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        if let Some(trible) = Trible::raw_values(
+        if let Some(trible) = Trible::new_raw_values(
             binding.get(self.variable_e.index).unwrap_or([0; 32]),
             binding.get(self.variable_a.index).unwrap_or([0; 32]),
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
@@ -134,75 +134,75 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        if let Some(trible) = Trible::raw_values(
+        if let Some(trible) = Trible::new_raw_values(
             binding.get(self.variable_e.index).unwrap_or([0; 32]),
             binding.get(self.variable_a.index).unwrap_or([0; 32]),
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => {
-                    self.set
-                        .eav
-                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                    self.set.eav.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
                 }
                 (false, false, false, false, true, false) => {
-                    self.set
-                        .aev
-                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                    self.set.aev.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
                 }
                 (false, false, false, false, false, true) => {
                     self.set
                         .vea
-                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
                 }
 
                 (true, false, false, false, true, false) => {
-                    self.set
-                        .eav
-                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                    self.set.eav.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
                 }
                 (true, false, false, false, false, true) => {
                     self.set
                         .eva
-                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
                 }
 
                 (false, true, false, true, false, false) => {
-                    self.set
-                        .aev
-                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                    self.set.aev.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
                 }
                 (false, true, false, false, false, true) => {
                     self.set
                         .ave
-                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
                 }
 
                 (false, false, true, true, false, false) => {
-                    self.set
-                        .vea
-                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                    self.set.vea.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
                 }
                 (false, false, true, false, true, false) => {
-                    self.set
-                        .vae
-                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                    self.set.vae.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
                 }
 
                 (false, true, true, true, false, false) => {
-                    self.set
-                        .ave
-                        .infixes(trible.data, E_START, E_END, |k| Trible::raw(k).e_as_value())
+                    self.set.ave.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
                 }
                 (true, false, true, false, true, false) => {
-                    self.set
-                        .eva
-                        .infixes(trible.data, A_START, A_END, |k| Trible::raw(k).a_as_value())
+                    self.set.eva.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
                 }
                 (true, true, false, false, false, true) => {
                     self.set
                         .eav
-                        .infixes(trible.data, V_START, V_END, |k| Trible::raw(k).v())
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
                 }
                 _ => panic!(),
             }
@@ -224,7 +224,7 @@ where
             (false, false, false) => panic!(),
             (true, false, false) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -249,7 +249,7 @@ where
             }
             (false, true, false) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -274,7 +274,7 @@ where
             }
             (false, false, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -300,7 +300,7 @@ where
 
             (true, true, false) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -325,7 +325,7 @@ where
             }
             (true, false, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -351,7 +351,7 @@ where
 
             (false, true, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -377,7 +377,7 @@ where
 
             (true, true, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::raw_values(
+                    if let Some(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {

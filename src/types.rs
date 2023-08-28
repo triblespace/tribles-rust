@@ -1,4 +1,2 @@
-pub mod fucid;
-pub mod longstring;
-pub mod shortstring;
-pub mod ufoid;
+pub mod semantic;
+pub mod syntactic;

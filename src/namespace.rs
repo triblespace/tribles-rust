@@ -162,10 +162,10 @@ pub(crate) use NS;
 
 NS! {
     pub namespace knights {
-        @ crate::types::ufoid::UFOID;
-        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::ufoid::UFOID;
-        name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::shortstring::ShortString;
-        title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::shortstring::ShortString;
+        @ crate::types::syntactic::ufoid::UFOID;
+        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::ufoid::UFOID;
+        name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::shortstring::ShortString;
+        title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::shortstring::ShortString;
     }
 }
 

@@ -373,7 +373,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             let mut displaced = child;
             if self.tag() == HeadTag::Branch2 {
                 Branch2::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch4::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch4<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
@@ -381,7 +381,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             if self.tag() == HeadTag::Branch4 {
                 Branch4::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch8::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch8<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
@@ -389,7 +389,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             if self.tag() == HeadTag::Branch8 {
                 Branch8::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch16::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch16<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
@@ -397,7 +397,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             if self.tag() == HeadTag::Branch16 {
                 Branch16::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch32::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch32<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
@@ -405,7 +405,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             if self.tag() == HeadTag::Branch32 {
                 Branch32::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch64::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch64<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
@@ -413,7 +413,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             if self.tag() == HeadTag::Branch64 {
                 Branch64::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch128::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch128<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;
@@ -421,7 +421,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             if self.tag() == HeadTag::Branch128 {
                 Branch128::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch256::<KEY_LEN, O, S> = self.ptr();
+                let node: *mut Branch256<KEY_LEN, O, S> = self.ptr();
                 displaced = (*node).child_table.put(displaced);
                 if displaced.key() == None {
                     return;

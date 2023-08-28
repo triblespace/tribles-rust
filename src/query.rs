@@ -233,7 +233,7 @@ mod tests {
 
     use super::*;
 
-    use crate::types::shortstring::ShortString;
+    use crate::types::syntactic::shortstring::ShortString;
 
     #[test]
     fn and_set() {

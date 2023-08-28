@@ -5,8 +5,8 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use tribles::namespace::knights;
 use tribles::tribleset::hashtribleset::HashTribleSet;
-use tribles::types::fucid::FUCID;
-use tribles::types::ufoid::UFOID;
+use tribles::types::syntactic::fucid::FUCID;
+use tribles::types::syntactic::ufoid::UFOID;
 use tribles::{query, trible::*};
 
 use tribles::patch::{self, Entry, IdentityOrder};
@@ -202,9 +202,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
                     set
                 })
                 .collect();
-            b.iter(|| {
-                black_box(PATCHTribleSet::union(sets.iter()).len())
-            });
+            b.iter(|| black_box(PATCHTribleSet::union(sets.iter()).len()));
         });
     }
 

@@ -58,6 +58,22 @@ impl TryFrom<&str> for ShortString {
     }
 }
 
+impl TryFrom<String> for ShortString {
+    type Error = &'static str;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        if s.len() > 32 {
+            return Err("string too long");
+        }
+        if s.as_bytes().iter().any(|&x| x == 0) {
+            return Err("string may not contain null byte");
+        }
+        Ok(ShortString {
+            inner: s.to_string(),
+        })
+    }
+}
+
 /*
 impl From<&ShortString> for Blob {
     fn from(string: &ShortString) -> Self {

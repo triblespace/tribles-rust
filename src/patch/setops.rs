@@ -77,7 +77,10 @@ impl<
         let mut children = Vec::new();
 
         for tree in trees {
-            children.push(&tree.root)
+            let child = &tree.root;
+            if child.tag() != HeadTag::Empty {
+                children.push(child);
+            }
         }
 
         return PATCH {

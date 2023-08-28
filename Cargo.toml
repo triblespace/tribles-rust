@@ -24,6 +24,7 @@ itertools = "0.10.5"
 peak_alloc = "0.1.0"
 hex-literal = "0.3.4"
 blake2 = "0.10.6"
+fake = "2.8"
 
 [[bench]]
 name = "benchmark"

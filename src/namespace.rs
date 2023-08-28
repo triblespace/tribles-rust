@@ -29,12 +29,17 @@ macro_rules! entities_inner {
             }
         }
     };
+    ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*], $set:ident) => {
+        {
+            $(let $Var = { use $Namespace as base; <base::Id as $crate::namespace::Factory>::factory() };)*
+            $(entities_inner!(@entity ($set, $Namespace, $Entity));)*
+            $set
+        }
+    };
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
             let mut set = $crate::tribleset::patchtribleset::PATCHTribleSet::new();
-            $(let $Var = { use $Namespace as base; <base::Id as $crate::namespace::Factory>::factory() };)*
-            $(entities_inner!(@entity (set, $Namespace, $Entity));)*
-            set
+            entities_inner!($Namespace, ($($Var),*), [$($Entity),*], set)
         }
     };
 }
@@ -133,6 +138,12 @@ macro_rules! NS {
 
             #[macro_export]
             macro_rules! entities {
+                ($vars:tt, $entities: tt, $set: ident) => {
+                    {
+                        use $crate::namespace::entities_inner;
+                        entities_inner!($mod_name, $vars, $entities, $set)
+                    }
+                };
                 ($vars:tt, $entities: tt) => {
                     {
                         use $crate::namespace::entities_inner;
@@ -162,10 +173,10 @@ pub(crate) use NS;
 
 NS! {
     pub namespace knights {
-        @ crate::types::syntactic::ufoid::UFOID;
-        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::ufoid::UFOID;
-        name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::shortstring::ShortString;
-        title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::shortstring::ShortString;
+        @ crate::types::syntactic::UFOID;
+        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
+        name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
+        title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::ShortString;
     }
 }
 

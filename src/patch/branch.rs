@@ -88,6 +88,8 @@ macro_rules! create_branch {
                     }
                     (*node).rc.load(Acquire);
 
+                    std::ptr::drop_in_place(node);
+
                     let layout = Layout::new::<Self>();
                     let ptr = node as *mut u8;
                     dealloc(ptr, layout);

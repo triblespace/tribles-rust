@@ -52,10 +52,13 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
 
     pub(crate) unsafe fn rc_dec(node: *mut Self) {
         unsafe {
-            if (*node).rc.fetch_sub(1, Release) != 1 {
+            let rc = (*node).rc.fetch_sub(1, Release);
+            if rc != 1 {
                 return;
             }
             (*node).rc.load(Acquire);
+
+            std::ptr::drop_in_place(node);
 
             let layout = Layout::new::<Self>();
             let ptr = node as *mut u8;

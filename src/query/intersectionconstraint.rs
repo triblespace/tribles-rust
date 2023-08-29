@@ -35,6 +35,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
         relevant_constraints.sort_by_key(|c| c.estimate(variable, binding));
 
         let mut proposal = relevant_constraints[0].propose(variable, binding);
+
         relevant_constraints[1..]
             .iter()
             .for_each(|c| c.confirm(variable, binding, &mut proposal));

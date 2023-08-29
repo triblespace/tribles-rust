@@ -176,13 +176,14 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
                         let unbound_variables = self.variables.subtract(self.binding.bound);
                         let next_variable = unbound_variables
                             .into_iter()
-                            .min_by_key(|v| self.constraint.estimate(*v, self.binding));
+                            .min_by_key(|&v| self.constraint.estimate(v, self.binding));
                         next_variable
                     } {
                         self.stack_depth += 1;
                         self.variable_stack[self.stack_depth as usize] = next_variable;
                         self.value_stack[self.stack_depth as usize] =
                             self.constraint.propose(next_variable, self.binding);
+                        
                         mode = Search::Horizontal;
                     } else {
                         return Some(self.binding.clone());

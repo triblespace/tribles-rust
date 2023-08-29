@@ -264,18 +264,18 @@ macro_rules! create_branch {
                 start_depth: usize,
             ) -> usize {
                 let node_end_depth = ((*node).end_depth as usize);
-                for depth in at_depth..node_end_depth {
-                    if start_depth <= depth {
-                        if S::segment(O::key_index(start_depth))
-                            != S::segment(O::key_index(node_end_depth))
-                        {
-                            return 1;
-                        } else {
-                            return (*node).segment_count as usize;
-                        }
-                    }
+                for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
                     if Leaf::peek::<O>((*node).min, depth) != key[depth] {
                         return 0;
+                    }
+                }
+                if start_depth <= node_end_depth {
+                    if S::segment(O::key_index(start_depth))
+                        != S::segment(O::key_index(node_end_depth))
+                    {
+                        return 1;
+                    } else {
+                        return (*node).segment_count as usize;
                     }
                 }
                 if let Some(child) = (*node).child_table.get(key[node_end_depth]) {

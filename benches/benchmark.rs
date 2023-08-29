@@ -239,7 +239,7 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
             b.iter(|| {
                 let before_mem = PEAK_ALLOC.current_usage();
-                let mut kb = PATCHTribleSet::new();
+                let mut kb: PATCHTribleSet = PATCHTribleSet::new();
                 (0..i).for_each(|_| {
                     let kb = &mut kb;
                     knights::entities!((lover_a, lover_b),
@@ -291,38 +291,35 @@ fn query_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("query");
 
+    let mut background_kb = PATCHTribleSet::new();
+    (0..10000).for_each(|_| {
+        let kb = &mut background_kb;
+        knights::entities!((lover_a, lover_b),
+            [{lover_a @
+                name: Name(EN).fake::<String>().try_into().unwrap(),
+                loves: lover_b
+            },
+            {lover_b @
+                name: Name(EN).fake::<String>().try_into().unwrap(),
+                loves: lover_a
+            }], kb);
+    });
+
+    let data_kb = knights::entities!((romeo, juliet),
+    [{juliet @
+        name: "Juliet".try_into().unwrap(),
+        loves: romeo
+    },
+    {romeo @
+        name: "Romeo".try_into().unwrap(),
+        loves: juliet
+    }]);
+
+    let kb: PATCHTribleSet = PATCHTribleSet::union([background_kb.clone(), data_kb.clone()].iter());
+
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
-        let juliet = knights::Id::new();
-        let background_kbs: Vec<_> = (0..1000000)
-            .map(|_| {
-                knights::entities!((lover_a, lover_b),
-                [{lover_a @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_b
-                },
-                {lover_b @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_a
-                }])
-            })
-            .collect();
-
-        let background_kb = PATCHTribleSet::union(background_kbs.iter());
-
-        let data_kb = knights::entities!((romeo),
-        [{juliet @
-            name: "Juliet".try_into().unwrap(),
-            loves: romeo
-        },
-        {romeo @
-            name: "Romeo".try_into().unwrap(),
-            loves: juliet
-        }]);
-
-        let kb = PATCHTribleSet::union([background_kb, data_kb].iter());
-
-        b.iter(|| {
+        b.iter_with_large_drop(|| {
             let r: Vec<_> = query!(
                 ctx,
                 (juliet, name),
@@ -334,10 +331,9 @@ fn query_benchmark(c: &mut Criterion) {
                 }])
             )
             .collect();
-            black_box(&r);
+            black_box(r)
         })
     });
-
     group.finish();
 }
 

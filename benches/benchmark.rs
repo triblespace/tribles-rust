@@ -68,7 +68,7 @@ fn hashtribleset_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| {
+            b.iter_with_large_drop(|| {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = HashTribleSet::new();
                 for t in black_box(&samples) {
@@ -76,6 +76,7 @@ fn hashtribleset_benchmark(c: &mut Criterion) {
                 }
                 let after_mem = PEAK_ALLOC.current_usage_as_gb();
                 println!("HashTribleset size: {}", after_mem - before_mem);
+                set
             })
         });
     }
@@ -165,7 +166,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| {
+            b.iter_with_large_drop(|| {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = PATCHTribleSet::new();
                 for t in black_box(&samples) {
@@ -173,6 +174,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
                 }
                 let after_mem = PEAK_ALLOC.current_usage_as_gb();
                 println!("Tribleset size: {}", after_mem - before_mem);
+                set
             })
         });
     }
@@ -181,8 +183,9 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| {
-                let _set = PATCHTribleSet::from_iter(black_box(samples.iter().copied()));
+            b.iter_with_large_drop(|| {
+                let set = PATCHTribleSet::from_iter(black_box(samples.iter().copied()));
+                set
             })
         });
     }

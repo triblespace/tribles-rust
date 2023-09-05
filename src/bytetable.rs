@@ -1,31 +1,31 @@
-//! 
+//!
 //! The number of buckets is doubled with each table growth, which is not only
 //! commonly used middle ground for growing data-structures between expensive
 //! allocation/reallocation and unused memory, but also limits the work required
 //! for rehashing as we will see shortly.
-//! 
+//!
 //! The hash functions used are parameterised over the current size of the table
 //! and are what we call "compressed permutations", where the whole function is
 //! composed of two separate parametric operations
-//! 
+//!
 //! hash(size) = compression(size) • permutation
-//! 
+//!
 //!  * permutation: domain(hash) → [0 .. |domain|] ⊆ Nat;
 //!   reifies the randomness of the hash as a (read lossless) bijection from the
 //! hash domain to the natural numbers
 //!  * compression: range(permutation) → range(hash);
 //!   which reduces (read lossy) the range of the permutation so that multiple
 //! values of the hashes range are pigeonholed to the same element of its domain
-//! 
+//!
 //! The compression operation we use truncates the upper (most significant) bits
 //! of the input so that it's range is equal to
 //! [0 .. |buckets|].
-//! 
+//!
 //! compression(size, x) = ~(~0 << log2(size)) & x
-//! 
+//!
 //! The limitation to sizes of a power of two aligns with the doubling of the
 //! hash table at each growth. In fact using the number of doublings as the parameter makes the log2 call superfluous.
-//! 
+//!
 //! This compression function has an important property, as a new
 //! most significant bit is taken into consideration with each growth,
 //! each item either keeps its position or is moved to its position * 2.
@@ -81,7 +81,7 @@ pub fn init() {
 }
 
 /// Types must implement this trait in order to be storable in the byte table.
-/// 
+///
 /// The trait is `unsafe` because you must ensure that `key()` returns `None` iff
 /// the memory of the type is `mem::zeroed()`.
 pub unsafe trait ByteEntry {
@@ -131,22 +131,19 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
         return None;
     }
 
-    /// Move the provided `shoved_entry` into the bucket, displacing and 
+    /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning a random existing entry.
     fn shove_randomly(&mut self, shoved_entry: T) -> T {
         let index = unsafe { RAND as usize & (BUCKET_ENTRY_COUNT - 1) };
         return mem::replace(&mut self.entries[index], shoved_entry);
     }
 
-    /// Move the provided `shoved_entry` into the bucket, displacing and 
+    /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning an existing entry that was using the non-cheap random hash.
-    fn shove_cheaply(
-        &mut self,
-        bucket_index: u8,
-        shoved_entry: T,
-    ) -> T {
+    fn shove_cheaply(&mut self, bucket_index: u8, shoved_entry: T) -> T {
         for entry in &mut self.entries {
-            let entry_hash: u8 = compress_hash(MAX_BUCKET_COUNT as u8, cheap_hash(entry.key().unwrap()));
+            let entry_hash: u8 =
+                compress_hash(MAX_BUCKET_COUNT as u8, cheap_hash(entry.key().unwrap()));
             if bucket_index != entry_hash {
                 return mem::replace(entry, shoved_entry);
             }
@@ -167,7 +164,7 @@ fn rand_hash(byte_key: u8) -> u8 {
     unsafe { RANDOM_PERMUTATION_HASH[byte_key as usize] }
 }
 
-/// 
+///
 fn compress_hash(bucket_count: u8, hash: u8) -> u8 {
     let mask = bucket_count - 1;
     hash & mask

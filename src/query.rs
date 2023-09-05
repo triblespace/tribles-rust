@@ -183,7 +183,7 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
                         self.variable_stack[self.stack_depth as usize] = next_variable;
                         self.value_stack[self.stack_depth as usize] =
                             self.constraint.propose(next_variable, self.binding);
-                        
+
                         mode = Search::Horizontal;
                     } else {
                         return Some(self.binding.clone());

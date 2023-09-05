@@ -688,10 +688,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> ByteEntry
     for Head<KEY_LEN, O, S>
 {
-    fn zeroed() -> Self {
-        Self::empty()
-    }
-
     fn key(&self) -> Option<u8> {
         self.key()
     }

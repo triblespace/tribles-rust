@@ -286,7 +286,7 @@ macro_rules! create_bytetable {
                         }
                     }
                 } else {
-                    return unsafe { mem::zeroed() };
+                    return entry;
                 }
             }
 

@@ -22,13 +22,17 @@ thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen {
 }));
 
 // Fast Unsafe Compressable IDs
-#[derive(Arbitrary, Copy, Clone, PartialEq, Eq)]
+#[derive(Arbitrary, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct FUCID {
     data: [u8; 16],
 }
 
 impl FUCID {
+    pub const fn raw(data: [u8; 16]) -> FUCID {
+        FUCID { data }
+    }
+
     pub fn new() -> FUCID {
         FUCID {
             data: GEN_STATE

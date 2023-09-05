@@ -347,8 +347,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         return None;
     }
 
-    pub(crate) fn insert(&mut self, child: Self) {
-        let hash = child.hash();
+    pub(crate) fn insert(&mut self, child: Self, hash: u128) {
         unsafe {
             let displaced = match self.tag() {
                 HeadTag::Empty => panic!("insert on empty"),

@@ -87,11 +87,11 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             let node: *const Self = head.ptr();
             for depth in at_depth..KEY_LEN {
                 if Self::peek::<O>(node, depth) != entry.peek::<O>(depth) {
-                    let new_branch = Branch2::new(depth);
-                    Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
-                    Branch2::insert(new_branch, head.with_start(depth), head.hash());
+                    let mut new_branch = Head::new(HeadTag::Branch2, head.key().unwrap(), Branch2::<KEY_LEN, O, S>::new(depth));
+                    new_branch.insert(entry.leaf(depth), entry.hash);
+                    new_branch.insert(head.with_start(depth), head.hash());
 
-                    *head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
+                    *head = new_branch;
                     return;
                 }
             }

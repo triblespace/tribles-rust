@@ -258,7 +258,7 @@ mod tests {
                     loves: lover_a
                 }], kb);
         });
-        
+
         let juliet = knights::Id::new();
         let data_kb = knights::entities!((romeo),
         [{juliet @
@@ -269,9 +269,10 @@ mod tests {
             name: "Romeo".try_into().unwrap(),
             loves: juliet
         }]);
-        
-        let kb: PATCHTribleSet = PATCHTribleSet::union([background_kb.clone(), data_kb.clone()].iter());
-        
+
+        let kb: PATCHTribleSet =
+            PATCHTribleSet::union([background_kb.clone(), data_kb.clone()].iter());
+
         let r: Vec<_> = query!(
             ctx,
             (juliet, name),
@@ -283,7 +284,7 @@ mod tests {
             }])
         )
         .collect();
-        
+
         assert_eq!(vec![(juliet, "Juliet".try_into().unwrap(),)], r);
     }
 }

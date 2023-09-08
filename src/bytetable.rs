@@ -241,6 +241,8 @@ macro_rules! create_bytetable {
             /// An entry with the same key must not exist in the table yet.
             pub fn put(&mut self, entry: T) -> T {
                 if let Some(mut byte_key) = entry.key() {
+                    debug_assert!(self.get(byte_key).is_none());
+
                     let max_grown = $size == MAX_BUCKET_COUNT;
                     let min_grown = $size == 1;
 
@@ -372,9 +374,10 @@ mod tests {
         }
 
         #[test]
-        fn put_success(entries in prop::collection::vec(0u8..255, 1..32)) {
+        fn put_success(entry_set in prop::collection::hash_set(0u8..255, 1..32)) {
             init();
 
+            let entries: Vec<_> = entry_set.iter().copied().collect();
             let mut displaced: DummyEntry = unsafe{ mem::zeroed() };
             let mut i = 0;
 

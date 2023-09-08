@@ -245,20 +245,19 @@ mod tests {
 
     #[test]
     fn ns_pattern_large() {
-        let mut background_kb = PATCHTribleSet::new();
+        let mut kb = PATCHTribleSet::new();
         (0..10000).for_each(|_| {
-            let kb = &mut background_kb;
-            knights::entities!((lover_a, lover_b),
-                [{lover_a @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_b
-                },
-                {lover_b @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_a
-                }], kb);
+            kb.union(&knights::entities!((lover_a, lover_b),
+            [{lover_a @
+                name: Name(EN).fake::<String>().try_into().unwrap(),
+                loves: lover_b
+            },
+            {lover_b @
+                name: Name(EN).fake::<String>().try_into().unwrap(),
+                loves: lover_a
+            }]));
         });
-        
+
         let juliet = knights::Id::new();
         let data_kb = knights::entities!((romeo),
         [{juliet @
@@ -269,9 +268,9 @@ mod tests {
             name: "Romeo".try_into().unwrap(),
             loves: juliet
         }]);
-        
-        let kb: PATCHTribleSet = PATCHTribleSet::union([background_kb.clone(), data_kb.clone()].iter());
-        
+
+        kb.union(&data_kb);
+
         let r: Vec<_> = query!(
             ctx,
             (juliet, name),
@@ -283,7 +282,7 @@ mod tests {
             }])
         )
         .collect();
-        
+
         assert_eq!(vec![(juliet, "Juliet".try_into().unwrap(),)], r);
     }
 }

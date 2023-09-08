@@ -22,25 +22,13 @@ pub struct PATCHTribleSet {
 }
 
 impl PATCHTribleSet {
-    pub fn union<'a, I>(iter: I) -> PATCHTribleSet
-    where
-        I: Iterator<Item = &'a PATCHTribleSet> + Clone,
-    {
-        let eav = PATCH::union(iter.clone().map(|set| &set.eav));
-        let eva = PATCH::union(iter.clone().map(|set| &set.eva));
-        let aev = PATCH::union(iter.clone().map(|set| &set.aev));
-        let ave = PATCH::union(iter.clone().map(|set| &set.ave));
-        let vea = PATCH::union(iter.clone().map(|set| &set.vea));
-        let vae = PATCH::union(iter.clone().map(|set| &set.vae));
-
-        PATCHTribleSet {
-            eav,
-            eva,
-            aev,
-            ave,
-            vea,
-            vae,
-        }
+    pub fn union<'a>(&mut self, other: &Self) {
+        self.eav.union(&other.eav);
+        self.eva.union(&other.eva);
+        self.aev.union(&other.aev);
+        self.ave.union(&other.ave);
+        self.vea.union(&other.vea);
+        self.vae.union(&other.vae);
     }
 
     pub fn new() -> PATCHTribleSet {
@@ -112,9 +100,31 @@ impl TribleSet for PATCHTribleSet {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryInto;
+
+    use crate::namespace::knights;
+
     use super::*;
+    use fake::{faker::name::raw::Name, locales::EN, Fake};
     use itertools::Itertools;
     use proptest::prelude::*;
+
+    #[test]
+    fn union() {
+        let mut kb = PATCHTribleSet::new();
+        for i in (0..2000) {
+            kb.union(&knights::entities!((lover_a, lover_b),
+            [{lover_a @
+                name: Name(EN).fake::<String>().try_into().unwrap(),
+                loves: lover_b
+            },
+            {lover_b @
+                name: Name(EN).fake::<String>().try_into().unwrap(),
+                loves: lover_a
+            }]));
+        }
+        assert_eq!(kb.len(), 8000);
+    }
 
     proptest! {
         #[test]

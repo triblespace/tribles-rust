@@ -97,6 +97,7 @@ macro_rules! create_branch {
             }
 
             pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S>) -> *mut Self {
+                debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
                     let node: *const Self = head.ptr();
                     if (*node).rc.load(Acquire) != 1 {
@@ -153,6 +154,34 @@ macro_rules! create_branch {
                 }
             }
 
+            pub unsafe fn upsert<E, F>(
+                head: &mut Head<KEY_LEN, O, S>,
+                key: u8,
+                update: E,
+                insert: F,
+            ) where
+                E: Fn(&mut Head<KEY_LEN, O, S>),
+                F: Fn(&mut Head<KEY_LEN, O, S>),
+            {
+                debug_assert!(head.tag() == HeadTag::$name);
+                let inner = Self::rc_mut(head);
+                if let Some(child) = (*inner).child_table.get_mut(key) {
+                    let old_child_hash = child.hash();
+                    let old_child_segment_count = child.count_segment((*inner).end_depth as usize);
+                    let old_child_leaf_count = child.count();
+
+                    update(child);
+
+                    (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
+                    (*inner).segment_count = ((*inner).segment_count - old_child_segment_count)
+                        + child.count_segment((*inner).end_depth as usize);
+                    (*inner).leaf_count =
+                        ((*inner).leaf_count - old_child_leaf_count) + child.count();
+                } else {
+                    insert(head);
+                }
+            }
+
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
                 Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth)
             }
@@ -162,6 +191,7 @@ macro_rules! create_branch {
                 entry: &Entry<KEY_LEN>,
                 start_depth: usize,
             ) {
+                debug_assert!(head.tag() == HeadTag::$name);
                 let node: *const Self = head.ptr();
                 let end_depth = (*node).end_depth as usize;
 
@@ -303,6 +333,7 @@ macro_rules! create_grow {
             $name<KEY_LEN, O, S>
         {
             pub(super) unsafe fn grow(head: &mut Head<KEY_LEN, O, S>) {
+                debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
                     let node: *const Self = head.ptr();
                     let layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();

@@ -83,6 +83,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         entry: &Entry<KEY_LEN>,
         at_depth: usize,
     ) {
+        debug_assert!(head.tag() == HeadTag::Leaf);
         unsafe {
             let node: *const Self = head.ptr();
             for depth in at_depth..KEY_LEN {

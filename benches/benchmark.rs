@@ -133,6 +133,7 @@ fn patch_benchmark(c: &mut Criterion) {
         });
     }
 
+    /*
     let total_unioned = 1000000;
     for i in [2, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
@@ -153,6 +154,7 @@ fn patch_benchmark(c: &mut Criterion) {
             b.iter(|| black_box(PATCH::union(patchs.iter())));
         });
     }
+    */
 
     group.finish();
 }
@@ -190,6 +192,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         });
     }
 
+    /*
     let total_unioned = 1000000;
     for i in [2, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
@@ -208,6 +211,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             b.iter(|| black_box(PATCHTribleSet::union(sets.iter()).len()));
         });
     }
+    */
 
     group.finish();
 }
@@ -237,7 +241,8 @@ fn entities_benchmark(c: &mut Criterion) {
         })
     });
 
-    for i in [1, 10, 100, 1000, 10000, 100000, 1000000] {
+    for i in [1000000] {
+        group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
             b.iter(|| {
@@ -256,32 +261,35 @@ fn entities_benchmark(c: &mut Criterion) {
                         }], kb);
                 });
                 let after_mem = PEAK_ALLOC.current_usage();
-                println!("Trible size: {}", (after_mem - before_mem) / kb.len() as usize);
+                println!(
+                    "Trible size: {}",
+                    (after_mem - before_mem) / kb.len() as usize
+                );
                 black_box(&kb);
             })
         });
     }
 
-    for i in [1, 10, 100, 1000, 10000, 100000, 1000000] {
+    for i in [10] {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
-            b.iter(|| {
-                let kb = (0..i)
-                    .map(|_| {
-                        knights::entities!((lover_a, lover_b),
-                        [{lover_a @
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_b
-                        },
-                        {lover_b @
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_a
-                        }])
-                    })
-                    .fold(PATCHTribleSet::new(), |u, n| {
-                        PATCHTribleSet::union([u, n].iter())
-                    });
+            b.iter_with_large_drop(|| {
+                let mut kb = PATCHTribleSet::new();
+                print!("<");
+                (0..i).for_each(|_| {
+                    kb.union(&knights::entities!((lover_a, lover_b),
+                    [{lover_a @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_b
+                    },
+                    {lover_b @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_a
+                    }]))
+                });
                 black_box(&kb);
+                print!(">");
+                kb
             })
         });
     }
@@ -294,18 +302,17 @@ fn query_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("query");
 
-    let mut background_kb = PATCHTribleSet::new();
+    let mut kb = PATCHTribleSet::new();
     (0..10000).for_each(|_| {
-        let kb = &mut background_kb;
-        knights::entities!((lover_a, lover_b),
-            [{lover_a @
-                name: Name(EN).fake::<String>().try_into().unwrap(),
-                loves: lover_b
-            },
-            {lover_b @
-                name: Name(EN).fake::<String>().try_into().unwrap(),
-                loves: lover_a
-            }], kb);
+        kb.union(&knights::entities!((lover_a, lover_b),
+        [{lover_a @
+            name: Name(EN).fake::<String>().try_into().unwrap(),
+            loves: lover_b
+        },
+        {lover_b @
+            name: Name(EN).fake::<String>().try_into().unwrap(),
+            loves: lover_a
+        }]));
     });
 
     let data_kb = knights::entities!((romeo, juliet),
@@ -318,7 +325,7 @@ fn query_benchmark(c: &mut Criterion) {
         loves: juliet
     }]);
 
-    let kb: PATCHTribleSet = PATCHTribleSet::union([background_kb.clone(), data_kb.clone()].iter());
+    kb.union(&data_kb);
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {

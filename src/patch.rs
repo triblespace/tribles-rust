@@ -347,8 +347,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         return None;
     }
 
-    pub(crate) fn insert(&mut self, child: Self) {
-        let hash = child.hash();
+    pub(crate) fn insert(&mut self, child: Self, hash: u128) {
         unsafe {
             let displaced = match self.tag() {
                 HeadTag::Empty => panic!("insert on empty"),
@@ -501,6 +500,106 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::put(self, entry, start_depth),
                 HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::put(self, entry, start_depth),
                 HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::put(self, entry, start_depth),
+            }
+        }
+    }
+
+    pub(crate) fn each_child<F>(&self, mut f: F)
+    where
+        F: FnMut(u8, &Self),
+    {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("called `each_child` on Empty"),
+                HeadTag::Leaf => panic!("called `each_child` on Leaf"),
+                HeadTag::Branch2 => {
+                    let node: *mut Branch2<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch4 => {
+                    let node: *mut Branch4<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch8 => {
+                    let node: *mut Branch8<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch16 => {
+                    let node: *mut Branch16<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch32 => {
+                    let node: *mut Branch32<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch64 => {
+                    let node: *mut Branch64<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch128 => {
+                    let node: *mut Branch128<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
+                HeadTag::Branch256 => {
+                    let node: *mut Branch256<KEY_LEN, O, S> = self.ptr();
+                    for bucket in &(*node).child_table.buckets {
+                        // TODO replace this with iterator
+                        for child in &bucket.entries {
+                            if let Some(key) = child.key() {
+                                f(key, child);
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -683,6 +782,81 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
         }
     }
+
+    pub unsafe fn upsert<E, F>(&mut self, key: u8, update: E, insert: F)
+    where
+        E: Fn(&mut Head<KEY_LEN, O, S>),
+        F: Fn(&mut Head<KEY_LEN, O, S>),
+    {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("upsert on empty"),
+                HeadTag::Leaf => panic!("upsert on leaf"),
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::upsert(self, key, update, insert),
+            };
+        }
+    }
+
+    pub(crate) fn union(&mut self, other: &Self, at_depth: usize) {
+        if other.tag() == HeadTag::Empty {
+            return;
+        }
+
+        if self.tag() == HeadTag::Empty {
+            *self = other.clone();
+            return;
+        }
+
+        let head_hash = self.hash();
+        let other_hash = other.hash();
+        if head_hash == other_hash {
+            return;
+        }
+        let head_depth = self.end_depth();
+        let other_depth = other.end_depth();
+        unsafe {
+            for depth in at_depth..std::cmp::min(head_depth, other_depth) {
+                if self.peek(depth) != other.peek(depth) {
+                    let new_branch = Branch2::new(depth);
+                    Branch2::insert(new_branch, other.with_start(depth), other_hash);
+                    Branch2::insert(new_branch, self.with_start(depth), head_hash);
+
+                    *self = Head::new(HeadTag::Branch2, self.key().unwrap(), new_branch);
+                    return;
+                }
+            }
+            if head_depth < other_depth {
+                self.upsert(
+                    other.peek(head_depth),
+                    |child| child.union(other, head_depth),
+                    |head| head.insert(other.with_start(head_depth), other_hash),
+                );
+                return;
+            }
+
+            if other_depth < head_depth {
+                let mut new_branch: Head<KEY_LEN, O, S> = other.clone();
+                new_branch.union(self, other_depth);
+                *self = new_branch;
+                return;
+            }
+
+            other.each_child(|other_key, other_child| {
+                self.upsert(
+                    other_key,
+                    |child| child.union(other_child, head_depth),
+                    |head| head.insert(other_child.clone(), other_child.hash()),
+                );
+            });
+        }
+    }
 }
 
 unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> ByteEntry
@@ -842,11 +1016,16 @@ where
         self.root
             .segmented_len(0, O::tree_ordered(&key), O::tree_index(start_depth))
     }
+
+    pub fn union(&mut self, other: &Self) {
+        self.root.union(&other.root, 0);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use itertools::Itertools;
     use proptest::prelude::*;
     use std::collections::HashSet;
     use std::convert::TryInto;
@@ -949,47 +1128,106 @@ mod tests {
     }
 
     proptest! {
-        #[test]
-        fn tree_put(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-            for key in keys {
-                let key: [u8; 64] = key.try_into().unwrap();
-                let entry = Entry::new(&key);
-                tree.put(&entry);
-            }
+    #[test]
+    fn tree_put(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        for key in keys {
+            let key: [u8; 64] = key.try_into().unwrap();
+            let entry = Entry::new(&key);
+            tree.put(&entry);
+        }
+    }
+
+    #[test]
+    fn tree_len(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        let mut set = HashSet::new();
+        for key in keys {
+            let key: [u8; 64] = key.try_into().unwrap();
+            let entry = Entry::new(&key);
+            tree.put(&entry);
+            set.insert(key);
         }
 
-        #[test]
-        fn tree_len(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-            let mut set = HashSet::new();
-            for key in keys {
-                let key: [u8; 64] = key.try_into().unwrap();
-                let entry = Entry::new(&key);
-                tree.put(&entry);
-                set.insert(key);
-            }
+        prop_assert_eq!(set.len() as u64, tree.len())
+    }
 
-            prop_assert_eq!(set.len() as u64, tree.len())
+    #[test]
+    fn tree_infixes(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        let mut set = HashSet::new();
+        for key in keys {
+            let key: [u8; 64] = key.try_into().unwrap();
+            let entry = Entry::new(&key);
+            tree.put(&entry);
+            set.insert(key);
+        }
+        let mut set_vec = Vec::from_iter(set.into_iter());
+        let mut tree_vec = tree.infixes([0; 64], 0, 63, |x| x);
+
+        set_vec.sort();
+        tree_vec.sort();
+
+        prop_assert_eq!(set_vec, tree_vec);
+    }
+
+    #[test]
+    fn tree_union(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 100),
+                    right in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 100)) {
+        let mut set = HashSet::new();
+
+        let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        for entry in left {
+            let mut key = [0; 64];
+            key.iter_mut().set_from(entry.iter().cloned());
+            let entry = Entry::new(&key);
+            left_tree.put(&entry);
+            set.insert(key);
         }
 
+        let mut right_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        for entry in right {
+            let mut key = [0; 64];
+            key.iter_mut().set_from(entry.iter().cloned());
+            let entry = Entry::new(&key);
+            right_tree.put(&entry);
+            set.insert(key);
+        }
+
+        left_tree.union(&right_tree);
+
+        let mut set_vec = Vec::from_iter(set.into_iter());
+        let mut tree_vec = left_tree.infixes([0; 64], 0, 63, |x| x);
+
+        set_vec.sort();
+        tree_vec.sort();
+
+        prop_assert_eq!(set_vec, tree_vec);
+        }
         #[test]
-        fn tree_infixes(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-            let mut set = HashSet::new();
-            for key in keys {
-                let key: [u8; 64] = key.try_into().unwrap();
-                let entry = Entry::new(&key);
-                tree.put(&entry);
-                set.insert(key);
-            }
-            let mut set_vec = Vec::from_iter(set.into_iter());
-            let mut tree_vec = tree.infixes([0; 64], 0, 63, |x| x);
+    fn tree_union_empty(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2)) {
+        let mut set = HashSet::new();
 
-            set_vec.sort();
-            tree_vec.sort();
+        let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        for entry in left {
+            let mut key = [0; 64];
+            key.iter_mut().set_from(entry.iter().cloned());
+            let entry = Entry::new(&key);
+            left_tree.put(&entry);
+            set.insert(key);
+        }
 
-            prop_assert_eq!(set_vec, tree_vec);
+        let right_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+
+        left_tree.union(&right_tree);
+
+        let mut set_vec = Vec::from_iter(set.into_iter());
+        let mut tree_vec = left_tree.infixes([0; 64], 0, 63, |x| x);
+
+        set_vec.sort();
+        tree_vec.sort();
+
+        prop_assert_eq!(set_vec, tree_vec);
         }
     }
 }

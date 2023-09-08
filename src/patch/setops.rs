@@ -1,5 +1,5 @@
 use super::*;
-
+/*
 fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
     at_depth: usize,
     unioned_nodes: Vec<&Head<KEY_LEN, O, S>>,
@@ -41,7 +41,8 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
                     .filter(|&node| node.peek(depth) == byte_key)
                     .collect();
                 let byte_union = recursive_union(depth, byte_nodes);
-                branch.insert(byte_union);
+                let union_hash = byte_union.hash();
+                branch.insert(byte_union, union_hash);
             }
             return branch.with_start(at_depth);
         }
@@ -59,7 +60,8 @@ fn recursive_union<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmenta
             .filter_map(|&node| node.child(branch_depth, byte_key))
             .collect();
         let byte_union = recursive_union(branch_depth, byte_nodes);
-        branch.insert(byte_union);
+        let union_hash = byte_union.hash();
+        branch.insert(byte_union, union_hash);
     }
     return branch.with_start(at_depth);
 }
@@ -179,3 +181,4 @@ mod tests {
         assert_eq!(set_vec, tree_vec);
     }
 }
+*/

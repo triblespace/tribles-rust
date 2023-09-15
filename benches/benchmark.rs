@@ -270,12 +270,12 @@ fn entities_benchmark(c: &mut Criterion) {
         });
     }
 
-    for i in [10] {
+    for i in [1000000] {
+        group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
             b.iter_with_large_drop(|| {
                 let mut kb = PATCHTribleSet::new();
-                print!("<");
                 (0..i).for_each(|_| {
                     kb.union(&knights::entities!((lover_a, lover_b),
                     [{lover_a @
@@ -288,9 +288,37 @@ fn entities_benchmark(c: &mut Criterion) {
                     }]))
                 });
                 black_box(&kb);
-                print!(">");
                 kb
             })
+        });
+    }
+
+    for i in [1000] {
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
+            let sets: Vec<_> = (0..i).map(|_| {
+                knights::entities!((lover_a, lover_b),
+                [{lover_a @
+                    name: Name(EN).fake::<String>().try_into().unwrap(),
+                    loves: lover_b
+                },
+                {lover_b @
+                    name: Name(EN).fake::<String>().try_into().unwrap(),
+                    loves: lover_a
+                }])
+            }).collect();
+            b.iter_with_large_drop(|| {
+                let mut kb = PATCHTribleSet::new();
+                for set in &sets {
+                    kb.union(&set);
+                }
+                for set in &sets {
+                    kb.union(&set);
+                }
+                black_box(&kb);
+                kb
+            });
         });
     }
 

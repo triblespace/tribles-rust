@@ -142,7 +142,7 @@ macro_rules! create_branch {
                 child: Head<KEY_LEN, O, S>,
                 child_hash: u128,
             ) -> Head<KEY_LEN, O, S> {
-                if let Some(_) = child.key() {
+                if let Some(_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
                     (*node).min = min_key((*node).min, child.min());
                     (*node).leaf_count += child.count();

@@ -25,6 +25,7 @@ peak_alloc = "0.1.0"
 hex-literal = "0.3.4"
 blake2 = "0.10.6"
 fake = "2.8"
+rayon = "1.7"
 
 [[bench]]
 name = "benchmark"

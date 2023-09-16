@@ -3,6 +3,8 @@ use rand::{thread_rng, Rng};
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use rayon::prelude::*;
+
 use tribles::namespace::knights;
 use tribles::tribleset::hashtribleset::HashTribleSet;
 use tribles::types::syntactic::FUCID;
@@ -275,9 +277,8 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let mut kb = PATCHTribleSet::new();
-                (0..i).for_each(|_| {
-                    kb.union(&knights::entities!((lover_a, lover_b),
+                let mut kb = (0..i).map(|_| {
+                    knights::entities!((lover_a, lover_b),
                     [{lover_a @
                         name: Name(EN).fake::<String>().try_into().unwrap(),
                         loves: lover_b
@@ -285,15 +286,17 @@ fn entities_benchmark(c: &mut Criterion) {
                     {lover_b @
                         name: Name(EN).fake::<String>().try_into().unwrap(),
                         loves: lover_a
-                    }]))
-                });
+                    }])
+                }).fold(
+                PATCHTribleSet::new(),
+                |mut kb, set| {kb.union(&set); kb} );
                 black_box(&kb);
                 kb
             })
         });
     }
 
-    for i in [1000] {
+    for i in [1000000] {
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
@@ -313,12 +316,94 @@ fn entities_benchmark(c: &mut Criterion) {
                 for set in &sets {
                     kb.union(&set);
                 }
-                for set in &sets {
-                    kb.union(&set);
-                }
                 black_box(&kb);
                 kb
             });
+        });
+    }
+
+    for i in [1000000] {
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("union/parallel", 4 * i), |b| {
+            b.iter_with_large_drop(|| {
+                let kb = (0..i)
+                .into_par_iter()
+                .map(|_|
+                    knights::entities!((lover_a, lover_b),
+                    [{lover_a @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_b
+                    },
+                    {lover_b @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_a
+                    }]))
+                .reduce(
+                    || PATCHTribleSet::new(),
+                    |mut a, b| {a.union(&b);a});
+                black_box(&kb);
+                kb
+            })
+        });
+    }
+
+    for i in [1000000] {
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("union/parallel/prealloc", 4 * i), |b| {
+            let sets: Vec<_> = (0..i).map(|_| {
+                knights::entities!((lover_a, lover_b),
+                [{lover_a @
+                    name: Name(EN).fake::<String>().try_into().unwrap(),
+                    loves: lover_b
+                },
+                {lover_b @
+                    name: Name(EN).fake::<String>().try_into().unwrap(),
+                    loves: lover_a
+                }])
+            }).collect();
+            b.iter_with_large_drop(|| {
+                let kb = sets
+                .par_iter()
+                .cloned()
+                .reduce(
+                    || PATCHTribleSet::new(),
+                    |mut a, b| {a.union(&b);a});
+                black_box(&kb);
+                kb
+            });
+        });
+    }
+
+    for i in [1000000] {
+        let batch_size = 2;
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("union/parallel/chunked", 4 * i), |b| {
+            b.iter_with_large_drop(|| {
+                let kb = (0..batch_size)
+                .into_par_iter()
+                .map(|_|
+                    (0..i/batch_size).map(|_| {
+                        knights::entities!((lover_a, lover_b),
+                        [{lover_a @
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_b
+                        },
+                        {lover_b @
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_a
+                        }])
+                    }).fold(
+                    PATCHTribleSet::new(),
+                    |mut kb, set| {kb.union(&set); kb} ))
+                .reduce(
+                    || PATCHTribleSet::new(),
+                    |mut a, b| {a.union(&b);a});
+                black_box(&kb);
+                kb
+            })
         });
     }
 

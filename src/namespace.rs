@@ -173,8 +173,8 @@ pub(crate) use NS;
 
 NS! {
     pub namespace knights {
-        @ crate::types::syntactic::UFOID;
-        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
+        @ crate::types::syntactic::FUCID;
+        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::FUCID;
         name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
         title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::ShortString;
     }

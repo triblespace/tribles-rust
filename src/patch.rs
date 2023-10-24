@@ -674,6 +674,41 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    pub(crate) fn prefix(&self, at_depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> Option<Head<KEY_LEN, O, S>> {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => None,
+                HeadTag::Leaf => {
+                    Leaf::<KEY_LEN>::prefix::<O, S>(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch2 => {
+                    Branch2::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch4 => {
+                    Branch4::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch8 => {
+                    Branch8::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch16 => {
+                    Branch16::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch128 => {
+                    Branch128::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::<KEY_LEN, O, S>::prefix(self.ptr(), at_depth, key, end_depth)
+                }
+            }
+        }
+    }
+
     pub(crate) fn segmented_len(
         &self,
         at_depth: usize,
@@ -904,8 +939,24 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 }
 
 #[derive(Debug, Clone)]
-pub struct PATCH<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+pub struct Suffix<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
     root: Head<KEY_LEN, O, S>,
+    start_depth: usize,
+}
+impl<const KEY_LEN: usize, O, S> Suffix<KEY_LEN, O, S>
+where
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+{
+    pub fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+        self.root
+            .has_prefix(self.start_depth, O::tree_ordered(&key), O::tree_index(end_depth))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PATCH<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+    root: Head<KEY_LEN, O, S>
 }
 
 impl<const KEY_LEN: usize, O, S> PATCH<KEY_LEN, O, S>
@@ -958,6 +1009,14 @@ where
         self.root
             .segmented_len(0, O::tree_ordered(&key), O::tree_index(start_depth))
     }
+
+    pub fn prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> Suffix<KEY_LEN, O, S> {
+        let root = self.root.prefix(0, O::tree_ordered(&key), O::tree_index(end_depth));
+        Suffix {
+            root,
+            start_depth: end_depth}
+    }
+
 
     pub fn union(&mut self, other: &Self) {
         self.root.union(&other.root, 0);

@@ -138,6 +138,22 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         return true;
     }
 
+
+    pub(crate) unsafe fn prefix<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
+        node: *mut Self,
+        at_depth: usize,
+        key: [u8; KEY_LEN],
+        end_depth: usize,
+    ) -> Option<Head<KEY_LEN, O, S>> {
+        for depth in at_depth..=end_depth {
+            if Leaf::peek::<O>(node, depth) != key[depth] {
+                return None;
+            }
+        }
+        return Some(Head::new(HeadTag::Leaf, Leaf::peek::<O>(node, 0), Leaf::rc_inc(node)));
+    }
+
+
     pub(crate) unsafe fn segmented_len<O: KeyOrdering<KEY_LEN>>(
         node: *const Self,
         at_depth: usize,

@@ -287,6 +287,28 @@ macro_rules! create_branch {
                 return false;
             }
 
+
+            pub(super) unsafe fn prefix(
+                node: *mut Self,
+                at_depth: usize,
+                key: [u8; KEY_LEN],
+                end_depth: usize,
+            ) -> Option<Head<KEY_LEN, O, S>> {
+                let node_end_depth = ((*node).end_depth as usize);
+                for depth in at_depth..std::cmp::min(node_end_depth, end_depth) {
+                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                        return None;
+                    }
+                }
+                if end_depth < node_end_depth {
+                    return Some(Head::new(HeadTag::$name, 0, Self::rc_inc(node)));
+                }
+                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                    return child.prefix(node_end_depth, key, end_depth);
+                }
+                return None;
+            }
+
             pub(super) unsafe fn segmented_len(
                 node: *const Self,
                 at_depth: usize,

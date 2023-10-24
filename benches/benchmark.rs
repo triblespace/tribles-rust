@@ -135,7 +135,7 @@ fn patch_benchmark(c: &mut Criterion) {
         });
     }
 
-    /*
+    
     let total_unioned = 1000000;
     for i in [2, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
@@ -153,10 +153,15 @@ fn patch_benchmark(c: &mut Criterion) {
                     patch
                 })
                 .collect();
-            b.iter(|| black_box(PATCH::union(patchs.iter())));
+            b.iter(|| black_box(patchs.iter().fold(
+                PATCH::<64, IdentityOrder, SingleSegmentation>::new(),
+                |mut a, p| {
+                    a.union(p);
+                    a
+                })));
         });
     }
-    */
+    
 
     group.finish();
 }

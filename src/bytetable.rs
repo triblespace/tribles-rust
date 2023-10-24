@@ -82,10 +82,11 @@ pub fn init() {
 
 /// Types must implement this trait in order to be storable in the byte table.
 ///
-/// The trait is `unsafe` because you must ensure that `key()` returns `None` iff
-/// the memory of the type is `mem::zeroed()`.
+/// The trait is `unsafe` because you must ensure that an Option of the type is
+/// `None` iff the memory of the type is `mem::zeroed()`.
 pub unsafe trait ByteEntry {
-    fn key(&self) -> Option<u8>;
+    fn key(&self) -> u8;
+    fn set_key(&mut self, key: u8);
 }
 
 /// Represents the hashtable's internal buckets, which allow for up to
@@ -94,7 +95,7 @@ pub unsafe trait ByteEntry {
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct ByteBucket<T: ByteEntry + Clone + Debug> {
-    pub entries: [T; BUCKET_ENTRY_COUNT],
+    pub entries: [Option<T>; BUCKET_ENTRY_COUNT],
 }
 
 impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
@@ -111,10 +112,10 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return an exclusive reference to it or `None` otherwise.
-    fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-        for entry in &mut self.entries {
-            if entry.key() == Some(byte_key) {
-                return Some(entry);
+    fn get_mut(&mut self, byte_key: u8) -> &mut Option<T> {
+        for Some(entry) in &mut self.entries {
+            if entry.key() == byte_key {
+                return entry;
             }
         }
         return None;
@@ -122,9 +123,9 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Find an empty slot in the bucket and return an exclusive reference to it
     /// or `None` if the bucket is full.
-    fn find_empty(&mut self) -> Option<&mut T> {
+    fn find_empty(&mut self) -> &mut Option<T> {
         for entry in &mut self.entries {
-            if entry.key().is_none() {
+            if entry.is_none() {
                 return Some(entry);
             }
         }
@@ -239,8 +240,8 @@ macro_rules! create_bytetable {
             }
 
             /// An entry with the same key must not exist in the table yet.
-            pub fn put(&mut self, entry: T) -> T {
-                if let Some(mut byte_key) = entry.key() {
+            pub fn put(&mut self, entry: T) -> Option<(u8, T)> {
+                if let mut byte_key = entry.key() {
                     debug_assert!(self.get(byte_key).is_none());
 
                     let max_grown = $size == MAX_BUCKET_COUNT;
@@ -285,7 +286,7 @@ macro_rules! create_bytetable {
                         }
                     }
                 } else {
-                    return entry;
+                    return Some((entry.key(), entry));
                 }
             }
 
@@ -323,30 +324,23 @@ mod tests {
     use proptest::prelude::*;
 
     #[derive(Clone, Debug)]
-    #[repr(C, u8)]
-    enum DummyEntry {
-        None {} = 0,
-        Some { value: u8 } = 1,
+    struct DummyEntry {
+        value: u8,
     }
 
     impl DummyEntry {
         fn new(byte_key: u8) -> Self {
-            DummyEntry::Some { value: byte_key }
+            DummyEntry { value: byte_key }
         }
     }
 
     unsafe impl ByteEntry for DummyEntry {
-        fn key(&self) -> Option<u8> {
-            match self {
-                DummyEntry::None {} => None,
-                DummyEntry::Some { value: v } => Some(*v),
-            }
+        fn key(&self) -> u8 {
+            self.value
         }
-    }
-
-    #[test]
-    fn dummy_non_empty() {
-        assert!(DummyEntry::new(0).key().is_some());
+        fn set_key(&mut self, key: u8) {
+            self.value = key;
+        }
     }
 
     #[test]
@@ -369,7 +363,7 @@ mod tests {
             let mut table: ByteTable4<DummyEntry> = ByteTable4::new();
             let entry = DummyEntry::new(n);
             let displaced = table.put(entry);
-            prop_assert!(displaced.key().is_none());
+            prop_assert!(displaced.is_none());
             prop_assert!(table.take(n).is_some());
         }
 
@@ -378,14 +372,14 @@ mod tests {
             init();
 
             let entries: Vec<_> = entry_set.iter().copied().collect();
-            let mut displaced: DummyEntry = unsafe{ mem::zeroed() };
+            let mut displaced: Option<DummyEntry> = None;
             let mut i = 0;
 
             macro_rules! put_step {
                 ($table:ident, $grown_table:ident) => {
-                    while displaced.key().is_none() && i < entries.len() {
+                    while displaced.is_none() && i < entries.len() {
                         displaced = $table.put(DummyEntry::new(entries[i]));
-                        if(displaced.key().is_none()) {
+                        if(displaced.is_none()) {
                             for j in 0..=i {
                                 prop_assert!($table.get_mut(entries[j]).is_some(),
                                 "Missing value {} after insert", entries[j]);
@@ -394,9 +388,9 @@ mod tests {
                         i += 1;
                     }
                     let mut $grown_table = $table.grow();
-                    displaced = $grown_table.put(displaced);
+                    displaced = $grown_table.put(displaced, );
 
-                    if displaced.key().is_none() {
+                    if displaced.is_none() {
                         for j in 0..i {
                             prop_assert!($grown_table.get_mut(entries[j]).is_some(),
                             "Missing value {} after growth with hash {:?}", entries[j], unsafe { RANDOM_PERMUTATION_HASH });
@@ -414,7 +408,7 @@ mod tests {
             put_step!(table64, table128);
             put_step!(table128, table256);
 
-            prop_assert!(displaced.key().is_none());
+            prop_assert!(displaced.is_none());
         }
     }
 }

@@ -106,8 +106,14 @@ pub(crate) struct Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegm
     key_segments: PhantomData<S>,
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Send for Head<KEY_LEN, O, S> {}
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Sync for Head<KEY_LEN, O, S> {}
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Send
+    for Head<KEY_LEN, O, S>
+{
+}
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Sync
+    for Head<KEY_LEN, O, S>
+{
+}
 
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Head<KEY_LEN, O, S>

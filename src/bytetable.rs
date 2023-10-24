@@ -102,8 +102,8 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return a non-exclusive reference to it or `None` otherwise.
     fn get(&self, byte_key: u8) -> Option<&T> {
-        for entry in &self.entries {
-            if entry.key() == Some(byte_key) {
+        for Some(entry) in &self.entries {
+            if entry.key() == byte_key {
                 return Some(entry);
             }
         }
@@ -112,10 +112,10 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return an exclusive reference to it or `None` otherwise.
-    fn get_mut(&mut self, byte_key: u8) -> &mut Option<T> {
+    fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
         for Some(entry) in &mut self.entries {
             if entry.key() == byte_key {
-                return entry;
+                return Some(entry);
             }
         }
         return None;
@@ -123,7 +123,7 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Find an empty slot in the bucket and return an exclusive reference to it
     /// or `None` if the bucket is full.
-    fn find_empty(&mut self) -> &mut Option<T> {
+    fn find_empty(&mut self) -> Option<&mut Option<T>> {
         for entry in &mut self.entries {
             if entry.is_none() {
                 return Some(entry);
@@ -134,17 +134,17 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning a random existing entry.
-    fn shove_randomly(&mut self, shoved_entry: T) -> T {
+    fn shove_randomly(&mut self, shoved_entry: T) -> Option<T> {
         let index = unsafe { RAND as usize & (BUCKET_ENTRY_COUNT - 1) };
-        return mem::replace(&mut self.entries[index], shoved_entry);
+        return mem::replace(&mut self.entries[index], Some(shoved_entry));
     }
 
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning an existing entry that was using the non-cheap random hash.
     fn shove_cheaply(&mut self, bucket_index: u8, shoved_entry: T) -> T {
-        for entry in &mut self.entries {
+        for Some(entry) in &mut self.entries {
             let entry_hash: u8 =
-                compress_hash(MAX_BUCKET_COUNT as u8, cheap_hash(entry.key().unwrap()));
+                compress_hash(MAX_BUCKET_COUNT as u8, cheap_hash(entry.key()));
             if bucket_index != entry_hash {
                 return mem::replace(entry, shoved_entry);
             }
@@ -180,15 +180,15 @@ macro_rules! create_grow {
             let grown_buckets_len = grown.buckets.len() as u8;
             let (lower_portion, upper_portion) = grown.buckets.split_at_mut(buckets_len);
             for bucket_index in 0..buckets_len {
-                for entry in &self.buckets[bucket_index].entries {
-                    if let Some(byte_key) = entry.key() {
+                for Some(entry) in &self.buckets[bucket_index].entries {
+                    if let byte_key = entry.key() {
                         let cheap_index = compress_hash(grown_buckets_len, cheap_hash(byte_key));
                         let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
 
                         if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
-                            *(lower_portion[bucket_index].find_empty().unwrap()) = entry.clone();
+                            *(lower_portion[bucket_index].find_empty().unwrap()) = Some(entry.clone());
                         } else {
-                            *(upper_portion[bucket_index].find_empty().unwrap()) = entry.clone();
+                            *(upper_portion[bucket_index].find_empty().unwrap()) = Some(entry.clone());
                         }
                     }
                 }
@@ -240,9 +240,9 @@ macro_rules! create_bytetable {
             }
 
             /// An entry with the same key must not exist in the table yet.
-            pub fn put(&mut self, entry: T) -> Option<(u8, T)> {
-                if let mut byte_key = entry.key() {
-                    debug_assert!(self.get(byte_key).is_none());
+            pub fn put(&mut self, key: u8, entry: T) -> Option<(u8, T)> {
+                if let mut current_key = entry.key() {
+                    debug_assert!(self.get(current_key).is_none());
 
                     let max_grown = $size == MAX_BUCKET_COUNT;
                     let min_grown = $size == 1;
@@ -252,22 +252,23 @@ macro_rules! create_bytetable {
                     let mut retries: usize = 0;
                     loop {
                         unsafe {
-                            RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize];
+                            RAND = RANDOM_PERMUTATION_RAND[(RAND ^ current_key) as usize];
                         }
 
                         let hash = if use_cheap_hash {
-                            cheap_hash(byte_key)
+                            cheap_hash(current_key)
                         } else {
-                            rand_hash(byte_key)
+                            rand_hash(current_key)
                         };
                         let bucket_index = compress_hash($size, hash);
 
                         if let Some(empty_entry) = self.buckets[bucket_index as usize].find_empty() {
-                            return mem::replace(empty_entry, current_entry);
+                            mem::replace(empty_entry, Some(current_entry));
+                            return None;
                         }
 
                         if min_grown || retries == MAX_RETRIES {
-                            return current_entry;
+                            return Some((current_key, current_entry));
                         }
 
                         if max_grown {
@@ -275,14 +276,13 @@ macro_rules! create_bytetable {
                                 bucket_index,
                                 current_entry,
                             );
-                            byte_key = current_entry.key().unwrap();
+                            current_key = current_entry.key();
                         } else {
                             retries += 1;
-                            current_entry =
-                                self.buckets[bucket_index as usize].shove_randomly(current_entry);
-                            byte_key = current_entry.key().unwrap();
+                            current_entry = self.buckets[bucket_index as usize].shove_randomly(current_entry).unwrap();
+                            current_key = current_entry.key();
                             use_cheap_hash =
-                                bucket_index != compress_hash($size, cheap_hash(byte_key));
+                                bucket_index != compress_hash($size, cheap_hash(current_key));
                         }
                     }
                 } else {
@@ -295,8 +295,8 @@ macro_rules! create_bytetable {
             pub fn keys(&self) -> ByteBitset {
                 let mut bitset = ByteBitset::new_empty();
                 for bucket in &self.buckets {
-                    for entry in &bucket.entries {
-                        if let Some(byte_key) = entry.key() {
+                    for Some(entry) in &bucket.entries {
+                        if let byte_key = entry.key() {
                             bitset.set(byte_key);
                         }
                     }

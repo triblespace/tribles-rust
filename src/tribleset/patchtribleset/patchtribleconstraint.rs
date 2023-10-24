@@ -141,6 +141,15 @@ where
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => {
+                    let prefix = self.set.eav.prefix(key, E_START);
+                    proposals.retain(|value| {
+                        if let Some(trible) = trible.withE(value) {
+                            prefix.has_prefix(trible.data, E_END)
+                        } else {
+                            false
+                        }
+                    });
+
                     self.set.eav.infixes(trible.data, E_START, E_END, |k| {
                         Trible::new_raw(k).e_as_value()
                     })
@@ -225,6 +234,74 @@ where
             binding.get(self.variable_a.index).unwrap_or([0; 32]),
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
         ) {
+            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+                (false, false, false, true, false, false) => {
+                    self.set.eav.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (false, false, false, false, true, false) => {
+                    self.set.aev.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+                (false, false, false, false, false, true) => {
+                    self.set
+                        .vea
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+
+                (true, false, false, false, true, false) => {
+                    self.set.eav.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+                (true, false, false, false, false, true) => {
+                    self.set
+                        .eva
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+
+                (false, true, false, true, false, false) => {
+                    self.set.aev.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (false, true, false, false, false, true) => {
+                    self.set
+                        .ave
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+
+                (false, false, true, true, false, false) => {
+                    self.set.vea.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (false, false, true, false, true, false) => {
+                    self.set.vae.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+
+                (false, true, true, true, false, false) => {
+                    self.set.ave.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (true, false, true, false, true, false) => {
+                    self.set.eva.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+                (true, true, false, false, false, true) => {
+                    self.set
+                        .eav
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+                _ => panic!(),
+
+
             match (e_bound || e_var, a_bound || a_var, v_bound || v_var) {
                 (false, false, false) => panic!(),
                 (true, false, false) => {

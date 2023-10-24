@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
+use rayon::prelude::*;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use rayon::prelude::*;
 
 use tribles::namespace::knights;
 use tribles::tribleset::hashtribleset::HashTribleSet;
@@ -135,7 +135,6 @@ fn patch_benchmark(c: &mut Criterion) {
         });
     }
 
-    
     let total_unioned = 1000000;
     for i in [2, 10, 100, 1000].iter() {
         group.throughput(Throughput::Elements(total_unioned as u64));
@@ -153,15 +152,17 @@ fn patch_benchmark(c: &mut Criterion) {
                     patch
                 })
                 .collect();
-            b.iter(|| black_box(patchs.iter().fold(
-                PATCH::<64, IdentityOrder, SingleSegmentation>::new(),
-                |mut a, p| {
-                    a.union(p);
-                    a
-                })));
+            b.iter(|| {
+                black_box(patchs.iter().fold(
+                    PATCH::<64, IdentityOrder, SingleSegmentation>::new(),
+                    |mut a, p| {
+                        a.union(p);
+                        a
+                    },
+                ))
+            });
         });
     }
-    
 
     group.finish();
 }
@@ -282,19 +283,22 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let mut kb = (0..i).map(|_| {
-                    knights::entities!((lover_a, lover_b),
-                    [{lover_a @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_b
-                    },
-                    {lover_b @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_a
-                    }])
-                }).fold(
-                PATCHTribleSet::new(),
-                |mut kb, set| {kb.union(&set); kb} );
+                let mut kb = (0..i)
+                    .map(|_| {
+                        knights::entities!((lover_a, lover_b),
+                        [{lover_a @
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_b
+                        },
+                        {lover_b @
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_a
+                        }])
+                    })
+                    .fold(PATCHTribleSet::new(), |mut kb, set| {
+                        kb.union(&set);
+                        kb
+                    });
                 black_box(&kb);
                 kb
             })
@@ -305,17 +309,19 @@ fn entities_benchmark(c: &mut Criterion) {
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
-            let sets: Vec<_> = (0..i).map(|_| {
-                knights::entities!((lover_a, lover_b),
-                [{lover_a @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_b
-                },
-                {lover_b @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_a
-                }])
-            }).collect();
+            let sets: Vec<_> = (0..i)
+                .map(|_| {
+                    knights::entities!((lover_a, lover_b),
+                    [{lover_a @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_b
+                    },
+                    {lover_b @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_a
+                    }])
+                })
+                .collect();
             b.iter_with_large_drop(|| {
                 let mut kb = PATCHTribleSet::new();
                 for set in &sets {
@@ -333,20 +339,25 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union/parallel", 4 * i), |b| {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
-                .into_par_iter()
-                .map(|_|
-                    knights::entities!((lover_a, lover_b),
-                    [{lover_a @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_b
-                    },
-                    {lover_b @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_a
-                    }]))
-                .reduce(
-                    || PATCHTribleSet::new(),
-                    |mut a, b| {a.union(&b);a});
+                    .into_par_iter()
+                    .map(|_| {
+                        knights::entities!((lover_a, lover_b),
+                        [{lover_a @
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_b
+                        },
+                        {lover_b @
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_a
+                        }])
+                    })
+                    .reduce(
+                        || PATCHTribleSet::new(),
+                        |mut a, b| {
+                            a.union(&b);
+                            a
+                        },
+                    );
                 black_box(&kb);
                 kb
             })
@@ -357,24 +368,27 @@ fn entities_benchmark(c: &mut Criterion) {
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/parallel/prealloc", 4 * i), |b| {
-            let sets: Vec<_> = (0..i).map(|_| {
-                knights::entities!((lover_a, lover_b),
-                [{lover_a @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_b
-                },
-                {lover_b @
-                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                    loves: lover_a
-                }])
-            }).collect();
+            let sets: Vec<_> = (0..i)
+                .map(|_| {
+                    knights::entities!((lover_a, lover_b),
+                    [{lover_a @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_b
+                    },
+                    {lover_b @
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_a
+                    }])
+                })
+                .collect();
             b.iter_with_large_drop(|| {
-                let kb = sets
-                .par_iter()
-                .cloned()
-                .reduce(
+                let kb = sets.par_iter().cloned().reduce(
                     || PATCHTribleSet::new(),
-                    |mut a, b| {a.union(&b);a});
+                    |mut a, b| {
+                        a.union(&b);
+                        a
+                    },
+                );
                 black_box(&kb);
                 kb
             });
@@ -388,24 +402,32 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union/parallel/chunked", 4 * i), |b| {
             b.iter_with_large_drop(|| {
                 let kb = (0..batch_size)
-                .into_par_iter()
-                .map(|_|
-                    (0..i/batch_size).map(|_| {
-                        knights::entities!((lover_a, lover_b),
-                        [{lover_a @
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_b
+                    .into_par_iter()
+                    .map(|_| {
+                        (0..i / batch_size)
+                            .map(|_| {
+                                knights::entities!((lover_a, lover_b),
+                                [{lover_a @
+                                    name: Name(EN).fake::<String>().try_into().unwrap(),
+                                    loves: lover_b
+                                },
+                                {lover_b @
+                                    name: Name(EN).fake::<String>().try_into().unwrap(),
+                                    loves: lover_a
+                                }])
+                            })
+                            .fold(PATCHTribleSet::new(), |mut kb, set| {
+                                kb.union(&set);
+                                kb
+                            })
+                    })
+                    .reduce(
+                        || PATCHTribleSet::new(),
+                        |mut a, b| {
+                            a.union(&b);
+                            a
                         },
-                        {lover_b @
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_a
-                        }])
-                    }).fold(
-                    PATCHTribleSet::new(),
-                    |mut kb, set| {kb.union(&set); kb} ))
-                .reduce(
-                    || PATCHTribleSet::new(),
-                    |mut a, b| {a.union(&b);a});
+                    );
                 black_box(&kb);
                 kb
             })

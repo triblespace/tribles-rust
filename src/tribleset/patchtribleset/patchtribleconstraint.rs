@@ -264,7 +264,7 @@ where
             }),
             (None, Some(a), None, true, false, false) =>
             proposals.retain(|value| {
-                if let Some(trible) = Trible::new_raw_values([0; 32], a, *value) {
+                if let Some(trible) = Trible::new_raw_values(*value, a, [0; 32]) {
                     self.set.aev.has_prefix(trible.data, E_END)
                 } else {
                     false

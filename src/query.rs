@@ -231,10 +231,17 @@ pub use query;
 #[cfg(test)]
 mod tests {
     use std::{collections::HashSet, convert::TryInto};
+    use fake::faker::name::raw::*;
+    use fake::locales::*;
+    use fake::{Dummy, Fake, Faker};
+
+
+    use crate::patch;
+    use crate::tribleset::patchtribleset::PATCHTribleSet;
+    use crate::types::syntactic::shortstring::ShortString;
+    use crate::namespace::knights;
 
     use super::*;
-
-    use crate::types::syntactic::shortstring::ShortString;
 
     #[test]
     fn and_set() {
@@ -279,5 +286,39 @@ mod tests {
             ]))
             .collect();
         */
+    }
+
+    #[test]
+    fn pattern() {
+        patch::init();
+        
+    
+        let kb = knights::entities!((romeo, juliet, waromeo),
+        [{juliet @
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo
+        },
+        {romeo @
+            name: "Romeo".try_into().unwrap(),
+            loves: juliet
+        },
+        {waromeo @
+            name: "Romeo".try_into().unwrap()
+        }]);
+        
+        let r: Vec<_> = query!(
+            ctx,
+            (romeo, juliet, name),
+            knights::pattern!(ctx, kb, [
+            {romeo @
+                name: ("Romeo".try_into().unwrap()),
+             loves: juliet},
+            {juliet @
+                name: name
+            }])
+        )
+        .collect();
+
+        assert_eq!(1, r.len())
     }
 }

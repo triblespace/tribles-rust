@@ -22,7 +22,7 @@ use std::mem::transmute;
 use std::sync::Once;
 
 #[cfg(not(target_pointer_width = "64"))]
-compile_error!("compilation is only allowed for 64-bit targets");
+compile_error!("compilation is only possible for 64-bit targets");
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
@@ -245,47 +245,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
                 HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
                 HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-            }
-        }
-    }
-
-    pub(crate) fn branch(&self, key: u8) -> Option<&Self> {
-        unsafe {
-            match self.tag() {
-                HeadTag::Empty => panic!("no branch on empty"),
-                HeadTag::Leaf => panic!("no branch on leaf"),
-                HeadTag::Branch2 => {
-                    let node: *const Branch2<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch4 => {
-                    let node: *const Branch4<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch8 => {
-                    let node: *const Branch8<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch16 => {
-                    let node: *const Branch16<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch32 => {
-                    let node: *const Branch32<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch64 => {
-                    let node: *const Branch64<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch128 => {
-                    let node: *const Branch128<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
-                HeadTag::Branch256 => {
-                    let node: *const Branch256<KEY_LEN, O, S> = self.ptr();
-                    (*node).child_table.get(key)
-                }
             }
         }
     }

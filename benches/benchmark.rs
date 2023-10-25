@@ -283,7 +283,7 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let mut kb = (0..i)
+                let kb = (0..i)
                     .map(|_| {
                         knights::entities!((lover_a, lover_b),
                         [{lover_a @
@@ -443,7 +443,7 @@ fn query_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("query");
 
     let mut kb = PATCHTribleSet::new();
-    (0..10000).for_each(|_| {
+    (0..1000000).for_each(|_| {
         kb.union(&knights::entities!((lover_a, lover_b),
         [{lover_a @
             name: Name(EN).fake::<String>().try_into().unwrap(),
@@ -455,7 +455,7 @@ fn query_benchmark(c: &mut Criterion) {
         }]));
     });
 
-    let data_kb = knights::entities!((romeo, juliet),
+    let mut data_kb = knights::entities!((romeo, juliet),
     [{juliet @
         name: "Juliet".try_into().unwrap(),
         loves: romeo
@@ -465,12 +465,25 @@ fn query_benchmark(c: &mut Criterion) {
         loves: juliet
     }]);
 
+    (0..999).for_each(|_| {
+        data_kb.union(&knights::entities!((lover_a, lover_b),
+        [{lover_a @
+            name: "Romeo".try_into().unwrap(),
+            loves: lover_b
+        },
+        {lover_b @
+            name: Name(EN).fake::<String>().try_into().unwrap(),
+            loves: lover_a
+        }]));
+    });
+    
+
     kb.union(&data_kb);
 
-    group.throughput(Throughput::Elements(1));
+    group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
         b.iter_with_large_drop(|| {
-            let r: Vec<_> = query!(
+            let r = query!(
                 ctx,
                 (juliet, name),
                 knights::pattern!(ctx, kb, [
@@ -480,7 +493,7 @@ fn query_benchmark(c: &mut Criterion) {
                     name: name
                 }])
             )
-            .collect();
+            .count();
             black_box(r)
         })
     });

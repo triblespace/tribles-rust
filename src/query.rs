@@ -54,7 +54,7 @@ impl<T> Variable<T> {
         }
     }
 
-    pub fn extract(self, binding: Binding) -> T
+    pub fn extract(self, binding: &Binding) -> T
     where
         T: From<Value>,
     {
@@ -127,17 +127,18 @@ pub trait Constraint<'a> {
     fn confirm(&self, variable: VariableId, binding: Binding, proposal: &mut Vec<Value>);
 }
 
-pub struct Query<C> {
+pub struct Query<C, P: Fn(&Binding) -> R, R>{
     constraint: C,
     binding: Binding,
     variables: VariableSet,
     variable_stack: [u8; 256],
     value_stack: [Vec<Value>; 256],
     stack_depth: isize,
+    postprocessing: P
 }
 
-impl<'a, C: Constraint<'a>> Query<C> {
-    pub fn new(constraint: C) -> Self {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
+    pub fn new(constraint: C, postprocessing: P) -> Self {
         let variables = constraint.variables();
         Query {
             constraint,
@@ -146,6 +147,7 @@ impl<'a, C: Constraint<'a>> Query<C> {
             variable_stack: [0; 256],
             value_stack: std::array::from_fn(|_| vec![]),
             stack_depth: -1,
+            postprocessing
         }
     }
 }
@@ -157,9 +159,9 @@ enum Search {
     Backtrack,
 }
 
-impl<'a, C: Constraint<'a>> Iterator for Query<C> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R> {
     // we will be counting with usize
-    type Item = Binding;
+    type Item = R;
 
     // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
@@ -186,7 +188,7 @@ impl<'a, C: Constraint<'a>> Iterator for Query<C> {
 
                         mode = Search::Horizontal;
                     } else {
-                        return Some(self.binding.clone());
+                        return Some((self.postprocessing)(&self.binding));
                     }
                 }
                 Search::Horizontal => {
@@ -219,7 +221,7 @@ macro_rules! query {
             let mut $ctx = $crate::query::VariableContext::new();
             //let set = $crate::tribleset::patchtribleset::PATCHTribleSet::new();
             $(let $Var = $ctx.next_variable();)*
-              $crate::query::Query::new($Constraint).map(
+              $crate::query::Query::new($Constraint,
                 move |binding| {
                     ($($Var.extract(binding)),+,)
             })

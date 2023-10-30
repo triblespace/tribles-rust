@@ -44,9 +44,15 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
     }
 
     fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
-        self.constraints
+        let mut relevant_constraints: Vec<_> = self
+        .constraints
+        .iter()
+        .filter(|c| c.variables().is_set(variable))
+        .collect();
+        relevant_constraints.sort_by_cached_key(|c| c.estimate(variable, binding));
+
+        relevant_constraints
             .iter()
-            .filter(|c| c.variables().is_set(variable))
             .for_each(|c| c.confirm(variable, binding, proposals));
     }
 }

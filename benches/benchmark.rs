@@ -467,7 +467,7 @@ fn query_benchmark(c: &mut Criterion) {
         name: "Romeo".try_into().unwrap(),
         loves: juliet
     }]);
-/*
+
     (0..999).for_each(|_| {
         data_kb.union(&knights::entities!((lover_a, lover_b),
         [{lover_a @
@@ -479,11 +479,10 @@ fn query_benchmark(c: &mut Criterion) {
             loves: lover_a
         }]));
     });
-*/
 
     kb.union(&data_kb);
 
-    group.throughput(Throughput::Elements(1));
+    group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
         b.iter_with_large_drop(|| {
             let r = query!(
@@ -520,7 +519,6 @@ fn attribute_benchmark(c: &mut Criterion) {
         loves.add(&lover_b, &lover_a);
     });
 
-    /*
     (0..999).for_each(|_| {
         let lover_a = UFOID::new();
         let lover_b = UFOID::new();
@@ -530,7 +528,6 @@ fn attribute_benchmark(c: &mut Criterion) {
         loves.add(&lover_b, &lover_a);
 
     });
-    */
 
     let romeo = UFOID::new();
     let juliet = UFOID::new();
@@ -539,7 +536,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     loves.add(&romeo, &juliet);
     loves.add(&juliet, &romeo);
 
-    group.throughput(Throughput::Elements(1));
+    group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("query", 1), |b| {
         b.iter_with_large_drop(|| {
             let r = query!(

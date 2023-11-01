@@ -127,14 +127,14 @@ pub trait Constraint<'a> {
     fn confirm(&self, variable: VariableId, binding: Binding, proposal: &mut Vec<Value>);
 }
 
-pub struct Query<C, P: Fn(&Binding) -> R, R>{
+pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     binding: Binding,
     variables: VariableSet,
     variable_stack: [u8; 256],
     value_stack: [Vec<Value>; 256],
     stack_depth: isize,
-    postprocessing: P
+    postprocessing: P,
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
@@ -147,7 +147,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
             variable_stack: [0; 256],
             value_stack: std::array::from_fn(|_| vec![]),
             stack_depth: -1,
-            postprocessing
+            postprocessing,
         }
     }
 }
@@ -232,16 +232,15 @@ pub use query;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, convert::TryInto};
     use fake::faker::name::raw::*;
     use fake::locales::*;
     use fake::{Dummy, Fake, Faker};
+    use std::{collections::HashSet, convert::TryInto};
 
-
+    use crate::namespace::knights;
     use crate::patch;
     use crate::tribleset::patchtribleset::PATCHTribleSet;
     use crate::types::syntactic::shortstring::ShortString;
-    use crate::namespace::knights;
 
     use super::*;
 
@@ -293,8 +292,7 @@ mod tests {
     #[test]
     fn pattern() {
         patch::init();
-        
-    
+
         let kb = knights::entities!((romeo, juliet, waromeo),
         [{juliet @
             name: "Juliet".try_into().unwrap(),
@@ -307,7 +305,7 @@ mod tests {
         {waromeo @
             name: "Romeo".try_into().unwrap()
         }]);
-        
+
         let r: Vec<_> = query!(
             ctx,
             (romeo, juliet, name),

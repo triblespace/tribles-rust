@@ -45,10 +45,10 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
 
     fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
         let mut relevant_constraints: Vec<_> = self
-        .constraints
-        .iter()
-        .filter(|c| c.variables().is_set(variable))
-        .collect();
+            .constraints
+            .iter()
+            .filter(|c| c.variables().is_set(variable))
+            .collect();
         relevant_constraints.sort_by_cached_key(|c| c.estimate(variable, binding));
 
         relevant_constraints

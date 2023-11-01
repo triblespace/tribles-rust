@@ -476,7 +476,6 @@ fn query_benchmark(c: &mut Criterion) {
             loves: lover_a
         }]));
     });
-    
 
     kb.union(&data_kb);
 

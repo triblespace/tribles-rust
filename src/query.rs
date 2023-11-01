@@ -8,7 +8,7 @@ pub use constantconstraint::*;
 pub use hashsetconstraint::*;
 pub use intersectionconstraint::*;
 
-use crate::namespace::*;
+use crate::trible::*;
 
 use crate::bitset::ByteBitset;
 

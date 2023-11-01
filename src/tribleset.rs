@@ -2,7 +2,7 @@ pub mod hashtribleset;
 pub mod patchtribleset;
 
 use crate::{
-    namespace::{Id, Value},
+    trible::{Id, Value},
     query::{Constraint, Variable},
 };
 

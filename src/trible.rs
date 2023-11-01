@@ -1,9 +1,10 @@
 use std::convert::TryInto;
 
-use crate::namespace::*;
 use crate::patch::{KeyOrdering, KeySegmentation};
 use arbitrary::Arbitrary;
 
+pub const ID_LEN: usize = 16;
+pub const VALUE_LEN: usize = 32;
 pub const TRIBLE_LEN: usize = 64;
 pub const E_START: usize = 0;
 pub const E_END: usize = 15;
@@ -11,6 +12,16 @@ pub const A_START: usize = 16;
 pub const A_END: usize = 31;
 pub const V_START: usize = 32;
 pub const V_END: usize = 63;
+
+pub type Id = [u8; 16];
+pub type Value = [u8; 32];
+pub type Blob = Vec<u8>;
+
+pub fn id_to_value(id: &Id) -> Value {
+    let mut data = [0; VALUE_LEN];
+    data[16..=31].copy_from_slice(&id[..]);
+    data
+}
 
 #[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
@@ -32,11 +43,7 @@ impl Trible {
         Self { data }
     }
 
-    pub fn new_raw(data: [u8; 64]) -> Trible {
-        Self { data }
-    }
-
-    pub fn new_raw_values(e: Value, a: Value, v: Value) -> Option<Trible> {
+    pub fn new_values(e: Value, a: Value, v: Value) -> Option<Trible> {
         if e[0..16].iter().any(|&x| x != 0) || a[0..16].iter().any(|&x| x != 0) {
             return None;
         }
@@ -47,6 +54,19 @@ impl Trible {
         data[V_START..=V_END].copy_from_slice(&v[..]);
 
         Some(Self { data })
+    }
+
+    pub fn new_raw(data: [u8; 64]) -> Trible {
+        Self { data }
+    }
+
+    pub fn new_raw_values(e: Value, a: Value, v: Value) -> Trible {
+        let mut data = [0; TRIBLE_LEN];
+        data[E_START..=E_END].copy_from_slice(&e[16..32]);
+        data[A_START..=A_END].copy_from_slice(&a[16..32]);
+        data[V_START..=V_END].copy_from_slice(&v[..]);
+
+        Self { data }
     }
 
     pub fn e(&self) -> Id {

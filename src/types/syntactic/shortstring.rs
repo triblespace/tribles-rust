@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::namespace::*;
+use crate::trible::*;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]

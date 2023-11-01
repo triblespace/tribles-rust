@@ -1,6 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+use tribles::and;
+use tribles::attribute::Attribute;
+use tribles::types::syntactic::ShortString;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
@@ -464,7 +467,7 @@ fn query_benchmark(c: &mut Criterion) {
         name: "Romeo".try_into().unwrap(),
         loves: juliet
     }]);
-
+/*
     (0..999).for_each(|_| {
         data_kb.union(&knights::entities!((lover_a, lover_b),
         [{lover_a @
@@ -476,10 +479,11 @@ fn query_benchmark(c: &mut Criterion) {
             loves: lover_a
         }]));
     });
+*/
 
     kb.union(&data_kb);
 
-    group.throughput(Throughput::Elements(1000));
+    group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
         b.iter_with_large_drop(|| {
             let r = query!(
@@ -499,6 +503,62 @@ fn query_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+fn attribute_benchmark(c: &mut Criterion) {
+    patch::init();
+
+    let mut group = c.benchmark_group("attribute");
+
+    let mut name: Attribute<UFOID, ShortString> = Attribute::new();
+    let mut loves: Attribute<UFOID, UFOID> = Attribute::new();
+
+    (0..1000000).for_each(|_| {
+        let lover_a = UFOID::new();
+        let lover_b = UFOID::new();
+        name.add(&lover_a, &(Name(EN).fake::<String>().try_into().unwrap()));
+        name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
+        loves.add(&lover_a, &lover_b);
+        loves.add(&lover_b, &lover_a);
+    });
+
+    /*
+    (0..999).for_each(|_| {
+        let lover_a = UFOID::new();
+        let lover_b = UFOID::new();
+        name.add(&lover_a, &("Romeo".try_into().unwrap()));
+        name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
+        loves.add(&lover_a, &lover_b);
+        loves.add(&lover_b, &lover_a);
+
+    });
+    */
+
+    let romeo = UFOID::new();
+    let juliet = UFOID::new();
+    name.add(&romeo, &("Romeo".try_into().unwrap()));
+    name.add(&juliet, &("Juliet".try_into().unwrap()));
+    loves.add(&romeo, &juliet);
+    loves.add(&juliet, &romeo);
+
+    group.throughput(Throughput::Elements(1));
+    group.bench_function(BenchmarkId::new("query", 1), |b| {
+        b.iter_with_large_drop(|| {
+            let r = query!(
+                ctx,
+                (juliet, romeo, romeo_name, juliet_name),
+                and!(
+                    romeo_name.is("Romeo".try_into().unwrap()),
+                    name.has(romeo, romeo_name),
+                    name.has(juliet, juliet_name),
+                    loves.has(romeo, juliet)
+                )
+            )
+            .count();
+            black_box(r)
+        })
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     std_benchmark,
@@ -507,6 +567,7 @@ criterion_group!(
     tribleset_benchmark,
     entities_benchmark,
     query_benchmark,
+    attribute_benchmark,
     hashtribleset_benchmark,
 );
 criterion_main!(benches);

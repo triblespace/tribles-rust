@@ -2,7 +2,7 @@ mod patchtribleconstraint;
 
 use patchtribleconstraint::*;
 
-use crate::namespace::{Id, Value};
+use crate::trible::{Id, Value};
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,

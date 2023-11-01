@@ -1,6 +1,6 @@
 use blake2::{digest::typenum::U32, Blake2b, Digest};
 
-use crate::namespace::Value;
+use crate::trible::Value;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]

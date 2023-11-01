@@ -1,9 +1,5 @@
 //use crate::query::{query, Query, Variable};
 
-pub type Id = [u8; 16];
-pub type Value = [u8; 32];
-pub type Blob = Vec<u8>;
-
 pub trait Factory {
     fn factory() -> Self;
 }

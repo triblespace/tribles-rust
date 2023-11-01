@@ -2,7 +2,7 @@ pub mod hashtriblesetconstraint;
 
 use std::collections::{HashMap, HashSet};
 
-use crate::namespace::{Id, Value};
+use crate::trible::{Id, Value};
 use crate::trible::Trible;
 use std::iter::FromIterator;
 

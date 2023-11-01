@@ -6,6 +6,7 @@ pub mod query;
 pub mod trible;
 pub mod tribleset;
 pub mod types;
+pub mod attribute;
 
 #[cfg(test)]
 mod tests {}

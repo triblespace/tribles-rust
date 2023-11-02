@@ -136,10 +136,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    #[inline]
     pub(crate) fn tag(&self) -> HeadTag {
         unsafe { transmute((self.tptr as u64 >> 56) as u8) }
     }
 
+    #[inline]
     pub(crate) fn key(&self) -> Option<u8> {
         if self.tag() == HeadTag::Empty {
             None
@@ -148,11 +150,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    #[inline]
     pub(crate) fn set_key(&mut self, key: u8) {
         self.tptr =
             ((self.tptr as u64 & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48)) as *mut u8;
     }
 
+    #[inline]
     pub(crate) unsafe fn ptr<T>(&self) -> *mut T {
         ((((self.tptr as u64) << 16) as i64) >> 16 as u64) as *mut T
     }

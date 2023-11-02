@@ -15,6 +15,7 @@ ux = "0.1.5"
 siphasher = "0.3"
 arbitrary = { version = "1", features = ["derive"] }
 cardkit = "0.1.0-alpha.10"
+coz = "0.1"
 
 #[dev-dependencies]
 criterion = "0.3"
@@ -33,3 +34,6 @@ harness = false
 
 [profile.bench]
 opt-level = 3
+
+[profile.release]
+debug = 1

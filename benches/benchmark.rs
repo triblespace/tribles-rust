@@ -20,6 +20,10 @@ use tribles::tribleset::patchtribleset::PATCHTribleSet;
 
 use im::OrdSet;
 
+use fake::faker::name::raw::*;
+use fake::locales::*;
+use fake::Fake;
+
 use peak_alloc::PeakAlloc;
 #[global_allocator]
 static PEAK_ALLOC: PeakAlloc = PeakAlloc;
@@ -226,10 +230,6 @@ fn tribleset_benchmark(c: &mut Criterion) {
 
     group.finish();
 }
-
-use fake::faker::name::raw::*;
-use fake::locales::*;
-use fake::{Dummy, Fake, Faker};
 
 fn entities_benchmark(c: &mut Criterion) {
     patch::init();

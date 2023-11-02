@@ -24,14 +24,14 @@ impl<const KEY_LEN: usize> Entry<KEY_LEN> {
         unsafe {
             Head::new(
                 HeadTag::Leaf,
-                Leaf::peek::<O>(self.ptr, start_depth),
+                Leaf::peek(self.ptr, O::key_index(start_depth)),
                 Leaf::rc_inc(self.ptr),
             )
         }
     }
 
-    pub(super) fn peek<O: KeyOrdering<KEY_LEN>>(&self, at_depth: usize) -> u8 {
-        unsafe { Leaf::peek::<O>(self.ptr, at_depth) }
+    pub(super) fn peek(&self, at_depth: usize) -> u8 {
+        unsafe { Leaf::peek(self.ptr, at_depth) }
     }
 }
 

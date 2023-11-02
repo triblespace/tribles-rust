@@ -233,18 +233,19 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     pub(crate) fn peek(&self, at_depth: usize) -> u8 {
+        let key_depth = O::key_index(at_depth);
         unsafe {
             match self.tag() {
                 HeadTag::Empty => panic!("peeked on empty"),
-                HeadTag::Leaf => Leaf::peek::<O>(self.ptr(), at_depth),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::peek(self.ptr(), at_depth),
+                HeadTag::Leaf => Leaf::<KEY_LEN>::peek(self.ptr(), key_depth),
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::peek(self.ptr(), key_depth),
             }
         }
     }
@@ -508,7 +509,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
     pub(crate) fn infixes<const INFIX_LEN: usize, F>(
         &self,
-        key: [u8; KEY_LEN],
+        key: &[u8; KEY_LEN],
         at_depth: usize,
         start_depth: usize,
         end_depth: usize,
@@ -604,7 +605,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn has_prefix(&self, at_depth: usize, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+    pub(crate) fn has_prefix(&self, at_depth: usize, key: &[u8; KEY_LEN], end_depth: usize) -> bool {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => end_depth < at_depth,
@@ -642,7 +643,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(crate) fn segmented_len(
         &self,
         at_depth: usize,
-        key: [u8; KEY_LEN],
+        key: &[u8; KEY_LEN],
         start_depth: usize,
     ) -> usize {
         unsafe {
@@ -894,7 +895,7 @@ where
 
     pub fn infixes<const INFIX_LEN: usize, F>(
         &self,
-        key: [u8; KEY_LEN],
+        key: &[u8; KEY_LEN],
         start_depth: usize,
         end_depth: usize,
         f: F,
@@ -904,7 +905,7 @@ where
     {
         let mut out = vec![];
         self.root.infixes(
-            O::tree_ordered(&key),
+            key,
             0,
             O::tree_index(start_depth),
             O::tree_index(end_depth),
@@ -914,14 +915,14 @@ where
         out
     }
 
-    pub fn has_prefix(&self, key: [u8; KEY_LEN], end_depth: usize) -> bool {
+    pub fn has_prefix(&self, key: &[u8; KEY_LEN], end_depth: usize) -> bool {
         self.root
-            .has_prefix(0, O::tree_ordered(&key), O::tree_index(end_depth))
+            .has_prefix(0, key, O::tree_index(end_depth))
     }
 
-    pub fn segmented_len(&self, key: [u8; KEY_LEN], start_depth: usize) -> usize {
+    pub fn segmented_len(&self, key: &[u8; KEY_LEN], start_depth: usize) -> usize {
         self.root
-            .segmented_len(0, O::tree_ordered(&key), O::tree_index(start_depth))
+            .segmented_len(0, key, O::tree_index(start_depth))
     }
 
     pub fn union(&mut self, other: &Self) {
@@ -1070,7 +1071,7 @@ mod tests {
             set.insert(key);
         }
         let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = tree.infixes([0; 64], 0, 63, |x| x);
+        let mut tree_vec = tree.infixes(&[0; 64], 0, 63, |x| x);
 
         set_vec.sort();
         tree_vec.sort();
@@ -1104,7 +1105,7 @@ mod tests {
         left_tree.union(&right_tree);
 
         let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = left_tree.infixes([0; 64], 0, 63, |x| x);
+        let mut tree_vec = left_tree.infixes(&[0; 64], 0, 63, |x| x);
 
         set_vec.sort();
         tree_vec.sort();
@@ -1129,7 +1130,7 @@ mod tests {
         left_tree.union(&right_tree);
 
         let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = left_tree.infixes([0; 64], 0, 63, |x| x);
+        let mut tree_vec = left_tree.infixes(&[0; 64], 0, 63, |x| x);
 
         set_vec.sort();
         tree_vec.sort();

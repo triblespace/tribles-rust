@@ -138,7 +138,7 @@ fn patch_benchmark(c: &mut Criterion) {
                 let entry: Entry<64> = Entry::new(&t.data);
                 patch.put(&entry);
             }
-            b.iter(|| patch.infixes([0; 64], 0, 63, |x| x))
+            b.iter(|| patch.infixes(&[0; 64], 0, 63, |x| x))
         });
     }
 

@@ -66,8 +66,8 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
     }
 
-    pub(crate) unsafe fn peek<O: KeyOrdering<KEY_LEN>>(node: *const Self, at_depth: usize) -> u8 {
-        unsafe { (*node).key[O::key_index(at_depth)] }
+    pub(crate) unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
+        unsafe { (*node).key[at_depth] }
     }
 
     pub(crate) unsafe fn hash(node: *const Self) -> u128 {
@@ -87,7 +87,8 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         unsafe {
             let node: *const Self = head.ptr();
             for depth in at_depth..KEY_LEN {
-                if Self::peek::<O>(node, depth) != entry.peek::<O>(depth) {
+                let key_depth = O::key_index(depth);
+                if Self::peek(node, key_depth) != entry.peek(key_depth) {
                     let new_branch = Branch2::new(depth);
                     Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                     Branch2::insert(new_branch, head.with_start(depth), head.hash());
@@ -106,7 +107,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         F,
     >(
         node: *const Self,
-        key: [u8; KEY_LEN],
+        key: &[u8; KEY_LEN],
         at_depth: usize,
         start_depth: usize,
         f: F,
@@ -115,7 +116,8 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
     {
         for depth in at_depth..start_depth {
-            if Leaf::peek::<O>(node, depth) != key[depth] {
+            let key_depth = O::key_index(depth);
+            if Leaf::peek(node, key_depth) != key[key_depth] {
                 return;
             }
         }
@@ -127,11 +129,12 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>>(
         node: *const Self,
         at_depth: usize,
-        key: [u8; KEY_LEN],
+        key: &[u8; KEY_LEN],
         end_depth: usize,
     ) -> bool {
         for depth in at_depth..=end_depth {
-            if Leaf::peek::<O>(node, depth) != key[depth] {
+            let key_depth = O::key_index(depth);
+            if Leaf::peek(node, key_depth) != key[key_depth] {
                 return false;
             }
         }
@@ -141,11 +144,12 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(crate) unsafe fn segmented_len<O: KeyOrdering<KEY_LEN>>(
         node: *const Self,
         at_depth: usize,
-        key: [u8; KEY_LEN],
+        key: &[u8; KEY_LEN],
         start_depth: usize,
     ) -> usize {
         for depth in at_depth..start_depth {
-            if Leaf::peek::<O>(node, depth) != key[depth] {
+            let key_depth = O::key_index(depth);
+            if Leaf::peek(node, key_depth) != key[key_depth] {
                 return 0;
             }
         }

@@ -183,7 +183,7 @@ macro_rules! create_branch {
             }
 
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
-                Leaf::<KEY_LEN>::peek::<O>((*node).min, at_depth)
+                Leaf::<KEY_LEN>::peek((*node).min, at_depth)
             }
 
             pub unsafe fn put(
@@ -196,7 +196,8 @@ macro_rules! create_branch {
                 let end_depth = (*node).end_depth as usize;
 
                 for depth in start_depth..end_depth {
-                    if Leaf::peek::<O>((*node).min, depth) != entry.peek::<O>(depth) {
+                    let key_depth = O::key_index(depth);
+                    if Leaf::peek((*node).min, key_depth) != entry.peek(key_depth) {
                         let new_branch = Branch2::new(depth);
                         Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                         Branch2::insert(new_branch, head.with_start(depth), head.hash());
@@ -207,7 +208,8 @@ macro_rules! create_branch {
                 }
 
                 let inner = Self::rc_mut(head);
-                if let Some(child) = (*inner).child_table.get_mut(entry.peek::<O>(end_depth)) {
+                let key_end_depth = O::key_index(end_depth);
+                if let Some(child) = (*inner).child_table.get_mut(entry.peek(key_end_depth)) {
                     let old_child_hash = child.hash();
                     let old_child_segment_count = child.count_segment(end_depth);
                     let old_child_leaf_count = child.count();
@@ -232,7 +234,7 @@ macro_rules! create_branch {
 
             pub(super) unsafe fn infixes<const INFIX_LEN: usize, F>(
                 node: *const Self,
-                key: [u8; KEY_LEN],
+                key: &[u8; KEY_LEN],
                 at_depth: usize,
                 start_depth: usize,
                 end_depth: usize,
@@ -243,7 +245,8 @@ macro_rules! create_branch {
             {
                 let node_end_depth = ((*node).end_depth as usize);
                 for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
-                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                    let key_depth = O::key_index(depth);
+                    if Leaf::peek((*node).min, key_depth) != key[key_depth] {
                         return;
                     }
                 }
@@ -253,7 +256,7 @@ macro_rules! create_branch {
                     return;
                 }
                 if start_depth > node_end_depth {
-                    if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                    if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)]) {
                         child.infixes(key, node_end_depth, start_depth, end_depth, f, out);
                     }
                     return;
@@ -269,19 +272,20 @@ macro_rules! create_branch {
             pub(super) unsafe fn has_prefix(
                 node: *const Self,
                 at_depth: usize,
-                key: [u8; KEY_LEN],
+                key: &[u8; KEY_LEN],
                 end_depth: usize,
             ) -> bool {
                 let node_end_depth = ((*node).end_depth as usize);
                 for depth in at_depth..std::cmp::min(node_end_depth, end_depth) {
-                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                    let key_depth = O::key_index(depth);
+                    if Leaf::peek((*node).min, key_depth) != key[key_depth] {
                         return false;
                     }
                 }
                 if end_depth < node_end_depth {
                     return true;
                 }
-                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)]) {
                     return child.has_prefix(node_end_depth, key, end_depth);
                 }
                 return false;
@@ -290,12 +294,13 @@ macro_rules! create_branch {
             pub(super) unsafe fn segmented_len(
                 node: *const Self,
                 at_depth: usize,
-                key: [u8; KEY_LEN],
+                key: &[u8; KEY_LEN],
                 start_depth: usize,
             ) -> usize {
                 let node_end_depth = ((*node).end_depth as usize);
                 for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
-                    if Leaf::peek::<O>((*node).min, depth) != key[depth] {
+                    let key_depth = O::key_index(depth);
+                    if Leaf::peek((*node).min, key_depth) != key[key_depth] {
                         return 0;
                     }
                 }
@@ -308,7 +313,7 @@ macro_rules! create_branch {
                         return (*node).segment_count as usize;
                     }
                 }
-                if let Some(child) = (*node).child_table.get(key[node_end_depth]) {
+                if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)]) {
                     return child.segmented_len(node_end_depth, key, start_depth);
                 }
                 return 0;

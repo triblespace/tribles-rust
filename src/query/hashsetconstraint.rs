@@ -30,8 +30,12 @@ where
         VariableSet::new_singleton(self.variable.index)
     }
 
-    fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
-        self.set.len()
+    fn estimate(&self, variable: VariableId, _binding: Binding) -> Option<usize> {
+        if variable == self.variable.index {
+            Some(self.set.len())
+        } else {
+            None
+        }
     }
 
     fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {

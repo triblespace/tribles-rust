@@ -122,7 +122,7 @@ impl Default for Binding {
 
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize;
+    fn estimate(&self, variable: VariableId, binding: Binding) -> Option<usize>;
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value>;
     fn confirm(&self, variable: VariableId, binding: Binding, proposal: &mut Vec<Value>);
 }

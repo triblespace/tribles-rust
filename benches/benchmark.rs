@@ -468,7 +468,7 @@ fn query_benchmark(c: &mut Criterion) {
         loves: juliet
     }]);
 
-    (0..999).for_each(|_| {
+    (0..0).for_each(|_| {
         data_kb.union(&knights::entities!((lover_a, lover_b),
         [{lover_a @
             name: "Romeo".try_into().unwrap(),
@@ -482,7 +482,7 @@ fn query_benchmark(c: &mut Criterion) {
 
     kb.union(&data_kb);
 
-    group.throughput(Throughput::Elements(1000));
+    group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
         b.iter_with_large_drop(|| {
             let r = query!(

@@ -48,14 +48,18 @@ for<'b> &'b V: Into<Value> {
         variables
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
-        let e_bound = binding.get(self.variable_e.index);
-        let v_bound = binding.get(self.variable_v.index);
-
+    fn estimate(&self, variable: VariableId, binding: Binding) -> Option<usize> {
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        match (e_bound, v_bound, e_var, v_var) {
+        if !(e_var || v_var) {
+            return None;
+        }
+
+        let e_bound = binding.get(self.variable_e.index);
+        let v_bound = binding.get(self.variable_v.index);
+
+        let estimate = match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => self.attr.ev.len(),
             (None, None, false, true) => self.attr.ve.len(),
             (Some(e), None, false, true) => {
@@ -65,7 +69,9 @@ for<'b> &'b V: Into<Value> {
                 self.attr.ve.get(&v).map_or(0, |s| s.len())
             }
             _ => panic!(),
-        }
+        };
+
+        Some(estimate)
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {

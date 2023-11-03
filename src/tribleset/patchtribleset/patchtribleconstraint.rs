@@ -62,14 +62,18 @@ where
         variables
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
-
+    fn estimate(&self, variable: VariableId, binding: Binding) -> Option<usize> {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
+
+        if !(e_var || a_var || v_var) {
+            return None;
+        }
+
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
 
         let trible = Trible::new_raw_values(
             binding.get(self.variable_e.index).unwrap_or([0; 32]),
@@ -77,7 +81,7 @@ where
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
         );
 
-        match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+        let estimate = match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (false, false, false, true, false, false) => {
                 self.set.eav.segmented_len(&trible.data, E_START)
             }
@@ -119,7 +123,9 @@ where
                 self.set.eav.segmented_len(&trible.data, V_START)
             }
             _ => panic!(),
-        }
+        };
+
+        Some(estimate)
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {

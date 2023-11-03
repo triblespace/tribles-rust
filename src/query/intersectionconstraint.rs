@@ -17,13 +17,11 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .fold(VariableSet::new_empty(), |vs, c| vs.union(c.variables()))
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: Binding) -> Option<usize> {
         self.constraints
             .iter()
-            .filter(|c| c.variables().is_set(variable))
-            .map(|c| c.estimate(variable, binding))
+            .filter_map(|c| c.estimate(variable, binding))
             .min()
-            .unwrap()
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {

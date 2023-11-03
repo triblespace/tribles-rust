@@ -61,21 +61,25 @@ where
         variables
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
-
+    fn estimate(&self, variable: VariableId, binding: Binding) -> Option<usize> {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        if let Some(trible) = Trible::new_values(
+        if !(e_var || a_var || v_var) {
+            return None;
+        }
+        
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let trible = Trible::new_raw_values(
             binding.get(self.variable_e.index).unwrap_or([0; 32]),
             binding.get(self.variable_a.index).unwrap_or([0; 32]),
-            binding.get(self.variable_v.index).unwrap_or([0; 32]),
-        ) {
-            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+            binding.get(self.variable_v.index).unwrap_or([0; 32]));
+        
+        let estimate = match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => self.set.ea.len(),
                 (false, false, false, false, true, false) => self.set.ae.len(),
                 (false, false, false, false, false, true) => self.set.ve.len(),
@@ -117,10 +121,9 @@ where
                     .get(&(trible.e(), trible.a()))
                     .map_or(0, |s| s.len()),
                 _ => panic!(),
-            }
-        } else {
-            0
-        }
+            };
+
+        Some(estimate)
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {

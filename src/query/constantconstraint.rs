@@ -1,9 +1,8 @@
 use super::*;
 
 pub struct ConstantConstraint<T> {
-    variables: VariableSet,
+    variable: Variable<T>,
     constant: Value,
-    phantom: PhantomData<T>
 }
 
 impl<T> ConstantConstraint<T> {
@@ -12,8 +11,7 @@ impl<T> ConstantConstraint<T> {
         for<'b> &'b T: Into<Value>,
     {
         ConstantConstraint {
-            phantom: PhantomData,
-            variables: VariableSet::new_singleton(variable.index),
+            variable,
             constant: constant.into(),
         }
     }
@@ -21,7 +19,11 @@ impl<T> ConstantConstraint<T> {
 
 impl<'a, T> Constraint<'a> for ConstantConstraint<T> {
     fn variables(&self) -> VariableSet {
-        self.variables
+        VariableSet::new_singleton(self.variable.index)
+    }
+
+    fn variable(&self, variable: VariableId) -> bool {
+        self.variable.index == variable
     }
 
     fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {

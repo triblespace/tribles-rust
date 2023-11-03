@@ -17,10 +17,14 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .fold(VariableSet::new_empty(), |vs, c| vs.union(c.variables()))
     }
 
+    fn variable(&self, variable: VariableId) -> bool {
+        self.constraints.iter().any(|c| c.variable(variable))
+    }
+
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
         self.constraints
             .iter()
-            .filter(|c| c.variables().is_set(variable))
+            .filter(|c| c.variable(variable))
             .map(|c| c.estimate(variable, binding))
             .min()
             .unwrap()
@@ -30,7 +34,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
-            .filter(|c| c.variables().is_set(variable))
+            .filter(|c| c.variable(variable))
             .collect();
         relevant_constraints.sort_by_cached_key(|c| c.estimate(variable, binding));
 
@@ -47,7 +51,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
-            .filter(|c| c.variables().is_set(variable))
+            .filter(|c| c.variable(variable))
             .collect();
         relevant_constraints.sort_by_cached_key(|c| c.estimate(variable, binding));
 

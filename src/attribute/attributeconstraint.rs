@@ -48,6 +48,11 @@ for<'b> &'b V: Into<Value> {
         variables
     }
 
+    fn variable(&self, variable: VariableId) -> bool {
+        self.variable_e.index == variable ||
+        self.variable_v.index == variable
+    }
+
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
         let e_bound = binding.get(self.variable_e.index);
         let v_bound = binding.get(self.variable_v.index);

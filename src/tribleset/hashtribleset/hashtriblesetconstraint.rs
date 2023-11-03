@@ -61,6 +61,12 @@ where
         variables
     }
 
+    fn variable(&self, variable: VariableId) -> bool {
+        self.variable_e.index == variable ||
+        self.variable_a.index == variable ||
+        self.variable_v.index == variable
+    }
+
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);

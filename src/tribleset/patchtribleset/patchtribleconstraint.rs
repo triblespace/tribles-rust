@@ -69,59 +69,65 @@ where
     }
     
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
-
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
-
-        let trible = Trible::new_raw_values(
-            binding.get(self.variable_e.index).unwrap_or([0; 32]),
-            binding.get(self.variable_a.index).unwrap_or([0; 32]),
-            binding.get(self.variable_v.index).unwrap_or([0; 32]),
-        );
+        
+        let e_bound = binding.get(self.variable_e.index);
+        let a_bound = binding.get(self.variable_a.index);
+        let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (false, false, false, true, false, false) => {
+            (None, None, None, true, false, false) => {
+                let trible = Trible::new_raw([0; 64]);
                 self.set.eav.segmented_len(&trible.data, E_START)
             }
-            (false, false, false, false, true, false) => {
+            (None, None, None, false, true, false) => {
+                let trible = Trible::new_raw([0; 64]);
                 self.set.aev.segmented_len(&trible.data, A_START)
             }
-            (false, false, false, false, false, true) => {
+            (None, None, None, false, false, true) => {
+                let trible = Trible::new_raw([0; 64]);
                 self.set.vea.segmented_len(&trible.data, V_START)
             }
 
-            (true, false, false, false, true, false) => {
+            (Some(e), None, None, false, true, false) => {
+                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
                 self.set.eav.segmented_len(&trible.data, A_START)
             }
-            (true, false, false, false, false, true) => {
+            (Some(e), None, None, false, false, true) => {
+                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
                 self.set.eva.segmented_len(&trible.data, V_START)
             }
 
-            (false, true, false, true, false, false) => {
+            (None, Some(a), None, true, false, false) => {
+                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
                 self.set.aev.segmented_len(&trible.data, E_START)
             }
-            (false, true, false, false, false, true) => {
+            (None, Some(a), None, false, false, true) => {
+                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
                 self.set.ave.segmented_len(&trible.data, V_START)
             }
 
-            (false, false, true, true, false, false) => {
+            (None, None, Some(v), true, false, false) => {
+                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
                 self.set.vea.segmented_len(&trible.data, E_START)
             }
-            (false, false, true, false, true, false) => {
+            (None, None, Some(v), false, true, false) => {
+                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
                 self.set.vae.segmented_len(&trible.data, A_START)
             }
 
-            (false, true, true, true, false, false) => {
+            (None, Some(a), Some(v), true, false, false) => {
+                let trible = Trible::new_raw_values([0; 32], a, v);
                 self.set.ave.segmented_len(&trible.data, E_START)
             }
-            (true, false, true, false, true, false) => {
+            (Some(e), None, Some(v), false, true, false) => {
+                let trible: Trible = Trible::new_raw_values(e, [0; 32], v);
                 self.set.eva.segmented_len(&trible.data, A_START)
             }
-            (true, true, false, false, false, true) => {
+            (Some(e), Some(a), None, false, false, true) => {
+                let trible: Trible = Trible::new_raw_values(e, a, [0; 32]);
                 self.set.eav.segmented_len(&trible.data, V_START)
             }
             _ => panic!(),
@@ -129,80 +135,86 @@ where
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
-
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let trible =Trible::new_raw_values(
-            binding.get(self.variable_e.index).unwrap_or([0; 32]),
-            binding.get(self.variable_a.index).unwrap_or([0; 32]),
-            binding.get(self.variable_v.index).unwrap_or([0; 32]),
-        );
+        let e_bound = binding.get(self.variable_e.index);
+        let a_bound = binding.get(self.variable_a.index);
+        let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (false, false, false, true, false, false) => {
+            (None, None, None, true, false, false) => {
+                let trible = Trible::new_raw([0; 64]);
                 self.set.eav.infixes(&trible.data, E_START, E_END, |k| {
                     Trible::new_raw(k).e_as_value()
                 })
             }
-            (false, false, false, false, true, false) => {
+            (None, None, None, false, true, false) => {
+                let trible = Trible::new_raw([0; 64]);
                 self.set.aev.infixes(&trible.data, A_START, A_END, |k| {
                     Trible::new_raw(k).a_as_value()
                 })
             }
-            (false, false, false, false, false, true) => {
+            (None, None, None, false, false, true) => {
+                let trible = Trible::new_raw([0; 64]);
                 self.set
                     .vea
                     .infixes(&trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
             }
 
-            (true, false, false, false, true, false) => {
+            (Some(e), None, None, false, true, false) => {
+                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
                 self.set.eav.infixes(&trible.data, A_START, A_END, |k| {
                     Trible::new_raw(k).a_as_value()
                 })
             }
-            (true, false, false, false, false, true) => {
+            (Some(e), None, None, false, false, true) => {
+                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
                 self.set
                     .eva
                     .infixes(&trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
             }
 
-            (false, true, false, true, false, false) => {
+            (None, Some(a), None, true, false, false) => {
+                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
                 self.set.aev.infixes(&trible.data, E_START, E_END, |k| {
                     Trible::new_raw(k).e_as_value()
                 })
             }
-            (false, true, false, false, false, true) => {
+            (None, Some(a), None, false, false, true) => {
+                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
                 self.set
                     .ave
                     .infixes(&trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
             }
 
-            (false, false, true, true, false, false) => {
+            (None, None, Some(v), true, false, false) => {
+                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
                 self.set.vea.infixes(&trible.data, E_START, E_END, |k| {
                     Trible::new_raw(k).e_as_value()
                 })
             }
-            (false, false, true, false, true, false) => {
+            (None, None, Some(v), false, true, false) => {
+                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
                 self.set.vae.infixes(&trible.data, A_START, A_END, |k| {
                     Trible::new_raw(k).a_as_value()
                 })
             }
-            (false, true, true, true, false, false) => {
+            (None, Some(a), Some(v), true, false, false) => {
+                let trible = Trible::new_raw_values([0; 32], a, v);
                 self.set.ave.infixes(&trible.data, E_START, E_END, |k| {
                     Trible::new_raw(k).e_as_value()
                 })
             }
-            (true, false, true, false, true, false) => {
+            (Some(e), None, Some(v), false, true, false) => {
+                let trible = Trible::new_raw_values(e, [0; 32], v);
                 self.set.eva.infixes(&trible.data, A_START, A_END, |k| {
                     Trible::new_raw(k).a_as_value()
                 })
             }
-            (true, true, false, false, false, true) => {
+            (Some(e), Some(a), None, false, false, true) => {
+                let trible = Trible::new_raw_values(e, a,[0; 32]);
                 self.set
                     .eav
                     .infixes(&trible.data, V_START, V_END, |k| Trible::new_raw(k).v())

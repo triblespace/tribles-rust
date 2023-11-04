@@ -540,7 +540,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     (0..999).for_each(|_| {
         let lover_a = UFOID::new();
         let lover_b = UFOID::new();
-        name.add(&lover_a, &("Romeo".try_into().unwrap()));
+        name.add(&lover_a, &("Wameo".try_into().unwrap()));
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
         loves.add(&lover_b, &lover_a);
@@ -554,7 +554,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     loves.add(&romeo, &juliet);
     loves.add(&juliet, &romeo);
 
-    group.throughput(Throughput::Elements(1000));
+    group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("query", 1), |b| {
         b.iter_with_large_drop(|| {
             let r = query!(

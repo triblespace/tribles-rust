@@ -54,11 +54,11 @@ for<'b> &'b V: Into<Value> {
     }
 
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
-        let e_bound = binding.get(self.variable_e.index);
-        let v_bound = binding.get(self.variable_v.index);
-
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
+
+        let e_bound = binding.get(self.variable_e.index);
+        let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => self.attr.ev.len(),
@@ -74,11 +74,11 @@ for<'b> &'b V: Into<Value> {
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
-        let e_bound = binding.get(self.variable_e.index);
-        let v_bound = binding.get(self.variable_v.index);
-
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
+
+        let e_bound = binding.get(self.variable_e.index);
+        let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) =>
@@ -94,11 +94,11 @@ for<'b> &'b V: Into<Value> {
     }
 
     fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
-        let e_bound = binding.get(self.variable_e.index);
-        let v_bound = binding.get(self.variable_v.index);
-
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
+        
+        let e_bound = binding.get(self.variable_e.index);
+        let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) =>

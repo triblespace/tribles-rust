@@ -537,7 +537,7 @@ fn attribute_benchmark(c: &mut Criterion) {
         loves.add(&lover_b, &lover_a);
     });
 
-    (0..999).for_each(|_| {
+    (0..1000).for_each(|_| {
         let lover_a = UFOID::new();
         let lover_b = UFOID::new();
         name.add(&lover_a, &("Wameo".try_into().unwrap()));
@@ -562,6 +562,24 @@ fn attribute_benchmark(c: &mut Criterion) {
                 (juliet, romeo, romeo_name, juliet_name),
                 and!(
                     romeo_name.is("Romeo".try_into().unwrap()),
+                    name.has(romeo, romeo_name),
+                    name.has(juliet, juliet_name),
+                    loves.has(romeo, juliet)
+                )
+            )
+            .count();
+            black_box(r)
+        })
+    });
+
+    group.throughput(Throughput::Elements(1000));
+    group.bench_function(BenchmarkId::new("query", 1), |b| {
+        b.iter_with_large_drop(|| {
+            let r = query!(
+                ctx,
+                (juliet, romeo, romeo_name, juliet_name),
+                and!(
+                    romeo_name.is("Wameo".try_into().unwrap()),
                     name.has(romeo, romeo_name),
                     name.has(juliet, juliet_name),
                     loves.has(romeo, juliet)

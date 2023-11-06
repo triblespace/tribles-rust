@@ -573,7 +573,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     });
 
     group.throughput(Throughput::Elements(1000));
-    group.bench_function(BenchmarkId::new("query", 1), |b| {
+    group.bench_function(BenchmarkId::new("query", 1000), |b| {
         b.iter_with_large_drop(|| {
             let r = query!(
                 ctx,

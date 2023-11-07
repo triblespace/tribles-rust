@@ -195,9 +195,10 @@ macro_rules! create_branch {
                 let node: *const Self = head.ptr();
                 let end_depth = (*node).end_depth as usize;
 
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
                 for depth in start_depth..end_depth {
                     let key_depth = O::key_index(depth);
-                    if Leaf::peek((*node).min, key_depth) != entry.peek(key_depth) {
+                    if leaf_key[key_depth] != entry.peek(key_depth) {
                         let new_branch = Branch2::new(depth);
                         Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                         Branch2::insert(new_branch, head.with_start(depth), head.hash());
@@ -244,9 +245,10 @@ macro_rules! create_branch {
                 F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN] + Copy,
             {
                 let node_end_depth = ((*node).end_depth as usize);
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
                     let key_depth = O::key_index(depth);
-                    if Leaf::peek((*node).min, key_depth) != key[key_depth] {
+                    if leaf_key[key_depth] != key[key_depth] {
                         return;
                     }
                 }
@@ -276,9 +278,10 @@ macro_rules! create_branch {
                 end_depth: usize,
             ) -> bool {
                 let node_end_depth = ((*node).end_depth as usize);
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, end_depth) {
                     let key_depth = O::key_index(depth);
-                    if Leaf::peek((*node).min, key_depth) != key[key_depth] {
+                    if leaf_key[key_depth] != key[key_depth] {
                         return false;
                     }
                 }
@@ -298,9 +301,10 @@ macro_rules! create_branch {
                 start_depth: usize,
             ) -> usize {
                 let node_end_depth = ((*node).end_depth as usize);
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
                     let key_depth = O::key_index(depth);
-                    if Leaf::peek((*node).min, key_depth) != key[key_depth] {
+                    if leaf_key[key_depth] != key[key_depth] {
                         return 0;
                     }
                 }

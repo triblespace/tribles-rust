@@ -86,9 +86,10 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         debug_assert!(head.tag() == HeadTag::Leaf);
         unsafe {
             let node: *const Self = head.ptr();
+            let leaf_key: &[u8; KEY_LEN] = &(*node).key;
             for depth in at_depth..KEY_LEN {
                 let key_depth = O::key_index(depth);
-                if Self::peek(node, key_depth) != entry.peek(key_depth) {
+                if leaf_key[key_depth] != entry.peek(key_depth) {
                     let new_branch = Branch2::new(depth);
                     Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
                     Branch2::insert(new_branch, head.with_start(depth), head.hash());
@@ -115,9 +116,10 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     ) where
         F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
     {
+        let leaf_key = &(*node).key;
         for depth in at_depth..start_depth {
             let key_depth = O::key_index(depth);
-            if Leaf::peek(node, key_depth) != key[key_depth] {
+            if leaf_key[key_depth] != key[key_depth] {
                 return;
             }
         }
@@ -132,9 +134,10 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         key: &[u8; KEY_LEN],
         end_depth: usize,
     ) -> bool {
+        let leaf_key: &[u8; KEY_LEN] = &(*node).key;
         for depth in at_depth..=end_depth {
             let key_depth = O::key_index(depth);
-            if Leaf::peek(node, key_depth) != key[key_depth] {
+            if leaf_key[key_depth] != key[key_depth] {
                 return false;
             }
         }
@@ -147,9 +150,10 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         key: &[u8; KEY_LEN],
         start_depth: usize,
     ) -> usize {
+        let leaf_key: &[u8; KEY_LEN] = &(*node).key;
         for depth in at_depth..start_depth {
             let key_depth = O::key_index(depth);
-            if Leaf::peek(node, key_depth) != key[key_depth] {
+            if leaf_key[key_depth] != key[key_depth] {
                 return 0;
             }
         }

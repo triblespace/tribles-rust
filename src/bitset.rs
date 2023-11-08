@@ -37,11 +37,11 @@ impl ByteBitset {
     }
     /// Set the given value in the set.
     pub fn set(&mut self, index: u8) {
-        self.bits[usize::from(index >> 6)] |= 1 << (index & 0b111111);
+        self.bits[(index >> 6) as usize] |= 1 << (index & 0b111111);
     }
     /// Remove the given value from the set.
     pub fn unset(&mut self, index: u8) {
-        self.bits[usize::from(index >> 6)] &= !(1 << (index & 0b111111));
+        self.bits[(index >> 6) as usize] &= !(1 << (index & 0b111111));
     }
     /// Sets or removes the given element into or from the set
     /// depending on the passed value.
@@ -62,7 +62,7 @@ impl ByteBitset {
     }
     /// Check if the given value is in the set.
     pub fn is_set(&self, index: u8) -> bool {
-        0 != (self.bits[usize::from(index >> 6)] & (1 << (index & 0b111111)))
+        0 != (self.bits[(index >> 6) as usize] & (1 << (index & 0b111111)))
     }
     /// Finds the index of the first set bit.
     /// If no bits are set, returns `None`.

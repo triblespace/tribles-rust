@@ -77,7 +77,7 @@ where
         let a_bound = binding.get(self.variable_a.index);
         let v_bound = binding.get(self.variable_v.index);
 
-        match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+        (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
                 let trible = Trible::new_raw([0; 64]);
                 self.set.eav.segmented_len(&trible.data, E_START)
@@ -131,7 +131,7 @@ where
                 self.set.eav.segmented_len(&trible.data, V_START)
             }
             _ => panic!(),
-        }
+        }) as usize
     }
 
     fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {

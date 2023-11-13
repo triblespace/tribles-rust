@@ -239,7 +239,7 @@ macro_rules! create_bytetable {
             }
 
             /// An entry with the same key must not exist in the table yet.
-            pub fn put(&mut self, entry: T) -> T {
+            pub fn insert(&mut self, entry: T) -> T {
                 if let Some(mut byte_key) = entry.key() {
                     debug_assert!(self.get(byte_key).is_none());
 
@@ -368,13 +368,13 @@ mod tests {
             init();
             let mut table: ByteTable4<DummyEntry> = ByteTable4::new();
             let entry = DummyEntry::new(n);
-            let displaced = table.put(entry);
+            let displaced = table.insert(entry);
             prop_assert!(displaced.key().is_none());
             prop_assert!(table.take(n).is_some());
         }
 
         #[test]
-        fn put_success(entry_set in prop::collection::hash_set(0u8..255, 1..32)) {
+        fn insert_success(entry_set in prop::collection::hash_set(0u8..255, 1..32)) {
             init();
 
             let entries: Vec<_> = entry_set.iter().copied().collect();
@@ -384,7 +384,7 @@ mod tests {
             macro_rules! put_step {
                 ($table:ident, $grown_table:ident) => {
                     while displaced.key().is_none() && i < entries.len() {
-                        displaced = $table.put(DummyEntry::new(entries[i]));
+                        displaced = $table.insert(DummyEntry::new(entries[i]));
                         if(displaced.key().is_none()) {
                             for j in 0..=i {
                                 prop_assert!($table.get_mut(entries[j]).is_some(),
@@ -394,7 +394,7 @@ mod tests {
                         i += 1;
                     }
                     let mut $grown_table = $table.grow();
-                    displaced = $grown_table.put(displaced);
+                    displaced = $grown_table.insert(displaced);
 
                     if displaced.key().is_none() {
                         for j in 0..i {

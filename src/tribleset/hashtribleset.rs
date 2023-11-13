@@ -44,7 +44,7 @@ impl HashTribleSet {
         return self.all.len();
     }
 
-    pub fn add(&mut self, trible: &Trible) {
+    pub fn insert(&mut self, trible: &Trible) {
         let e = trible.e();
         let a = trible.a();
         let v = trible.v();
@@ -66,7 +66,7 @@ impl FromIterator<Trible> for HashTribleSet {
         let mut set = HashTribleSet::new();
 
         for t in iter {
-            set.add(&t);
+            set.insert(&t);
         }
         set
     }
@@ -109,12 +109,12 @@ mod tests {
 
     proptest! {
         #[test]
-        fn put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn insert(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
             let mut set = HashTribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
-                set.add(&Trible{ data: key});
+                set.insert(&Trible{ data: key});
             }
         }
     }

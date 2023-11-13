@@ -233,14 +233,14 @@ pub use query;
 
 #[cfg(test)]
 mod tests {
-    use fake::faker::name::raw::*;
-    use fake::locales::*;
-    use fake::{Dummy, Fake, Faker};
+    //use fake::faker::name::raw::*;
+    //use fake::locales::*;
+    //use fake::{Dummy, Fake, Faker};
     use std::{collections::HashSet, convert::TryInto};
 
     use crate::namespace::knights;
     use crate::patch;
-    use crate::tribleset::patchtribleset::PATCHTribleSet;
+    //use crate::tribleset::patchtribleset::PATCHTribleSet;
     use crate::types::syntactic::shortstring::ShortString;
 
     use super::*;

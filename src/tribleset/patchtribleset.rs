@@ -13,12 +13,12 @@ use super::TribleSet;
 
 #[derive(Debug, Clone)]
 pub struct PATCHTribleSet {
-    eav: PATCH<64, EAVOrder, TribleSegmentation>,
-    eva: PATCH<64, EVAOrder, TribleSegmentation>,
-    aev: PATCH<64, AEVOrder, TribleSegmentation>,
-    ave: PATCH<64, AVEOrder, TribleSegmentation>,
-    vea: PATCH<64, VEAOrder, TribleSegmentation>,
-    vae: PATCH<64, VAEOrder, TribleSegmentation>,
+    eav: PATCH<64, EAVOrder, TribleSegmentation, ()>,
+    eva: PATCH<64, EVAOrder, TribleSegmentation, ()>,
+    aev: PATCH<64, AEVOrder, TribleSegmentation, ()>,
+    ave: PATCH<64, AVEOrder, TribleSegmentation, ()>,
+    vea: PATCH<64, VEAOrder, TribleSegmentation, ()>,
+    vae: PATCH<64, VAEOrder, TribleSegmentation, ()>,
 }
 
 impl PATCHTribleSet {
@@ -46,14 +46,14 @@ impl PATCHTribleSet {
         return self.eav.len();
     }
 
-    pub fn add(&mut self, trible: &Trible) {
-        let key = Entry::new(&trible.data);
-        self.eav.put(&key);
-        self.eva.put(&key);
-        self.aev.put(&key);
-        self.ave.put(&key);
-        self.vea.put(&key);
-        self.vae.put(&key);
+    pub fn insert(&mut self, trible: &Trible) {
+        let key = Entry::new(&trible.data, ());
+        self.eav.insert(&key);
+        self.eva.insert(&key);
+        self.aev.insert(&key);
+        self.ave.insert(&key);
+        self.vea.insert(&key);
+        self.vae.insert(&key);
     }
 }
 
@@ -62,7 +62,7 @@ impl FromIterator<Trible> for PATCHTribleSet {
         let mut set = PATCHTribleSet::new();
 
         for t in iter {
-            set.add(&t);
+            set.insert(&t);
         }
 
         set
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn union() {
         let mut kb = PATCHTribleSet::new();
-        for i in (0..2000) {
+        for i in 0..2000 {
             kb.union(&knights::entities!((lover_a, lover_b),
             [{lover_a @
                 name: Name(EN).fake::<String>().try_into().unwrap(),
@@ -128,12 +128,12 @@ mod tests {
 
     proptest! {
         #[test]
-        fn put(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn insert(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
             let mut set = PATCHTribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
-                set.add(&Trible{ data: key});
+                set.insert(&Trible{ data: key});
             }
         }
     }

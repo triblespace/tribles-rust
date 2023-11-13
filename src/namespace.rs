@@ -9,7 +9,7 @@ pub trait Factory {
 #[macro_export]
 macro_rules! entities_inner {
     (@triple ($set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
-        $set.add(&$crate::trible::Trible::new(
+        $set.insert(&$crate::trible::Trible::new(
             $EntityId,
             { use $Namespace as base; base::ids::$FieldName },
             { use $Namespace as base; let v: base::types::$FieldName = $Value; v}))

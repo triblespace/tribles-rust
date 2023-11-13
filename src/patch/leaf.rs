@@ -3,17 +3,20 @@ use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::alloc::*;
 
+//use crate::trible::Value;
+
 use super::*;
 
 #[derive(Debug)]
 #[repr(C)]
-pub(crate) struct Leaf<const KEY_LEN: usize> {
+pub(crate) struct Leaf<const KEY_LEN: usize, V: Clone> {
     pub key: [u8; KEY_LEN],
     rc: atomic::AtomicU32,
+    value: V
 }
 
-impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
-    pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> *mut Self {
+impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
+    pub(super) unsafe fn new(key: &[u8; KEY_LEN], value: V) -> *mut Self {
         unsafe {
             let layout = Layout::new::<Self>();
             let ptr = alloc(layout) as *mut Self;
@@ -25,6 +28,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 Self {
                     key: *key,
                     rc: atomic::AtomicU32::new(1),
+                    value
                 },
             );
 
@@ -78,9 +82,9 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
     }
 
-    pub(crate) unsafe fn put<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
-        head: &mut Head<KEY_LEN, O, S>,
-        entry: &Entry<KEY_LEN>,
+    pub(crate) unsafe fn insert<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
+        head: &mut Head<KEY_LEN, O, S, V>,
+        entry: &Entry<KEY_LEN, V>,
         at_depth: usize,
     ) {
         debug_assert!(head.tag() == HeadTag::Leaf);
@@ -91,8 +95,8 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 let key_depth = O::key_index(depth);
                 if leaf_key[key_depth] != entry.peek(key_depth) {
                     let new_branch = Branch2::new(depth);
-                    Branch2::insert(new_branch, entry.leaf(depth), entry.hash);
-                    Branch2::insert(new_branch, head.with_start(depth), head.hash());
+                    Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
+                    Branch2::insert_child(new_branch, head.with_start(depth), head.hash());
 
                     *head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
                     return;
@@ -149,7 +153,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         at_depth: usize,
         key: &[u8; KEY_LEN],
         start_depth: usize,
-    ) -> usize {
+    ) -> u64 {
         let leaf_key: &[u8; KEY_LEN] = &(*node).key;
         for depth in at_depth..start_depth {
             let key_depth = O::key_index(depth);

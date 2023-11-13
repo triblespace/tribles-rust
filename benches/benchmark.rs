@@ -127,7 +127,7 @@ fn patch_benchmark(c: &mut Criterion) {
                 let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in black_box(&samples) {
                     let entry: Entry<64> = Entry::new(&t.data);
-                    patch.put(&entry);
+                    patch.insert(&entry);
                 }
             })
         });
@@ -136,7 +136,7 @@ fn patch_benchmark(c: &mut Criterion) {
             let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             for t in black_box(&samples) {
                 let entry: Entry<64> = Entry::new(&t.data);
-                patch.put(&entry);
+                patch.insert(&entry);
             }
             b.iter(|| patch.infixes(&[0; 64], 0, 63, |x| x))
         });
@@ -154,7 +154,7 @@ fn patch_benchmark(c: &mut Criterion) {
                         PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                     for t in samples {
                         let entry: Entry<64> = Entry::new(&t.data);
-                        patch.put(&entry);
+                        patch.insert(&entry);
                     }
                     patch
                 })
@@ -187,7 +187,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = PATCHTribleSet::new();
                 for t in black_box(&samples) {
-                    set.add(t);
+                    set.insert(t);
                 }
                 let after_mem = PEAK_ALLOC.current_usage_as_gb();
                 println!("Tribleset size: {}", after_mem - before_mem);

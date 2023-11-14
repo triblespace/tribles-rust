@@ -1,10 +1,8 @@
 //use crate::trible::{Id, Value, VALUE_LEN};
 use crate::patch::{Entry, PATCH};
-use crate::trible::{Trible, TribleSegmentation, VAEOrder,};
+use crate::trible::{Trible, TribleSegmentation, VAEOrder, VALUE_LEN, Blob,};
+use crate::types::handle::Handle;
 use std::iter::FromIterator;
-use std::sync::Arc;
-
-type Blob = Arc<[u8]>;
 
 #[derive(Debug, Clone)]
 pub struct PATCHBlobSet {
@@ -30,12 +28,13 @@ impl PATCHBlobSet {
         let key = Entry::new(&trible.data, blob);
         self.vae.insert(&key);
     }
-/*
-    pub fn get(&mut self, value: &Value) {
-        let key = Trible::new_raw_values([0; 32], [0; 32], value);
-        self.vae.anyPrefixedValue(&key, VALUE_LEN);
+
+    pub fn get<T>(&mut self, handle: Handle<T>) -> Option<T>
+    where T: std::convert::From<Blob> {
+        let t = Trible::new_raw_values([0; 32], [0; 32], handle.value);
+        let blob = self.vae.any_prefixed_value(&t.data, VALUE_LEN)?;
+        Some(blob.into())
     }
-*/
 }
 
 impl FromIterator<(Trible, Blob)> for PATCHBlobSet {

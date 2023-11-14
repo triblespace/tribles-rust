@@ -1,3 +1,4 @@
+use crate::inline_value;
 use crate::trible::*;
 use crate::namespace::*;
 use arbitrary::Arbitrary;
@@ -25,18 +26,17 @@ thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen {
 // Fast Unsafe Compressable IDs
 #[derive(Arbitrary, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(transparent)]
-pub struct FUCID {
-    data: [u8; 16],
-}
+pub struct FUCID([u8; 16]);
+
+inline_value!(FUCID);
 
 impl FUCID {
     pub const fn raw(data: [u8; 16]) -> FUCID {
-        FUCID { data }
+        FUCID(data)
     }
 
     pub fn new() -> FUCID {
-        FUCID {
-            data: GEN_STATE
+        FUCID(GEN_STATE
                 .with(|cell| {
                     let mut state = cell.borrow_mut();
                     let next_id = state.counter ^ state.salt;
@@ -44,20 +44,19 @@ impl FUCID {
 
                     next_id
                 })
-                .to_be_bytes(),
-        }
+                .to_be_bytes())
     }
 }
 
 impl From<Id> for FUCID {
     fn from(data: Id) -> Self {
-        FUCID { data }
+        FUCID(data)
     }
 }
 
 impl From<&FUCID> for Id {
     fn from(id: &FUCID) -> Self {
-        id.data
+        id.0
     }
 }
 
@@ -69,16 +68,14 @@ impl Factory for FUCID {
 
 impl From<Value> for FUCID {
     fn from(data: Value) -> Self {
-        FUCID {
-            data: data[16..32].try_into().unwrap(),
-        }
+        FUCID(data[16..32].try_into().unwrap())
     }
 }
 
 impl From<&FUCID> for Value {
     fn from(id: &FUCID) -> Self {
         let mut data = [0; 32];
-        data[16..32].copy_from_slice(&id.data);
+        data[16..32].copy_from_slice(&id.0);
         data
     }
 }

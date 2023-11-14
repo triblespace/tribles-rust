@@ -1,12 +1,12 @@
 use std::convert::TryFrom;
 
-use crate::trible::*;
+use crate::{trible::*, inline_value};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
-pub struct ShortString {
-    inner: String,
-}
+pub struct ShortString(String);
+
+inline_value!(ShortString);
 
 impl ShortString {
     pub fn new(s: String) -> Result<ShortString, &'static str> {
@@ -16,14 +16,14 @@ impl ShortString {
         if s.as_bytes().iter().any(|&b| b == 0) {
             return Err("ShortString must not contain null.");
         }
-        Ok(ShortString { inner: s })
+        Ok(ShortString(s))
     }
 }
 
 impl From<&ShortString> for Value {
     fn from(string: &ShortString) -> Self {
         let mut data = [0; 32];
-        let bytes = string.inner.as_bytes();
+        let bytes = string.0.as_bytes();
         data[..bytes.len()].copy_from_slice(bytes);
         data
     }
@@ -31,14 +31,12 @@ impl From<&ShortString> for Value {
 
 impl From<Value> for ShortString {
     fn from(bytes: Value) -> Self {
-        ShortString {
-            inner: String::from_utf8(
+        ShortString(String::from_utf8(
                 IntoIterator::into_iter(bytes)
                     .take_while(|&x| x != 0)
                     .collect(),
             )
-            .unwrap(),
-        }
+            .unwrap())
     }
 }
 
@@ -52,9 +50,7 @@ impl TryFrom<&str> for ShortString {
         if s.as_bytes().iter().any(|&x| x == 0) {
             return Err("string may not contain null byte");
         }
-        Ok(ShortString {
-            inner: s.to_string(),
-        })
+        Ok(ShortString(s.to_string()))
     }
 }
 
@@ -68,24 +64,7 @@ impl TryFrom<String> for ShortString {
         if s.as_bytes().iter().any(|&x| x == 0) {
             return Err("string may not contain null byte");
         }
-        Ok(ShortString {
-            inner: s.to_string(),
-        })
+        Ok(ShortString(s.to_string()))
     }
 }
 
-/*
-impl From<&ShortString> for Blob {
-    fn from(string: &ShortString) -> Self {
-        vec![]
-    }
-}
-
-impl TryFrom<Blob> for ShortString {
-    type Error = &'static str;
-
-    fn try_from(bytes: Value) -> Result<Self, Self::Error> {
-        Err("ShortStrings store all of their data in their value.")
-    }
-}
-*/

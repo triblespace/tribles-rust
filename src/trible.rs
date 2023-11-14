@@ -2,6 +2,7 @@ use std::convert::TryInto;
 
 use crate::patch::{KeyOrdering, KeySegmentation};
 use arbitrary::Arbitrary;
+use triomphe::Arc;
 
 pub const ID_LEN: usize = 16;
 pub const VALUE_LEN: usize = 32;
@@ -15,7 +16,7 @@ pub const V_END: usize = 63;
 
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
-pub type Blob = Vec<u8>;
+pub type Blob = Arc<[u8]>;
 
 pub fn id_to_value(id: &Id) -> Value {
     let mut data = [0; VALUE_LEN];

@@ -932,6 +932,10 @@ where
             .segmented_len(0, key, O::tree_index(start_depth))
     }
 
+    pub fn any_prefixed_value(&self, key: &[u8; KEY_LEN], end_depth: usize) -> Option<V> {
+        None
+    }
+
     pub fn union(&mut self, other: &Self) {
         self.root.union(&other.root, 0);
     }

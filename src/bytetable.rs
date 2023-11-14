@@ -364,7 +364,7 @@ mod tests {
         }
 
         #[test]
-        fn single_put_success(n in 0u8..255) {
+        fn single_insert_success(n in 0u8..255) {
             init();
             let mut table: ByteTable4<DummyEntry> = ByteTable4::new();
             let entry = DummyEntry::new(n);
@@ -381,7 +381,7 @@ mod tests {
             let mut displaced: DummyEntry = unsafe{ mem::zeroed() };
             let mut i = 0;
 
-            macro_rules! put_step {
+            macro_rules! insert_step {
                 ($table:ident, $grown_table:ident) => {
                     while displaced.key().is_none() && i < entries.len() {
                         displaced = $table.insert(DummyEntry::new(entries[i]));
@@ -406,13 +406,13 @@ mod tests {
             }
 
             let mut table2= ByteTable2::<DummyEntry>::new();
-            put_step!(table2, table4);
-            put_step!(table4, table8);
-            put_step!(table8, table16);
-            put_step!(table16, table32);
-            put_step!(table32, table64);
-            put_step!(table64, table128);
-            put_step!(table128, table256);
+            insert_step!(table2, table4);
+            insert_step!(table4, table8);
+            insert_step!(table8, table16);
+            insert_step!(table16, table32);
+            insert_step!(table32, table64);
+            insert_step!(table64, table128);
+            insert_step!(table128, table256);
 
             prop_assert!(displaced.key().is_none());
         }

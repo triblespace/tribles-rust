@@ -11,6 +11,7 @@ pub use intersectionconstraint::*;
 use crate::trible::*;
 
 use crate::bitset::ByteBitset;
+use crate::types::FromValue;
 
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
@@ -25,7 +26,8 @@ impl VariableContext {
         VariableContext { next_index: 0 }
     }
 
-    pub fn next_variable<T>(&mut self) -> Variable<T> {
+    pub fn next_variable<T>(&mut self) -> Variable<T>
+    where T: FromValue {
         let v = Variable::new(self.next_index);
         self.next_index += 1;
         v
@@ -46,7 +48,8 @@ impl<T> Clone for Variable<T> {
     }
 }
 
-impl<T> Variable<T> {
+impl<T> Variable<T>
+where T: FromValue {
     pub fn new(index: VariableId) -> Self {
         Variable {
             index,
@@ -54,11 +57,9 @@ impl<T> Variable<T> {
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> T
-    where
-        T: From<Value>,
+    pub fn extract(self, binding: &Binding) -> <T as FromValue>::Out
     {
-        binding.get(self.index).unwrap().into()
+        T::from_value(binding.get(self.index).unwrap())
     }
 }
 

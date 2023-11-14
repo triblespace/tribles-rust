@@ -1,3 +1,4 @@
+use crate::inline_value;
 use crate::trible::*;
 use crate::namespace::*;
 use arbitrary::Arbitrary;
@@ -8,13 +9,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 // Universal Forgettable Ordered IDs
 #[derive(Arbitrary, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(transparent)]
-pub struct UFOID {
-    data: [u8; 16],
-}
+pub struct UFOID([u8; 16]);
+
+inline_value!(UFOID);
+
 
 impl UFOID {
     pub const fn raw(data: [u8; 16]) -> UFOID {
-        UFOID { data }
+        UFOID(data)
     }
 
     pub fn new() -> UFOID {
@@ -29,9 +31,9 @@ impl UFOID {
     }
 
     pub fn new_with(timestamp_ms: u32, rng: &mut dyn rand::RngCore) -> UFOID {
-        let mut id = UFOID { data: [0; 16] };
-        id.data[0..4].copy_from_slice(&timestamp_ms.to_be_bytes());
-        rng.fill_bytes(&mut id.data[4..16]);
+        let mut id = UFOID([0; 16]);
+        id.0[0..4].copy_from_slice(&timestamp_ms.to_be_bytes());
+        rng.fill_bytes(&mut id.0[4..16]);
 
         return id;
     }
@@ -39,13 +41,13 @@ impl UFOID {
 
 impl From<Id> for UFOID {
     fn from(data: Id) -> Self {
-        UFOID { data }
+        UFOID(data)
     }
 }
 
 impl From<&UFOID> for Id {
     fn from(id: &UFOID) -> Self {
-        id.data
+        id.0
     }
 }
 
@@ -57,16 +59,14 @@ impl Factory for UFOID {
 
 impl From<Value> for UFOID {
     fn from(data: Value) -> Self {
-        UFOID {
-            data: data[16..32].try_into().unwrap(),
-        }
+        UFOID(data[16..32].try_into().unwrap())
     }
 }
 
 impl From<&UFOID> for Value {
     fn from(id: &UFOID) -> Self {
         let mut data = [0; 32];
-        data[16..32].copy_from_slice(&id.data);
+        data[16..32].copy_from_slice(&id.0);
         data
     }
 }

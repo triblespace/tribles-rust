@@ -10,10 +10,17 @@ pub trait FromValue {
     fn from_value(value: Value) -> Self::Out;
 }
 
+pub trait ToValue {
+    type In;
+
+    fn to_value(value: &Self::In) -> Value;
+}
+
 #[macro_export]
 macro_rules! inline_value {
     ($t:ty) => {
         impl $crate::types::FromValue for $t
+        where $t: std::convert::From<$crate::trible::Value>,
         {
             type Out = $t;
         
@@ -21,18 +28,39 @@ macro_rules! inline_value {
                 value.into()
             }
         }
+
+        impl $crate::types::ToValue for $t
+        where for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
+        {
+            type In = $t;
+        
+            fn to_value(value: &Self::In) -> $crate::trible::Value {
+                value.into()
+            }
+        }
     };
 }
 
 #[macro_export]
-macro_rules! hash_value {
+macro_rules! handle_value {
     ($t:ty) => {
         impl $crate::types::FromValue for $t
+        where $t: std::convert::From<$crate::trible::Blob>,
         {
             type Out = $crate::types::handle::Handle<$t>;
         
             fn from_value(value: $crate::trible::Value) -> Self::Out {
                 $crate::types::handle::Handle::new(value)
+            }
+        }
+
+        impl $crate::types::ToValue for $t
+        where for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
+        {
+            type In = $crate::types::handle::Handle<$t>;
+        
+            fn to_value(handle: &Self::In) -> $crate::trible::Value {
+                handle.value
             }
         }
     };

@@ -20,3 +20,16 @@ where T: From<Blob> {
     }
 }
 
+impl<T> From<Value> for Handle<T>
+where T: std::convert::From<Blob> {
+    fn from(value: Value) -> Self {
+        Handle {value, _type: PhantomData}
+    }
+}
+
+impl<T> From<&Handle<T>> for Value
+where T: std::convert::From<Blob> {
+    fn from(handle: &Handle<T>) -> Self {
+        handle.value
+    }
+}

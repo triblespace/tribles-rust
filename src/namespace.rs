@@ -180,13 +180,14 @@ NS! {
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query, tribleset::patchtribleset::PATCHTribleSet};
+    use crate::{query, tribleset::patchtribleset::PATCHTribleSet, patch::init};
 
     use super::knights;
     use std::convert::TryInto;
 
     #[test]
     fn ns_entities() {
+        init();
         println!(
             "{:?}",
             knights::entities!((romeo, juliet),
@@ -209,6 +210,8 @@ mod tests {
 
     #[test]
     fn ns_pattern() {
+        init();
+
         let juliet = knights::Id::new();
         let kb = knights::entities!((romeo),
         [{juliet @
@@ -241,6 +244,8 @@ mod tests {
 
     #[test]
     fn ns_pattern_large() {
+        init();
+
         let mut kb = PATCHTribleSet::new();
         (0..10000).for_each(|_| {
             kb.union(&knights::entities!((lover_a, lover_b),

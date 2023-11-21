@@ -414,6 +414,23 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
+    pub(crate) fn get(&self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<V> {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => None,
+                HeadTag::Leaf => Leaf::<KEY_LEN, V>::get::<O>(self.ptr(), at_depth, key),
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::get(self.ptr(), at_depth, key),
+            }
+        }
+    }
+
     pub(crate) fn each_child<F>(&self, mut f: F)
     where
         F: FnMut(u8, &Self),
@@ -896,6 +913,10 @@ where
         self.root.insert(entry, 0);
     }
 
+    pub fn get(&self, key: &[u8; KEY_LEN]) -> Option<V> {
+        self.root.get(0, key)
+    }
+
     pub fn len(&self) -> u64 {
         self.root.count()
     }
@@ -930,10 +951,6 @@ where
     pub fn segmented_len(&self, key: &[u8; KEY_LEN], start_depth: usize) -> u64 {
         self.root
             .segmented_len(0, key, O::tree_index(start_depth))
-    }
-
-    pub fn any_prefixed_value(&self, key: &[u8; KEY_LEN], end_depth: usize) -> Option<V> {
-        None
     }
 
     pub fn union(&mut self, other: &Self) {

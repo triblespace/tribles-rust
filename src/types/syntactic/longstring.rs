@@ -39,8 +39,8 @@ impl From<Blob> for LongString {
     }
 }
 
-impl From<Blob> for Handle<LongString> {
-    fn from(blob: Blob) -> Self {
-        Handle::new(Blake2b::<U32>::digest(&blob).into())
+impl From<&Blob> for Handle<LongString> {
+    fn from(blob: &Blob) -> Self {
+        Handle::new(Blake2b::<U32>::digest(blob).into())
     }
 }

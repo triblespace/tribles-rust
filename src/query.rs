@@ -1,12 +1,16 @@
 mod constantconstraint;
 mod hashsetconstraint;
 mod intersectionconstraint;
+mod patchconstraint;
+mod mask;
 
 use std::marker::PhantomData;
 
 pub use constantconstraint::*;
 pub use hashsetconstraint::*;
 pub use intersectionconstraint::*;
+pub use patchconstraint::*;
+pub use mask::*;
 
 use crate::trible::*;
 

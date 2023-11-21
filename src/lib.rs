@@ -5,7 +5,7 @@ pub mod patch;
 pub mod query;
 pub mod trible;
 pub mod tribleset;
-pub mod blobset;
+pub mod patchblobset;
 pub mod types;
 pub mod attribute;
 

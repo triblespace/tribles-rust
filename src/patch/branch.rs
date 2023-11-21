@@ -234,6 +234,25 @@ macro_rules! create_branch {
                 }
             }
 
+            pub(super) fn get(
+                node: *const Self,
+                at_depth: usize,
+                key: &[u8; KEY_LEN],
+            ) -> Option<V> {
+                let node_end_depth = (unsafe{(*node).end_depth} as usize);
+                let leaf_key: &[u8; KEY_LEN] = unsafe{&(*(*node).min).key};
+                for depth in at_depth..node_end_depth {
+                    let key_depth = O::key_index(depth);
+                    if leaf_key[key_depth] != key[key_depth] {
+                        return None;
+                    }
+                }
+                if let Some(child) = unsafe{(*node).child_table.get(key[O::key_index(node_end_depth)])} {
+                    return child.get(node_end_depth, key);
+                }
+                return None;
+            }
+
             pub(super) unsafe fn infixes<const INFIX_LEN: usize, F>(
                 node: *const Self,
                 key: &[u8; KEY_LEN],

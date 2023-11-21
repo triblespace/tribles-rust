@@ -5,18 +5,19 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use crate::trible::{Id, Value};
 use crate::query::Variable;
+use crate::trible::{Id, Value};
 
 use self::attributeconstraint::AttributeConstraint;
 
 #[derive(Debug, Clone)]
 pub struct Attribute<E, V>
 where
-E: From<Id>,
-V: From<Value>,
-for<'b> &'b E: Into<Id>,
-for<'b> &'b V: Into<Value> {
+    E: From<Id>,
+    V: From<Value>,
+    for<'b> &'b E: Into<Id>,
+    for<'b> &'b V: Into<Value>,
+{
     pub ev: HashMap<Id, HashSet<Value>>,
     pub ve: HashMap<Value, HashSet<Id>>,
     pe: PhantomData<E>,
@@ -25,16 +26,17 @@ for<'b> &'b V: Into<Value> {
 
 impl<E, V> Attribute<E, V>
 where
-E: From<Id>,
-V: From<Value>,
-for<'b> &'b E: Into<Id>,
-for<'b> &'b V: Into<Value> {
+    E: From<Id>,
+    V: From<Value>,
+    for<'b> &'b E: Into<Id>,
+    for<'b> &'b V: Into<Value>,
+{
     pub fn new() -> Attribute<E, V> {
         Attribute {
             ev: HashMap::new(),
             ve: HashMap::new(),
             pe: PhantomData,
-            pv: PhantomData
+            pv: PhantomData,
         }
     }
 
@@ -52,10 +54,11 @@ for<'b> &'b V: Into<Value> {
 
 impl<E, V> FromIterator<(E, V)> for Attribute<E, V>
 where
-E: From<Id>,
-V: From<Value>,
-for<'b> &'b E: Into<Id>,
-for<'b> &'b V: Into<Value> {
+    E: From<Id>,
+    V: From<Value>,
+    for<'b> &'b E: Into<Id>,
+    for<'b> &'b V: Into<Value>,
+{
     fn from_iter<I: IntoIterator<Item = (E, V)>>(iter: I) -> Self {
         let mut attr = Attribute::new();
 

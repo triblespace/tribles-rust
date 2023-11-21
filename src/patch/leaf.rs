@@ -12,7 +12,7 @@ use super::*;
 pub(crate) struct Leaf<const KEY_LEN: usize, V: Clone> {
     pub key: [u8; KEY_LEN],
     rc: atomic::AtomicU32,
-    value: V
+    value: V,
 }
 
 impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
@@ -28,7 +28,7 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
                 Self {
                     key: *key,
                     rc: atomic::AtomicU32::new(1),
-                    value
+                    value,
                 },
             );
 
@@ -110,14 +110,14 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         at_depth: usize,
         key: &[u8; KEY_LEN],
     ) -> Option<V> {
-        let leaf_key: &[u8; KEY_LEN] = unsafe{&(*node).key};
+        let leaf_key: &[u8; KEY_LEN] = unsafe { &(*node).key };
         for depth in at_depth..KEY_LEN {
             let key_depth = O::key_index(depth);
             if leaf_key[key_depth] != key[key_depth] {
                 return None;
             }
         }
-        return Some(unsafe{(*node).value.clone()});
+        return Some(unsafe { (*node).value.clone() });
     }
 
     pub(crate) unsafe fn infixes<

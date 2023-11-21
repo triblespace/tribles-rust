@@ -2,8 +2,8 @@ pub mod hashtriblesetconstraint;
 
 use std::collections::{HashMap, HashSet};
 
-use crate::trible::{Id, Value};
 use crate::trible::Trible;
+use crate::trible::{Id, Value};
 use std::iter::FromIterator;
 
 use self::hashtriblesetconstraint::HashTribleSetConstraint;

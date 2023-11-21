@@ -33,7 +33,7 @@ where
     fn variable(&self, variable: VariableId) -> bool {
         self.variable.index == variable
     }
-    
+
     fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
         self.set.len()
     }

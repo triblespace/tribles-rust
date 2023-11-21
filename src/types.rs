@@ -1,6 +1,6 @@
+pub mod handle;
 pub mod semantic;
 pub mod syntactic;
-pub mod handle;
 
 use crate::trible::Value;
 
@@ -20,20 +20,22 @@ pub trait ToValue {
 macro_rules! inline_value {
     ($t:ty) => {
         impl $crate::types::FromValue for $t
-        where $t: std::convert::From<$crate::trible::Value>,
+        where
+            $t: std::convert::From<$crate::trible::Value>,
         {
             type Out = $t;
-        
+
             fn from_value(value: $crate::trible::Value) -> Self::Out {
                 value.into()
             }
         }
 
         impl $crate::types::ToValue for $t
-        where for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
+        where
+            for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
         {
             type In = $t;
-        
+
             fn to_value(value: &Self::In) -> $crate::trible::Value {
                 value.into()
             }
@@ -45,20 +47,22 @@ macro_rules! inline_value {
 macro_rules! handle_value {
     ($t:ty) => {
         impl $crate::types::FromValue for $t
-        where $t: std::convert::From<$crate::trible::Blob>,
+        where
+            $t: std::convert::From<$crate::trible::Blob>,
         {
             type Out = $crate::types::handle::Handle<$t>;
-        
+
             fn from_value(value: $crate::trible::Value) -> Self::Out {
                 $crate::types::handle::Handle::new(value)
             }
         }
 
         impl $crate::types::ToValue for $t
-        where for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
+        where
+            for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
         {
             type In = $crate::types::handle::Handle<$t>;
-        
+
             fn to_value(handle: &Self::In) -> $crate::trible::Value {
                 handle.value
             }

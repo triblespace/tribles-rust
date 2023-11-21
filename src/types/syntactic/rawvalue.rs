@@ -1,4 +1,4 @@
-use crate::{trible::*, inline_value};
+use crate::{inline_value, trible::*};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]

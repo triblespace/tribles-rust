@@ -2,8 +2,8 @@ pub mod hashtribleset;
 pub mod patchtribleset;
 
 use crate::{
-    trible::{Id, Value},
     query::{Constraint, Variable},
+    trible::{Id, Value},
 };
 
 pub trait TribleSet {

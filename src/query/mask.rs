@@ -17,8 +17,7 @@ impl<'a> Constraint<'a> for MaskConstraint<'a> {
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.mask.is_set(variable) &&
-        self.constraint.variable(variable)
+        self.mask.is_set(variable) && self.constraint.variable(variable)
     }
 
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {

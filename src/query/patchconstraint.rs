@@ -1,10 +1,14 @@
-use crate::{patch::{PATCH, IdentityOrder, SingleSegmentation}, trible::{VALUE_LEN, Value}};
+use crate::{
+    patch::{IdentityOrder, SingleSegmentation, PATCH},
+    trible::{Value, VALUE_LEN},
+};
 
-use super::{Variable, Constraint, VariableSet, VariableId, Binding, Constrain};
-
+use super::{Binding, Constrain, Constraint, Variable, VariableId, VariableSet};
 
 pub struct PatchConstraint<'a, T, V>
-where V: Clone {
+where
+    V: Clone,
+{
     variable: Variable<T>,
     patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>,
 }
@@ -12,9 +16,12 @@ where V: Clone {
 impl<'a, T, V> PatchConstraint<'a, T, V>
 where
     T: Eq + PartialEq + From<Value>,
-    V: Clone
+    V: Clone,
 {
-    pub fn new(variable: Variable<T>, patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>) -> Self {
+    pub fn new(
+        variable: Variable<T>,
+        patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>,
+    ) -> Self {
         PatchConstraint { variable, patch }
     }
 }
@@ -22,7 +29,7 @@ where
 impl<'a, T, V> Constraint<'a> for PatchConstraint<'a, T, V>
 where
     T: Eq + PartialEq + From<Value>,
-    V: Clone
+    V: Clone,
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
@@ -31,7 +38,7 @@ where
     fn variable(&self, variable: VariableId) -> bool {
         self.variable.index == variable
     }
-    
+
     fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
         self.patch.len() as usize
     }
@@ -48,7 +55,7 @@ where
 impl<'a, T, V> Constrain<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>
 where
     T: Eq + PartialEq + From<Value> + 'a,
-    V: Clone + 'a
+    V: Clone + 'a,
 {
     type Constraint = PatchConstraint<'a, T, V>;
 

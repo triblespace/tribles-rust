@@ -1,6 +1,6 @@
 use crate::inline_value;
-use crate::trible::*;
 use crate::namespace::*;
+use crate::trible::*;
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use std::convert::TryInto;
@@ -12,7 +12,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct UFOID([u8; 16]);
 
 inline_value!(UFOID);
-
 
 impl UFOID {
     pub const fn raw(data: [u8; 16]) -> UFOID {

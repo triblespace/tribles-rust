@@ -180,7 +180,7 @@ NS! {
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query, tribleset::patchtribleset::PATCHTribleSet, patch::init};
+    use crate::{patch::init, query, tribleset::patchtribleset::PATCHTribleSet};
 
     use super::knights;
     use std::convert::TryInto;

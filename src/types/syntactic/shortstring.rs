@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{trible::*, inline_value};
+use crate::{inline_value, trible::*};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
@@ -31,12 +31,14 @@ impl From<&ShortString> for Value {
 
 impl From<Value> for ShortString {
     fn from(bytes: Value) -> Self {
-        ShortString(String::from_utf8(
+        ShortString(
+            String::from_utf8(
                 IntoIterator::into_iter(bytes)
                     .take_while(|&x| x != 0)
                     .collect(),
             )
-            .unwrap())
+            .unwrap(),
+        )
     }
 }
 
@@ -67,4 +69,3 @@ impl TryFrom<String> for ShortString {
         Ok(ShortString(s.to_string()))
     }
 }
-

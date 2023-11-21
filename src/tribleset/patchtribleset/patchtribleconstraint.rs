@@ -3,8 +3,8 @@ use core::panic;
 //use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use super::*;
-use crate::trible::*;
 use crate::query::*;
+use crate::trible::*;
 
 pub struct PATCHTribleSetConstraint<'a, E, A, V>
 where
@@ -63,16 +63,16 @@ where
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e.index == variable ||
-        self.variable_a.index == variable ||
-        self.variable_v.index == variable
+        self.variable_e.index == variable
+            || self.variable_a.index == variable
+            || self.variable_v.index == variable
     }
-    
+
     fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
-        
+
         let e_bound = binding.get(self.variable_e.index);
         let a_bound = binding.get(self.variable_a.index);
         let v_bound = binding.get(self.variable_v.index);
@@ -214,7 +214,7 @@ where
                 })
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let trible = Trible::new_raw_values(e, a,[0; 32]);
+                let trible = Trible::new_raw_values(e, a, [0; 32]);
                 self.set
                     .eav
                     .infixes(&trible.data, V_START, V_END, |k| Trible::new_raw(k).v())

@@ -34,7 +34,6 @@ fn main() {
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
         loves.add(&lover_b, &lover_a);
-
     });
 
     let romeo = UFOID::new();

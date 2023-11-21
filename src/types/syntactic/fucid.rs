@@ -1,6 +1,6 @@
 use crate::inline_value;
-use crate::trible::*;
 use crate::namespace::*;
+use crate::trible::*;
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use rand::RngCore;
@@ -36,7 +36,8 @@ impl FUCID {
     }
 
     pub fn new() -> FUCID {
-        FUCID(GEN_STATE
+        FUCID(
+            GEN_STATE
                 .with(|cell| {
                     let mut state = cell.borrow_mut();
                     let next_id = state.counter ^ state.salt;
@@ -44,7 +45,8 @@ impl FUCID {
 
                     next_id
                 })
-                .to_be_bytes())
+                .to_be_bytes(),
+        )
     }
 }
 

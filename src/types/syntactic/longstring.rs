@@ -1,6 +1,10 @@
 use blake2::{digest::typenum::U32, Blake2b, Digest};
 
-use crate::{trible::{Value, Blob}, handle_value, types::handle::Handle};
+use crate::{
+    handle_value,
+    trible::{Blob, Value},
+    types::handle::Handle,
+};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]

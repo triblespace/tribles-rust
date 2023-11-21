@@ -21,7 +21,7 @@ macro_rules! create_branch {
             const KEY_LEN: usize,
             O: KeyOrdering<KEY_LEN>,
             S: KeySegmentation<KEY_LEN>,
-            V: Clone
+            V: Clone,
         > {
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
@@ -35,8 +35,12 @@ macro_rules! create_branch {
             pub child_table: $table<Head<KEY_LEN, O, S, V>>,
         }
 
-        impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
-            $name<KEY_LEN, O, S, V>
+        impl<
+                const KEY_LEN: usize,
+                O: KeyOrdering<KEY_LEN>,
+                S: KeySegmentation<KEY_LEN>,
+                V: Clone,
+            > $name<KEY_LEN, O, S, V>
         {
             pub(super) fn new(end_depth: usize) -> *mut Self {
                 unsafe {
@@ -239,15 +243,17 @@ macro_rules! create_branch {
                 at_depth: usize,
                 key: &[u8; KEY_LEN],
             ) -> Option<V> {
-                let node_end_depth = (unsafe{(*node).end_depth} as usize);
-                let leaf_key: &[u8; KEY_LEN] = unsafe{&(*(*node).min).key};
+                let node_end_depth = (unsafe { (*node).end_depth } as usize);
+                let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).min).key };
                 for depth in at_depth..node_end_depth {
                     let key_depth = O::key_index(depth);
                     if leaf_key[key_depth] != key[key_depth] {
                         return None;
                     }
                 }
-                if let Some(child) = unsafe{(*node).child_table.get(key[O::key_index(node_end_depth)])} {
+                if let Some(child) =
+                    unsafe { (*node).child_table.get(key[O::key_index(node_end_depth)]) }
+                {
                     return child.get(node_end_depth, key);
                 }
                 return None;
@@ -278,7 +284,8 @@ macro_rules! create_branch {
                     return;
                 }
                 if start_depth > node_end_depth {
-                    if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)]) {
+                    if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)])
+                    {
                         child.infixes(key, node_end_depth, start_depth, end_depth, f, out);
                     }
                     return;
@@ -358,8 +365,12 @@ create_branch!(Branch256, ByteTable256);
 macro_rules! create_grow {
     () => {};
     ($name:ident, $grown_name:ident) => {
-        impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
-            $name<KEY_LEN, O, S, V>
+        impl<
+                const KEY_LEN: usize,
+                O: KeyOrdering<KEY_LEN>,
+                S: KeySegmentation<KEY_LEN>,
+                V: Clone,
+            > $name<KEY_LEN, O, S, V>
         {
             pub(super) unsafe fn grow(head: &mut Head<KEY_LEN, O, S, V>) {
                 debug_assert!(head.tag() == HeadTag::$name);
@@ -404,7 +415,7 @@ pub(super) fn branch_for_size<
     const KEY_LEN: usize,
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
-    V: Clone
+    V: Clone,
 >(
     n: usize,
     end_depth: usize,

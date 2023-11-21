@@ -2,11 +2,11 @@ mod patchtribleconstraint;
 
 use patchtribleconstraint::*;
 
-use crate::trible::{Id, Value};
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
 };
+use crate::trible::{Id, Value};
 use std::iter::FromIterator;
 
 use super::TribleSet;

@@ -1,16 +1,16 @@
 mod constantconstraint;
 mod hashsetconstraint;
 mod intersectionconstraint;
-mod patchconstraint;
 mod mask;
+mod patchconstraint;
 
 use std::marker::PhantomData;
 
 pub use constantconstraint::*;
 pub use hashsetconstraint::*;
 pub use intersectionconstraint::*;
-pub use patchconstraint::*;
 pub use mask::*;
+pub use patchconstraint::*;
 
 use crate::trible::*;
 
@@ -31,7 +31,9 @@ impl VariableContext {
     }
 
     pub fn next_variable<T>(&mut self) -> Variable<T>
-    where T: FromValue {
+    where
+        T: FromValue,
+    {
         let v = Variable::new(self.next_index);
         self.next_index += 1;
         v
@@ -53,7 +55,9 @@ impl<T> Clone for Variable<T> {
 }
 
 impl<T> Variable<T>
-where T: FromValue {
+where
+    T: FromValue,
+{
     pub fn new(index: VariableId) -> Self {
         Variable {
             index,
@@ -61,8 +65,7 @@ where T: FromValue {
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> <T as FromValue>::Out
-    {
+    pub fn extract(self, binding: &Binding) -> <T as FromValue>::Out {
         T::from_value(binding.get(self.index).unwrap())
     }
 }

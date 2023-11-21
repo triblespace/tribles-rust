@@ -1,11 +1,11 @@
 //use crate::trible::{Id, Value, VALUE_LEN};
-use crate::patch::{Entry, PATCH, IdentityOrder, SingleSegmentation};
+use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
 use crate::query::Variable;
-use crate::types::syntactic::{UFOID, RawValue};
-use crate::{query, and, mask};
-use crate::trible::{VALUE_LEN, Blob, Value, Id,};
+use crate::trible::{Blob, Id, Value, VALUE_LEN};
 use crate::tribleset::TribleSet;
 use crate::types::handle::Handle;
+use crate::types::syntactic::{RawValue, UFOID};
+use crate::{and, mask, query};
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -29,8 +29,10 @@ impl PATCHBlobSet {
     }
 
     pub fn insert<V>(&mut self, value: V) -> Handle<V>
-    where V: Into<Blob>,
-          for<'a> Handle<V>: From<&'a Blob> {
+    where
+        V: Into<Blob>,
+        for<'a> Handle<V>: From<&'a Blob>,
+    {
         let blob: Blob = value.into();
         let handle: Handle<V> = (&blob).into();
         let entry = Entry::new(&handle.value, blob);
@@ -44,7 +46,9 @@ impl PATCHBlobSet {
     }
 
     pub fn get<T>(&self, handle: Handle<T>) -> Option<T>
-    where T: std::convert::From<Blob> {
+    where
+        T: std::convert::From<Blob>,
+    {
         let blob = self.blobs.get(&handle.value)?;
         Some(blob.into())
     }
@@ -54,15 +58,25 @@ impl PATCHBlobSet {
     }
 
     pub fn keep<S>(&self, tribles: S) -> PATCHBlobSet
-    where S: TribleSet {
+    where
+        S: TribleSet,
+    {
         let mut set = PATCHBlobSet::new();
-        for r in query!(ctx, (v),
-            and!(v.of(&self.blobs),
-                 mask!(ctx, (e, a), tribles.pattern::<UFOID, UFOID, RawValue>(e, a, v)))) {
-                    let (RawValue(value),) = r;
-                    let blob = self.blobs.get(&value).unwrap();
-                    set.insert_raw(value, blob)
-                 }
+        for (RawValue(value),) in query!(
+            ctx,
+            (v),
+            and!(
+                v.of(&self.blobs),
+                mask!(
+                    ctx,
+                    (e, a),
+                    tribles.pattern::<UFOID, UFOID, RawValue>(e, a, v)
+                )
+            )
+        ) {
+            let blob = self.blobs.get(&value).unwrap();
+            set.insert_raw(value, blob)
+        }
         set
     }
 }

@@ -100,19 +100,24 @@ pub(crate) enum HeadTag {
 }
 
 #[repr(C)]
-pub(crate) struct Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> {
+pub(crate) struct Head<
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+    V: Clone,
+> {
     tptr: *mut u8,
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<S>,
-    value: PhantomData<V>
+    value: PhantomData<V>,
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> Send
-    for Head<KEY_LEN, O, S, V>
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    Send for Head<KEY_LEN, O, S, V>
 {
 }
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> Sync
-    for Head<KEY_LEN, O, S, V>
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    Sync for Head<KEY_LEN, O, S, V>
 {
 }
 
@@ -124,7 +129,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
             tptr: std::ptr::null_mut(),
             key_ordering: PhantomData,
             key_segments: PhantomData,
-            value: PhantomData
+            value: PhantomData,
         }
     }
 
@@ -135,7 +140,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                 | ((tag as u64) << 56)) as *mut u8,
             key_ordering: PhantomData,
             key_segments: PhantomData,
-            value: PhantomData
+            value: PhantomData,
         }
     }
 
@@ -211,12 +216,24 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
             match self.tag() {
                 HeadTag::Empty => 0,
                 HeadTag::Leaf => 1,
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth),
+                HeadTag::Branch2 => {
+                    Branch2::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
+                }
+                HeadTag::Branch4 => {
+                    Branch4::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
+                }
+                HeadTag::Branch8 => {
+                    Branch8::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
+                }
+                HeadTag::Branch16 => {
+                    Branch16::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
+                }
                 HeadTag::Branch128 => {
                     Branch128::<KEY_LEN, O, S, V>::count_segment(self.ptr(), at_depth)
                 }
@@ -262,14 +279,30 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
             let displaced = match self.tag() {
                 HeadTag::Empty => panic!("insert_child on empty"),
                 HeadTag::Leaf => panic!("insert_child on leaf"),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash),
+                HeadTag::Branch2 => {
+                    Branch2::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch4 => {
+                    Branch4::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch8 => {
+                    Branch8::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch16 => {
+                    Branch16::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch128 => {
+                    Branch128::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::<KEY_LEN, O, S, V>::insert_child(self.ptr(), child, hash)
+                }
             };
             if displaced.key() != None {
                 self.growing_reinsert(displaced);
@@ -371,8 +404,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                 HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S, V>>()).end_depth as usize,
                 HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S, V>>()).end_depth as usize,
                 HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S, V>>()).end_depth as usize,
-                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S, V>>()).end_depth as usize,
-                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S, V>>()).end_depth as usize,
+                HeadTag::Branch128 => {
+                    (*self.ptr::<Branch128<KEY_LEN, O, S, V>>()).end_depth as usize
+                }
+                HeadTag::Branch256 => {
+                    (*self.ptr::<Branch256<KEY_LEN, O, S, V>>()).end_depth as usize
+                }
             }
         }
     }
@@ -408,8 +445,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                 HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::insert(self, entry, start_depth),
                 HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::insert(self, entry, start_depth),
                 HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::insert(self, entry, start_depth),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::insert(self, entry, start_depth),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::insert(self, entry, start_depth),
+                HeadTag::Branch128 => {
+                    Branch128::<KEY_LEN, O, S, V>::insert(self, entry, start_depth)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::<KEY_LEN, O, S, V>::insert(self, entry, start_depth)
+                }
             }
         }
     }
@@ -629,7 +670,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    pub(crate) fn has_prefix(&self, at_depth: usize, key: &[u8; KEY_LEN], end_depth: usize) -> bool {
+    pub(crate) fn has_prefix(
+        &self,
+        at_depth: usize,
+        key: &[u8; KEY_LEN],
+        end_depth: usize,
+    ) -> bool {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => end_depth < at_depth,
@@ -676,24 +722,42 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                 HeadTag::Leaf => {
                     Leaf::<KEY_LEN, V>::segmented_len::<O>(self.ptr(), at_depth, key, start_depth)
                 }
-                HeadTag::Branch2 => {
-                    Branch2::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, key, start_depth)
-                }
-                HeadTag::Branch4 => {
-                    Branch4::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, key, start_depth)
-                }
-                HeadTag::Branch8 => {
-                    Branch8::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, key, start_depth)
-                }
-                HeadTag::Branch16 => {
-                    Branch16::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, key, start_depth)
-                }
-                HeadTag::Branch32 => {
-                    Branch32::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, key, start_depth)
-                }
-                HeadTag::Branch64 => {
-                    Branch64::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, key, start_depth)
-                }
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::segmented_len(
+                    self.ptr(),
+                    at_depth,
+                    key,
+                    start_depth,
+                ),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::segmented_len(
+                    self.ptr(),
+                    at_depth,
+                    key,
+                    start_depth,
+                ),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::segmented_len(
+                    self.ptr(),
+                    at_depth,
+                    key,
+                    start_depth,
+                ),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::segmented_len(
+                    self.ptr(),
+                    at_depth,
+                    key,
+                    start_depth,
+                ),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::segmented_len(
+                    self.ptr(),
+                    at_depth,
+                    key,
+                    start_depth,
+                ),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::segmented_len(
+                    self.ptr(),
+                    at_depth,
+                    key,
+                    start_depth,
+                ),
                 HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::segmented_len(
                     self.ptr(),
                     at_depth,
@@ -722,11 +786,21 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                 HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
                 HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
                 HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::upsert(self, key, update, insert),
+                HeadTag::Branch16 => {
+                    Branch16::<KEY_LEN, O, S, V>::upsert(self, key, update, insert)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::<KEY_LEN, O, S, V>::upsert(self, key, update, insert)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::<KEY_LEN, O, S, V>::upsert(self, key, update, insert)
+                }
+                HeadTag::Branch128 => {
+                    Branch128::<KEY_LEN, O, S, V>::upsert(self, key, update, insert)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::<KEY_LEN, O, S, V>::upsert(self, key, update, insert)
+                }
             };
         }
     }
@@ -791,23 +865,23 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
     }
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> ByteEntry
-    for Head<KEY_LEN, O, S, V>
+unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    ByteEntry for Head<KEY_LEN, O, S, V>
 {
     fn key(&self) -> Option<u8> {
         self.key()
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> fmt::Debug
-    for Head<KEY_LEN, O, S, V>
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    fmt::Debug for Head<KEY_LEN, O, S, V>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.tag().fmt(f)
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V:Clone> Clone
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> Clone
     for Head<KEY_LEN, O, S, V>
 {
     fn clone(&self) -> Self {
@@ -894,7 +968,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PATCH<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone> {
+pub struct PATCH<
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+    V: Clone,
+> {
     root: Head<KEY_LEN, O, S, V>,
 }
 
@@ -944,13 +1023,11 @@ where
     }
 
     pub fn has_prefix(&self, key: &[u8; KEY_LEN], end_depth: usize) -> bool {
-        self.root
-            .has_prefix(0, key, O::tree_index(end_depth))
+        self.root.has_prefix(0, key, O::tree_index(end_depth))
     }
 
     pub fn segmented_len(&self, key: &[u8; KEY_LEN], start_depth: usize) -> u64 {
-        self.root
-            .segmented_len(0, key, O::tree_index(start_depth))
+        self.root.segmented_len(0, key, O::tree_index(start_depth))
     }
 
     pub fn union(&mut self, other: &Self) {

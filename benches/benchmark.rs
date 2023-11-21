@@ -1,12 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
-use tribles::and;
-use tribles::attribute::Attribute;
-use tribles::types::syntactic::ShortString;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use tribles::and;
+use tribles::attribute::Attribute;
+use tribles::types::syntactic::ShortString;
 
 use tribles::namespace::knights;
 use tribles::tribleset::hashtribleset::HashTribleSet;
@@ -544,7 +544,6 @@ fn attribute_benchmark(c: &mut Criterion) {
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
         loves.add(&lover_b, &lover_a);
-
     });
 
     let romeo = UFOID::new();

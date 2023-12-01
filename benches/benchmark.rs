@@ -9,7 +9,6 @@ use tribles::and;
 use tribles::attribute::Attribute;
 use tribles::types::syntactic::ShortString;
 
-use tribles::namespace::knights;
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::types::syntactic::UFOID;
 use tribles::{query, trible::*};
@@ -90,7 +89,7 @@ fn hashtribleset_benchmark(c: &mut Criterion) {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = HashTribleSet::new();
                 for t in black_box(&samples) {
-                    set.add(t);
+                    set.insert(t);
                 }
                 let after_mem = PEAK_ALLOC.current_usage_as_gb();
                 println!("HashTribleset size: {}", after_mem - before_mem);
@@ -135,7 +134,7 @@ fn patch_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
                 for t in black_box(&samples) {
-                    let entry: Entry<64> = Entry::new(&t.data, ());
+                    let entry: Entry<64, ()> = Entry::new(&t.data, ());
                     patch.insert(&entry);
                 }
             })
@@ -144,7 +143,7 @@ fn patch_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
             for t in black_box(&samples) {
-                let entry: Entry<64> = Entry::new(&t.data, ());
+                let entry: Entry<64, ()> = Entry::new(&t.data, ());
                 patch.insert(&entry);
             }
             b.iter(|| patch.infixes(&[0; 64], 0, 63, |x| x))
@@ -159,10 +158,10 @@ fn patch_benchmark(c: &mut Criterion) {
             let patchs: Vec<_> = samples
                 .chunks(total_unioned / i)
                 .map(|samples| {
-                    let mut patch: PATCH<64, IdentityOrder, SingleSegmentation> =
+                    let mut patch: PATCH<64, IdentityOrder, SingleSegmentation, ()> =
                         PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
                     for t in samples {
-                        let entry: Entry<64> = Entry::new(&t.data, ());
+                        let entry: Entry<64, ()> = Entry::new(&t.data, ());
                         patch.insert(&entry);
                     }
                     patch
@@ -170,7 +169,7 @@ fn patch_benchmark(c: &mut Criterion) {
                 .collect();
             b.iter(|| {
                 black_box(patchs.iter().fold(
-                    PATCH::<64, IdentityOrder, SingleSegmentation>::new(),
+                    PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new(),
                     |mut a, p| {
                         a.union(p);
                         a

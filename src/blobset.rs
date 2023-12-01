@@ -1,25 +1,23 @@
-//use crate::trible::{Id, Value, VALUE_LEN};
+use crate::namespace::triblepattern::TriblePattern;
 use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
-use crate::query::Variable;
-use crate::trible::{Blob, Id, Value, VALUE_LEN};
-use crate::tribleset::TribleSet;
+use crate::trible::{Blob, Value, VALUE_LEN};
 use crate::types::handle::Handle;
 use crate::types::syntactic::{RawValue, UFOID};
 use crate::{and, mask, query};
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
-pub struct PATCHBlobSet {
+pub struct BlobSet {
     blobs: PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>,
 }
 
-impl PATCHBlobSet {
+impl BlobSet {
     pub fn union<'a>(&mut self, other: &Self) {
         self.blobs.union(&other.blobs);
     }
 
-    pub fn new() -> PATCHBlobSet {
-        PATCHBlobSet {
+    pub fn new() -> BlobSet {
+        BlobSet {
             blobs: PATCH::new(),
         }
     }
@@ -57,11 +55,11 @@ impl PATCHBlobSet {
         self.blobs.get(value)
     }
 
-    pub fn keep<S>(&self, tribles: S) -> PATCHBlobSet
+    pub fn keep<T>(&self, tribles: T) -> BlobSet
     where
-        S: TribleSet,
+        T: TriblePattern,
     {
-        let mut set = PATCHBlobSet::new();
+        let mut set = BlobSet::new();
         for (RawValue(value),) in query!(
             ctx,
             (v),
@@ -81,9 +79,9 @@ impl PATCHBlobSet {
     }
 }
 
-impl FromIterator<(Value, Blob)> for PATCHBlobSet {
+impl FromIterator<(Value, Blob)> for BlobSet {
     fn from_iter<I: IntoIterator<Item = (Value, Blob)>>(iter: I) -> Self {
-        let mut set = PATCHBlobSet::new();
+        let mut set = BlobSet::new();
 
         for (value, blob) in iter {
             set.insert_raw(value, blob);

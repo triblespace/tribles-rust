@@ -4,6 +4,7 @@ mod intersectionconstraint;
 mod mask;
 mod patchconstraint;
 
+use std::fmt;
 use std::marker::PhantomData;
 
 pub use constantconstraint::*;
@@ -223,6 +224,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
     }
 }
 
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, R>{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Query")
+    }
+}
+
 #[macro_export]
 macro_rules! query {
     ($ctx:ident, ($($Var:ident),+), $Constraint:expr) => {
@@ -246,12 +253,19 @@ mod tests {
     //use fake::{Dummy, Fake, Faker};
     use std::{collections::HashSet, convert::TryInto};
 
-    use crate::namespace::knights;
-    use crate::patch;
+    use crate::{patch, NS};
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
     use crate::types::syntactic::shortstring::ShortString;
 
     use super::*;
+
+    NS! {
+        pub namespace knights {
+            @ crate::types::syntactic::UFOID;
+            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
+            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
+        }
+    }
 
     #[test]
     fn and_set() {

@@ -1,19 +1,28 @@
 use std::convert::TryInto;
 
-use tribles::namespace::knights;
+use tribles::NS;
 use tribles::query;
 
 use tribles::patch;
-use tribles::tribleset::patchtribleset::PATCHTribleSet;
+use tribles::tribleset::TribleSet;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 
+NS! {
+    pub namespace knights {
+        @ tribles::types::syntactic::UFOID;
+        loves: "328edd7583de04e2bedd6bd4fd50e651" as tribles::types::syntactic::UFOID;
+        name: "328147856cc1984f0806dbb824d2b4cb" as tribles::types::syntactic::ShortString;
+        title: "328f2c33d2fdd675e733388770b2d6c4" as tribles::types::syntactic::ShortString;
+    }
+}
+
 fn main() {
     patch::init();
 
-    let mut kb = PATCHTribleSet::new();
+    let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
         kb.union(&knights::entities!((lover_a, lover_b),
         [{lover_a @

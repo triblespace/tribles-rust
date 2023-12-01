@@ -2,7 +2,7 @@ use blake2::{digest::typenum::U32, Blake2b, Digest};
 
 use crate::{
     handle_value,
-    trible::{Blob, Value},
+    trible::Blob,
     types::handle::Handle,
 };
 

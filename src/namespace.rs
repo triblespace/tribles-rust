@@ -1,4 +1,4 @@
-//use crate::query::{query, Query, Variable};
+pub mod triblepattern;
 
 pub trait Factory {
     fn factory() -> Self;
@@ -34,7 +34,7 @@ macro_rules! entities_inner {
     };
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
-            let mut set = $crate::tribleset::patchtribleset::PATCHTribleSet::new();
+            let mut set = $crate::tribleset::TribleSet::new();
             entities_inner!($Namespace, ($($Var),*), [$($Entity),*], set)
         }
     };
@@ -45,7 +45,7 @@ pub use entities_inner;
 macro_rules! pattern_inner {
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
-            use $crate::tribleset::TribleSet;
+            use $crate::namespace::triblepattern::TriblePattern;
             let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<base::types::$FieldName> = $ctx.next_variable();
             $constraints.push({ use $Namespace as base; Box::new(a_var.is(base::ids::$FieldName)) });
@@ -56,7 +56,7 @@ macro_rules! pattern_inner {
     };
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
         {
-            use $crate::tribleset::TribleSet;
+            use $crate::namespace::triblepattern::TriblePattern;
             use $Namespace as base;
             let a_var: $crate::query::Variable<base::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<base::types::$FieldName> = $Value;
@@ -119,6 +119,7 @@ mod knights {
 }
 */
 
+#[macro_export]
 macro_rules! NS {
     ($visibility:vis namespace $mod_name:ident {@ $IdType:ty; $($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
         $visibility mod $mod_name {
@@ -132,7 +133,7 @@ macro_rules! NS {
                 $(pub type $FieldName = $FieldType;)*
             }
 
-            #[macro_export]
+            #[allow(unused)]
             macro_rules! entities {
                 ($vars:tt, $entities: tt, $set: ident) => {
                     {
@@ -148,9 +149,10 @@ macro_rules! NS {
                 };
             }
 
-            pub use entities;
+            #[allow(unused)]
+            pub(crate) use entities;
 
-            #[macro_export]
+            #[allow(unused)]
             macro_rules! pattern {
                 ($ctx:ident, $set:expr, $pattern: tt) => {
                     {
@@ -160,30 +162,30 @@ macro_rules! NS {
                 };
             }
 
-            pub use pattern;
+            #[allow(unused)]
+            pub(crate) use pattern;
         }
     };
 }
 
-pub(crate) use NS;
-
-NS! {
-    pub namespace knights {
-        @ crate::types::syntactic::UFOID;
-        loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
-        name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
-        title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::ShortString;
-    }
-}
+pub use NS;
 
 #[cfg(test)]
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{patch::init, query, tribleset::patchtribleset::PATCHTribleSet};
+    use crate::{patch::init, query, tribleset::TribleSet};
 
-    use super::knights;
     use std::convert::TryInto;
+
+    NS! {
+        pub namespace knights {
+            @ crate::types::syntactic::UFOID;
+            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
+            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
+            title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::ShortString;
+        }
+    }
 
     #[test]
     fn ns_entities() {
@@ -246,7 +248,7 @@ mod tests {
     fn ns_pattern_large() {
         init();
 
-        let mut kb = PATCHTribleSet::new();
+        let mut kb = TribleSet::new();
         (0..10000).for_each(|_| {
             kb.union(&knights::entities!((lover_a, lover_b),
             [{lover_a @

@@ -2,13 +2,12 @@ pub mod hashtriblesetconstraint;
 
 use std::collections::{HashMap, HashSet};
 
+use crate::namespace::triblepattern::TriblePattern;
 use crate::trible::Trible;
 use crate::trible::{Id, Value};
 use std::iter::FromIterator;
 
 use self::hashtriblesetconstraint::HashTribleSetConstraint;
-
-use super::TribleSet;
 
 #[derive(Debug, Clone)]
 pub struct HashTribleSet {
@@ -72,7 +71,7 @@ impl FromIterator<Trible> for HashTribleSet {
     }
 }
 
-impl TribleSet for HashTribleSet {
+impl TriblePattern for HashTribleSet {
     type PatternConstraint<'a, E, A, V>
      = HashTribleSetConstraint<'a, E, A, V>
      where

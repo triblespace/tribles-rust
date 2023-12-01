@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use crate::patch::{KeyOrdering, KeySegmentation};
 use arbitrary::Arbitrary;
-use triomphe::Arc;
+use std::sync::Arc;
 
 pub const ID_LEN: usize = 16;
 pub const VALUE_LEN: usize = 32;

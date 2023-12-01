@@ -1,6 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+use tribles::NS;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
@@ -9,14 +10,13 @@ use tribles::attribute::Attribute;
 use tribles::types::syntactic::ShortString;
 
 use tribles::namespace::knights;
-use tribles::tribleset::hashtribleset::HashTribleSet;
-use tribles::types::syntactic::FUCID;
+use tribles::test::hashtribleset::HashTribleSet;
 use tribles::types::syntactic::UFOID;
 use tribles::{query, trible::*};
 
 use tribles::patch::{self, Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
-use tribles::tribleset::patchtribleset::PATCHTribleSet;
+use tribles::TribleSet;
 
 use im::OrdSet;
 
@@ -27,6 +27,15 @@ use fake::Fake;
 use peak_alloc::PeakAlloc;
 #[global_allocator]
 static PEAK_ALLOC: PeakAlloc = PeakAlloc;
+
+NS! {
+    pub namespace knights {
+        @ tribles::types::syntactic::UFOID;
+        loves: "328edd7583de04e2bedd6bd4fd50e651" as tribles::types::syntactic::UFOID;
+        name: "328147856cc1984f0806dbb824d2b4cb" as tribles::types::syntactic::ShortString;
+        title: "328f2c33d2fdd675e733388770b2d6c4" as tribles::types::syntactic::ShortString;
+    }
+}
 
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
@@ -124,18 +133,18 @@ fn patch_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+                let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
                 for t in black_box(&samples) {
-                    let entry: Entry<64> = Entry::new(&t.data);
+                    let entry: Entry<64> = Entry::new(&t.data, ());
                     patch.insert(&entry);
                 }
             })
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
             for t in black_box(&samples) {
-                let entry: Entry<64> = Entry::new(&t.data);
+                let entry: Entry<64> = Entry::new(&t.data, ());
                 patch.insert(&entry);
             }
             b.iter(|| patch.infixes(&[0; 64], 0, 63, |x| x))
@@ -151,9 +160,9 @@ fn patch_benchmark(c: &mut Criterion) {
                 .chunks(total_unioned / i)
                 .map(|samples| {
                     let mut patch: PATCH<64, IdentityOrder, SingleSegmentation> =
-                        PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+                        PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
                     for t in samples {
-                        let entry: Entry<64> = Entry::new(&t.data);
+                        let entry: Entry<64> = Entry::new(&t.data, ());
                         patch.insert(&entry);
                     }
                     patch
@@ -185,7 +194,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
                 let before_mem = PEAK_ALLOC.current_usage_as_gb();
-                let mut set = PATCHTribleSet::new();
+                let mut set = TribleSet::new();
                 for t in black_box(&samples) {
                     set.insert(t);
                 }
@@ -201,7 +210,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
-                let set = PATCHTribleSet::from_iter(black_box(samples.iter().copied()));
+                let set = TribleSet::from_iter(black_box(samples.iter().copied()));
                 set
             })
         });
@@ -216,14 +225,14 @@ fn tribleset_benchmark(c: &mut Criterion) {
             let sets: Vec<_> = samples
                 .chunks(total_unioned / i)
                 .map(|samples| {
-                    let mut set = PATCHTribleSet::new();
+                    let mut set = TribleSet::new();
                     for t in samples {
                         set.add(t);
                     }
                     set
                 })
                 .collect();
-            b.iter(|| black_box(PATCHTribleSet::union(sets.iter()).len()));
+            b.iter(|| black_box(TribleSet::union(sets.iter()).len()));
         });
     }
     */
@@ -258,7 +267,7 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
             b.iter(|| {
                 let before_mem = PEAK_ALLOC.current_usage();
-                let mut kb: PATCHTribleSet = PATCHTribleSet::new();
+                let mut kb: TribleSet = TribleSet::new();
                 (0..i).for_each(|_| {
                     let kb = &mut kb;
                     knights::entities!((lover_a, lover_b),
@@ -298,7 +307,7 @@ fn entities_benchmark(c: &mut Criterion) {
                             loves: lover_a
                         }])
                     })
-                    .fold(PATCHTribleSet::new(), |mut kb, set| {
+                    .fold(TribleSet::new(), |mut kb, set| {
                         kb.union(&set);
                         kb
                     });
@@ -326,7 +335,7 @@ fn entities_benchmark(c: &mut Criterion) {
                 })
                 .collect();
             b.iter_with_large_drop(|| {
-                let mut kb = PATCHTribleSet::new();
+                let mut kb = TribleSet::new();
                 for set in &sets {
                     kb.union(&set);
                 }
@@ -355,7 +364,7 @@ fn entities_benchmark(c: &mut Criterion) {
                         }])
                     })
                     .reduce(
-                        || PATCHTribleSet::new(),
+                        || TribleSet::new(),
                         |mut a, b| {
                             a.union(&b);
                             a
@@ -386,7 +395,7 @@ fn entities_benchmark(c: &mut Criterion) {
                 .collect();
             b.iter_with_large_drop(|| {
                 let kb = sets.par_iter().cloned().reduce(
-                    || PATCHTribleSet::new(),
+                    || TribleSet::new(),
                     |mut a, b| {
                         a.union(&b);
                         a
@@ -419,13 +428,13 @@ fn entities_benchmark(c: &mut Criterion) {
                                     loves: lover_a
                                 }])
                             })
-                            .fold(PATCHTribleSet::new(), |mut kb, set| {
+                            .fold(TribleSet::new(), |mut kb, set| {
                                 kb.union(&set);
                                 kb
                             })
                     })
                     .reduce(
-                        || PATCHTribleSet::new(),
+                        || TribleSet::new(),
                         |mut a, b| {
                             a.union(&b);
                             a
@@ -445,7 +454,7 @@ fn query_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("query");
 
-    let mut kb = PATCHTribleSet::new();
+    let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
         kb.union(&knights::entities!((lover_a, lover_b),
         [{lover_a @

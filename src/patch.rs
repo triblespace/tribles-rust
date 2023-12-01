@@ -1,10 +1,8 @@
 // Persistent Adaptive Trie with Cuckoos and Hashes
 
 mod branch;
-mod bytecursor;
 mod entry;
 mod leaf;
-mod paddingcursor;
 
 use branch::*;
 pub use entry::Entry;

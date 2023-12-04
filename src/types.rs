@@ -4,16 +4,17 @@ pub mod syntactic;
 
 use crate::trible::Value;
 
-pub trait FromValue {
-    type Out;
 
-    fn from_value(value: Value) -> Self::Out;
+pub trait FromValue {
+    type Rep;
+
+    fn from_value(value: Value) -> Self::Rep;
 }
 
 pub trait ToValue {
-    type In;
+    type Rep;
 
-    fn to_value(value: &Self::In) -> Value;
+    fn to_value(value: &Self::Rep) -> Value;
 }
 
 #[macro_export]
@@ -23,9 +24,9 @@ macro_rules! inline_value {
         where
             $t: std::convert::From<$crate::trible::Value>,
         {
-            type Out = $t;
+            type Rep = $t;
 
-            fn from_value(value: $crate::trible::Value) -> Self::Out {
+            fn from_value(value: $crate::trible::Value) -> Self::Rep {
                 value.into()
             }
         }
@@ -34,9 +35,9 @@ macro_rules! inline_value {
         where
             for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
         {
-            type In = $t;
+            type Rep = $t;
 
-            fn to_value(value: &Self::In) -> $crate::trible::Value {
+            fn to_value(value: &Self::Rep) -> $crate::trible::Value {
                 value.into()
             }
         }
@@ -50,9 +51,9 @@ macro_rules! handle_value {
         where
             $t: std::convert::From<$crate::trible::Blob>,
         {
-            type Out = $crate::types::handle::Handle<$t>;
+            type Rep = $crate::types::handle::Handle<$t>;
 
-            fn from_value(value: $crate::trible::Value) -> Self::Out {
+            fn from_value(value: $crate::trible::Value) -> Self::Rep {
                 $crate::types::handle::Handle::new(value)
             }
         }
@@ -61,9 +62,9 @@ macro_rules! handle_value {
         where
             for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
         {
-            type In = $crate::types::handle::Handle<$t>;
+            type Rep = $crate::types::handle::Handle<$t>;
 
-            fn to_value(handle: &Self::In) -> $crate::trible::Value {
+            fn to_value(handle: &Self::Rep) -> $crate::trible::Value {
                 handle.value
             }
         }

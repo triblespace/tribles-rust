@@ -66,7 +66,7 @@ where
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> <T as FromValue>::Out {
+    pub fn extract(self, binding: &Binding) -> <T as FromValue>::Rep {
         T::from_value(binding.get(self.index).unwrap())
     }
 }

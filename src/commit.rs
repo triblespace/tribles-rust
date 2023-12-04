@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use blake2::{digest::typenum::U32, Blake2b, Digest};
 use itertools::Itertools;
 
@@ -25,10 +27,51 @@ impl Commit {
     pub fn new<T>(id: T, tribles: TribleSet) -> Self
     where T: Into<Id> {
         let id = id.into();
-        Commit {
+        Self {
             id,
             tribles
         }
+    }
+
+    pub fn deserialize(data: &[u8]) -> Self {
+        let len = data.len();
+
+        assert!(len % TRIBLE_LEN == 0, "commits must be multiples of 64bytes long");
+        assert!(len > TRIBLE_LEN, "commits must not be empty");
+        assert!(data[len-48..len-32] == [0; 16], "capstone marker missing");
+
+        let id: Id = data[len-64..len-48].try_into().unwrap();
+        let stored_fingerprint: Value = data[len-32..len].try_into().unwrap();
+        let trible_data: &[u8] = &data[0..len-TRIBLE_LEN];
+        let fingerprinted_data: &[u8] = &data[..len-48];
+
+        let mut tribles = TribleSet::new();
+
+        for trible in trible_data.chunks_exact(TRIBLE_LEN) {
+            tribles.insert_raw(trible.try_into().unwrap());
+        }
+
+        let (RawId(fingerprint_method),) = query!(
+            ctx,
+            (f),
+            commit_ns::pattern!(ctx, tribles, [
+                {(RawId(id)) @
+                    fingerprint_method: f
+                }])
+        ).at_most_one()
+        .expect("ambiguous fingerprint method found in commit tribles")
+        .expect("no fingerprint method found in commit tribles");
+
+        let computed_fingerprint:Value = match fingerprint_method {
+            BLAKE2 => {
+                Blake2b::<U32>::digest(fingerprinted_data).into()
+            }
+            _ => panic!("unsupported fingerprint method")
+        };
+
+        assert!(stored_fingerprint == computed_fingerprint, "commit fingerprint doesn't match computed fingerprint");
+
+        Self {id, tribles}
     }
 
     pub fn serialize(&self) -> Blob {
@@ -66,5 +109,3 @@ impl Commit {
         buffer.into()
     }
 }
-
-

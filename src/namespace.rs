@@ -12,7 +12,7 @@ macro_rules! entities_inner {
         $set.insert(&$crate::trible::Trible::new(
             $EntityId,
             { use $Namespace as base; base::ids::$FieldName },
-            { use $Namespace as base; let v: <base::types::$FieldName as $crate::types::ToValue>::In = $Value; v}))
+            { use $Namespace as base; let v: <base::types::$FieldName as $crate::types::ToValue>::Rep = $Value; v}))
     };
     (@entity ($set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),*})) => {
         $(entities_inner!(@triple ($set, $Namespace, $EntityId, $FieldName, $Value));)*

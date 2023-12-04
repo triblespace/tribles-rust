@@ -6,7 +6,7 @@ use crate::namespace::triblepattern::*;
 
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, TRIBLE_LEN,
 };
 use crate::trible::{Id, Value};
 use std::iter::FromIterator;
@@ -47,7 +47,11 @@ impl TribleSet {
     }
 
     pub fn insert(&mut self, trible: &Trible) {
-        let key = Entry::new(&trible.data, ());
+        self.insert_raw(&trible.data)
+    }
+
+    pub fn insert_raw(&mut self, data: &[u8; TRIBLE_LEN]) {
+        let key = Entry::new(data, ());
         self.eav.insert(&key);
         self.eva.insert(&key);
         self.aev.insert(&key);

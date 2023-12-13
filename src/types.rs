@@ -46,12 +46,13 @@ macro_rules! inline_value {
 
 #[macro_export]
 macro_rules! handle_value {
-    ($t:ty) => {
+    ($h:ty, $t:ty) => {
         impl $crate::types::FromValue for $t
         where
+            $h: digest::Digest,
             $t: std::convert::From<$crate::trible::Blob>,
         {
-            type Rep = $crate::types::handle::Handle<$t>;
+            type Rep = $crate::types::handle::Handle<$h, $t>;
 
             fn from_value(value: $crate::trible::Value) -> Self::Rep {
                 $crate::types::handle::Handle::new(value)
@@ -60,12 +61,12 @@ macro_rules! handle_value {
 
         impl $crate::types::ToValue for $t
         where
-            for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
+            for<'a> &'a $t: std::convert::Into<$crate::trible::Blob>,
         {
-            type Rep = $crate::types::handle::Handle<$t>;
+            type Rep = $crate::types::handle::Handle<$h, $t>;
 
             fn to_value(handle: &Self::Rep) -> $crate::trible::Value {
-                handle.value
+                handle.hash
             }
         }
     };

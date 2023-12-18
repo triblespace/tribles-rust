@@ -64,6 +64,13 @@ where
         self.blobs.get(value)
     }
 
+    // Note that keep is conservative and keeps every blob for which there exists
+    // a corresponding trible value, irrespective of that tribles attribute type.
+    // This could theoretically allow an attacker to DOS blob garbage collection
+    // by introducting values that look like existing hashes, but are actually of
+    // a different type. But this is under the assumption that an attacker is only
+    // allowed to write non-handle typed triples, otherwise they might as well
+    // introduce blobs directly.
     pub fn keep<T>(&self, tribles: T) -> BlobSet<H>
     where
         T: TriblePattern,

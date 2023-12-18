@@ -1,12 +1,13 @@
+use std::fmt;
 use std::marker::PhantomData;
 
+use hex::ToHex;
 use digest::{typenum::U32, Digest, OutputSizeUser};
 
 use crate::trible::{Blob, Value};
 use crate::types::syntactic::Hash;
 
 #[repr(transparent)]
-#[derive(Debug)]
 pub struct Handle<H, T>
 {
     pub hash: Hash<H>,
@@ -28,6 +29,12 @@ impl<H, T> PartialEq for Handle<H, T> {
 }
 
 impl<H, T> Eq for Handle<H, T> {}
+
+impl<H, T> fmt::Debug for Handle<H, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Handle<{}, {}>({})", std::any::type_name::<H>(), std::any::type_name::<T>(), self.hash.value.encode_hex::<String>())
+    }
+}
 
 impl<H, T> Handle<H, T> {
     pub fn new(value: Value) -> Handle<H, T> {

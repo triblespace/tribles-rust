@@ -1,9 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, fmt};
+
+use hex::ToHex;
 
 use crate::{trible::*, types::{ToValue, FromValue}};
 
 #[repr(transparent)]
-#[derive(Debug)]
 pub struct Hash<H>
 {
     pub value: Value,
@@ -33,6 +34,12 @@ impl<H> PartialEq for Hash<H> {
     }
 }
 impl<H> Eq for Hash<H> {}
+
+impl<H> fmt::Debug for Hash<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Hash<{}>({})", std::any::type_name::<H>(), self.value.encode_hex::<String>())
+    }
+}
 
 // TODO? Rework macro to proc macro and automatically detect generics?
 impl<H> FromValue for Hash<H>

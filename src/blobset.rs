@@ -5,7 +5,7 @@ use crate::namespace::triblepattern::TriblePattern;
 use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
 use crate::trible::{Blob, Value, VALUE_LEN};
 use crate::types::handle::Handle;
-use crate::types::syntactic::{RawValue, UFOID};
+use crate::types::syntactic::{Hash, UFOID};
 use crate::{and, mask, query};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -39,7 +39,6 @@ where
     pub fn insert<V>(&mut self, value: V) -> Handle<H, V>
     where
         V: Into<Blob>,
-        //for<'a> Handle<H, V>: From<&'a Blob>,
     {
         let blob: Blob = value.into();
         let hash = H::digest(&blob).into();
@@ -48,8 +47,8 @@ where
         Handle::new(hash)
     }
 
-    pub fn insert_raw(&mut self, value: Value, blob: Blob) {
-        let entry = Entry::new(&value, blob);
+    pub fn insert_raw(&mut self, hash: Hash<H>, blob: Blob) {
+        let entry = Entry::new(&hash.value, blob);
         self.blobs.insert(&entry);
     }
 
@@ -57,7 +56,7 @@ where
     where
         T: std::convert::From<Blob>,
     {
-        let blob = self.blobs.get(&handle.hash)?;
+        let blob = self.blobs.get(&handle.hash.value)?;
         Some(blob.into())
     }
 
@@ -70,7 +69,8 @@ where
         T: TriblePattern,
     {
         let mut set = BlobSet::new();
-        for (RawValue(value),) in query!(
+        
+        for (hash,) in query!(
             ctx,
             (v),
             and!(
@@ -78,26 +78,27 @@ where
                 mask!(
                     ctx,
                     (e, a),
-                    tribles.pattern::<UFOID, UFOID, RawValue>(e, a, v)
+                    tribles.pattern::<UFOID, UFOID, Hash<H>>(e, a, v)
                 )
             )
         ) {
-            let blob = self.blobs.get(&value).unwrap();
-            set.insert_raw(value, blob)
+            let blob = self.blobs.get(&hash.value).unwrap();
+            set.insert_raw(hash, blob)
         }
+        
         set
     }
 }
 
-impl<H> FromIterator<(Handle<H, Blob>, Blob)> for BlobSet<H>
+impl<H> FromIterator<(Hash<H>, Blob)> for BlobSet<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
-    fn from_iter<I: IntoIterator<Item = (Handle<H, Blob>, Blob)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (Hash<H>, Blob)>>(iter: I) -> Self {
         let mut set = BlobSet::new();
 
-        for (handle, blob) in iter {
-            set.insert_raw(handle.hash, blob);
+        for (hash, blob) in iter {
+            set.insert_raw(hash, blob);
         }
 
         set

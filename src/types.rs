@@ -66,7 +66,7 @@ macro_rules! handle_value {
             type Rep = $crate::types::handle::Handle<$h, $t>;
 
             fn to_value(handle: &Self::Rep) -> $crate::trible::Value {
-                handle.hash
+                handle.hash.value
             }
         }
     };

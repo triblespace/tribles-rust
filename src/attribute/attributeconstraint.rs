@@ -1,16 +1,14 @@
 use crate::{
     query::{Binding, Constraint, Variable, VariableId, VariableSet},
-    trible::{id_to_value, Id, Value},
+    types::{id_into_value, Idlike, Value, Valuelike},
 };
 
 use super::*;
 
 pub struct AttributeConstraint<'a, E, V>
 where
-    E: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    V: Valuelike,
 {
     variable_e: Variable<E>,
     variable_v: Variable<V>,
@@ -19,10 +17,8 @@ where
 
 impl<'a, E, V> AttributeConstraint<'a, E, V>
 where
-    E: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<E>,
@@ -39,10 +35,8 @@ where
 
 impl<'a, E, V> Constraint<'a> for AttributeConstraint<'a, E, V>
 where
-    E: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
@@ -79,7 +73,7 @@ where
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
-            (None, None, true, false) => self.attr.ev.keys().map(id_to_value).collect(),
+            (None, None, true, false) => self.attr.ev.keys().copied().map(id_into_value).collect(),
             (None, None, false, true) => self.attr.ve.keys().copied().collect(),
             (Some(e), None, false, true) => self
                 .attr
@@ -90,7 +84,7 @@ where
                 .attr
                 .ve
                 .get(&v)
-                .map_or(vec![], |s| s.iter().map(id_to_value).collect()),
+                .map_or(vec![], |s| s.iter().copied().map(id_into_value).collect()),
             _ => panic!(),
         }
     }

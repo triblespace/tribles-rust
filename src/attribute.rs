@@ -6,17 +6,15 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use crate::query::Variable;
-use crate::trible::{Id, Value};
+use crate::types::{Id, Idlike, Value, Valuelike};
 
 use self::attributeconstraint::AttributeConstraint;
 
 #[derive(Debug, Clone)]
 pub struct Attribute<E, V>
 where
-    E: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    V: Valuelike,
 {
     pub ev: HashMap<Id, HashSet<Value>>,
     pub ve: HashMap<Value, HashSet<Id>>,
@@ -26,10 +24,8 @@ where
 
 impl<E, V> Attribute<E, V>
 where
-    E: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    V: Valuelike,
 {
     pub fn new() -> Attribute<E, V> {
         Attribute {
@@ -41,8 +37,8 @@ where
     }
 
     pub fn add(&mut self, e: &E, v: &V) {
-        let id: Id = e.into();
-        let value: Value = v.into();
+        let id: Id = e.into_id();
+        let value: Value = v.into_value();
         self.ev.entry(id).or_default().insert(value);
         self.ve.entry(value).or_default().insert(id);
     }
@@ -54,10 +50,8 @@ where
 
 impl<E, V> FromIterator<(E, V)> for Attribute<E, V>
 where
-    E: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    V: Valuelike,
 {
     fn from_iter<I: IntoIterator<Item = (E, V)>>(iter: I) -> Self {
         let mut attr = Attribute::new();

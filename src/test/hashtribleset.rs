@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::namespace::triblepattern::TriblePattern;
 use crate::trible::Trible;
-use crate::trible::{Id, Value};
+use crate::types::{Id, Idlike, Value, Valuelike};
 use std::iter::FromIterator;
 
 use self::hashtriblesetconstraint::HashTribleSetConstraint;
@@ -75,12 +75,9 @@ impl TriblePattern for HashTribleSet {
     type PatternConstraint<'a, E, A, V>
      = HashTribleSetConstraint<'a, E, A, V>
      where
-     E: From<Id>,
-     A: From<Id>,
-     V: From<Value>,
-     for<'b> &'b E: Into<Id>,
-     for<'b> &'b A: Into<Id>,
-     for<'b> &'b V: Into<Value>;
+     E: Idlike,
+     A: Idlike,
+     V: Valuelike;
 
     fn pattern<'a, E, A, V>(
         &'a self,
@@ -89,12 +86,9 @@ impl TriblePattern for HashTribleSet {
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a, E, A, V>
     where
-        E: From<Id>,
-        A: From<Id>,
-        V: From<Value>,
-        for<'b> &'b E: Into<Id>,
-        for<'b> &'b A: Into<Id>,
-        for<'b> &'b V: Into<Value>,
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike,
     {
         HashTribleSetConstraint::new(e, a, v, self)
     }

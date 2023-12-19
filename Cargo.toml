@@ -18,7 +18,8 @@ cardkit = "0.1.0-alpha.10"
 object_store = "0.8.0"
 hex = "0.4.3"
 hex-literal = "0.3.4"
-
+quick_cache = "0.4.0"
+url = "2.5.0"
 
 #[dev-dependencies]
 criterion = "0.3"

@@ -8,12 +8,9 @@ use crate::trible::*;
 
 pub struct TribleSetConstraint<'a, E, A, V>
 where
-    E: From<Id>,
-    A: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b A: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    A: Idlike,
+    V: Valuelike,
 {
     variable_e: Variable<E>,
     variable_a: Variable<A>,
@@ -23,12 +20,9 @@ where
 
 impl<'a, E, A, V> TribleSetConstraint<'a, E, A, V>
 where
-    E: From<Id>,
-    A: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b A: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    A: Idlike,
+    V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<E>,
@@ -47,12 +41,9 @@ where
 
 impl<'a, E, A, V> Constraint<'a> for TribleSetConstraint<'a, E, A, V>
 where
-    E: From<Id>,
-    A: From<Id>,
-    V: From<Value>,
-    for<'b> &'b E: Into<Id>,
-    for<'b> &'b A: Into<Id>,
-    for<'b> &'b V: Into<Value>,
+    E: Idlike,
+    A: Idlike,
+    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

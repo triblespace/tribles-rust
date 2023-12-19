@@ -1,18 +1,19 @@
 pub mod attribute;
 pub mod bitset;
+pub mod blobset;
 pub mod bytetable;
+pub mod commit;
 pub mod namespace;
 pub mod patch;
-pub mod blobset;
 pub mod query;
+pub mod remote;
+pub mod test;
 pub mod trible;
 pub mod tribleset;
 pub mod types;
-pub mod commit;
-pub mod test;
 
-pub use tribleset::TribleSet as TribleSet;
-pub use blobset::BlobSet as BlobSet;
+pub use blobset::BlobSet;
+pub use tribleset::TribleSet;
 
 #[cfg(test)]
 mod tests {}

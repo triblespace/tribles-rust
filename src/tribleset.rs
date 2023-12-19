@@ -6,9 +6,10 @@ use crate::namespace::triblepattern::*;
 
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, TRIBLE_LEN,
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
+    TRIBLE_LEN,
 };
-use crate::trible::{Id, Value};
+use crate::types::{Idlike, Value, Valuelike};
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -77,12 +78,9 @@ impl TriblePattern for TribleSet {
     type PatternConstraint<'a, E, A, V>
      = TribleSetConstraint<'a, E, A, V>
      where
-     E: From<Id>,
-     A: From<Id>,
-     V: From<Value>,
-     for<'b> &'b E: Into<Id>,
-     for<'b> &'b A: Into<Id>,
-     for<'b> &'b V: Into<Value>;
+     E: Idlike,
+     A: Idlike,
+     V: Valuelike;
 
     fn pattern<'a, E, A, V>(
         &'a self,
@@ -91,12 +89,9 @@ impl TriblePattern for TribleSet {
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a, E, A, V>
     where
-        E: From<Id>,
-        A: From<Id>,
-        V: From<Value>,
-        for<'b> &'b E: Into<Id>,
-        for<'b> &'b A: Into<Id>,
-        for<'b> &'b V: Into<Value>,
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike,
     {
         TribleSetConstraint::new(e, a, v, self)
     }

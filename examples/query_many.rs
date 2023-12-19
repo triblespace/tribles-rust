@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
-use tribles::NS;
 use tribles::query;
+use tribles::NS;
 
 use tribles::patch;
 use tribles::tribleset::TribleSet;

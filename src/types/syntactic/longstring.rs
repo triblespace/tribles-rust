@@ -1,15 +1,8 @@
-use blake2::{digest::typenum::U32, Blake2b };
-
-use crate::{
-    handle_value,
-    trible::Blob,
-};
+use crate::types::{Blob, Bloblike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 pub struct LongString(String);
-
-handle_value!(Blake2b::<U32>, LongString);
 
 impl LongString {
     pub fn new(s: String) -> LongString {
@@ -17,9 +10,9 @@ impl LongString {
     }
 }
 
-impl From<&LongString> for String {
-    fn from(string: &LongString) -> Self {
-        string.0.clone()
+impl From<LongString> for String {
+    fn from(string: LongString) -> Self {
+        string.0
     }
 }
 
@@ -29,19 +22,15 @@ impl From<String> for LongString {
     }
 }
 
-impl From<&LongString> for Blob {
-    fn from(string: &LongString) -> Self {
-        let bytes = string.0.as_bytes();
+impl Bloblike for LongString {
+    fn from_blob(blob: Blob) -> Self {
+        LongString(String::from_utf8(blob.to_vec()).expect("failed to decode LongString"))
+    }
+    fn into_blob(&self) -> Blob {
+        let bytes = self.0.as_bytes();
         bytes.into()
     }
 }
-
-impl From<Blob> for LongString {
-    fn from(blob: Blob) -> Self {
-        LongString(String::from_utf8(blob.to_vec()).expect("failed to decode LongString"))
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -56,8 +45,8 @@ mod tests {
     fn handle() {
         let s = String::from("hello world!");
         let l: LongString = s.into();
-        let h: Handle<Blake2b::<U32>, LongString> = (&l).into();
-        let h2: Handle<Blake2b::<U32>, LongString> = (&l).into();
+        let h: Handle<Blake2b<U32>, LongString> = (&l).into();
+        let h2: Handle<Blake2b<U32>, LongString> = (&l).into();
 
         assert!(h == h2);
     }

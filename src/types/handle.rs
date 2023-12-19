@@ -1,20 +1,21 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use hex::ToHex;
 use digest::{typenum::U32, Digest, OutputSizeUser};
+use hex::ToHex;
 
-use crate::trible::{Blob, Value};
 use crate::types::syntactic::Hash;
+use crate::types::{Blob, Value};
+
+use super::{Bloblike, Valuelike};
 
 #[repr(transparent)]
-pub struct Handle<H, T>
-{
+pub struct Handle<H, T> {
     pub hash: Hash<H>,
     _type: PhantomData<T>,
 }
 
-impl<H, T> Copy for Handle<H, T> { }
+impl<H, T> Copy for Handle<H, T> {}
 
 impl<H, T> Clone for Handle<H, T> {
     fn clone(&self) -> Handle<H, T> {
@@ -32,7 +33,13 @@ impl<H, T> Eq for Handle<H, T> {}
 
 impl<H, T> fmt::Debug for Handle<H, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Handle<{}, {}>({})", std::any::type_name::<H>(), std::any::type_name::<T>(), self.hash.value.encode_hex::<String>())
+        write!(
+            f,
+            "Handle<{}, {}>({})",
+            std::any::type_name::<H>(),
+            std::any::type_name::<T>(),
+            self.hash.value.encode_hex::<String>()
+        )
     }
 }
 
@@ -45,29 +52,27 @@ impl<H, T> Handle<H, T> {
     }
 }
 
-impl<H, T> From<Value> for Handle<H, T> {
-    fn from(value: Value) -> Self {
+impl<H, T> From<&T> for Handle<H, T>
+where
+    T: Bloblike,
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
+    fn from(value: &T) -> Self {
+        let blob: Blob = value.into_blob();
+        let digest = H::digest(blob);
+        Handle::new(digest.into())
+    }
+}
+
+impl<H, T> Valuelike for Handle<H, T> {
+    fn from_value(value: Value) -> Self {
         Handle {
             hash: Hash::new(value),
             _type: PhantomData,
         }
     }
-}
 
-impl<H, T> From<&Handle<H, T>> for Value {
-    fn from(handle: &Handle<H, T>) -> Self {
-        handle.hash.value
-    }
-}
-
-
-impl<H, T> From<&T> for Handle<H, T>
-    where
-    for<'a> &'a T: Into<Blob>,
-    H: Digest + OutputSizeUser<OutputSize = U32>,
-{
-    fn from(value: &T) -> Self {
-        let digest = H::digest(value.into());
-        Handle::new(digest.into())
+    fn into_value(&self) -> Value {
+        self.hash.value
     }
 }

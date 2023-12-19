@@ -13,10 +13,9 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::trible::*;
+use crate::types::{Value, Valuelike};
 
 use crate::bitset::ByteBitset;
-use crate::types::FromValue;
 
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;
@@ -33,7 +32,7 @@ impl VariableContext {
 
     pub fn next_variable<T>(&mut self) -> Variable<T>
     where
-        T: FromValue,
+        T: Valuelike,
     {
         let v = Variable::new(self.next_index);
         self.next_index += 1;
@@ -57,7 +56,7 @@ impl<T> Clone for Variable<T> {
 
 impl<T> Variable<T>
 where
-    T: FromValue,
+    T: Valuelike,
 {
     pub fn new(index: VariableId) -> Self {
         Variable {
@@ -66,7 +65,7 @@ where
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> <T as FromValue>::Rep {
+    pub fn extract(self, binding: &Binding) -> T {
         T::from_value(binding.get(self.index).unwrap())
     }
 }
@@ -89,9 +88,9 @@ impl<T> Variable<T> {
 impl<T> Variable<T> {
     pub fn is(self, constant: T) -> ConstantConstraint<T>
     where
-        for<'b> &'b T: Into<Value>,
+        T: Valuelike,
     {
-        ConstantConstraint::new(self, &constant)
+        ConstantConstraint::new(self, constant)
     }
 }
 
@@ -224,7 +223,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
     }
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, R>{
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Query")
     }

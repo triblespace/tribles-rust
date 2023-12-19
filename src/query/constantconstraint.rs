@@ -6,13 +6,13 @@ pub struct ConstantConstraint<T> {
 }
 
 impl<T> ConstantConstraint<T> {
-    pub fn new(variable: Variable<T>, constant: &T) -> Self
+    pub fn new(variable: Variable<T>, constant: T) -> Self
     where
-        for<'b> &'b T: Into<Value>,
+        T: Valuelike,
     {
         ConstantConstraint {
             variable,
-            constant: constant.into(),
+            constant: constant.into_value(),
         }
     }
 }

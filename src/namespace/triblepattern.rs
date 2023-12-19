@@ -1,17 +1,14 @@
 use crate::{
     query::{Constraint, Variable},
-    trible::{Id, Value},
+    types::{Idlike, Valuelike},
 };
 
 pub trait TriblePattern {
     type PatternConstraint<'a, E, A, V>: Constraint<'a>
     where
-        E: From<Id>,
-        A: From<Id>,
-        V: From<Value>,
-        for<'b> &'b E: Into<Id>,
-        for<'b> &'b A: Into<Id>,
-        for<'b> &'b V: Into<Value>,
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike,
         Self: 'a;
 
     fn pattern<'a, E, A, V>(
@@ -21,10 +18,7 @@ pub trait TriblePattern {
         v: Variable<V>,
     ) -> Self::PatternConstraint<'a, E, A, V>
     where
-        E: From<Id>,
-        A: From<Id>,
-        V: From<Value>,
-        for<'b> &'b E: Into<Id>,
-        for<'b> &'b A: Into<Id>,
-        for<'b> &'b V: Into<Value>;
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike;
 }

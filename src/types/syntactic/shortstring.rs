@@ -1,12 +1,10 @@
 use std::convert::TryFrom;
 
-use crate::{inline_value, trible::*};
+use crate::types::{Value, Valuelike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 pub struct ShortString(String);
-
-inline_value!(ShortString);
 
 impl ShortString {
     pub fn new(s: String) -> Result<ShortString, &'static str> {
@@ -20,25 +18,23 @@ impl ShortString {
     }
 }
 
-impl From<&ShortString> for Value {
-    fn from(string: &ShortString) -> Self {
-        let mut data = [0; 32];
-        let bytes = string.0.as_bytes();
-        data[..bytes.len()].copy_from_slice(bytes);
-        data
-    }
-}
-
-impl From<Value> for ShortString {
-    fn from(bytes: Value) -> Self {
+impl Valuelike for ShortString {
+    fn from_value(value: Value) -> Self {
         ShortString(
             String::from_utf8(
-                IntoIterator::into_iter(bytes)
+                IntoIterator::into_iter(value)
                     .take_while(|&x| x != 0)
                     .collect(),
             )
             .unwrap(),
         )
+    }
+
+    fn into_value(&self) -> Value {
+        let mut data = [0; 32];
+        let bytes = self.0.as_bytes();
+        data[..bytes.len()].copy_from_slice(bytes);
+        data
     }
 }
 

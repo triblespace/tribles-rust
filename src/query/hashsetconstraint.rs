@@ -4,8 +4,7 @@ use super::*;
 
 pub struct SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Hash + From<Value> + Debug,
-    for<'b> &'b T: Into<Value>,
+    T: Eq + PartialEq + Hash + Valuelike + Debug,
 {
     variable: Variable<T>,
     set: &'a HashSet<T>,
@@ -13,8 +12,7 @@ where
 
 impl<'a, T> SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Hash + From<Value> + Debug,
-    for<'b> &'b T: Into<Value>,
+    T: Eq + PartialEq + Hash + Valuelike + Debug,
 {
     pub fn new(variable: Variable<T>, set: &'a HashSet<T>) -> Self {
         SetConstraint { variable, set }
@@ -23,8 +21,7 @@ where
 
 impl<'a, T> Constraint<'a> for SetConstraint<'a, T>
 where
-    T: Eq + PartialEq + Hash + From<Value> + Debug,
-    for<'b> &'b T: Into<Value>,
+    T: Eq + PartialEq + Hash + Valuelike + Debug,
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
@@ -39,18 +36,17 @@ where
     }
 
     fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
-        self.set.iter().map(|v| v.into()).collect()
+        self.set.iter().map(|v| v.into_value()).collect()
     }
 
     fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
-        proposals.retain(|v| self.set.contains(&((*v).into())));
+        proposals.retain(|v| self.set.contains(&T::from_value(*v)));
     }
 }
 
 impl<'a, T> Constrain<'a, T> for HashSet<T>
 where
-    T: Eq + PartialEq + Hash + From<Value> + Debug + 'a,
-    for<'b> &'b T: Into<Value>,
+    T: Eq + PartialEq + Hash + Valuelike + Debug + 'a,
 {
     type Constraint = SetConstraint<'a, T>;
 

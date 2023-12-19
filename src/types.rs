@@ -2,103 +2,43 @@ pub mod handle;
 pub mod semantic;
 pub mod syntactic;
 
-use crate::trible::Value;
+use std::{convert::TryInto, sync::Arc};
 
+pub type Id = [u8; 16];
+pub type Value = [u8; 32];
+pub type Blob = Arc<[u8]>;
 
-pub trait FromValue {
-    type Rep;
+pub const ID_LEN: usize = 16;
+pub const VALUE_LEN: usize = 32;
 
-    fn from_value(value: Value) -> Self::Rep;
+pub fn id_into_value(id: Id) -> Value {
+    let mut data = [0; VALUE_LEN];
+    data[16..=31].copy_from_slice(&id[..]);
+    data
 }
 
-pub trait ToValue {
-    type Rep;
-
-    fn to_value(value: &Self::Rep) -> Value;
+pub trait Idlike {
+    fn from_id(id: Id) -> Self;
+    fn into_id(&self) -> Id;
+    fn factory() -> Self;
 }
 
-#[macro_export]
-macro_rules! inline_value {
-    ($t:ty) => {
-        impl $crate::types::FromValue for $t
-        where
-            $t: std::convert::From<$crate::trible::Value>,
-        {
-            type Rep = $t;
-
-            fn from_value(value: $crate::trible::Value) -> Self::Rep {
-                value.into()
-            }
-        }
-
-        impl $crate::types::ToValue for $t
-        where
-            for<'a> &'a $t: std::convert::Into<$crate::trible::Value>,
-        {
-            type Rep = $t;
-
-            fn to_value(value: &Self::Rep) -> $crate::trible::Value {
-                value.into()
-            }
-        }
-    };
+pub trait Valuelike {
+    fn from_value(value: Value) -> Self;
+    fn into_value(&self) -> Value;
 }
 
-#[macro_export]
-macro_rules! handle_value {
-    ($h:ty, $t:ty) => {
-        impl $crate::types::FromValue for $t
-        where
-            $h: digest::Digest,
-            $t: std::convert::From<$crate::trible::Blob>,
-        {
-            type Rep = $crate::types::handle::Handle<$h, $t>;
-
-            fn from_value(value: $crate::trible::Value) -> Self::Rep {
-                $crate::types::handle::Handle::new(value)
-            }
-        }
-
-        impl $crate::types::ToValue for $t
-        where
-            for<'a> &'a $t: std::convert::Into<$crate::trible::Blob>,
-        {
-            type Rep = $crate::types::handle::Handle<$h, $t>;
-
-            fn to_value(handle: &Self::Rep) -> $crate::trible::Value {
-                handle.hash.value
-            }
-        }
-    };
+pub trait Bloblike {
+    fn from_blob(blob: Blob) -> Self;
+    fn into_blob(&self) -> Blob;
 }
 
-/*
-The day Rust gets off it's macro addiction
-and simply starts throwing erros when types collide we can
-replace all that cruft with the two impls below...
+impl<T: Idlike> Valuelike for T {
+    fn from_value(value: Value) -> Self {
+        Self::from_id(value[16..32].try_into().unwrap())
+    }
 
-use crate::trible::{Value, Blob};
-use crate::types::handle::Handle;
-
-impl<T> Extract for T
-where
-    T: for<'a> From<&'a Value>
-{
-    type Out = T;
-
-    fn extract(value: &Value) -> Self::Out {
-        value.into()
+    fn into_value(&self) -> Value {
+        id_into_value(self.into_id())
     }
 }
-
-impl<T> Extract for T
-where
-    T: From<Blob>
-{
-    type Out = Handle<T>;
-
-    fn extract(value: &Value) -> Self::Out {
-        Handle::new(value)
-    }
-}
-*/

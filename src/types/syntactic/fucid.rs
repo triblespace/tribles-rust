@@ -1,11 +1,8 @@
-use crate::inline_value;
-use crate::namespace::*;
-use crate::trible::*;
+use crate::types::{Id, Idlike};
 use arbitrary::Arbitrary;
 use rand::thread_rng;
 use rand::RngCore;
 use std::cell::RefCell;
-use std::convert::TryInto;
 
 struct FUCIDgen {
     counter: u128,
@@ -28,8 +25,6 @@ thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen {
 #[repr(transparent)]
 pub struct FUCID([u8; 16]);
 
-inline_value!(FUCID);
-
 impl FUCID {
     pub const fn raw(data: [u8; 16]) -> FUCID {
         FUCID(data)
@@ -50,35 +45,15 @@ impl FUCID {
     }
 }
 
-impl From<Id> for FUCID {
-    fn from(data: Id) -> Self {
-        FUCID(data)
+impl Idlike for FUCID {
+    fn from_id(id: Id) -> Self {
+        FUCID(id)
     }
-}
-
-impl From<&FUCID> for Id {
-    fn from(id: &FUCID) -> Self {
-        id.0
+    fn into_id(&self) -> Id {
+        self.0
     }
-}
-
-impl Factory for FUCID {
     fn factory() -> Self {
         FUCID::new()
-    }
-}
-
-impl From<Value> for FUCID {
-    fn from(data: Value) -> Self {
-        FUCID(data[16..32].try_into().unwrap())
-    }
-}
-
-impl From<&FUCID> for Value {
-    fn from(id: &FUCID) -> Self {
-        let mut data = [0; 32];
-        data[16..32].copy_from_slice(&id.0);
-        data
     }
 }
 

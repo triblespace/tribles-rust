@@ -1,17 +1,13 @@
-use crate::inline_value;
-use crate::namespace::*;
-use crate::trible::*;
+use crate::types::Id;
+use crate::types::Idlike;
 use arbitrary::Arbitrary;
 use rand::thread_rng;
-use std::convert::TryInto;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Universal Forgettable Ordered IDs
 #[derive(Arbitrary, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct UFOID([u8; 16]);
-
-inline_value!(UFOID);
 
 impl UFOID {
     pub const fn raw(data: [u8; 16]) -> UFOID {
@@ -38,35 +34,17 @@ impl UFOID {
     }
 }
 
-impl From<Id> for UFOID {
-    fn from(data: Id) -> Self {
-        UFOID(data)
+impl Idlike for UFOID {
+    fn from_id(id: Id) -> Self {
+        UFOID(id)
     }
-}
 
-impl From<&UFOID> for Id {
-    fn from(id: &UFOID) -> Self {
-        id.0
+    fn into_id(&self) -> Id {
+        self.0
     }
-}
 
-impl Factory for UFOID {
     fn factory() -> Self {
         UFOID::new()
-    }
-}
-
-impl From<Value> for UFOID {
-    fn from(data: Value) -> Self {
-        UFOID(data[16..32].try_into().unwrap())
-    }
-}
-
-impl From<&UFOID> for Value {
-    fn from(id: &UFOID) -> Self {
-        let mut data = [0; 32];
-        data[16..32].copy_from_slice(&id.0);
-        data
     }
 }
 

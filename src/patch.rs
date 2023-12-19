@@ -981,6 +981,7 @@ where
     S: KeySegmentation<KEY_LEN>,
 {
     pub fn new() -> Self {
+        init();
         PATCH {
             root: Head::<KEY_LEN, O, S, V>::empty(),
         }
@@ -1030,6 +1031,16 @@ where
 
     pub fn union(&mut self, other: &Self) {
         self.root.union(&other.root, 0);
+    }
+}
+
+impl<const KEY_LEN: usize, O, S, V: Clone> PartialEq for PATCH<KEY_LEN, O, S, V>
+where
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.root.hash() == other.root.hash()
     }
 }
 

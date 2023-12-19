@@ -1,11 +1,13 @@
 use std::convert::TryInto;
 
-use crate::patch::{KeyOrdering, KeySegmentation};
+use crate::{
+    patch::{KeyOrdering, KeySegmentation},
+    types::{Idlike, Valuelike},
+};
 use arbitrary::Arbitrary;
-use std::sync::Arc;
 
-pub const ID_LEN: usize = 16;
-pub const VALUE_LEN: usize = 32;
+use crate::types::{Id, Value};
+
 pub const TRIBLE_LEN: usize = 64;
 pub const E_START: usize = 0;
 pub const E_END: usize = 15;
@@ -13,16 +15,6 @@ pub const A_START: usize = 16;
 pub const A_END: usize = 31;
 pub const V_START: usize = 32;
 pub const V_END: usize = 63;
-
-pub type Id = [u8; 16];
-pub type Value = [u8; 32];
-pub type Blob = Arc<[u8]>;
-
-pub fn id_to_value(id: &Id) -> Value {
-    let mut data = [0; VALUE_LEN];
-    data[16..=31].copy_from_slice(&id[..]);
-    data
-}
 
 #[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
@@ -33,13 +25,14 @@ pub struct Trible {
 impl Trible {
     pub fn new<E, A, V>(e: E, a: A, v: V) -> Trible
     where
-        for<'a> Id: From<&'a E> + From<&'a A>,
-        for<'a> Value: From<&'a V>,
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike,
     {
         let mut data = [0; TRIBLE_LEN];
-        data[E_START..=E_END].copy_from_slice(&mut Id::from(&e)[..]);
-        data[A_START..=A_END].copy_from_slice(&mut Id::from(&a)[..]);
-        data[V_START..=V_END].copy_from_slice(&mut Value::from(&v)[..]);
+        data[E_START..=E_END].copy_from_slice(&mut e.into_id()[..]);
+        data[A_START..=A_END].copy_from_slice(&mut a.into_id()[..]);
+        data[V_START..=V_END].copy_from_slice(&mut v.into_value()[..]);
 
         Self { data }
     }

@@ -1,13 +1,13 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
-use tribles::NS;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use tribles::and;
 use tribles::attribute::Attribute;
 use tribles::types::syntactic::ShortString;
+use tribles::NS;
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::types::syntactic::UFOID;

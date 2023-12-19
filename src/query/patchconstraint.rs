@@ -1,6 +1,6 @@
 use crate::{
     patch::{IdentityOrder, SingleSegmentation, PATCH},
-    trible::{Value, VALUE_LEN},
+    types::{Value, Valuelike, VALUE_LEN},
 };
 
 use super::{Binding, Constrain, Constraint, Variable, VariableId, VariableSet};
@@ -15,7 +15,7 @@ where
 
 impl<'a, T, V> PatchConstraint<'a, T, V>
 where
-    T: Eq + PartialEq + From<Value>,
+    T: Eq + PartialEq + Valuelike,
     V: Clone,
 {
     pub fn new(
@@ -28,7 +28,7 @@ where
 
 impl<'a, T, V> Constraint<'a> for PatchConstraint<'a, T, V>
 where
-    T: Eq + PartialEq + From<Value>,
+    T: Eq + PartialEq + Valuelike,
     V: Clone,
 {
     fn variables(&self) -> VariableSet {
@@ -54,7 +54,7 @@ where
 
 impl<'a, T, V> Constrain<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>
 where
-    T: Eq + PartialEq + From<Value> + 'a,
+    T: Eq + PartialEq + Valuelike + 'a,
     V: Clone + 'a,
 {
     type Constraint = PatchConstraint<'a, T, V>;

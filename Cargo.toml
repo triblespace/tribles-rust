@@ -15,7 +15,10 @@ ux = "0.1.5"
 siphasher = "0.3"
 arbitrary = { version = "1", features = ["derive"] }
 cardkit = "0.1.0-alpha.10"
-coz = "0.1"
+object_store = "0.8.0"
+hex = "0.4.3"
+hex-literal = "0.3.4"
+
 
 #[dev-dependencies]
 criterion = "0.3"
@@ -23,11 +26,10 @@ proptest = "1.0"
 im = "15.1.0"
 itertools = "0.12.0"
 peak_alloc = "0.1.0"
-hex = "0.4.3"
-hex-literal = "0.3.4"
 blake2 = "0.10.6"
 fake = "2.8"
 rayon = "1.7"
+coz = "0.1"
 
 [[bench]]
 name = "benchmark"

@@ -20,6 +20,11 @@ hex = "0.4.3"
 hex-literal = "0.3.4"
 quick_cache = "0.4.0"
 url = "2.5.0"
+ed25519 = "2.2.3"
+ed25519-dalek = "2.1.0"
+blake2 = "0.10.6"
+rayon = "1.7"
+signature = "2.2.0"
 
 #[dev-dependencies]
 criterion = "0.3"
@@ -27,9 +32,7 @@ proptest = "1.0"
 im = "15.1.0"
 itertools = "0.12.0"
 peak_alloc = "0.1.0"
-blake2 = "0.10.6"
 fake = "2.8"
-rayon = "1.7"
 coz = "0.1"
 
 [[bench]]

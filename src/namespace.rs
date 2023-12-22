@@ -235,7 +235,7 @@ mod tests {
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet, "Juliet".try_into().unwrap(),)], r);
+        assert_eq!(vec![Ok((juliet, "Juliet".try_into().unwrap(),))], r);
     }
 
     #[test]
@@ -280,6 +280,6 @@ mod tests {
         )
         .collect();
 
-        assert_eq!(vec![(juliet, "Juliet".try_into().unwrap(),)], r);
+        assert_eq!(vec![Ok((juliet, "Juliet".try_into().unwrap(),))], r);
     }
 }

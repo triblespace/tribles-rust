@@ -1,3 +1,2 @@
+pub mod ed25519;
 pub mod firstname;
-
-pub use firstname::*;

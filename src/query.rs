@@ -13,7 +13,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::types::{Value, Valuelike};
+use crate::types::{Value, Valuelike, ValueParseError};
 
 use crate::bitset::ByteBitset;
 
@@ -65,7 +65,7 @@ where
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> T {
+    pub fn extract(self, binding: &Binding) -> Result<T, crate::types::ValueParseError> {
         T::from_value(binding.get(self.index).unwrap())
     }
 }
@@ -136,7 +136,7 @@ pub trait Constraint<'a> {
     fn confirm(&self, variable: VariableId, binding: Binding, proposal: &mut Vec<Value>);
 }
 
-pub struct Query<C, P: Fn(&Binding) -> R, R> {
+pub struct Query<C, P: Fn(&Binding) -> Result<R, ValueParseError>, R> {
     constraint: C,
     binding: Binding,
     variables: VariableSet,
@@ -146,7 +146,7 @@ pub struct Query<C, P: Fn(&Binding) -> R, R> {
     postprocessing: P,
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Query<C, P, R> {
     pub fn new(constraint: C, postprocessing: P) -> Self {
         let variables = constraint.variables();
         Query {
@@ -168,9 +168,9 @@ enum Search {
     Backtrack,
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Iterator for Query<C, P, R> {
     // we will be counting with usize
-    type Item = R;
+    type Item = Result<R, ValueParseError>;
 
     // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
@@ -223,7 +223,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
     }
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, R> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> fmt::Debug for Query<C, P, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Query")
     }
@@ -234,11 +234,10 @@ macro_rules! query {
     ($ctx:ident, ($($Var:ident),+), $Constraint:expr) => {
         {
             let mut $ctx = $crate::query::VariableContext::new();
-            //let set = $crate::tribleset::patchtribleset::PATCHTribleSet::new();
             $(let $Var = $ctx.next_variable();)*
               $crate::query::Query::new($Constraint,
                 move |binding| {
-                    ($($Var.extract(binding)),+,)
+                    Ok(($($Var.extract(binding)?),+,))
             })
         }
     };

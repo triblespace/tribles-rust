@@ -5,7 +5,7 @@ use crate::namespace::triblepattern::TriblePattern;
 use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
 use crate::types::handle::Handle;
 use crate::types::syntactic::{Hash, UFOID};
-use crate::types::{Blob, Value, VALUE_LEN, Bloblike};
+use crate::types::{Blob, Bloblike, Value, VALUE_LEN};
 use crate::{and, mask, query};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -95,7 +95,7 @@ where
                     tribles.pattern::<UFOID, UFOID, Hash<H>>(e, a, v)
                 )
             )
-        ) {
+        ).flatten() {
             let blob = self.blobs.get(&hash.value).unwrap();
             set.put_raw(hash, blob)
         }

@@ -2,7 +2,7 @@ pub mod handle;
 pub mod semantic;
 pub mod syntactic;
 
-use std::{convert::TryInto, sync::Arc};
+use std::{convert::TryInto, sync::Arc, fmt::Debug};
 
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
@@ -23,22 +23,69 @@ pub trait Idlike {
     fn factory() -> Self;
 }
 
-pub trait Valuelike {
-    fn from_value(value: Value) -> Self;
+pub trait Valuelike: Sized {
+    fn from_value(value: Value) -> Result<Self, ValueParseError>;
     fn into_value(&self) -> Value;
 }
 
-pub trait Bloblike {
-    fn from_blob(blob: Blob) -> Self;
+pub trait Bloblike: Sized {
+    fn from_blob(blob: Blob) -> Result<Self, BlobParseError>;
     fn into_blob(&self) -> Blob;
 }
 
 impl<T: Idlike> Valuelike for T {
-    fn from_value(value: Value) -> Self {
-        Self::from_id(value[16..32].try_into().unwrap())
+    fn from_value(value: Value) -> Result<Self, ValueParseError> {
+        Ok(Self::from_id(value[16..32].try_into().unwrap()))
     }
 
     fn into_value(&self) -> Value {
         id_into_value(self.into_id())
+    }
+}
+
+pub struct ValueParseError {
+    value: Value,
+    msg: String,
+}
+
+impl ValueParseError {
+    pub fn new(value: Value, msg: &str) -> Self {
+        ValueParseError {
+            value,
+            msg: msg.to_owned(),
+        }
+    }
+}
+
+impl Eq for ValueParseError {}
+impl PartialEq for ValueParseError {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.msg == other.msg
+    }
+}
+impl Debug for ValueParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ValueParseError").field("value", &hex::encode(&self.value)).field("msg", &self.msg).finish()
+    }
+}
+
+pub struct BlobParseError {
+    blob: Blob,
+    msg: String,
+}
+
+impl BlobParseError {
+    pub fn new(blob: Blob, msg: &str) -> Self {
+        BlobParseError {
+            blob,
+            msg: msg.to_owned(),
+        }
+    }
+}
+
+impl Eq for BlobParseError {}
+impl PartialEq for BlobParseError {
+    fn eq(&self, other: &Self) -> bool {
+        self.blob == other.blob && self.msg == other.msg
     }
 }

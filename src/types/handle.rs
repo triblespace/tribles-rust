@@ -7,7 +7,7 @@ use hex::ToHex;
 use crate::types::syntactic::Hash;
 use crate::types::{Blob, Value};
 
-use super::{Bloblike, Valuelike};
+use super::{Bloblike, Valuelike, ValueParseError};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {
@@ -65,11 +65,11 @@ where
 }
 
 impl<H, T> Valuelike for Handle<H, T> {
-    fn from_value(value: Value) -> Self {
-        Handle {
+    fn from_value(value: Value) -> Result<Self, ValueParseError> {
+        Ok(Handle {
             hash: Hash::new(value),
             _type: PhantomData,
-        }
+        })
     }
 
     fn into_value(&self) -> Value {

@@ -1,4 +1,4 @@
-use crate::types::{Blob, Bloblike};
+use crate::types::{Blob, Bloblike, BlobParseError};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
@@ -23,8 +23,9 @@ impl From<String> for LongString {
 }
 
 impl Bloblike for LongString {
-    fn from_blob(blob: Blob) -> Self {
-        LongString(String::from_utf8(blob.to_vec()).expect("failed to decode LongString"))
+    fn from_blob(blob: Blob) -> Result<Self, BlobParseError> {
+        let s = String::from_utf8(blob.to_vec()).map_err(|e| BlobParseError::new(blob, "failed to convert to utf-8 string"))?;
+        Ok(LongString(s))
     }
     fn into_blob(&self) -> Blob {
         let bytes = self.0.as_bytes();

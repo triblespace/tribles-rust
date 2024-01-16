@@ -40,7 +40,7 @@ where
     }
 
     fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
-        proposals.retain(|v| self.set.contains(&T::from_value(*v)));
+        proposals.retain(|v| T::from_value(*v).map_or(false, |v| self.set.contains(&v)));
     }
 }
 

@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::types::{Value, Valuelike, ValueParseError};
+use crate::types::{Value, ValueParseError, Valuelike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
@@ -23,8 +23,9 @@ impl Valuelike for ShortString {
         let s = String::from_utf8(
             IntoIterator::into_iter(value)
                 .take_while(|&x| x != 0)
-                .collect())
-                .map_err(|e| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
+                .collect(),
+        )
+        .map_err(|e| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
         Ok(ShortString(s))
     }
 

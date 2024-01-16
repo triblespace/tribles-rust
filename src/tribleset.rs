@@ -6,10 +6,10 @@ use crate::namespace::triblepattern::*;
 
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
-    TRIBLE_LEN, E_END, E_START, A_START, A_END,
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, A_END,
+    A_START, E_END, E_START, TRIBLE_LEN,
 };
-use crate::types::{Idlike, Value, Valuelike, Bloblike, Blob, BlobParseError};
+use crate::types::{Blob, BlobParseError, Bloblike, Idlike, Value, Valuelike};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 
@@ -103,7 +103,10 @@ impl Bloblike for TribleSet {
         let len: usize = blob.len();
 
         if len % TRIBLE_LEN != 0 {
-            return Err(BlobParseError::new(blob, "tribleset blob must be multiples of 64bytes long"));
+            return Err(BlobParseError::new(
+                blob,
+                "tribleset blob must be multiples of 64bytes long",
+            ));
         }
 
         let mut tribles = TribleSet::new();
@@ -112,18 +115,29 @@ impl Bloblike for TribleSet {
         for trible in blob.chunks_exact(TRIBLE_LEN) {
             let t: &[u8; 64] = trible.try_into().unwrap();
             if t[E_START..=E_END] == [0; 16] {
-                return Err(BlobParseError::new(blob, "validation error: trible contains NULL id in E position"));
+                return Err(BlobParseError::new(
+                    blob,
+                    "validation error: trible contains NULL id in E position",
+                ));
             }
             if t[A_START..=A_END] == [0; 16] {
-                return Err(BlobParseError::new(blob, "validation error: trible contains NULL id in A position"));
-
+                return Err(BlobParseError::new(
+                    blob,
+                    "validation error: trible contains NULL id in A position",
+                ));
             }
             if let Some(prev) = prev_trible {
                 if prev == t {
-                    return Err(BlobParseError::new(blob, "validation error: redundant trible in tribleset blob"));
+                    return Err(BlobParseError::new(
+                        blob,
+                        "validation error: redundant trible in tribleset blob",
+                    ));
                 }
                 if prev > t {
-                    return Err(BlobParseError::new(blob, "validation error: tribles in commit must be sorted in ascending order"));
+                    return Err(BlobParseError::new(
+                        blob,
+                        "validation error: tribles in commit must be sorted in ascending order",
+                    ));
                 }
 
                 prev_trible = Some(t);
@@ -137,9 +151,7 @@ impl Bloblike for TribleSet {
     fn into_blob(&self) -> Blob {
         let mut buffer = Vec::<u8>::with_capacity((self.len() + 1) * 64);
 
-        let mut tribles = self
-            .eav
-            .infixes(&[0; TRIBLE_LEN], 0, TRIBLE_LEN, |k| k);
+        let mut tribles = self.eav.infixes(&[0; TRIBLE_LEN], 0, TRIBLE_LEN, |k| k);
         tribles.sort_unstable();
         for trible in tribles {
             buffer.extend_from_slice(&trible);

@@ -8,10 +8,10 @@ macro_rules! entities_inner {
             { use $Namespace as ns; ns::ids::$FieldName },
             { use $Namespace as ns; let v: ns::types::$FieldName = $Value; v}))
     };
-    (@entity ($set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),*})) => {
+    (@entity ($set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),* $(,)?})) => {
         $(entities_inner!(@triple ($set, $Namespace, $EntityId, $FieldName, $Value));)*
     };
-    (@entity ($set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),*})) => {
+    (@entity ($set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),* $(,)?})) => {
         {
             {
                 let id = { use $Namespace as ns; <ns::Id as $crate::types::Idlike>::factory() };
@@ -60,7 +60,7 @@ macro_rules! pattern_inner {
 
     };
 
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),*})) => {
+    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             use $Namespace as ns;
             let e_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
@@ -69,7 +69,7 @@ macro_rules! pattern_inner {
         }
     };
 
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),*})) => {
+    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             use $Namespace as ns;
             let e_var: $crate::query::Variable<ns::Id> = $EntityId;

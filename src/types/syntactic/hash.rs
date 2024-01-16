@@ -2,7 +2,7 @@ use std::{fmt, marker::PhantomData};
 
 use hex::ToHex;
 
-use crate::types::{Value, Valuelike, ValueParseError};
+use crate::types::{Value, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Hash<H> {

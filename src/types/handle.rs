@@ -7,7 +7,7 @@ use hex::ToHex;
 use crate::types::syntactic::Hash;
 use crate::types::{Blob, Value};
 
-use super::{Bloblike, Valuelike, ValueParseError};
+use super::{Bloblike, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {

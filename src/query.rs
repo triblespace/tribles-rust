@@ -13,7 +13,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::types::{Value, Valuelike, ValueParseError};
+use crate::types::{Value, ValueParseError, Valuelike};
 
 use crate::bitset::ByteBitset;
 
@@ -168,7 +168,9 @@ enum Search {
     Backtrack,
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Iterator for Query<C, P, R> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Iterator
+    for Query<C, P, R>
+{
     // we will be counting with usize
     type Item = Result<R, ValueParseError>;
 
@@ -223,7 +225,9 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
     }
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> fmt::Debug for Query<C, P, R> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> fmt::Debug
+    for Query<C, P, R>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Query")
     }

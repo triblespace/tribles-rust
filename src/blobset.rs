@@ -95,7 +95,9 @@ where
                     tribles.pattern::<UFOID, UFOID, Hash<H>>(e, a, v)
                 )
             )
-        ).flatten() {
+        )
+        .flatten()
+        {
             let blob = self.blobs.get(&hash.value).unwrap();
             set.put_raw(hash, blob)
         }

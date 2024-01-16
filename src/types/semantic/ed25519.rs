@@ -1,10 +1,24 @@
-use ed25519::ComponentBytes;
+use ed25519::{ComponentBytes, Signature};
 pub use ed25519_dalek::VerifyingKey;
 
-use crate::types::{Valuelike, ValueParseError};
+use crate::types::{ValueParseError, Valuelike};
 
-pub struct RComponent(ComponentBytes);
-pub struct SComponent(ComponentBytes);
+#[derive(Debug)]
+pub struct RComponent(pub ComponentBytes);
+#[derive(Debug)]
+pub struct SComponent(pub ComponentBytes);
+
+impl RComponent {
+    pub fn from_signature(s: Signature) -> Self {
+        Self(*s.r_bytes())
+    }
+}
+
+impl SComponent {
+    pub fn from_signature(s: Signature) -> Self {
+        Self(*s.s_bytes())
+    }
+}
 
 impl Valuelike for RComponent {
     fn from_value(value: crate::types::Value) -> Result<Self, ValueParseError> {
@@ -28,10 +42,11 @@ impl Valuelike for SComponent {
 
 impl Valuelike for VerifyingKey {
     fn from_value(value: crate::types::Value) -> Result<Self, ValueParseError> {
-        VerifyingKey::from_bytes(&value).map_err(|e| ValueParseError::new(value, "failed to construct valid VerifyingKey"))
+        VerifyingKey::from_bytes(&value)
+            .map_err(|e| ValueParseError::new(value, "failed to construct valid VerifyingKey"))
     }
 
     fn into_value(&self) -> crate::types::Value {
-        todo!()
+        self.to_bytes()
     }
 }

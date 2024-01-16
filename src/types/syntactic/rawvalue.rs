@@ -1,4 +1,4 @@
-use crate::types::{Value, Valuelike, ValueParseError};
+use crate::types::{Value, ValueParseError, Valuelike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]

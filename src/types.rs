@@ -2,7 +2,7 @@ pub mod handle;
 pub mod semantic;
 pub mod syntactic;
 
-use std::{convert::TryInto, sync::Arc, fmt::Debug};
+use std::{convert::TryInto, fmt::Debug, sync::Arc};
 
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
@@ -65,7 +65,10 @@ impl PartialEq for ValueParseError {
 }
 impl Debug for ValueParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ValueParseError").field("value", &hex::encode(&self.value)).field("msg", &self.msg).finish()
+        f.debug_struct("ValueParseError")
+            .field("value", &hex::encode(&self.value))
+            .field("msg", &self.msg)
+            .finish()
     }
 }
 

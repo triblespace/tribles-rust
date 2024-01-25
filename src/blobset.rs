@@ -6,7 +6,7 @@ use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
 use crate::types::handle::Handle;
 use crate::types::syntactic::{Hash, UFOID};
 use crate::types::{Blob, Bloblike, Value, VALUE_LEN};
-use crate::{and, mask, query};
+use crate::{and, mask, query::find};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
@@ -84,7 +84,7 @@ where
     {
         let mut set = BlobSet::new();
 
-        for (hash,) in query!(
+        for (hash,) in find!(
             ctx,
             (v),
             and!(

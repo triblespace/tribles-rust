@@ -1,8 +1,8 @@
 use std::convert::TryInto;
 
-use tribles::and;
 use tribles::attribute::Attribute;
-use tribles::query;
+use tribles::query::and;
+use tribles::query::find;
 
 use tribles::patch;
 
@@ -44,7 +44,7 @@ fn main() {
     loves.add(&juliet, &romeo);
 
     loop {
-        for _r in query!(
+        for _r in find!(
             ctx,
             (juliet, romeo, romeo_name, juliet_name),
             and!(

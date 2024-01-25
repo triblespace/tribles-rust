@@ -43,7 +43,7 @@ impl Valuelike for SComponent {
 impl Valuelike for VerifyingKey {
     fn from_value(value: crate::types::Value) -> Result<Self, ValueParseError> {
         VerifyingKey::from_bytes(&value)
-            .map_err(|e| ValueParseError::new(value, "failed to construct valid VerifyingKey"))
+            .map_err(|_| ValueParseError::new(value, "failed to construct valid VerifyingKey"))
     }
 
     fn into_value(&self) -> crate::types::Value {

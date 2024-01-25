@@ -1,26 +1,15 @@
-use std::convert::TryInto;
-
-use digest::block_buffer::Error;
-use digest::Digest;
 use ed25519::Signature;
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::SigningKey;
 use itertools::Itertools;
 
 use ed25519::signature::{Signer, Verifier};
 
-use crate::trible::{A_END, A_START, E_END, E_START};
 use crate::types::semantic::ed25519::{RComponent, SComponent};
-use crate::types::{BlobParseError, Bloblike, Idlike};
 use crate::{
     namespace::NS,
-    query,
-    trible::TRIBLE_LEN,
+    query::find,
     tribleset::TribleSet,
-    types::{
-        handle::Handle,
-        syntactic::{Blake2b, RawId},
-        Blob, Id, Value, ID_LEN,
-    },
+    types::{handle::Handle, syntactic::RawId},
 };
 
 NS! {
@@ -72,7 +61,7 @@ pub fn verify<H>(
 ) -> Result<(), ValidationError> {
     let hash = handle.hash.value;
 
-    let (verifying_key, r, s) = query!(
+    let (verifying_key, r, s) = find!(
         ctx,
         (key, r, s),
         commit_ns::pattern!(ctx, tribles, [

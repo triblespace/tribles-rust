@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use tribles::query;
+use tribles::query::find;
 use tribles::NS;
 
 use tribles::patch;
@@ -48,7 +48,7 @@ fn main() {
     kb.union(&data_kb);
 
     loop {
-        for _r in query!(
+        for _r in find!(
             ctx,
             (juliet, name),
             knights::pattern!(ctx, kb, [

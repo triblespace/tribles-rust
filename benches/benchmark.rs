@@ -11,7 +11,7 @@ use tribles::NS;
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::types::syntactic::UFOID;
-use tribles::{query, trible::*};
+use tribles::{find, trible::*};
 
 use tribles::patch::{self, Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
@@ -493,7 +493,7 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
         b.iter_with_large_drop(|| {
-            let r = query!(
+            let r = find!(
                 ctx,
                 (juliet, name),
                 knights::pattern!(ctx, kb, [
@@ -511,7 +511,7 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("pattern", 1000), |b| {
         b.iter_with_large_drop(|| {
-            let r = query!(
+            let r = find!(
                 ctx,
                 (juliet, name),
                 knights::pattern!(ctx, kb, [
@@ -564,7 +564,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("query", 1), |b| {
         b.iter_with_large_drop(|| {
-            let r = query!(
+            let r = find!(
                 ctx,
                 (juliet, romeo, romeo_name, juliet_name),
                 and!(
@@ -582,7 +582,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("query", 1000), |b| {
         b.iter_with_large_drop(|| {
-            let r = query!(
+            let r = find!(
                 ctx,
                 (juliet, romeo, romeo_name, juliet_name),
                 and!(

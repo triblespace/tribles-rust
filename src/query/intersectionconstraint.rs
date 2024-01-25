@@ -64,7 +64,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
 #[macro_export]
 macro_rules! and {
     ($($c:expr),+ $(,)?) => (
-        crate::query::IntersectionConstraint::new(vec![
+        $crate::query::intersectionconstraint::IntersectionConstraint::new(vec![
             $(Box::new($c)),+
         ])
     )

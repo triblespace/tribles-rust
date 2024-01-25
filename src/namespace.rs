@@ -168,7 +168,7 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{patch::init, query, tribleset::TribleSet};
+    use crate::{patch::init, query::find, tribleset::TribleSet};
 
     use std::convert::TryInto;
 
@@ -224,7 +224,7 @@ mod tests {
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
         }]);
-        let r: Vec<_> = query!(
+        let r: Vec<_> = find!(
             ctx,
             (juliet, name),
             knights::pattern!(ctx, kb, [
@@ -268,7 +268,7 @@ mod tests {
 
         kb.union(&data_kb);
 
-        let r: Vec<_> = query!(
+        let r: Vec<_> = find!(
             ctx,
             (juliet, name),
             knights::pattern!(ctx, kb, [

@@ -25,7 +25,7 @@ impl Valuelike for ShortString {
                 .take_while(|&x| x != 0)
                 .collect(),
         )
-        .map_err(|e| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
+        .map_err(|_| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
         Ok(ShortString(s))
     }
 

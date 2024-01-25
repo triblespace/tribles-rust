@@ -1,8 +1,8 @@
-mod constantconstraint;
-mod hashsetconstraint;
-mod intersectionconstraint;
-mod mask;
-mod patchconstraint;
+pub mod constantconstraint;
+pub mod hashsetconstraint;
+pub mod intersectionconstraint;
+pub mod mask;
+pub mod patchconstraint;
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -234,7 +234,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> fm
 }
 
 #[macro_export]
-macro_rules! query {
+macro_rules! find {
     ($ctx:ident, ($($Var:ident),+), $Constraint:expr) => {
         {
             let mut $ctx = $crate::query::VariableContext::new();
@@ -246,7 +246,7 @@ macro_rules! query {
         }
     };
 }
-pub use query;
+pub use find;
 
 #[cfg(test)]
 mod tests {
@@ -281,15 +281,15 @@ mod tests {
         movies.insert(ShortString::new("LOTR".into()).unwrap());
         movies.insert(ShortString::new("Highlander".into()).unwrap());
 
-        let inter: Vec<_> = query!(ctx, (a), and!(a.of(&books), a.of(&movies),)).collect();
+        let inter: Vec<_> = find!(ctx, (a), and!(a.of(&books), a.of(&movies),)).collect();
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<_> = query!(ctx, (a, b), and!(a.of(&books), b.of(&movies))).collect();
+        let cross: Vec<_> = find!(ctx, (a, b), and!(a.of(&books), b.of(&movies))).collect();
 
         assert_eq!(cross.len(), 6);
 
-        let one: Vec<_> = query!(
+        let one: Vec<_> = find!(
             ctx,
             (a),
             and!(a.of(&books), a.is("LOTR".try_into().unwrap()))
@@ -331,7 +331,7 @@ mod tests {
             name: "Romeo".try_into().unwrap()
         }]);
 
-        let r: Vec<_> = query!(
+        let r: Vec<_> = find!(
             ctx,
             (romeo, juliet, name),
             knights::pattern!(ctx, kb, [

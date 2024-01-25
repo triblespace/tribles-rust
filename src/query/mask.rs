@@ -40,7 +40,7 @@ macro_rules! mask {
             let mut mask = $crate::query::VariableSet::new_empty();
             $(let $Var = $ctx.next_variable();
               mask.set($Var.index);)*
-            crate::query::MaskConstraint::new(mask, Box::new($c))
+            $crate::query::MaskConstraint::new(mask, Box::new($c))
         }
     )
 }

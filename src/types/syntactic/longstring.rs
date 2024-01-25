@@ -25,7 +25,7 @@ impl From<String> for LongString {
 impl Bloblike for LongString {
     fn from_blob(blob: Blob) -> Result<Self, BlobParseError> {
         let s = String::from_utf8(blob.to_vec())
-            .map_err(|e| BlobParseError::new(blob, "failed to convert to utf-8 string"))?;
+            .map_err(|_| BlobParseError::new(blob, "failed to convert to utf-8 string"))?;
         Ok(LongString(s))
     }
     fn into_blob(&self) -> Blob {

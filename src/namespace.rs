@@ -1,5 +1,17 @@
-pub mod triblepattern;
+//! Namespaces give semantic meaning to the raw binary data stored in
+//! [crate::TribleSet]s and [crate::BlobSet]s and provide a mapping to human readable
+//! names and language types.
+//! 
+//! Note that the namespace system (and in extend data model) presented here
+//! is just one of potentially many ways to create and query trible and blob data,
+//! and you are encouraged to port or invent the data definition and query languages
+//! that fit your personal needs and taste, e.g. GraphQL, SQL, Cypher, SPARQL and friend.
+//! 
+//! Great care has been taken to design the system in a way that data described
+//! in different data definition languages can be merged, and more importanly
+//! that multiple query languages can be cooperatively used in a single query.
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! entities_inner {
     (@triple ($set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
@@ -28,18 +40,19 @@ macro_rules! entities_inner {
     };
     ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
         {
-            let mut set = $crate::tribleset::TribleSet::new();
+            let mut set = $crate::TribleSet::new();
             entities_inner!($Namespace, ($($Var),*), [$($Entity),*], set)
         }
     };
 }
 pub use entities_inner;
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! pattern_inner {
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
-            use $crate::namespace::triblepattern::TriblePattern;
+            use $crate::query::TriblePattern;
             let a_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::types::$FieldName> = $ctx.next_variable();
             $constraints.push({ use $Namespace as ns; Box::new(a_var.is(ns::ids::$FieldName)) });
@@ -50,7 +63,7 @@ macro_rules! pattern_inner {
     };
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
         {
-            use $crate::namespace::triblepattern::TriblePattern;
+            use $crate::query::TriblePattern;
             use $Namespace as ns;
             let a_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::types::$FieldName> = $Value;
@@ -96,23 +109,47 @@ macro_rules! pattern_inner {
 
 pub use pattern_inner;
 
-/*
-mod knights {
-    pub use crate::types::ufoid::UFOID as id;
-    pub mod ids {
-        use hex_literal::hex;
-        pub const name: crate::types::ufoid::UFOID  = crate::types::ufoid::UFOID::raw(hex!("328147856cc1984f0806dbb824d2b4cb"));
-        pub const loves: crate::types::ufoid::UFOID  = crate::types::ufoid::UFOID::raw(hex!("328edd7583de04e2bedd6bd4fd50e651"));
-        pub const title: crate::types::ufoid::UFOID  = crate::types::ufoid::UFOID::raw(hex!("328f2c33d2fdd675e733388770b2d6c4"));
-    }
-    pub mod types {
-        pub use crate::types::ufoid::UFOID as loves;
-        pub use std::string::String as name;
-        pub use std::string::String as title;
-    }
-}
-*/
-
+/// Define a rust module to represent a namespace.
+/// The module additionally defines `entities!` and `pattern!` macros.
+/// 
+/// The `entities!` macro can be used to conveniently create triblesets
+/// containing entities conforming to the namespace.
+/// 
+/// The `pattern!` macro can be used to query datastructures implementing
+/// the [crate::query::TriblePattern] trait.
+/// 
+/// A namespace defined like this
+/// ```
+/// use tribles::NS;
+/// 
+/// NS! {
+///     pub namespace namespace_name {
+///         @ tribles::types::syntactic::UFOID;
+///         attr_name: "FF00FF00FF00FF00FF00FF00FF00FF00" as tribles::types::syntactic::UFOID;
+///         attr_name2: "BBAABBAABBAABBAABBAABBAABBAABBAA" as tribles::types::syntactic::ShortString;
+///     }
+/// }
+/// ```
+/// 
+/// will be translated into a module with the following structure
+/// 
+/// ```
+/// mod namespace_name {
+///   pub use tribles::types::syntactic::UFOID as id;
+///   pub mod ids {
+///       use hex_literal::hex;
+///       pub const attr_name: tribles::types::syntactic::UFOID  = tribles::types::syntactic::UFOID::raw(hex!("FF00FF00FF00FF00FF00FF00FF00FF00"));
+///       pub const attr_name2: tribles::types::syntactic::UFOID  = tribles::types::syntactic::UFOID::raw(hex!("BBAABBAABBAABBAABBAABBAABBAABBAA"));
+///   }
+///   pub mod types {
+///       pub use tribles::types::syntactic::UFOID as attr_name;
+///       pub use tribles::types::syntactic::ShortString as attr_name2;
+///   }
+/// }
+/// ```
+/// 
+/// this allows you to access attribute ids and types via their human readable names, e.g.
+/// `namespace_name::ids::attrName` and `namespace_name::types::attrName`.
 #[macro_export]
 macro_rules! NS {
     ($visibility:vis namespace $mod_name:ident {@ $IdType:ty; $($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
@@ -168,7 +205,7 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{patch::init, query::find, tribleset::TribleSet};
+    use crate::{patch::init, query::find, TribleSet};
 
     use std::convert::TryInto;
 

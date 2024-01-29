@@ -4,7 +4,7 @@ use tribles::query::find;
 use tribles::NS;
 
 use tribles::patch;
-use tribles::tribleset::TribleSet;
+use tribles::TribleSet;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;

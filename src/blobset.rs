@@ -1,7 +1,7 @@
 use digest::typenum::U32;
 use digest::{Digest, OutputSizeUser};
 
-use crate::namespace::triblepattern::TriblePattern;
+use crate::query::TriblePattern;
 use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
 use crate::types::handle::Handle;
 use crate::types::syntactic::{Hash, UFOID};

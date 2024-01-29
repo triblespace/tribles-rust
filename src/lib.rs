@@ -1,15 +1,17 @@
+#![doc = include_str!("../README.md")]
+
 pub mod attribute;
 pub mod bitset;
-pub mod blobset;
+mod blobset;
 pub mod bytetable;
-pub mod commit;
+pub mod meta;
 pub mod namespace;
 pub mod patch;
 pub mod query;
 pub mod remote;
 pub mod test;
 pub mod trible;
-pub mod tribleset;
+mod tribleset;
 pub mod types;
 
 pub use blobset::BlobSet;

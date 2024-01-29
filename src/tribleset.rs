@@ -2,7 +2,7 @@ mod triblesetconstraint;
 
 use triblesetconstraint::*;
 
-use crate::namespace::triblepattern::*;
+use crate::query::TriblePattern;
 
 use crate::patch::{Entry, PATCH};
 use crate::trible::{

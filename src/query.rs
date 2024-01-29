@@ -1,3 +1,15 @@
+//! Queries allow you to retrieve data by describing the patterns you are looking for.
+//! 
+//! The query engine provided here has the design goals of extreme simplicity,
+//! low and consistent latency, skew resistence, with no tuning required (or possible).
+//! To achieve this it implements a novel constraint solving algorithm based on the theory
+//! of worst case optimal joins.
+//! 
+//! New constraints can be implemented via the [Constraint] trait,
+//! providing great flexibililty in the way different query operators, 
+//! sub-languages, and data-sources can be composed.
+//! 
+//! 
 pub mod constantconstraint;
 pub mod hashsetconstraint;
 pub mod intersectionconstraint;
@@ -13,9 +25,29 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::types::{Value, ValueParseError, Valuelike};
+use crate::types::{Value, ValueParseError, Idlike, Valuelike};
 
 use crate::bitset::ByteBitset;
+
+pub trait TriblePattern {
+    type PatternConstraint<'a, E, A, V>: Constraint<'a>
+    where
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike,
+        Self: 'a;
+
+    fn pattern<'a, E, A, V>(
+        &'a self,
+        e: Variable<E>,
+        a: Variable<A>,
+        v: Variable<V>,
+    ) -> Self::PatternConstraint<'a, E, A, V>
+    where
+        E: Idlike,
+        A: Idlike,
+        V: Valuelike;
+}
 
 pub type VariableId = u8;
 pub type VariableSet = ByteBitset;

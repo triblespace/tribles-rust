@@ -1,4 +1,4 @@
-Tribles is a knowledge graph standard for content addressed storage.
+Tribles is a knowledge graph standard for blob storage.
 
 We hope to overcome the shortcomings of existing semantic web technologies, through simplicity, easy canonicalization, clean distributed semantics and lightweight libraries that leverage language capabilities.
 

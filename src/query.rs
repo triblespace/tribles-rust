@@ -72,6 +72,11 @@ impl VariableContext {
     }
 }
 
+/// A placeholder for unknowns in a query.
+/// Within the query engine each variable is identified by an integer,
+/// which can be accessed via the `index` property.
+/// Variables also have an associated type which is used to parse the [Value]s
+/// found by the query engine.
 #[derive(Debug)]
 pub struct Variable<T> {
     pub index: VariableId,

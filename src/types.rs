@@ -14,26 +14,41 @@ pub type Blob = Arc<[u8]>;
 pub const ID_LEN: usize = 16;
 pub const VALUE_LEN: usize = 32;
 
-pub fn id_into_value(id: Id) -> Value {
-    let mut data = [0; VALUE_LEN];
-    data[16..=31].copy_from_slice(&id[..]);
-    data
-}
-
+/// A type that is convertible to and from an [Id].
+/// Must also provide a method to generate new unique values of that type.
 pub trait Idlike {
     fn from_id(id: Id) -> Self;
     fn into_id(&self) -> Id;
     fn factory() -> Self;
 }
 
+/// A type that is convertible to and from a [Value].
 pub trait Valuelike: Sized {
     fn from_value(value: Value) -> Result<Self, ValueParseError>;
     fn into_value(&self) -> Value;
 }
 
+/// A type that is convertible to and from a [Blob].
 pub trait Bloblike: Sized {
     fn from_blob(blob: Blob) -> Result<Self, BlobParseError>;
     fn into_blob(&self) -> Blob;
+}
+
+impl Bloblike for Blob {
+    fn from_blob(blob: Blob) -> Result<Self, BlobParseError> {
+        Ok(blob)
+    }
+
+    fn into_blob(&self) -> Blob {
+        self.clone()
+    }
+}
+
+
+pub fn id_into_value(id: Id) -> Value {
+    let mut data = [0; VALUE_LEN];
+    data[16..=31].copy_from_slice(&id[..]);
+    data
 }
 
 impl<T: Idlike> Valuelike for T {

@@ -10,6 +10,7 @@ use crate::{and, mask, query::find};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
+/// A pesistent mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
 pub struct BlobSet<H> {
     blobs: PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>,

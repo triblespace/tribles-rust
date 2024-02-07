@@ -44,7 +44,6 @@ impl Bloblike for Blob {
     }
 }
 
-
 pub fn id_into_value(id: Id) -> Value {
     let mut data = [0; VALUE_LEN];
     data[16..=31].copy_from_slice(&id[..]);

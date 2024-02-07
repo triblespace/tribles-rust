@@ -1,12 +1,12 @@
 //! Namespaces give semantic meaning to the raw binary data stored in
 //! [crate::TribleSet]s and [crate::BlobSet]s and provide a mapping to human readable
 //! names and language types.
-//! 
+//!
 //! Note that the namespace system (and in extend data model) presented here
 //! is just one of potentially many ways to create and query trible and blob data,
 //! and you are encouraged to port or invent the data definition and query languages
 //! that fit your personal needs and taste, e.g. GraphQL, SQL, Cypher, SPARQL and friend.
-//! 
+//!
 //! Great care has been taken to design the system in a way that data described
 //! in different data definition languages can be merged, and more importanly
 //! that multiple query languages can be cooperatively used in a single query.
@@ -111,17 +111,17 @@ pub use pattern_inner;
 
 /// Define a rust module to represent a namespace.
 /// The module additionally defines `entities!` and `pattern!` macros.
-/// 
+///
 /// The `entities!` macro can be used to conveniently create triblesets
 /// containing entities conforming to the namespace.
-/// 
+///
 /// The `pattern!` macro can be used to query datastructures implementing
 /// the [crate::query::TriblePattern] trait.
-/// 
+///
 /// A namespace defined like this
 /// ```
 /// use tribles::NS;
-/// 
+///
 /// NS! {
 ///     pub namespace namespace_name {
 ///         @ tribles::types::syntactic::UFOID;
@@ -130,9 +130,9 @@ pub use pattern_inner;
 ///     }
 /// }
 /// ```
-/// 
+///
 /// will be translated into a module with the following structure
-/// 
+///
 /// ```
 /// mod namespace_name {
 ///   pub use tribles::types::syntactic::UFOID as id;
@@ -147,7 +147,7 @@ pub use pattern_inner;
 ///   }
 /// }
 /// ```
-/// 
+///
 /// this allows you to access attribute ids and types via their human readable names, e.g.
 /// `namespace_name::ids::attrName` and `namespace_name::types::attrName`.
 #[macro_export]

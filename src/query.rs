@@ -1,15 +1,15 @@
 //! Queries allow you to retrieve data by describing the patterns you are looking for.
-//! 
+//!
 //! The query engine provided here has the design goals of extreme simplicity,
 //! low and consistent latency, skew resistence, with no tuning required (or possible).
 //! To achieve this it implements a novel constraint solving algorithm based on the theory
 //! of worst case optimal joins.
-//! 
+//!
 //! New constraints can be implemented via the [Constraint] trait,
-//! providing great flexibililty in the way different query operators, 
+//! providing great flexibililty in the way different query operators,
 //! sub-languages, and data-sources can be composed.
-//! 
-//! 
+//!
+//!
 pub mod constantconstraint;
 pub mod hashsetconstraint;
 pub mod intersectionconstraint;
@@ -25,7 +25,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::types::{Value, ValueParseError, Idlike, Valuelike};
+use crate::types::{Idlike, Value, ValueParseError, Valuelike};
 
 use crate::bitset::ByteBitset;
 

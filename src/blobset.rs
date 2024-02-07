@@ -1,8 +1,8 @@
 use digest::typenum::U32;
 use digest::{Digest, OutputSizeUser};
 
-use crate::query::TriblePattern;
 use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
+use crate::query::TriblePattern;
 use crate::types::handle::Handle;
 use crate::types::syntactic::{Hash, UFOID};
 use crate::types::{Blob, Bloblike, Value, VALUE_LEN};

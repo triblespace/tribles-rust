@@ -1044,6 +1044,18 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PATCHIterator<
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+    V: Clone,
+> {
+    nodes: [Head<KEY_LEN, O, S, V>; KEY_LEN],
+    indices: [u8; KEY_LEN],
+    depth: u8,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

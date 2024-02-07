@@ -146,7 +146,10 @@ fn patch_benchmark(c: &mut Criterion) {
                 let entry: Entry<64, ()> = Entry::new(&t.data, ());
                 patch.insert(&entry);
             }
-            b.iter(|| patch.infixes(&[0; 64], 0, 63, |x| x))
+            b.iter(|| {
+                let mut v = vec![];
+                patch.infixes::<TRIBLE_LEN, _>(&[0; 64], 0, 63, &mut |x| v.push(x));
+            });
         });
     }
 

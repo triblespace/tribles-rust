@@ -151,7 +151,9 @@ impl Bloblike for TribleSet {
     fn into_blob(&self) -> Blob {
         let mut buffer = Vec::<u8>::with_capacity((self.len() + 1) * 64);
 
-        let mut tribles = self.eav.infixes(&[0; TRIBLE_LEN], 0, TRIBLE_LEN, |k| k);
+        let mut tribles = vec![];
+        self.eav
+            .infixes::<TRIBLE_LEN, _>(&[0; TRIBLE_LEN], 0, TRIBLE_LEN, &mut |k| tribles.push(k));
         tribles.sort_unstable();
         for trible in tribles {
             buffer.extend_from_slice(&trible);

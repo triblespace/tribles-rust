@@ -265,10 +265,9 @@ macro_rules! create_branch {
                 at_depth: usize,
                 start_depth: usize,
                 end_depth: usize,
-                f: F,
-                out: &mut Vec<[u8; INFIX_LEN]>,
+                f: &mut F,
             ) where
-                F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN] + Copy,
+                F: FnMut([u8; KEY_LEN]),
             {
                 let node_end_depth = ((*node).end_depth as usize);
                 let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
@@ -280,20 +279,32 @@ macro_rules! create_branch {
                 }
 
                 if end_depth < node_end_depth {
-                    out.push(f((*(*node).min).key));
+                    f((*(*node).min).key);
                     return;
                 }
                 if start_depth > node_end_depth {
                     if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)])
                     {
-                        child.infixes(key, node_end_depth, start_depth, end_depth, f, out);
+                        child.infixes::<INFIX_LEN, F>(
+                            key,
+                            node_end_depth,
+                            start_depth,
+                            end_depth,
+                            f,
+                        );
                     }
                     return;
                 }
                 for bucket in &(*node).child_table.buckets {
                     // TODO replace this with iterator
                     for entry in &bucket.entries {
-                        entry.infixes(key, node_end_depth, start_depth, end_depth, f, out);
+                        entry.infixes::<INFIX_LEN, F>(
+                            key,
+                            node_end_depth,
+                            start_depth,
+                            end_depth,
+                            f,
+                        );
                     }
                 }
             }

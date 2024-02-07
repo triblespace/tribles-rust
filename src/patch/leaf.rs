@@ -130,10 +130,9 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         key: &[u8; KEY_LEN],
         at_depth: usize,
         start_depth: usize,
-        f: F,
-        out: &mut Vec<[u8; INFIX_LEN]>,
+        f: &mut F,
     ) where
-        F: Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
+        F: FnMut([u8; KEY_LEN]),
     {
         let leaf_key = &(*node).key;
         for depth in at_depth..start_depth {
@@ -143,7 +142,7 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
             }
         }
         unsafe {
-            out.push(f((*node).key));
+            f((*node).key);
         }
     }
 

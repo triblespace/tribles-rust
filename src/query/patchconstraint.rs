@@ -44,7 +44,10 @@ where
     }
 
     fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
-        self.patch.infixes(&[0; VALUE_LEN], 0, VALUE_LEN, |k| k)
+        let mut r = vec![];
+        self.patch
+            .infixes::<VALUE_LEN, _>(&[0; VALUE_LEN], 0, VALUE_LEN, &mut |k| r.push(k));
+        r
     }
 
     fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {

@@ -576,10 +576,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         at_depth: usize,
         start_depth: usize,
         end_depth: usize,
-        f: F,
-        out: &mut Vec<[u8; INFIX_LEN]>,
+        f: &mut F,
     ) where
-        F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
+        F: FnMut([u8; KEY_LEN]),
     {
         unsafe {
             match self.tag() {
@@ -590,79 +589,70 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                     at_depth,
                     start_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::infixes(
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
                     self.ptr(),
                     key,
                     at_depth,
                     start_depth,
                     end_depth,
                     f,
-                    out,
                 ),
             }
         }
@@ -1004,21 +994,17 @@ where
         key: &[u8; KEY_LEN],
         start_depth: usize,
         end_depth: usize,
-        f: F,
-    ) -> Vec<[u8; INFIX_LEN]>
-    where
-        F: Copy + Fn([u8; KEY_LEN]) -> [u8; INFIX_LEN],
+        f: &mut F,
+    ) where
+        F: FnMut([u8; KEY_LEN]),
     {
-        let mut out = vec![];
-        self.root.infixes(
+        self.root.infixes::<INFIX_LEN, F>(
             key,
             0,
             O::tree_index(start_depth),
             O::tree_index(end_depth),
             f,
-            &mut out,
         );
-        out
     }
 
     pub fn has_prefix(&self, key: &[u8; KEY_LEN], end_depth: usize) -> bool {
@@ -1197,7 +1183,8 @@ mod tests {
             set.insert(key);
         }
         let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = tree.infixes(&[0; 64], 0, 63, |x| x);
+        let mut tree_vec = vec![];
+        tree.infixes::<64, _>(&[0; 64], 0, 63, &mut |x| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();
@@ -1231,7 +1218,8 @@ mod tests {
         left_tree.union(&right_tree);
 
         let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = left_tree.infixes(&[0; 64], 0, 63, |x| x);
+        let mut tree_vec = vec![];
+        left_tree.infixes::<64, _>(&[0; 64], 0, 63, &mut |x| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();
@@ -1256,7 +1244,8 @@ mod tests {
         left_tree.union(&right_tree);
 
         let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = left_tree.infixes(&[0; 64], 0, 63, |x| x);
+        let mut tree_vec = vec![];
+        left_tree.infixes::<64, _>(&[0; 64], 0, 63, &mut |x| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();

@@ -2,6 +2,7 @@ use super::*;
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use std::alloc::{alloc, dealloc, Layout};
+use std::convert::TryInto;
 
 fn min_key<const KEY_LEN: usize, V: Clone>(
     l: *const Leaf<KEY_LEN, V>,
@@ -259,37 +260,35 @@ macro_rules! create_branch {
                 return None;
             }
 
-            pub(super) unsafe fn infixes<const INFIX_LEN: usize, F>(
+            pub(super) unsafe fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
                 node: *const Self,
-                key: &[u8; KEY_LEN],
+                prefix: &[u8; PREFIX_LEN],
                 at_depth: usize,
-                start_depth: usize,
-                end_depth: usize,
                 f: &mut F,
             ) where
-                F: FnMut([u8; KEY_LEN]),
+                F: FnMut([u8; INFIX_LEN]),
             {
                 let node_end_depth = ((*node).end_depth as usize);
                 let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
-                for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
-                    let key_depth = O::key_index(depth);
-                    if leaf_key[key_depth] != key[key_depth] {
+                for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
+                    if leaf_key[O::key_index(depth)] != prefix[depth] {
                         return;
                     }
                 }
 
+                let end_depth = PREFIX_LEN + INFIX_LEN - 1;
+
                 if end_depth < node_end_depth {
-                    f((*(*node).min).key);
+                    let infix = (*(*node).min).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)].try_into().expect("invalid infix range");
+                    f(infix);
                     return;
                 }
-                if start_depth > node_end_depth {
-                    if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)])
+                if PREFIX_LEN > node_end_depth {
+                    if let Some(child) = (*node).child_table.get(prefix[node_end_depth])
                     {
-                        child.infixes::<INFIX_LEN, F>(
-                            key,
+                        child.infixes(
+                            prefix,
                             node_end_depth,
-                            start_depth,
-                            end_depth,
                             f,
                         );
                     }
@@ -298,11 +297,9 @@ macro_rules! create_branch {
                 for bucket in &(*node).child_table.buckets {
                     // TODO replace this with iterator
                     for entry in &bucket.entries {
-                        entry.infixes::<INFIX_LEN, F>(
-                            key,
+                        entry.infixes(
+                            prefix,
                             node_end_depth,
-                            start_depth,
-                            end_depth,
                             f,
                         );
                     }

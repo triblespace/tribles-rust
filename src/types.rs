@@ -46,8 +46,12 @@ impl Bloblike for Blob {
 
 pub fn id_into_value(id: Id) -> Value {
     let mut data = [0; VALUE_LEN];
-    data[16..=31].copy_from_slice(&id[..]);
+    data[16..32].copy_from_slice(&id[..]);
     data
+}
+
+pub fn id_from_value(id: Value) -> Id {
+    id[16..32].try_into().unwrap()
 }
 
 impl<T: Idlike> Valuelike for T {

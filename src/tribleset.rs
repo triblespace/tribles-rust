@@ -153,7 +153,7 @@ impl Bloblike for TribleSet {
 
         let mut tribles = vec![];
         self.eav
-            .infixes::<TRIBLE_LEN, _>(&[0; TRIBLE_LEN], 0, TRIBLE_LEN, &mut |k| tribles.push(k));
+            .infixes(&[0; 0], &mut |k: [u8; 64]| tribles.push(k));
         tribles.sort_unstable();
         for trible in tribles {
             buffer.extend_from_slice(&trible);

@@ -46,7 +46,7 @@ where
     fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
         let mut r = vec![];
         self.patch
-            .infixes::<VALUE_LEN, _>(&[0; VALUE_LEN], 0, VALUE_LEN, &mut |k| r.push(k));
+            .infixes::<0, VALUE_LEN, _>(&[0; 0], &mut |k| r.push(k));
         r
     }
 

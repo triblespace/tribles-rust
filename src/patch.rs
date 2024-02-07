@@ -570,88 +570,69 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    pub(crate) fn infixes<const INFIX_LEN: usize, F>(
+    pub(crate) fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
         &self,
-        key: &[u8; KEY_LEN],
+        prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
-        start_depth: usize,
-        end_depth: usize,
         f: &mut F,
     ) where
-        F: FnMut([u8; KEY_LEN]),
+        F: FnMut([u8; INFIX_LEN]),
     {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => return,
-                HeadTag::Leaf => Leaf::<KEY_LEN, V>::infixes::<INFIX_LEN, O, S, F>(
+                HeadTag::Leaf => Leaf::<KEY_LEN, V>::infixes::<PREFIX_LEN, INFIX_LEN, O, S, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
                     f,
                 ),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::infixes::<INFIX_LEN, F>(
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
                     self.ptr(),
-                    key,
+                    prefix,
                     at_depth,
-                    start_depth,
-                    end_depth,
                     f,
                 ),
             }
@@ -989,20 +970,17 @@ where
         self.root.count()
     }
 
-    pub fn infixes<const INFIX_LEN: usize, F>(
+    pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
         &self,
-        key: &[u8; KEY_LEN],
-        start_depth: usize,
-        end_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
         f: &mut F,
     ) where
-        F: FnMut([u8; KEY_LEN]),
+        F: FnMut([u8; INFIX_LEN]),
     {
-        self.root.infixes::<INFIX_LEN, F>(
-            key,
+        assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
+        self.root.infixes(
+            prefix,
             0,
-            O::tree_index(start_depth),
-            O::tree_index(end_depth),
             f,
         );
     }
@@ -1184,7 +1162,7 @@ mod tests {
         }
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
-        tree.infixes::<64, _>(&[0; 64], 0, 63, &mut |x| tree_vec.push(x));
+        tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();
@@ -1219,7 +1197,7 @@ mod tests {
 
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
-        left_tree.infixes::<64, _>(&[0; 64], 0, 63, &mut |x| tree_vec.push(x));
+        left_tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();
@@ -1245,7 +1223,7 @@ mod tests {
 
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
-        left_tree.infixes::<64, _>(&[0; 64], 0, 63, &mut |x| tree_vec.push(x));
+        left_tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();

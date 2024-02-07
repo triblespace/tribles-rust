@@ -5,6 +5,10 @@ use core::panic;
 use super::*;
 use crate::query::*;
 use crate::trible::*;
+use crate::types::id_from_value;
+use crate::types::id_into_value;
+use crate::types::ID_LEN;
+use crate::types::VALUE_LEN;
 
 pub struct TribleSetConstraint<'a, E, A, V>
 where
@@ -130,131 +134,127 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index);
-        let a_bound = binding.get(self.variable_a.index);
+        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
+        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
-                let trible = Trible::new_raw([0; 64]);
                 let mut r = vec![];
                 self.set
                     .eav
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, E_START, E_END, &mut |k| {
-                        r.push(Trible::new_raw(k).e_as_value())
+                    .infixes(&[0; 0], &mut |e| {
+                        r.push(id_into_value(e))
                     });
                 r
             }
             (None, None, None, false, true, false) => {
-                let trible = Trible::new_raw([0; 64]);
                 let mut r = vec![];
                 self.set
                     .aev
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, A_START, A_END, &mut |k| {
-                        r.push(Trible::new_raw(k).a_as_value())
+                    .infixes(&[0; 0], &mut |a| {
+                        r.push(id_into_value(a))
                     });
                 r
             }
             (None, None, None, false, false, true) => {
-                let trible = Trible::new_raw([0; 64]);
                 let mut r = vec![];
                 self.set
                     .vea
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, V_START, V_END, &mut |k| {
-                        r.push(Trible::new_raw(k).v())
+                    .infixes(&[0; 0], &mut |v| {
+                        r.push(v)
                     });
                 r
             }
 
             (Some(e), None, None, false, true, false) => {
-                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
                 let mut r = vec![];
                 self.set
                     .eav
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, A_START, A_END, &mut |k| {
-                        r.push(Trible::new_raw(k).a_as_value())
+                    .infixes(&e, &mut |a| {
+                        r.push(id_into_value(a))
                     });
                 r
             }
             (Some(e), None, None, false, false, true) => {
-                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
                 let mut r = vec![];
                 self.set
                     .eva
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, V_START, V_END, &mut |k| {
-                        r.push(Trible::new_raw(k).v())
+                    .infixes(&e, &mut |v| {
+                        r.push(v)
                     });
                 r
             }
 
             (None, Some(a), None, true, false, false) => {
-                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
                 let mut r = vec![];
                 self.set
                     .aev
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, E_START, E_END, &mut |k| {
-                        r.push(Trible::new_raw(k).e_as_value())
+                    .infixes(&a, &mut |e| {
+                        r.push(id_into_value(e))
                     });
                 r
             }
             (None, Some(a), None, false, false, true) => {
-                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
                 let mut r = vec![];
                 self.set
                     .ave
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, V_START, V_END, &mut |k| {
-                        r.push(Trible::new_raw(k).v())
+                    .infixes(&a, &mut |v| {
+                        r.push(v)
                     });
                 r
             }
 
             (None, None, Some(v), true, false, false) => {
-                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
                 let mut r = vec![];
                 self.set
                     .vea
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, E_START, E_END, &mut |k| {
-                        r.push(Trible::new_raw(k).e_as_value())
+                    .infixes(&v, &mut |e| {
+                        r.push(id_into_value(e))
                     });
                 r
             }
             (None, None, Some(v), false, true, false) => {
-                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
                 let mut r = vec![];
                 self.set
                     .vae
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, A_START, A_END, &mut |k| {
-                        r.push(Trible::new_raw(k).a_as_value())
+                    .infixes(&v, &mut |a| {
+                        r.push(id_into_value(a))
                     });
                 r
             }
             (None, Some(a), Some(v), true, false, false) => {
-                let trible = Trible::new_raw_values([0; 32], a, v);
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a[..]);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v[..]);
                 let mut r = vec![];
                 self.set
                     .ave
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, E_START, E_END, &mut |k| {
-                        r.push(Trible::new_raw(k).e_as_value())
+                    .infixes(&prefix, &mut |e| {
+                        r.push(id_into_value(e))
                     });
                 r
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let trible = Trible::new_raw_values(e, [0; 32], v);
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e[..]);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v[..]);
                 let mut r = vec![];
                 self.set
                     .eva
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, A_START, A_END, &mut |k| {
-                        r.push(Trible::new_raw(k).a_as_value())
+                    .infixes(&prefix, &mut |a| {
+                        r.push(id_into_value(a))
                     });
                 r
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let trible = Trible::new_raw_values(e, a, [0; 32]);
-                let mut r = vec![];
+                let mut prefix = [0u8; ID_LEN + ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e[..]);
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);                let mut r = vec![];
                 self.set
                     .eav
-                    .infixes::<TRIBLE_LEN, _>(&trible.data, V_START, V_END, &mut |k| {
-                        r.push(Trible::new_raw(k).v())
+                    .infixes(&prefix, &mut |v| {
+                        r.push(v)
                     });
                 r
             }

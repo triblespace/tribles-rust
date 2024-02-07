@@ -1,5 +1,6 @@
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use std::convert::TryInto;
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::alloc::*;
 
@@ -121,29 +122,31 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
     }
 
     pub(crate) unsafe fn infixes<
+        const PREFIX_LEN: usize,
         const INFIX_LEN: usize,
         O: KeyOrdering<KEY_LEN>,
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
         node: *const Self,
-        key: &[u8; KEY_LEN],
+        prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
-        start_depth: usize,
         f: &mut F,
     ) where
-        F: FnMut([u8; KEY_LEN]),
+        F: FnMut([u8; INFIX_LEN]),
     {
         let leaf_key = &(*node).key;
-        for depth in at_depth..start_depth {
-            let key_depth = O::key_index(depth);
-            if leaf_key[key_depth] != key[key_depth] {
+        for depth in at_depth..PREFIX_LEN {
+            if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return;
             }
         }
-        unsafe {
-            f((*node).key);
-        }
+
+        let end_depth = PREFIX_LEN + INFIX_LEN - 1;
+        let infix = unsafe {
+            (*node).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)].try_into().expect("invalid infix range")
+        };
+        f(infix);
     }
 
     pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>>(

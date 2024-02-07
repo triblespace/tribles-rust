@@ -148,7 +148,7 @@ fn patch_benchmark(c: &mut Criterion) {
             }
             b.iter(|| {
                 let mut v = vec![];
-                patch.infixes::<TRIBLE_LEN, _>(&[0; 64], 0, 63, &mut |x| v.push(x));
+                patch.infixes(&[0; 0], &mut |x: [u8; 64]| v.push(x));
             });
         });
     }

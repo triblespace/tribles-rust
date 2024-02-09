@@ -639,41 +639,40 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    pub(crate) fn has_prefix(
+    pub(crate) fn has_prefix<const PREFIX_LEN: usize>(
         &self,
         at_depth: usize,
-        key: &[u8; KEY_LEN],
-        end_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
     ) -> bool {
         unsafe {
             match self.tag() {
-                HeadTag::Empty => end_depth < at_depth,
+                HeadTag::Empty => PREFIX_LEN <= at_depth,
                 HeadTag::Leaf => {
-                    Leaf::<KEY_LEN, V>::has_prefix::<O>(self.ptr(), at_depth, key, end_depth)
+                    Leaf::<KEY_LEN, V>::has_prefix::<O, PREFIX_LEN>(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch2 => {
-                    Branch2::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch2::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch4 => {
-                    Branch4::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch4::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch8 => {
-                    Branch8::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch8::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch16 => {
-                    Branch16::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch16::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch32 => {
-                    Branch32::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch32::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch64 => {
-                    Branch64::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch64::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch128 => {
-                    Branch128::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch128::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
                 HeadTag::Branch256 => {
-                    Branch256::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, key, end_depth)
+                    Branch256::<KEY_LEN, O, S, V>::has_prefix(self.ptr(), at_depth, prefix)
                 }
             }
         }
@@ -985,8 +984,8 @@ where
         );
     }
 
-    pub fn has_prefix(&self, key: &[u8; KEY_LEN], end_depth: usize) -> bool {
-        self.root.has_prefix(0, key, O::tree_index(end_depth))
+    pub fn has_prefix<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> bool {
+        self.root.has_prefix(0, prefix)
     }
 
     pub fn segmented_len(&self, key: &[u8; KEY_LEN], start_depth: usize) -> u64 {

@@ -149,16 +149,14 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         f(infix);
     }
 
-    pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>>(
+    pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
         node: *const Self,
         at_depth: usize,
-        key: &[u8; KEY_LEN],
-        end_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
     ) -> bool {
         let leaf_key: &[u8; KEY_LEN] = &(*node).key;
-        for depth in at_depth..=end_depth {
-            let key_depth = O::key_index(depth);
-            if leaf_key[key_depth] != key[key_depth] {
+        for depth in at_depth..PREFIX_LEN {
+            if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return false;
             }
         }

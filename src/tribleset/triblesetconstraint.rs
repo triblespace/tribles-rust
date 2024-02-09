@@ -267,58 +267,76 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index);
-        let a_bound = binding.get(self.variable_a.index);
+        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
+        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values(*value, [0; 32], [0; 32]);
-                self.set.eav.has_prefix(&trible.data, E_END)
+                self.set.eav.has_prefix(&id_from_value(*value))
             }),
             (None, None, None, false, true, false) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values([0; 32], *value, [0; 32]);
-                self.set.aev.has_prefix(&trible.data, A_END)
+                self.set.aev.has_prefix(&id_from_value(*value))
             }),
             (None, None, None, false, false, true) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values([0; 32], [0; 32], *value);
-                self.set.vea.has_prefix(&trible.data, V_END)
+                self.set.vea.has_prefix(value)
             }),
             (Some(e), None, None, false, true, false) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values(e, *value, [0; 32]);
-                self.set.eav.has_prefix(&trible.data, A_END)
+                let mut prefix = [0u8; ID_LEN + ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e[..]);
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                self.set.eav.has_prefix(&prefix)
             }),
             (Some(e), None, None, false, false, true) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values(e, [0; 32], *value);
-                self.set.eva.has_prefix(&trible.data, V_END)
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e[..]);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(value);
+                self.set.eva.has_prefix(&prefix)
             }),
             (None, Some(a), None, true, false, false) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values(*value, a, [0; 32]);
-                self.set.aev.has_prefix(&trible.data, E_END)
+                let mut prefix = [0u8; ID_LEN + ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a[..]);
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                self.set.aev.has_prefix(&prefix)
             }),
             (None, Some(a), None, false, false, true) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values([0; 32], a, *value);
-                self.set.ave.has_prefix(&trible.data, V_END)
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a[..]);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(value);
+                self.set.ave.has_prefix(&prefix)
             }),
             (None, None, Some(v), true, false, false) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values(*value, [0; 32], v);
-                self.set.vea.has_prefix(&trible.data, E_END)
+                let mut prefix = [0u8; VALUE_LEN + ID_LEN];
+                prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
+                prefix[VALUE_LEN..VALUE_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                self.set.vea.has_prefix(&prefix)
             }),
             (None, None, Some(v), false, true, false) => proposals.retain(|value| {
-                let trible = Trible::new_raw_values([0; 32], *value, v);
-                self.set.vae.has_prefix(&trible.data, A_END)
+                let mut prefix = [0u8; VALUE_LEN + ID_LEN];
+                prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
+                prefix[VALUE_LEN..VALUE_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                self.set.vae.has_prefix(&prefix)
             }),
             (None, Some(a), Some(v), true, false, false) => proposals.retain(|value: &[u8; 32]| {
-                let trible = Trible::new_raw_values(*value, a, v);
-                self.set.ave.has_prefix(&trible.data, E_END)
+                let mut prefix = [0u8; ID_LEN + ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&id_from_value(*value));
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a);
+                prefix[ID_LEN + ID_LEN.. ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                self.set.ave.has_prefix(&prefix)
             }),
             (Some(e), None, Some(v), false, true, false) => proposals.retain(|value: &[u8; 32]| {
-                let trible = Trible::new_raw_values(e, *value, v);
-                self.set.eva.has_prefix(&trible.data, A_END)
+                let mut prefix = [0u8; ID_LEN + ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e);
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                prefix[ID_LEN + ID_LEN.. ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                self.set.eva.has_prefix(&prefix)
             }),
             (Some(e), Some(a), None, false, false, true) => proposals.retain(|value: &[u8; 32]| {
-                let trible = Trible::new_raw_values(e, a, *value);
-                self.set.eav.has_prefix(&trible.data, V_END)
+                let mut prefix = [0u8; ID_LEN + ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e);
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a);
+                prefix[ID_LEN + ID_LEN.. ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(value);
+                self.set.eav.has_prefix(&prefix)
             }),
             _ => panic!("invalid trible constraint state"),
         }

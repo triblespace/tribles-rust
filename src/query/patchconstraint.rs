@@ -51,7 +51,7 @@ where
     }
 
     fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
-        proposals.retain(|v| self.patch.has_prefix(v, VALUE_LEN));
+        proposals.retain(|v| self.patch.has_prefix(v));
     }
 }
 

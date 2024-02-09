@@ -276,13 +276,17 @@ macro_rules! create_branch {
                     }
                 }
 
-                let end_depth = PREFIX_LEN + INFIX_LEN - 1;
-
-                if end_depth < node_end_depth {
-                    let infix = (*(*node).min).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)].try_into().expect("invalid infix range");
+                // The infix ends within the current node.
+                if PREFIX_LEN + INFIX_LEN <= node_end_depth {
+                    // It has to be `..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)`
+                    // because `..O::key_index(PREFIX_LEN + INFIX_LEN)` would not work,
+                    // since `key_index` is not monotonic,
+                    // so the next segment might be somewhere else.
+                    let infix = (*(*node).min).key[O::key_index(PREFIX_LEN)..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)].try_into().expect("invalid infix range");
                     f(infix);
                     return;
                 }
+                // The prefix ends in a child of this node.
                 if PREFIX_LEN > node_end_depth {
                     if let Some(child) = (*node).child_table.get(prefix[node_end_depth])
                     {
@@ -294,8 +298,10 @@ macro_rules! create_branch {
                     }
                     return;
                 }
+
+                // The prefix ends in this node, but the infix ends in a child.
+                // TODO replace this with iterator
                 for bucket in &(*node).child_table.buckets {
-                    // TODO replace this with iterator
                     for entry in &bucket.entries {
                         entry.infixes(
                             prefix,
@@ -306,26 +312,29 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) unsafe fn has_prefix(
+            pub(super) unsafe fn has_prefix<const PREFIX_LEN: usize>(
                 node: *const Self,
                 at_depth: usize,
-                key: &[u8; KEY_LEN],
-                end_depth: usize,
+                prefix: &[u8; PREFIX_LEN],
             ) -> bool {
                 let node_end_depth = ((*node).end_depth as usize);
                 let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
-                for depth in at_depth..std::cmp::min(node_end_depth, end_depth) {
-                    let key_depth = O::key_index(depth);
-                    if leaf_key[key_depth] != key[key_depth] {
+                for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
+                    if leaf_key[O::key_index(depth)] != prefix[depth] {
                         return false;
                     }
                 }
-                if end_depth < node_end_depth {
+
+                // The prefix ends in this node.
+                if PREFIX_LEN <= node_end_depth {
                     return true;
                 }
-                if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)]) {
-                    return child.has_prefix(node_end_depth, key, end_depth);
+
+                //The prefix ends in a child of this node.
+                if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
+                    return child.has_prefix(node_end_depth, prefix);
                 }
+                // This node doesn't have a child matching the prefix.
                 return false;
             }
 

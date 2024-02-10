@@ -587,54 +587,55 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                     at_depth,
                     f,
                 ),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
-                    self.ptr(),
-                    prefix,
-                    at_depth,
-                    f,
-                ),
+                HeadTag::Branch2 => {
+                    Branch2::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
+                        self.ptr(),
+                        prefix,
+                        at_depth,
+                        f,
+                    )
+                }
+                HeadTag::Branch4 => {
+                    Branch4::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
+                        self.ptr(),
+                        prefix,
+                        at_depth,
+                        f,
+                    )
+                }
+                HeadTag::Branch8 => {
+                    Branch8::<KEY_LEN, O, S, V>::infixes::<PREFIX_LEN, INFIX_LEN, F>(
+                        self.ptr(),
+                        prefix,
+                        at_depth,
+                        f,
+                    )
+                }
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::infixes::<
+                    PREFIX_LEN,
+                    INFIX_LEN,
+                    F,
+                >(self.ptr(), prefix, at_depth, f),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::infixes::<
+                    PREFIX_LEN,
+                    INFIX_LEN,
+                    F,
+                >(self.ptr(), prefix, at_depth, f),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::infixes::<
+                    PREFIX_LEN,
+                    INFIX_LEN,
+                    F,
+                >(self.ptr(), prefix, at_depth, f),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::infixes::<
+                    PREFIX_LEN,
+                    INFIX_LEN,
+                    F,
+                >(self.ptr(), prefix, at_depth, f),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::infixes::<
+                    PREFIX_LEN,
+                    INFIX_LEN,
+                    F,
+                >(self.ptr(), prefix, at_depth, f),
             }
         }
     }
@@ -678,66 +679,41 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    pub(crate) fn segmented_len(
+    pub(crate) fn segmented_len<const PREFIX_LEN: usize>(
         &self,
         at_depth: usize,
-        key: &[u8; KEY_LEN],
-        start_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => 0,
                 HeadTag::Leaf => {
-                    Leaf::<KEY_LEN, V>::segmented_len::<O>(self.ptr(), at_depth, key, start_depth)
+                    Leaf::<KEY_LEN, V>::segmented_len::<O, PREFIX_LEN>(self.ptr(), at_depth, prefix)
                 }
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
-                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S, V>::segmented_len(
-                    self.ptr(),
-                    at_depth,
-                    key,
-                    start_depth,
-                ),
+                HeadTag::Branch2 => {
+                    Branch2::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch4 => {
+                    Branch4::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch8 => {
+                    Branch8::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch16 => {
+                    Branch16::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch32 => {
+                    Branch32::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch64 => {
+                    Branch64::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch128 => {
+                    Branch128::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
+                HeadTag::Branch256 => {
+                    Branch256::<KEY_LEN, O, S, V>::segmented_len(self.ptr(), at_depth, prefix)
+                }
             }
         }
     }
@@ -977,19 +953,15 @@ where
         F: FnMut([u8; INFIX_LEN]),
     {
         assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
-        self.root.infixes(
-            prefix,
-            0,
-            f,
-        );
+        self.root.infixes(prefix, 0, f);
     }
 
     pub fn has_prefix<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> bool {
         self.root.has_prefix(0, prefix)
     }
 
-    pub fn segmented_len(&self, key: &[u8; KEY_LEN], start_depth: usize) -> u64 {
-        self.root.segmented_len(0, key, O::tree_index(start_depth))
+    pub fn segmented_len<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> u64 {
+        self.root.segmented_len(0, prefix)
     }
 
     pub fn union(&mut self, other: &Self) {

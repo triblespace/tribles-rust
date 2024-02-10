@@ -41,7 +41,7 @@ where
     }
 
     pub fn len(&self) -> u64 {
-        return self.blobs.segmented_len(&[0; VALUE_LEN], 0);
+        return self.blobs.len();
     }
 
     pub fn put<V>(&mut self, value: V) -> Handle<H, V>

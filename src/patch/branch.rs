@@ -282,19 +282,17 @@ macro_rules! create_branch {
                     // because `..O::key_index(PREFIX_LEN + INFIX_LEN)` would not work,
                     // since `key_index` is not monotonic,
                     // so the next segment might be somewhere else.
-                    let infix = (*(*node).min).key[O::key_index(PREFIX_LEN)..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)].try_into().expect("invalid infix range");
+                    let infix = (*(*node).min).key
+                        [O::key_index(PREFIX_LEN)..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)]
+                        .try_into()
+                        .expect("invalid infix range");
                     f(infix);
                     return;
                 }
                 // The prefix ends in a child of this node.
                 if PREFIX_LEN > node_end_depth {
-                    if let Some(child) = (*node).child_table.get(prefix[node_end_depth])
-                    {
-                        child.infixes(
-                            prefix,
-                            node_end_depth,
-                            f,
-                        );
+                    if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
+                        child.infixes(prefix, node_end_depth, f);
                     }
                     return;
                 }
@@ -303,11 +301,7 @@ macro_rules! create_branch {
                 // TODO replace this with iterator
                 for bucket in &(*node).child_table.buckets {
                     for entry in &bucket.entries {
-                        entry.infixes(
-                            prefix,
-                            node_end_depth,
-                            f,
-                        );
+                        entry.infixes(prefix, node_end_depth, f);
                     }
                 }
             }
@@ -338,22 +332,21 @@ macro_rules! create_branch {
                 return false;
             }
 
-            pub(super) unsafe fn segmented_len(
+            pub(super) unsafe fn segmented_len<const PREFIX_LEN: usize>(
                 node: *const Self,
                 at_depth: usize,
-                key: &[u8; KEY_LEN],
-                start_depth: usize,
+                prefix: &[u8; PREFIX_LEN],
             ) -> u64 {
                 let node_end_depth = ((*node).end_depth as usize);
                 let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
-                for depth in at_depth..std::cmp::min(node_end_depth, start_depth) {
+                for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
                     let key_depth = O::key_index(depth);
-                    if leaf_key[key_depth] != key[key_depth] {
+                    if leaf_key[key_depth] != prefix[depth] {
                         return 0;
                     }
                 }
-                if start_depth <= node_end_depth {
-                    if S::segment(O::key_index(start_depth))
+                if PREFIX_LEN <= node_end_depth {
+                    if S::segment(O::key_index(PREFIX_LEN))
                         != S::segment(O::key_index(node_end_depth))
                     {
                         return 1;
@@ -361,8 +354,8 @@ macro_rules! create_branch {
                         return (*node).segment_count;
                     }
                 }
-                if let Some(child) = (*node).child_table.get(key[O::key_index(node_end_depth)]) {
-                    return child.segmented_len(node_end_depth, key, start_depth);
+                if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
+                    return child.segmented_len(node_end_depth, prefix);
                 }
                 return 0;
             }

@@ -1,8 +1,8 @@
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::convert::TryInto;
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::alloc::*;
+use std::convert::TryInto;
 
 //use crate::trible::Value;
 
@@ -144,7 +144,9 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
 
         let end_depth = PREFIX_LEN + INFIX_LEN - 1;
         let infix = unsafe {
-            (*node).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)].try_into().expect("invalid infix range")
+            (*node).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)]
+                .try_into()
+                .expect("invalid infix range")
         };
         f(infix);
     }
@@ -163,16 +165,15 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         return true;
     }
 
-    pub(crate) unsafe fn segmented_len<O: KeyOrdering<KEY_LEN>>(
+    pub(crate) unsafe fn segmented_len<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
         node: *const Self,
         at_depth: usize,
-        key: &[u8; KEY_LEN],
-        start_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
         let leaf_key: &[u8; KEY_LEN] = &(*node).key;
-        for depth in at_depth..start_depth {
+        for depth in at_depth..PREFIX_LEN {
             let key_depth = O::key_index(depth);
-            if leaf_key[key_depth] != key[key_depth] {
+            if leaf_key[key_depth] != prefix[depth] {
                 return 0;
             }
         }

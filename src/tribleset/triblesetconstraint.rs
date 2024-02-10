@@ -68,62 +68,61 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index);
-        let a_bound = binding.get(self.variable_a.index);
+        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
+        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
         let v_bound = binding.get(self.variable_v.index);
 
         (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => {
-                let trible = Trible::new_raw([0; 64]);
-                self.set.eav.segmented_len(&trible.data, E_START)
-            }
-            (None, None, None, false, true, false) => {
-                let trible = Trible::new_raw([0; 64]);
-                self.set.aev.segmented_len(&trible.data, A_START)
-            }
-            (None, None, None, false, false, true) => {
-                let trible = Trible::new_raw([0; 64]);
-                self.set.vea.segmented_len(&trible.data, V_START)
-            }
-
+            (None, None, None, true, false, false) => self.set.eav.segmented_len(&[0; 0]),
+            (None, None, None, false, true, false) => self.set.aev.segmented_len(&[0; 0]),
+            (None, None, None, false, false, true) => self.set.vea.segmented_len(&[0; 0]),
             (Some(e), None, None, false, true, false) => {
-                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
-                self.set.eav.segmented_len(&trible.data, A_START)
+                let mut prefix = [0u8; ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e[..]);
+                self.set.eav.segmented_len(&prefix)
             }
             (Some(e), None, None, false, false, true) => {
-                let trible = Trible::new_raw_values(e, [0; 32], [0; 32]);
-                self.set.eva.segmented_len(&trible.data, V_START)
+                let mut prefix = [0u8; ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e[..]);
+                self.set.eva.segmented_len(&prefix)
             }
-
             (None, Some(a), None, true, false, false) => {
-                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
-                self.set.aev.segmented_len(&trible.data, E_START)
+                let mut prefix = [0u8; ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a[..]);
+                self.set.aev.segmented_len(&prefix)
             }
             (None, Some(a), None, false, false, true) => {
-                let trible = Trible::new_raw_values([0; 32], a, [0; 32]);
-                self.set.ave.segmented_len(&trible.data, V_START)
+                let mut prefix = [0u8; ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a[..]);
+                self.set.ave.segmented_len(&prefix)
             }
-
             (None, None, Some(v), true, false, false) => {
-                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
-                self.set.vea.segmented_len(&trible.data, E_START)
+                let mut prefix = [0u8; VALUE_LEN];
+                prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
+                self.set.vea.segmented_len(&prefix)
             }
             (None, None, Some(v), false, true, false) => {
-                let trible = Trible::new_raw_values([0; 32], [0; 32], v);
-                self.set.vae.segmented_len(&trible.data, A_START)
+                let mut prefix = [0u8; VALUE_LEN];
+                prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
+                self.set.vae.segmented_len(&prefix)
             }
-
             (None, Some(a), Some(v), true, false, false) => {
-                let trible = Trible::new_raw_values([0; 32], a, v);
-                self.set.ave.segmented_len(&trible.data, E_START)
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                self.set.ave.segmented_len(&prefix)
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let trible: Trible = Trible::new_raw_values(e, [0; 32], v);
-                self.set.eva.segmented_len(&trible.data, A_START)
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                self.set.eva.segmented_len(&prefix)
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let trible: Trible = Trible::new_raw_values(e, a, [0; 32]);
-                self.set.eav.segmented_len(&trible.data, V_START)
+                let mut prefix = [0u8; ID_LEN + ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&e);
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a);
+                self.set.eav.segmented_len(&prefix)
             }
             _ => panic!(),
         }) as usize
@@ -143,84 +142,52 @@ where
                 let mut r = vec![];
                 self.set
                     .eav
-                    .infixes(&[0; 0], &mut |e| {
-                        r.push(id_into_value(e))
-                    });
+                    .infixes(&[0; 0], &mut |e| r.push(id_into_value(e)));
                 r
             }
             (None, None, None, false, true, false) => {
                 let mut r = vec![];
                 self.set
                     .aev
-                    .infixes(&[0; 0], &mut |a| {
-                        r.push(id_into_value(a))
-                    });
+                    .infixes(&[0; 0], &mut |a| r.push(id_into_value(a)));
                 r
             }
             (None, None, None, false, false, true) => {
                 let mut r = vec![];
-                self.set
-                    .vea
-                    .infixes(&[0; 0], &mut |v| {
-                        r.push(v)
-                    });
+                self.set.vea.infixes(&[0; 0], &mut |v| r.push(v));
                 r
             }
 
             (Some(e), None, None, false, true, false) => {
                 let mut r = vec![];
-                self.set
-                    .eav
-                    .infixes(&e, &mut |a| {
-                        r.push(id_into_value(a))
-                    });
+                self.set.eav.infixes(&e, &mut |a| r.push(id_into_value(a)));
                 r
             }
             (Some(e), None, None, false, false, true) => {
                 let mut r = vec![];
-                self.set
-                    .eva
-                    .infixes(&e, &mut |v| {
-                        r.push(v)
-                    });
+                self.set.eva.infixes(&e, &mut |v| r.push(v));
                 r
             }
 
             (None, Some(a), None, true, false, false) => {
                 let mut r = vec![];
-                self.set
-                    .aev
-                    .infixes(&a, &mut |e| {
-                        r.push(id_into_value(e))
-                    });
+                self.set.aev.infixes(&a, &mut |e| r.push(id_into_value(e)));
                 r
             }
             (None, Some(a), None, false, false, true) => {
                 let mut r = vec![];
-                self.set
-                    .ave
-                    .infixes(&a, &mut |v| {
-                        r.push(v)
-                    });
+                self.set.ave.infixes(&a, &mut |v| r.push(v));
                 r
             }
 
             (None, None, Some(v), true, false, false) => {
                 let mut r = vec![];
-                self.set
-                    .vea
-                    .infixes(&v, &mut |e| {
-                        r.push(id_into_value(e))
-                    });
+                self.set.vea.infixes(&v, &mut |e| r.push(id_into_value(e)));
                 r
             }
             (None, None, Some(v), false, true, false) => {
                 let mut r = vec![];
-                self.set
-                    .vae
-                    .infixes(&v, &mut |a| {
-                        r.push(id_into_value(a))
-                    });
+                self.set.vae.infixes(&v, &mut |a| r.push(id_into_value(a)));
                 r
             }
             (None, Some(a), Some(v), true, false, false) => {
@@ -230,9 +197,7 @@ where
                 let mut r = vec![];
                 self.set
                     .ave
-                    .infixes(&prefix, &mut |e| {
-                        r.push(id_into_value(e))
-                    });
+                    .infixes(&prefix, &mut |e| r.push(id_into_value(e)));
                 r
             }
             (Some(e), None, Some(v), false, true, false) => {
@@ -242,20 +207,15 @@ where
                 let mut r = vec![];
                 self.set
                     .eva
-                    .infixes(&prefix, &mut |a| {
-                        r.push(id_into_value(a))
-                    });
+                    .infixes(&prefix, &mut |a| r.push(id_into_value(a)));
                 r
             }
             (Some(e), Some(a), None, false, false, true) => {
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);                let mut r = vec![];
-                self.set
-                    .eav
-                    .infixes(&prefix, &mut |v| {
-                        r.push(v)
-                    });
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);
+                let mut r = vec![];
+                self.set.eav.infixes(&prefix, &mut |v| r.push(v));
                 r
             }
             _ => panic!(),
@@ -272,15 +232,15 @@ where
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => proposals.retain(|value| {
-                self.set.eav.has_prefix(&id_from_value(*value))
-            }),
-            (None, None, None, false, true, false) => proposals.retain(|value| {
-                self.set.aev.has_prefix(&id_from_value(*value))
-            }),
-            (None, None, None, false, false, true) => proposals.retain(|value| {
-                self.set.vea.has_prefix(value)
-            }),
+            (None, None, None, true, false, false) => {
+                proposals.retain(|value| self.set.eav.has_prefix(&id_from_value(*value)))
+            }
+            (None, None, None, false, true, false) => {
+                proposals.retain(|value| self.set.aev.has_prefix(&id_from_value(*value)))
+            }
+            (None, None, None, false, false, true) => {
+                proposals.retain(|value| self.set.vea.has_prefix(value))
+            }
             (Some(e), None, None, false, true, false) => proposals.retain(|value| {
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
@@ -318,24 +278,26 @@ where
                 self.set.vae.has_prefix(&prefix)
             }),
             (None, Some(a), Some(v), true, false, false) => proposals.retain(|value: &[u8; 32]| {
-                let mut prefix = [0u8; ID_LEN + ID_LEN + VALUE_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&id_from_value(*value));
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a);
-                prefix[ID_LEN + ID_LEN.. ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
+                prefix[0..ID_LEN].copy_from_slice(&a);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN]
+                    .copy_from_slice(&id_from_value(*value));
                 self.set.ave.has_prefix(&prefix)
             }),
             (Some(e), None, Some(v), false, true, false) => proposals.retain(|value: &[u8; 32]| {
-                let mut prefix = [0u8; ID_LEN + ID_LEN + VALUE_LEN];
+                let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e);
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
-                prefix[ID_LEN + ID_LEN.. ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN]
+                    .copy_from_slice(&id_from_value(*value));
                 self.set.eva.has_prefix(&prefix)
             }),
             (Some(e), Some(a), None, false, false, true) => proposals.retain(|value: &[u8; 32]| {
                 let mut prefix = [0u8; ID_LEN + ID_LEN + VALUE_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e);
                 prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a);
-                prefix[ID_LEN + ID_LEN.. ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(value);
+                prefix[ID_LEN + ID_LEN..ID_LEN + ID_LEN + VALUE_LEN].copy_from_slice(value);
                 self.set.eav.has_prefix(&prefix)
             }),
             _ => panic!("invalid trible constraint state"),

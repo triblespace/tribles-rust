@@ -44,7 +44,7 @@ impl<H, T> fmt::Debug for Handle<H, T> {
 }
 
 impl<H, T> Handle<H, T> {
-    pub fn new(value: Value) -> Handle<H, T> {
+    pub unsafe fn new(value: Value) -> Handle<H, T> {
         Handle {
             hash: Hash::new(value),
             _type: PhantomData,
@@ -60,7 +60,7 @@ where
     fn from(value: &T) -> Self {
         let blob: Blob = value.into_blob();
         let digest = H::digest(blob);
-        Handle::new(digest.into())
+        unsafe {Handle::new(digest.into())}
     }
 }
 

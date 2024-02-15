@@ -52,7 +52,7 @@ where
         let hash = H::digest(&blob).into();
         let entry = Entry::new(&hash, blob);
         self.blobs.insert(&entry);
-        Handle::new(hash)
+        unsafe{ Handle::new(hash) }
     }
 
     pub fn put_raw(&mut self, hash: Hash<H>, blob: Blob) {

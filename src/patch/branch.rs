@@ -264,7 +264,7 @@ macro_rules! create_branch {
                 node: *const Self,
                 prefix: &[u8; PREFIX_LEN],
                 at_depth: usize,
-                f: &mut F,
+                mut f: F,
             ) where
                 F: FnMut([u8; INFIX_LEN]),
             {

@@ -41,7 +41,7 @@ where
     }
 
     pub fn len(&self) -> u64 {
-        return self.blobs.len();
+        self.blobs.len()
     }
 
     pub fn put<V>(&mut self, value: V) -> Handle<H, V>
@@ -52,12 +52,7 @@ where
         let hash = H::digest(&blob).into();
         let entry = Entry::new(&hash, blob);
         self.blobs.insert(&entry);
-        unsafe{ Handle::new(hash) }
-    }
-
-    pub fn put_raw(&mut self, hash: Hash<H>, blob: Blob) {
-        let entry = Entry::new(&hash.value, blob);
-        self.blobs.insert(&entry);
+        unsafe{ Handle::new(Hash::new(hash)) }
     }
 
     pub fn get<T>(&self, handle: Handle<H, T>) -> Option<T>
@@ -68,8 +63,22 @@ where
         Some(blob.into())
     }
 
-    pub fn get_raw(&self, value: &Value) -> Option<Blob> {
+    pub fn raw_get(&self, value: &Value) -> Option<Blob> {
         self.blobs.get(value)
+    }
+
+    pub fn raw_put(&mut self, hash: Hash<H>, blob: Blob) {
+        let entry = Entry::new(&hash.value, blob);
+        self.blobs.insert(&entry);
+    }
+
+    pub fn raw_each<F>(&self, mut f: F)
+    where F: FnMut(Hash<H>, Blob) {
+        self.blobs.infixes(&[0; 0], &mut |infix: [u8; VALUE_LEN]| {
+            let h: Hash<H> = Hash::new(infix);
+            let b = self.blobs.get(&infix).unwrap();
+            f(h, b);
+        });
     }
 
     // Note that keep is conservative and keeps every blob for which there exists
@@ -100,7 +109,8 @@ where
         .flatten()
         {
             let blob = self.blobs.get(&hash.value).unwrap();
-            set.put_raw(hash, blob)
+            let entry = Entry::new(&hash.value, blob);
+            self.blobs.insert(&entry);
         }
 
         set
@@ -115,7 +125,8 @@ where
         let mut set = BlobSet::new();
 
         for (hash, blob) in iter {
-            set.put_raw(hash, blob);
+            let entry = Entry::new(&hash.value, blob);
+            set.blobs.insert(&entry);
         }
 
         set

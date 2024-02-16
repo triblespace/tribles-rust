@@ -550,7 +550,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         &self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
-        f: &mut F,
+        mut f: F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
@@ -924,7 +924,7 @@ where
     pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
         &self,
         prefix: &[u8; PREFIX_LEN],
-        f: &mut F,
+        mut f: F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
@@ -953,18 +953,6 @@ where
     fn eq(&self, other: &Self) -> bool {
         self.root.hash() == other.root.hash()
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct PATCHIterator<
-    const KEY_LEN: usize,
-    O: KeyOrdering<KEY_LEN>,
-    S: KeySegmentation<KEY_LEN>,
-    V: Clone,
-> {
-    nodes: [Head<KEY_LEN, O, S, V>; KEY_LEN],
-    indices: [u8; KEY_LEN],
-    depth: u8,
 }
 
 #[cfg(test)]

@@ -110,7 +110,7 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         node: *const Self,
         at_depth: usize,
         key: &[u8; KEY_LEN],
-    ) -> Option<V> {
+    ) -> Option<&V> {
         let leaf_key: &[u8; KEY_LEN] = unsafe { &(*node).key };
         for depth in at_depth..KEY_LEN {
             let key_depth = O::key_index(depth);
@@ -118,7 +118,7 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
                 return None;
             }
         }
-        return Some(unsafe { (*node).value.clone() });
+        return Some(&unsafe {*node}.value);
     }
 
     pub(crate) unsafe fn infixes<

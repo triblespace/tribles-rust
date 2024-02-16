@@ -60,10 +60,10 @@ where
         T: std::convert::From<Blob>,
     {
         let blob = self.blobs.get(&handle.hash.value)?;
-        Some(blob.into())
+        Some(blob.clone().into())
     }
 
-    pub fn raw_get(&self, value: &Value) -> Option<Blob> {
+    pub fn raw_get(&self, value: &Value) -> Option<&Blob> {
         self.blobs.get(value)
     }
 
@@ -76,7 +76,7 @@ where
     where F: FnMut(Hash<H>, Blob) {
         self.blobs.infixes(&[0; 0], &mut |infix: [u8; VALUE_LEN]| {
             let h: Hash<H> = Hash::new(infix);
-            let b = self.blobs.get(&infix).unwrap();
+            let b = self.blobs.get(&infix).unwrap().clone();
             f(h, b);
         });
     }
@@ -108,7 +108,7 @@ where
         )
         .flatten()
         {
-            let blob = self.blobs.get(&hash.value).unwrap();
+            let blob = self.blobs.get(&hash.value).unwrap().clone();
             let entry = Entry::new(&hash.value, blob);
             set.blobs.insert(&entry);
         }

@@ -243,7 +243,7 @@ macro_rules! create_branch {
                 node: *const Self,
                 at_depth: usize,
                 key: &[u8; KEY_LEN],
-            ) -> Option<V> {
+            ) -> Option<&V> {
                 let node_end_depth = (unsafe { (*node).end_depth } as usize);
                 let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).min).key };
                 for depth in at_depth..node_end_depth {

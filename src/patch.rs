@@ -453,7 +453,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    pub(crate) fn get(&self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<V> {
+    pub(crate) fn get(&self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<&V> {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => None,
@@ -913,7 +913,7 @@ where
         self.root.insert(entry, 0);
     }
 
-    pub fn get(&self, key: &[u8; KEY_LEN]) -> Option<V> {
+    pub fn get(&self, key: &[u8; KEY_LEN]) -> Option<&V> {
         self.root.get(0, key)
     }
 

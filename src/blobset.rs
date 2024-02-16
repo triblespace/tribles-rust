@@ -110,7 +110,7 @@ where
         {
             let blob = self.blobs.get(&hash.value).unwrap();
             let entry = Entry::new(&hash.value, blob);
-            self.blobs.insert(&entry);
+            set.blobs.insert(&entry);
         }
 
         set

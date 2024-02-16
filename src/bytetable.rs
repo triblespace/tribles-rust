@@ -303,7 +303,20 @@ macro_rules! create_bytetable {
                 return bitset;
             }
 
-            // TODO Add iterator.
+            pub fn iter(&self) -> std::slice::Iter<T> {
+                let all: &[T; BUCKET_ENTRY_COUNT * $size] = unsafe {std::mem::transmute(self)};
+                all.iter()
+            }
+        }
+
+        impl<'a, T> IntoIterator for &'a $name<T>
+        where T: ByteEntry + Clone + Debug {
+            type Item = &'a T;
+            type IntoIter = std::slice::Iter<'a, T>;
+        
+            fn into_iter(self) -> Self::IntoIter {
+                self.iter()
+            }
         }
     };
 }

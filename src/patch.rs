@@ -480,89 +480,65 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
                 HeadTag::Leaf => panic!("called `each_child` on Leaf"),
                 HeadTag::Branch2 => {
                     let node: *mut Branch2<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch4 => {
                     let node: *mut Branch4<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch8 => {
                     let node: *mut Branch8<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch16 => {
                     let node: *mut Branch16<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch32 => {
                     let node: *mut Branch32<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch64 => {
                     let node: *mut Branch64<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch128 => {
                     let node: *mut Branch128<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }
                 HeadTag::Branch256 => {
                     let node: *mut Branch256<KEY_LEN, O, S, V> = self.ptr();
-                    for bucket in &(*node).child_table.buckets {
-                        // TODO replace this with iterator
-                        for child in &bucket.entries {
-                            if let Some(key) = child.key() {
-                                f(key, child);
-                            }
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child);
                         }
                     }
                 }

@@ -4,7 +4,6 @@ use core::panic;
 
 use super::*;
 use crate::query::*;
-use crate::trible::*;
 use crate::types::id_from_value;
 use crate::types::id_into_value;
 use crate::types::ID_LEN;

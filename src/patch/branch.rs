@@ -298,11 +298,8 @@ macro_rules! create_branch {
                 }
 
                 // The prefix ends in this node, but the infix ends in a child.
-                // TODO replace this with iterator
-                for bucket in &(*node).child_table.buckets {
-                    for entry in &bucket.entries {
-                        entry.infixes(prefix, node_end_depth, f);
-                    }
+                for entry in &(*node).child_table {
+                    entry.infixes(prefix, node_end_depth, f);
                 }
             }
 

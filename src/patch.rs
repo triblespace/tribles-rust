@@ -550,7 +550,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         &self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
-        mut f: &mut F,
+        f: &mut F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {

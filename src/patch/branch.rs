@@ -239,11 +239,12 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) fn get(
+            pub(super) fn get<'a, 'b>(
                 node: *const Self,
                 at_depth: usize,
-                key: &[u8; KEY_LEN],
-            ) -> Option<&V> {
+                key: &'b [u8; KEY_LEN],
+            ) -> Option<&'a V>
+            where S: 'a, O: 'a {
                 let node_end_depth = (unsafe { (*node).end_depth } as usize);
                 let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).min).key };
                 for depth in at_depth..node_end_depth {
@@ -264,7 +265,7 @@ macro_rules! create_branch {
                 node: *const Self,
                 prefix: &[u8; PREFIX_LEN],
                 at_depth: usize,
-                mut f: F,
+                f: &mut F,
             ) where
                 F: FnMut([u8; INFIX_LEN]),
             {

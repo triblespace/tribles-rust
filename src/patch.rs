@@ -453,7 +453,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    pub(crate) fn get(&self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<&V> {
+    pub(crate) fn get<'a, 'b>(&'a self, at_depth: usize, key: &'b [u8; KEY_LEN]) -> Option<&'a V> {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => None,
@@ -550,7 +550,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         &self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
-        mut f: F,
+        mut f: &mut F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
@@ -929,7 +929,7 @@ where
         F: FnMut([u8; INFIX_LEN]),
     {
         assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
-        self.root.infixes(prefix, 0, f);
+        self.root.infixes(prefix, 0, &mut f);
     }
 
     pub fn has_prefix<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> bool {

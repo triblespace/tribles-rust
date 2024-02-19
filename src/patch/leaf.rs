@@ -106,11 +106,11 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         }
     }
 
-    pub(crate) fn get<O: KeyOrdering<KEY_LEN>>(
+    pub(crate) fn get<'a, 'b, O: KeyOrdering<KEY_LEN>>(
         node: *const Self,
         at_depth: usize,
-        key: &[u8; KEY_LEN],
-    ) -> Option<&V> {
+        key: &'b [u8; KEY_LEN],
+    ) -> Option<&'a V> {
         let leaf_key: &[u8; KEY_LEN] = unsafe { &(*node).key };
         for depth in at_depth..KEY_LEN {
             let key_depth = O::key_index(depth);
@@ -118,7 +118,8 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
                 return None;
             }
         }
-        return Some(&unsafe {*node}.value);
+        
+        Some(unsafe{ &(*node).value })
     }
 
     pub(crate) unsafe fn infixes<
@@ -131,7 +132,7 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
         node: *const Self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
-        mut f: F,
+        f: &mut F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {

@@ -1,18 +1,18 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
-use anyhow::Error;
+use futures::{future, stream::FuturesUnordered, StreamExt};
 
-use object_store::{self, parse_url, path::Path, ObjectStore, PutResult, UpdateVersion};
+use digest::{typenum::U32, Digest, OutputSizeUser};
+use object_store::{self, parse_url, path::Path, ObjectStore};
 use url::Url;
 
 use crate::{
-    types::{handle::Handle, syntactic::Hash, Blob},
-    BlobSet, TribleSet,
+    types::{syntactic::Hash, Blob},
+    BlobSet,
 };
 
-use super::BlobStore;
+use super::{blobstore::PutError, BlobStore};
 
-/*
 pub struct ObjectBlobStore<H> {
     store: Box<dyn ObjectStore>,
     prefix: Path,
@@ -30,22 +30,47 @@ impl<H> ObjectBlobStore<H> {
     }
 }
 
-pub struct PutError<H> {
-    remaining: BlobSet<H>,
-    errors: HashMap<H, Error>
-}
+impl<H> BlobStore<H> for ObjectBlobStore<H>
+where H: Digest + OutputSizeUser<OutputSize = U32> {
+    type Err = object_store::Error;
 
-impl<H> BlobStore<H> for ObjectBlobStore<H> {
-    async fn put(&self, blobs: BlobSet<H>) -> Result<(), Error> {
-        blobs.iter().map() {
-            let path = self.prefix.child("blobs").child(hex::encode());
-            self.store.put(&path, bytes).await?;
+    async fn put(&self, blobs: BlobSet<H>) -> Result<(), PutError<H, Self::Err>> {
+        let futures = FuturesUnordered::new();
+
+        blobs.raw_each(|hash: Hash<H>, blob: Blob| {
+            futures.push(async move {
+                let path = self.prefix.child(hex::encode(hash.value));
+                if let Err(err) = self.store.put(&path, blob.clone()).await {
+                    Some((hash, blob, err))
+                } else {
+                    None
+                }
+            });
+        });
+
+        let mut causes = std::collections::HashMap::new();
+        let mut remaining = BlobSet::new();
+
+        futures.for_each(|r| {
+            if let Some((hash, blob, err)) = r {
+                causes.insert(hash, err);
+                remaining.raw_put(hash, blob);
+            }
+            future::ready(())
+        }).await;
+
+        if causes.is_empty() {
+            Ok(())
+        } else {
+            Err(PutError {
+                remaining,
+                causes
+            })
         }
-        Ok(())
     }
 
     async fn get(&self, hash: Hash<H>) -> Blob {
-        let path = self.prefix.child("blobs").child(hex::encode(hash.value));
+        let path = self.prefix.child(hex::encode(hash.value));
         let result = self.store.get(&path).await.unwrap();
         let object = result.bytes().await.unwrap();
         object
@@ -58,6 +83,7 @@ pub struct ObjectHead<H> {
     _hasher: PhantomData<H>,
 }
 
+/*
 impl<H> ObjectHead<H> {
     pub fn with_url(url: &Url) -> Result<ObjectBlobStore<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;

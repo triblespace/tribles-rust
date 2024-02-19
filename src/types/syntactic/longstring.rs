@@ -1,3 +1,5 @@
+use bytes::Bytes;
+
 use crate::types::{Blob, BlobParseError, Bloblike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -29,8 +31,7 @@ impl Bloblike for LongString {
         Ok(LongString(s))
     }
     fn into_blob(&self) -> Blob {
-        let bytes = self.0.as_bytes();
-        bytes.into()
+        Bytes::copy_from_slice(self.0.as_bytes().into())
     }
 }
 

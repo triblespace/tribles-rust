@@ -5,11 +5,13 @@ pub mod handle;
 pub mod semantic;
 pub mod syntactic;
 
-use std::{convert::TryInto, fmt::Debug, sync::Arc};
+use std::{convert::TryInto, fmt::Debug};
+
+use bytes::Bytes;
 
 pub type Id = [u8; 16];
 pub type Value = [u8; 32];
-pub type Blob = Arc<[u8]>;
+pub type Blob = Bytes;
 
 pub const ID_LEN: usize = 16;
 pub const VALUE_LEN: usize = 32;

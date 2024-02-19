@@ -1,4 +1,4 @@
-use std::{fmt, marker::PhantomData};
+use std::{fmt, hash::Hasher, marker::PhantomData};
 
 use hex::ToHex;
 
@@ -33,6 +33,13 @@ impl<H> PartialEq for Hash<H> {
     }
 }
 impl<H> Eq for Hash<H> {}
+
+impl<H> std::hash::Hash for Hash<H> {
+    fn hash<S: Hasher>(&self, state: &mut S) {
+        self.value.hash(state);
+    }
+}
+
 
 impl<H> fmt::Debug for Hash<H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

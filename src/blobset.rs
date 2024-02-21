@@ -5,7 +5,7 @@ use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
 use crate::query::TriblePattern;
 use crate::types::handle::Handle;
 use crate::types::syntactic::{Hash, UFOID};
-use crate::types::{Blob, Bloblike, Value, VALUE_LEN};
+use crate::types::{Blob, BlobParseError, Bloblike, VALUE_LEN};
 use crate::{and, mask, query::find};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -44,35 +44,35 @@ where
         self.blobs.len()
     }
 
-    pub fn put<V>(&mut self, value: V) -> Handle<H, V>
+    pub fn put<T>(&mut self, value: T) -> Handle<H, T>
     where
-        V: Bloblike,
+        T: Bloblike,
     {
         let blob: Blob = value.into_blob();
-        let hash = H::digest(&blob).into();
-        let entry = Entry::new(&hash, blob);
-        self.blobs.insert(&entry);
-        unsafe{ Handle::new(Hash::new(hash)) }
+        let hash = self.put_raw(blob);
+        unsafe{ Handle::new(hash) }
     }
 
-    pub fn get<T>(&self, handle: Handle<H, T>) -> Option<T>
+    pub fn get<T>(&self, handle: Handle<H, T>) -> Option<Result<T, BlobParseError>>
     where
-        T: std::convert::From<Blob>,
+        T: Bloblike
     {
-        let blob = self.blobs.get(&handle.hash.value)?;
-        Some(blob.clone().into())
+        let blob = self.get_raw(handle.hash)?;
+        Some(T::from_blob(blob.clone()))
     }
 
-    pub fn raw_get(&self, value: &Value) -> Option<&Blob> {
-        self.blobs.get(value)
+    pub fn get_raw(&self, hash: Hash<H>) -> Option<&Blob> {
+        self.blobs.get(&hash.value)
     }
 
-    pub fn raw_put(&mut self, hash: Hash<H>, blob: Blob) {
-        let entry = Entry::new(&hash.value, blob);
+    pub fn put_raw(&mut self, blob: Blob) -> Hash<H> {
+        let digest = H::digest(&blob).into();
+        let entry = Entry::new(&digest, blob);
         self.blobs.insert(&entry);
+        Hash::new(digest)
     }
 
-    pub fn raw_each<F>(&self, mut f: F)
+    pub fn each_raw<F>(&self, mut f: F)
     where F: FnMut(Hash<H>, Blob) {
         self.blobs.infixes(&[0; 0], &mut |infix: [u8; VALUE_LEN]| {
             let h: Hash<H> = Hash::new(infix);

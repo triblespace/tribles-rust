@@ -95,6 +95,7 @@ impl Debug for ValueParseError {
     }
 }
 
+#[derive(Debug)]
 pub struct BlobParseError {
     blob: Blob,
     msg: String,

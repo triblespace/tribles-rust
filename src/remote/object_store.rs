@@ -1,17 +1,16 @@
 use std::marker::PhantomData;
 
-use futures::{future, stream::FuturesUnordered, StreamExt};
+use futures::{stream::BoxStream, StreamExt};
 
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use object_store::{self, parse_url, path::Path, ObjectStore};
 use url::Url;
 
-use crate::{
-    types::{syntactic::Hash, Blob},
-    BlobSet,
-};
+use hex::FromHex;
 
-use super::{blobstore::PutError, BlobStore};
+use crate::types::{syntactic::Hash, Blob, Value};
+
+use super::BlobStore;
 
 pub struct ObjectBlobStore<H> {
     store: Box<dyn ObjectStore>,
@@ -30,51 +29,47 @@ impl<H> ObjectBlobStore<H> {
     }
 }
 
+pub enum ListErr {
+    List(object_store::Error),
+    NotAFile(&'static str),
+    BadNameHex(<Value as FromHex>::Error)
+}
+
 impl<H> BlobStore<H> for ObjectBlobStore<H>
 where H: Digest + OutputSizeUser<OutputSize = U32> {
-    type Err = object_store::Error;
+    type StoreErr = object_store::Error;
+    type LoadErr = object_store::Error;
+    type ListErr = ListErr;
+    type ListStream<'a> = BoxStream<'a, Result<Hash<H>, Self::ListErr>>
+    where Self: 'a;
 
-    async fn put(&self, blobs: BlobSet<H>) -> Result<(), PutError<H, Self::Err>> {
-        let futures = FuturesUnordered::new();
-
-        blobs.raw_each(|hash: Hash<H>, blob: Blob| {
-            futures.push(async move {
-                let path = self.prefix.child(hex::encode(hash.value));
-                if let Err(err) = self.store.put(&path, blob.clone()).await {
-                    Some((hash, blob, err))
-                } else {
-                    None
-                }
-            });
-        });
-
-        let mut causes = std::collections::HashMap::new();
-        let mut remaining = BlobSet::new();
-
-        futures.for_each(|r| {
-            if let Some((hash, blob, err)) = r {
-                causes.insert(hash, err);
-                remaining.raw_put(hash, blob);
-            }
-            future::ready(())
-        }).await;
-
-        if causes.is_empty() {
-            Ok(())
-        } else {
-            Err(PutError {
-                remaining,
-                causes
-            })
-        }
+    async fn put_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr> {
+        let digest: Value = H::digest(&blob).into();
+        let path = self.prefix.child(hex::encode(digest));
+        self.store.put(&path, blob.clone()).await?;
+        Ok(Hash::new(digest))
     }
 
-    async fn get(&self, hash: Hash<H>) -> Blob {
+    async fn get_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
         let path = self.prefix.child(hex::encode(hash.value));
-        let result = self.store.get(&path).await.unwrap();
-        let object = result.bytes().await.unwrap();
-        object
+        let result = self.store.get(&path).await?;
+        let object = result.bytes().await?;
+        Ok(object)
     }
+
+    async fn list<'a>(&'a self) -> Self::ListStream<'a> {
+        self.store.list(Some(&self.prefix)).map(|r| {
+            match r {
+                Ok(meta) => {
+                    let blob_name = meta.location.filename().ok_or(ListErr::NotAFile("no filename"))?;
+                    let digest = Value::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
+                    Ok(Hash::new(digest))
+                }
+                Err(e) => Err(ListErr::List(e))
+            }
+        }).boxed()
+    }
+
 }
 
 pub struct ObjectHead<H> {

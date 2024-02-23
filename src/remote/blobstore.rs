@@ -1,6 +1,53 @@
-use futures::Stream;
+use std::{error::Error, fmt::{self, Debug}};
+
+use futures::{stream::FuturesUnordered, Future, Stream, StreamExt};
 
 use crate::types::{handle::Handle, syntactic::Hash, Blob, BlobParseError, Bloblike};
+
+#[derive(Debug)]
+pub enum TransferError<ListErr, LoadErr, StoreErr> {
+    List(ListErr),
+    Load(LoadErr),
+    Store(StoreErr)
+}
+
+impl<ListErr, LoadErr, StoreErr> fmt::Display for TransferError<ListErr, LoadErr, StoreErr> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to transfer blob")
+    }
+}
+
+impl<ListErr, LoadErr, StoreErr> Error for TransferError<ListErr, LoadErr, StoreErr>
+where ListErr: Debug + Error + 'static,
+      LoadErr: Debug + Error + 'static,
+      StoreErr: Debug + Error + 'static  {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::List(e) => Some(e),
+            Self::Load(e)  => Some(e),
+            Self::Store(e) => Some(e)
+        }
+    }
+}
+
+async fn transfer<'a, BS, BT, HS, HT, S>(source: &'a BS, target: &'a BT) -> impl Stream<Item = Result<(Hash<HS>, Hash<HT>), TransferError<BS::ListErr, BS::LoadErr, BT::StoreErr>>> + 'a
+where BS: BlobStore<HS>,
+      BT: BlobStore<HT>,
+      HS: 'static,
+      HT: 'static {    
+    let l = source.list();
+    let r = l.then(move |source_hash:Result<Hash<HS>, <BS as BlobStore<HS>>::ListErr>| {
+        async move {
+            let source_hash = source_hash.map_err(|e| TransferError::List(e))?;
+            let blob = source.get_raw(source_hash).await
+                .map_err(|e| TransferError::Load(e))?;
+            let target_hash = target.put_raw(blob).await
+                .map_err(|e| TransferError::Store(e))?;
+            Ok((source_hash, target_hash))
+        }
+    });
+    r
+}
 
 #[derive(Debug)]
 enum GetError<E> {
@@ -8,77 +55,17 @@ enum GetError<E> {
     Parse(BlobParseError),
 }
 
-/*
-
-#[derive(Debug)]
-pub struct TransferError<H, E> {
-    pub remaining: BlobSet<H>,
-    pub causes: HashMap<Hash<H>, E>
-}
-
-
-impl<H, E> fmt::Display for TransferError<H, E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "failed to transfer {} blobs", self.remaining.len())
-    }
-}
-
-impl<H, E> Error for TransferError<H, E> {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&self.source)
-    }
-}
-
-async fn sync<BS, BT, HS, HT>(source: BS, target: BT) -> Result<(), TransferError<HS, BT::StoreErr>> 
-where BS: BlobStore<HS>,
-      BT: BlobStore<HT>{
-        async fn put_all(&self, blobs: BlobSet<H>) -> Result<(), TransferError<H, Self::Err>> {
-            let futures = FuturesUnordered::new();
-    
-            blobs.each_raw(|hash: Hash<H>, blob: Blob| {
-                futures.push(async move {
-                    if let Err(err) = self.store.put(&path, blob.clone()).await {
-                        Some((hash, blob, err))
-                    } else {
-                        None
-                    }
-                });
-            });
-    
-            let mut causes = std::collections::HashMap::new();
-            let mut remaining = BlobSet::new();
-    
-            futures.for_each(|r| {
-                if let Some((hash, blob, err)) = r {
-                    causes.insert(hash, err);
-                    remaining.put_raw(blob);
-                }
-                future::ready(())
-            }).await;
-    
-            if causes.is_empty() {
-                Ok(())
-            } else {
-                Err(PutError {
-                    remaining,
-                    causes
-                })
-            }
-        }
-}
-*/
-
 pub trait BlobStore<H> {
     type StoreErr;
     type LoadErr;
     type ListErr;
     type ListStream<'a>: Stream<Item = Result<Hash<H>, Self::ListErr>>
     where Self: 'a;
-
+    
     async fn put_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr>;
     async fn get_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr>;
-    async fn list<'a>(&'a self) -> Self::ListStream<'a>;
-
+    fn list<'a>(&'a self) -> Self::ListStream<'a>;
+    
     async fn put<T>(&self, value: T) -> Result<Handle<H, T>, Self::StoreErr>
     where T: Bloblike {
         let blob: Blob = value.into_blob();
@@ -88,7 +75,7 @@ pub trait BlobStore<H> {
     async fn get<T>(&self, handle: Handle<H, T>) -> Result<T, GetError<Self::LoadErr>>
     where T: Bloblike {
         let blob = self.get_raw(handle.hash).await
-                    .map_err(|e| GetError::Load(e))?;
+        .map_err(|e| GetError::Load(e))?;
         T::from_blob(blob).map_err(|e| GetError::Parse(e))
     }
 }

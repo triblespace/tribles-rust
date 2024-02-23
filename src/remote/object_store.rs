@@ -60,7 +60,7 @@ where H: Digest + OutputSizeUser<OutputSize = U32> {
         Ok(object)
     }
 
-    async fn list<'a>(&'a self) -> Self::ListStream<'a> {
+    fn list<'a>(&'a self) -> Self::ListStream<'a> {
         self.store.list(Some(&self.prefix)).map(|r| {
             match r {
                 Ok(meta) => {

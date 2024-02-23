@@ -10,18 +10,18 @@ use hex::FromHex;
 
 use crate::types::{syntactic::Hash, Blob, Value};
 
-use super::BlobStore;
+use super::blobstore::{BlobPull, BlobPush, BlobRepository};
 
-pub struct ObjectBlobStore<H> {
+pub struct ObjectRepository<H> {
     store: Box<dyn ObjectStore>,
     prefix: Path,
     _hasher: PhantomData<H>,
 }
 
-impl<H> ObjectBlobStore<H> {
-    pub fn with_url(url: &Url) -> Result<ObjectBlobStore<H>, object_store::Error> {
+impl<H> ObjectRepository<H> {
+    pub fn with_url(url: &Url) -> Result<ObjectRepository<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;
-        Ok(ObjectBlobStore {
+        Ok(ObjectRepository {
             store,
             prefix: path,
             _hasher: PhantomData,
@@ -35,30 +35,12 @@ pub enum ListErr {
     BadNameHex(<Value as FromHex>::Error)
 }
 
-impl<H> BlobStore<H> for ObjectBlobStore<H>
+impl<H> BlobPull<H> for ObjectRepository<H>
 where H: Digest + OutputSizeUser<OutputSize = U32> {
-    type StoreErr = object_store::Error;
     type LoadErr = object_store::Error;
     type ListErr = ListErr;
     type ListStream<'a> = BoxStream<'a, Result<Hash<H>, Self::ListErr>>
     where Self: 'a;
-
-    async fn put_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr> {
-        let digest: Value = H::digest(&blob).into();
-        let path = self.prefix.child(hex::encode(digest));
-        let put_result = self.store.put_opts(&path, blob.clone(), PutMode::Create.into()).await;
-        match put_result {
-            Ok(_) | Err(object_store::Error::AlreadyExists {..}) => Ok(Hash::new(digest)),
-            Err(e) => Err(e)
-        }
-    }
-
-    async fn get_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
-        let path = self.prefix.child(hex::encode(hash.value));
-        let result = self.store.get(&path).await?;
-        let object = result.bytes().await?;
-        Ok(object)
-    }
 
     fn list<'a>(&'a self) -> Self::ListStream<'a> {
         self.store.list(Some(&self.prefix)).map(|r| {
@@ -73,7 +55,32 @@ where H: Digest + OutputSizeUser<OutputSize = U32> {
         }).boxed()
     }
 
+    async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
+        let path = self.prefix.child(hex::encode(hash.value));
+        let result = self.store.get(&path).await?;
+        let object = result.bytes().await?;
+        Ok(object)
+    }
 }
+
+impl<H> BlobPush<H> for ObjectRepository<H>
+where H: Digest + OutputSizeUser<OutputSize = U32> {
+    type StoreErr = object_store::Error;
+
+    async fn push_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr> {
+        let digest: Value = H::digest(&blob).into();
+        let path = self.prefix.child(hex::encode(digest));
+        let put_result = self.store.put_opts(&path, blob.clone(), PutMode::Create.into()).await;
+        match put_result {
+            Ok(_) | Err(object_store::Error::AlreadyExists {..}) => Ok(Hash::new(digest)),
+            Err(e) => Err(e)
+        }
+    }
+}
+
+
+impl<H> BlobRepository<H> for ObjectRepository<H>
+where H: Digest + OutputSizeUser<OutputSize = U32> {}
 
 pub struct ObjectHead<H> {
     store: Box<dyn ObjectStore>,

@@ -1,4 +1,4 @@
-mod blobstore;
-pub mod object_store;
+mod blobrepo;
+pub mod objectrepo;
 
-pub use blobstore::BlobStore;
+pub use blobrepo::BlobRepo;

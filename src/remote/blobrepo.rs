@@ -1,8 +1,9 @@
-use std::{error::Error, fmt::{self, Debug}};
+use std::{convert::Infallible, error::Error, fmt::{self, Debug}};
 
-use futures::{ Stream, StreamExt};
+use digest::{typenum::U32, Digest, OutputSizeUser};
+use futures::{ stream, Stream, StreamExt};
 
-use crate::types::{handle::Handle, syntactic::Hash, Blob, BlobParseError, Bloblike};
+use crate::{types::{handle::Handle, syntactic::Hash, Blob, BlobParseError, Bloblike}, BlobSet};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {
@@ -58,10 +59,8 @@ enum GetError<E> {
 pub trait BlobPull<H> {
     type LoadErr;
     type ListErr;
-    type ListStream<'a>: Stream<Item = Result<Hash<H>, Self::ListErr>>
-    where Self: 'a;
 
-    fn list<'a>(&'a self) -> Self::ListStream<'a>;
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::ListErr>>;
 
     async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr>;
     
@@ -87,4 +86,33 @@ pub trait BlobPush<H> {
     }
 }
 
-pub trait BlobRepository<H>: BlobPull<H> + BlobPush<H> {}
+pub trait BlobRepo<H>: BlobPull<H> + BlobPush<H> {}
+
+#[derive(Debug)]
+pub struct NotFoundErr();
+
+impl fmt::Display for NotFoundErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "no blob for hash in blobset")
+    }
+}
+
+impl Error for NotFoundErr {}
+
+impl<H> BlobPull<H> for BlobSet<H>
+where H: Digest + OutputSizeUser<OutputSize = U32> {
+    type LoadErr = NotFoundErr;
+    type ListErr = Infallible;
+
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::ListErr>> {
+        let mut v = vec![];
+        self.each_raw(|hash, _| v.push(Ok(hash)));
+        stream::iter(v)
+    }
+
+    async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
+        self.get_raw(hash).map_or(
+            Err(NotFoundErr()),
+            |b| Ok(b.clone()))
+    }
+}

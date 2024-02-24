@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use futures::{stream::BoxStream, StreamExt};
+use futures::{stream::BoxStream, Stream, StreamExt};
 
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
@@ -10,18 +10,18 @@ use hex::FromHex;
 
 use crate::types::{syntactic::Hash, Blob, Value};
 
-use super::blobstore::{BlobPull, BlobPush, BlobRepository};
+use super::blobrepo::{BlobPull, BlobPush, BlobRepo};
 
-pub struct ObjectRepository<H> {
+pub struct ObjectRepo<H> {
     store: Box<dyn ObjectStore>,
     prefix: Path,
     _hasher: PhantomData<H>,
 }
 
-impl<H> ObjectRepository<H> {
-    pub fn with_url(url: &Url) -> Result<ObjectRepository<H>, object_store::Error> {
+impl<H> ObjectRepo<H> {
+    pub fn with_url(url: &Url) -> Result<ObjectRepo<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;
-        Ok(ObjectRepository {
+        Ok(ObjectRepo {
             store,
             prefix: path,
             _hasher: PhantomData,
@@ -35,14 +35,12 @@ pub enum ListErr {
     BadNameHex(<Value as FromHex>::Error)
 }
 
-impl<H> BlobPull<H> for ObjectRepository<H>
+impl<H> BlobPull<H> for ObjectRepo<H>
 where H: Digest + OutputSizeUser<OutputSize = U32> {
     type LoadErr = object_store::Error;
     type ListErr = ListErr;
-    type ListStream<'a> = BoxStream<'a, Result<Hash<H>, Self::ListErr>>
-    where Self: 'a;
 
-    fn list<'a>(&'a self) -> Self::ListStream<'a> {
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::ListErr>> {
         self.store.list(Some(&self.prefix)).map(|r| {
             match r {
                 Ok(meta) => {
@@ -63,7 +61,7 @@ where H: Digest + OutputSizeUser<OutputSize = U32> {
     }
 }
 
-impl<H> BlobPush<H> for ObjectRepository<H>
+impl<H> BlobPush<H> for ObjectRepo<H>
 where H: Digest + OutputSizeUser<OutputSize = U32> {
     type StoreErr = object_store::Error;
 
@@ -79,7 +77,7 @@ where H: Digest + OutputSizeUser<OutputSize = U32> {
 }
 
 
-impl<H> BlobRepository<H> for ObjectRepository<H>
+impl<H> BlobRepo<H> for ObjectRepo<H>
 where H: Digest + OutputSizeUser<OutputSize = U32> {}
 
 pub struct ObjectHead<H> {

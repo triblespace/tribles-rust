@@ -929,6 +929,7 @@ where
         F: FnMut([u8; INFIX_LEN]),
     {
         assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
+        assert!(S::segment(PREFIX_LEN) == S::segment(PREFIX_LEN + INFIX_LEN - 1));
         self.root.infixes(prefix, 0, &mut f);
     }
 

@@ -109,6 +109,8 @@ macro_rules! pattern_inner {
 
 pub use pattern_inner;
 
+pub use hex_literal;
+
 /// Define a rust module to represent a namespace.
 /// The module additionally defines `entities!` and `pattern!` macros.
 ///
@@ -157,7 +159,7 @@ macro_rules! NS {
             pub type Id = $IdType;
             pub mod ids {
                 #![allow(non_upper_case_globals)]
-                $(pub const $FieldName:$IdType = <$IdType>::raw(hex_literal::hex!($FieldId));)*
+                $(pub const $FieldName:$IdType = <$IdType>::raw($crate::namespace::hex_literal::hex!($FieldId));)*
             }
             pub mod types {
                 #![allow(non_camel_case_types)]

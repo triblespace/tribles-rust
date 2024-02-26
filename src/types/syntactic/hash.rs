@@ -62,5 +62,7 @@ impl<H> Valuelike for Hash<H> {
     }
 }
 
-use blake2::{digest::typenum::U32, Blake2b as blake};
-pub type Blake2b = blake<U32>;
+use blake2::{digest::typenum::U32, Blake2b as Blake2bUnsized};
+pub type Blake2b = Blake2bUnsized<U32>;
+
+pub use blake3::Hasher as Blake3;

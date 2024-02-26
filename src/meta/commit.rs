@@ -15,7 +15,7 @@ use crate::{
 NS! {
     pub namespace commit_ns {
         @ crate::types::syntactic::RawId;
-        tribles: "4DD4DDD05CC31734B03ABB4E43188B1F" as crate::types::handle::Handle<crate::types::syntactic::Blake2b, crate::TribleSet>;
+        tribles: "4DD4DDD05CC31734B03ABB4E43188B1F" as crate::types::handle::Handle<crate::types::syntactic::Blake3, crate::TribleSet>;
         short_message: "12290C0BE0E9207E324F24DDE0D89300" as crate::types::syntactic::ShortString;
         authored_by: "ADB4FFAD247C886848161297EFF5A05B" as crate::types::syntactic::RawId;
         ed25519_signature_r: "9DF34F84959928F93A3C40AEB6E9E499" as crate::types::semantic::ed25519::RComponent;
@@ -38,7 +38,7 @@ impl ValidationError {
 
 pub fn sign(
     signing_key: SigningKey,
-    handle: Handle<crate::types::syntactic::Blake2b, TribleSet>,
+    handle: Handle<crate::types::syntactic::Blake3, TribleSet>,
     commit_id: RawId,
 ) -> Result<TribleSet, ValidationError> {
     let hash = handle.hash.value;

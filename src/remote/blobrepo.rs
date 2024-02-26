@@ -105,9 +105,7 @@ where H: Digest + OutputSizeUser<OutputSize = U32> {
     type ListErr = Infallible;
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::ListErr>> {
-        let mut v = vec![];
-        self.each_raw(|hash, _| v.push(Ok(hash)));
-        stream::iter(v)
+        stream::iter((&self).into_iter().map(|(hash, _)| Ok(hash)))
     }
 
     async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {

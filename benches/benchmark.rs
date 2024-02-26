@@ -148,6 +148,20 @@ fn patch_benchmark(c: &mut Criterion) {
             }
             b.iter(|| {
                 let mut v = vec![];
+                for (k, _) in &patch {
+                    v.push(k);
+                }
+            });
+        });
+        group.bench_with_input(BenchmarkId::new("infixes", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
+            for t in black_box(&samples) {
+                let entry: Entry<64, ()> = Entry::new(&t.data, ());
+                patch.insert(&entry);
+            }
+            b.iter(|| {
+                let mut v = vec![];
                 patch.infixes(&[0; 0], &mut |x: [u8; 64]| v.push(x));
             });
         });

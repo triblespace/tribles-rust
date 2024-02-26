@@ -1,11 +1,11 @@
 use digest::typenum::U32;
 use digest::{Digest, OutputSizeUser};
 
-use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
+use crate::patch::{Entry, IdentityOrder, PATCHIterator, SingleSegmentation, PATCH};
 use crate::query::TriblePattern;
 use crate::types::handle::Handle;
 use crate::types::syntactic::{Hash, UFOID};
-use crate::types::{Blob, BlobParseError, Bloblike, VALUE_LEN};
+use crate::types::{Blob, BlobParseError, Bloblike, Value, VALUE_LEN};
 use crate::{and, mask, query::find};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -130,6 +130,23 @@ where
         }
 
         set
+    }
+}
+
+fn unwrap_hash_key<H>(pair: (Value, &Blob)) -> (Hash<H>, &Blob) {
+    let (value, blob) = pair;
+    (Hash::new(value), blob)
+}
+
+impl<'a, H> IntoIterator for &'a BlobSet<H>
+where
+    H: Digest + OutputSizeUser<OutputSize = U32> {
+    type Item = (Hash<H>, &'a Blob);
+    //TODO replace this with `impl` once https://github.com/rust-lang/rust/pull/120700 drops!
+    type IntoIter = std::iter::Map<PATCHIterator<'a, VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>, fn((Value, &Blob)) -> (Hash<H>, &Blob)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.blobs).into_iter().map(unwrap_hash_key)
     }
 }
 

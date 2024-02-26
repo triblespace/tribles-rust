@@ -13,7 +13,7 @@ use super::*;
 pub(crate) struct Leaf<const KEY_LEN: usize, V: Clone> {
     pub key: [u8; KEY_LEN],
     rc: atomic::AtomicU32,
-    value: V,
+    pub value: V,
 }
 
 impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {

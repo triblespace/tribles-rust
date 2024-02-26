@@ -4,6 +4,7 @@ mod branch;
 mod entry;
 mod leaf;
 
+use arrayvec::ArrayVec;
 use branch::*;
 pub use entry::Entry;
 use leaf::*;
@@ -783,6 +784,47 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
             });
         }
     }
+
+    pub(crate) fn children(&self) -> std::slice::Iter<Head<KEY_LEN, O, S, V>> {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => [].iter(),
+                HeadTag::Leaf => [].iter(),
+                HeadTag::Branch2 => {
+                    let node: *mut Branch2<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch4 => {
+                    let node: *mut Branch4<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch8 => {
+                    let node: *mut Branch8<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch16 => {
+                    let node: *mut Branch16<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch32 => {
+                    let node: *mut Branch32<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch64 => {
+                    let node: *mut Branch64<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch128 => {
+                    let node: *mut Branch128<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+                HeadTag::Branch256 => {
+                    let node: *mut Branch256<KEY_LEN, O, S, V> = self.ptr();
+                    (&(*node).child_table).iter()
+                }
+            }
+        }
+    }
 }
 
 unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
@@ -956,6 +998,80 @@ where
     }
 }
 
+impl<'a, const KEY_LEN: usize, O, S, V: Clone> IntoIterator for &'a PATCH<KEY_LEN, O, S, V>
+where
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN> {
+    type Item = ([u8; KEY_LEN], &'a V);
+    type IntoIter = PATCHIterator<'a, KEY_LEN, O, S, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        PATCHIterator::new(self)
+    }
+}
+
+pub struct PATCHIterator<
+        'a,
+        const KEY_LEN: usize,
+        O: KeyOrdering<KEY_LEN>,
+        S: KeySegmentation<KEY_LEN>,
+        V: Clone> {
+    patch: PhantomData<&'a PATCH<KEY_LEN, O, S, V>>,
+    stack: ArrayVec<std::slice::Iter<'a, Head<KEY_LEN, O, S, V>>, KEY_LEN>
+}
+
+impl<
+'a,
+const KEY_LEN: usize,
+O: KeyOrdering<KEY_LEN>,
+S: KeySegmentation<KEY_LEN>,
+V: Clone
+> PATCHIterator<'a, KEY_LEN, O, S, V> {
+    fn new(patch: &'a PATCH<KEY_LEN, O, S, V>) -> Self {
+        let mut r = PATCHIterator{
+            patch: PhantomData,
+            stack: ArrayVec::new()
+        };
+        r.stack.push(std::slice::from_ref(&patch.root).iter());
+        r
+    }
+}
+
+impl<
+'a,
+const KEY_LEN: usize,
+O: KeyOrdering<KEY_LEN>,
+S: KeySegmentation<KEY_LEN>,
+V: Clone
+> Iterator for PATCHIterator<'a, KEY_LEN, O, S, V> {
+    type Item = ([u8; KEY_LEN], &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut iter = self.stack.pop()?;
+        loop {
+            if let Some(child) = iter.next() {
+                match child.tag() {
+                    HeadTag::Empty => continue,
+                    HeadTag::Leaf => {
+                        let leaf: *const Leaf<KEY_LEN, V> = unsafe { child.ptr() };
+                        let key = O::tree_ordered(unsafe{&(*leaf).key});
+                        let value = unsafe{&(*leaf).value};
+                        self.stack.push(iter);
+                        return Some((key, value));
+                    },
+                    _ => {
+                        self.stack.push(iter);
+                        iter = child.children();
+                    }
+                    
+                }
+            } else {
+                iter = self.stack.pop()?;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1099,6 +1215,28 @@ mod tests {
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
         tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
+
+        set_vec.sort();
+        tree_vec.sort();
+
+        prop_assert_eq!(set_vec, tree_vec);
+    }
+
+    #[test]
+    fn tree_iter(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
+        let mut set = HashSet::new();
+        for key in keys {
+            let key: [u8; 64] = key.try_into().unwrap();
+            let entry = Entry::new(&key, ());
+            tree.insert(&entry);
+            set.insert(key);
+        }
+        let mut set_vec = Vec::from_iter(set.into_iter());
+        let mut tree_vec = vec![];
+        for (key, _) in &tree {
+            tree_vec.push(key);
+        }
 
         set_vec.sort();
         tree_vec.sort();

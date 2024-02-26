@@ -36,9 +36,9 @@ impl ValidationError {
     }
 }
 
-pub fn sign<H>(
+pub fn sign(
     signing_key: SigningKey,
-    handle: Handle<H, TribleSet>,
+    handle: Handle<crate::types::syntactic::Blake2b, TribleSet>,
     commit_id: RawId,
 ) -> Result<TribleSet, ValidationError> {
     let hash = handle.hash.value;
@@ -47,6 +47,7 @@ pub fn sign<H>(
     let s = SComponent::from_signature(signature);
     let tribles = commit_ns::entities!((),
     [{commit_id @
+        tribles: handle,
         ed25519_pubkey: signing_key.verifying_key(),
         ed25519_signature_r: r,
         ed25519_signature_s: s,
@@ -54,21 +55,19 @@ pub fn sign<H>(
     Ok(tribles)
 }
 
-pub fn verify<H>(
+pub fn verify(
     tribles: TribleSet,
     commit_id: RawId,
-    handle: Handle<H, TribleSet>,
 ) -> Result<(), ValidationError> {
-    let hash = handle.hash.value;
-
-    let (verifying_key, r, s) = find!(
+    let (payload, verifying_key, r, s) = find!(
         ctx,
-        (key, r, s),
+        (payload, key, r, s),
         commit_ns::pattern!(ctx, tribles, [
         {(commit_id) @
+            tribles: payload,
             ed25519_pubkey: key,
             ed25519_signature_r: r,
-            ed25519_signature_s: s,
+            ed25519_signature_s: s
         }])
     )
     .at_most_one()
@@ -76,6 +75,7 @@ pub fn verify<H>(
     .ok_or(ValidationError::new("no signature in commit"))?
     .map_err(|_| ValidationError::new("unexpected bad value in tribles"))?;
 
+    let hash = payload.hash.value;
     let signature = Signature::from_components(r.0, s.0);
     verifying_key
         .verify(&hash, &signature)

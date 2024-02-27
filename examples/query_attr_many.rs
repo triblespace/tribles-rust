@@ -13,8 +13,6 @@ use tribles::types::syntactic::ShortString;
 use tribles::types::syntactic::UFOID;
 
 fn main() {
-    patch::init();
-
     let mut name: Attribute<UFOID, ShortString> = Attribute::new();
     let mut loves: Attribute<UFOID, UFOID> = Attribute::new();
 

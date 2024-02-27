@@ -20,8 +20,6 @@ NS! {
 }
 
 fn main() {
-    patch::init();
-
     let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
         kb.union(&knights::entities!((lover_a, lover_b),

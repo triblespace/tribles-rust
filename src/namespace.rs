@@ -207,7 +207,7 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{patch::init, query::find, TribleSet};
+    use crate::{query::find, TribleSet};
 
     use std::convert::TryInto;
 
@@ -222,7 +222,6 @@ mod tests {
 
     #[test]
     fn ns_entities() {
-        init();
         println!(
             "{:?}",
             knights::entities!((romeo, juliet),
@@ -279,8 +278,6 @@ mod tests {
 
     #[test]
     fn ns_pattern_large() {
-        init();
-
         let mut kb = TribleSet::new();
         (0..10000).for_each(|_| {
             kb.union(&knights::entities!((lover_a, lover_b),

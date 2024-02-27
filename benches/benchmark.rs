@@ -123,8 +123,6 @@ fn im_benchmark(c: &mut Criterion) {
 }
 
 fn patch_benchmark(c: &mut Criterion) {
-    patch::init();
-
     let mut group = c.benchmark_group("patch");
 
     for i in [10, 100, 1000, 10000, 100000, 1000000].iter() {
@@ -200,8 +198,6 @@ fn patch_benchmark(c: &mut Criterion) {
 }
 
 fn tribleset_benchmark(c: &mut Criterion) {
-    patch::init();
-
     let mut group = c.benchmark_group("tribleset");
 
     for i in [1000000].iter() {
@@ -257,8 +253,6 @@ fn tribleset_benchmark(c: &mut Criterion) {
 }
 
 fn entities_benchmark(c: &mut Criterion) {
-    patch::init();
-
     let mut group = c.benchmark_group("entities");
 
     group.throughput(Throughput::Elements(4));
@@ -466,8 +460,6 @@ fn entities_benchmark(c: &mut Criterion) {
 }
 
 fn query_benchmark(c: &mut Criterion) {
-    patch::init();
-
     let mut group = c.benchmark_group("query");
 
     let mut kb = TribleSet::new();
@@ -546,8 +538,6 @@ fn query_benchmark(c: &mut Criterion) {
 }
 
 fn attribute_benchmark(c: &mut Criterion) {
-    patch::init();
-
     let mut group = c.benchmark_group("attribute");
 
     let mut name: Attribute<UFOID, ShortString> = Attribute::new();

@@ -1,29 +1,25 @@
 use crate::{
     query::{Binding, Constraint, Variable, VariableId, VariableSet},
-    types::{id_into_value, Idlike, Value, Valuelike},
+    id_into_value, Value, Valuelike,
 };
 
 use super::*;
 
-pub struct AttributeConstraint<'a, E, V>
-where
-    E: Idlike,
-    V: Valuelike,
+pub struct AttributeConstraint<'a, V>
+where V: Valuelike,
 {
-    variable_e: Variable<E>,
+    variable_e: Variable<Id>,
     variable_v: Variable<V>,
-    attr: &'a Attribute<E, V>,
+    attr: &'a Attribute<V>,
 }
 
-impl<'a, E, V> AttributeConstraint<'a, E, V>
-where
-    E: Idlike,
-    V: Valuelike,
+impl<'a, V> AttributeConstraint<'a, V>
+where V: Valuelike,
 {
     pub fn new(
-        variable_e: Variable<E>,
+        variable_e: Variable<Id>,
         variable_v: Variable<V>,
-        attr: &'a Attribute<E, V>,
+        attr: &'a Attribute<V>,
     ) -> Self {
         AttributeConstraint {
             variable_e,
@@ -33,10 +29,8 @@ where
     }
 }
 
-impl<'a, E, V> Constraint<'a> for AttributeConstraint<'a, E, V>
-where
-    E: Idlike,
-    V: Valuelike,
+impl<'a, V> Constraint<'a> for AttributeConstraint<'a, V>
+where V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

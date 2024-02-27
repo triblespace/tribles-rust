@@ -36,7 +36,7 @@ where
     }
 
     fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
-        self.set.iter().map(|v| v.into_value()).collect()
+        self.set.iter().map(|v| Valuelike::into_value(v)).collect()
     }
 
     fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {

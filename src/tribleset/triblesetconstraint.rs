@@ -4,32 +4,27 @@ use core::panic;
 
 use super::*;
 use crate::query::*;
-use crate::types::id_from_value;
-use crate::types::id_into_value;
-use crate::types::ID_LEN;
-use crate::types::VALUE_LEN;
+use crate::id_from_value;
+use crate::id_into_value;
+use crate::Id;
+use crate::ID_LEN;
+use crate::VALUE_LEN;
 
-pub struct TribleSetConstraint<'a, E, A, V>
-where
-    E: Idlike,
-    A: Idlike,
-    V: Valuelike,
+pub struct TribleSetConstraint<'a, V>
+where V: Valuelike,
 {
-    variable_e: Variable<E>,
-    variable_a: Variable<A>,
+    variable_e: Variable<Id>,
+    variable_a: Variable<Id>,
     variable_v: Variable<V>,
     set: &'a TribleSet,
 }
 
-impl<'a, E, A, V> TribleSetConstraint<'a, E, A, V>
-where
-    E: Idlike,
-    A: Idlike,
-    V: Valuelike,
+impl<'a, V> TribleSetConstraint<'a, V>
+where V: Valuelike,
 {
     pub fn new(
-        variable_e: Variable<E>,
-        variable_a: Variable<A>,
+        variable_e: Variable<Id>,
+        variable_a: Variable<Id>,
         variable_v: Variable<V>,
         set: &'a TribleSet,
     ) -> Self {
@@ -42,11 +37,8 @@ where
     }
 }
 
-impl<'a, E, A, V> Constraint<'a> for TribleSetConstraint<'a, E, A, V>
-where
-    E: Idlike,
-    A: Idlike,
-    V: Valuelike,
+impl<'a, V> Constraint<'a> for TribleSetConstraint<'a, V>
+where V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

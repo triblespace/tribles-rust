@@ -6,14 +6,14 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use tribles::and;
 use tribles::attribute::Attribute;
-use tribles::types::syntactic::ShortString;
+use tribles::{Id, types::ShortString};
 use tribles::NS;
 
 use tribles::test::hashtribleset::HashTribleSet;
-use tribles::types::syntactic::UFOID;
+use tribles::ufoid;
 use tribles::{find, trible::*};
 
-use tribles::patch::{self, Entry, IdentityOrder};
+use tribles::patch::{Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
 use tribles::TribleSet;
 
@@ -29,10 +29,9 @@ static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 
 NS! {
     pub namespace knights {
-        @ tribles::types::syntactic::UFOID;
-        loves: "328edd7583de04e2bedd6bd4fd50e651" as tribles::types::syntactic::UFOID;
-        name: "328147856cc1984f0806dbb824d2b4cb" as tribles::types::syntactic::ShortString;
-        title: "328f2c33d2fdd675e733388770b2d6c4" as tribles::types::syntactic::ShortString;
+        loves: "39E2D06DBCD9CB96DE5BC46F362CFF31" as tribles::Id;
+        name: "7D4F339CC4AE0BBA2765F34BE1D108EF" as tribles::types::ShortString;
+        title: "3E0C58AC884072EA6429BB00A1BA1DA4" as tribles::types::ShortString;
     }
 }
 
@@ -41,18 +40,18 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 
     let mut vec = Vec::new();
 
-    let mut e = UFOID::new();
-    let mut a = UFOID::new();
+    let mut e = ufoid();
+    let mut a = ufoid();
 
     for _i in 0..length {
         if rng.gen_bool(0.5) {
-            e = UFOID::new();
+            e = ufoid();
         }
         if rng.gen_bool(0.5) {
-            a = UFOID::new();
+            a = ufoid();
         }
 
-        let v = UFOID::new();
+        let v = ufoid();
         vec.push(Trible::new(e, a, v))
     }
     return vec;
@@ -258,15 +257,19 @@ fn entities_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(4));
     group.bench_function(BenchmarkId::new("entities", 4), |b| {
         b.iter(|| {
-            let kb = knights::entities!((lover_a, lover_b),
-            [{lover_a @
+            let mut kb = TribleSet::new();
+            let lover_a = ufoid();
+            let lover_b = ufoid();
+
+            kb.union(&knights::entity!(lover_a, {
                 name: Name(EN).fake::<String>().try_into().unwrap(),
                 loves: lover_b
-            },
-            {lover_b @
+            }));
+            kb.union(&knights::entity!(lover_b, {
                 name: Name(EN).fake::<String>().try_into().unwrap(),
                 loves: lover_a
-            }]);
+            }));
+
             black_box(&kb);
         })
     });
@@ -279,16 +282,16 @@ fn entities_benchmark(c: &mut Criterion) {
                 let before_mem = PEAK_ALLOC.current_usage();
                 let mut kb: TribleSet = TribleSet::new();
                 (0..i).for_each(|_| {
-                    let kb = &mut kb;
-                    knights::entities!((lover_a, lover_b),
-                        [{lover_a @
+                    let lover_a = ufoid();
+                    let lover_b = ufoid();
+                    kb.union(&knights::entity!(lover_a, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_b
-                        },
-                        {lover_b @
+                        }));
+                    kb.union(&knights::entity!(lover_b, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_a
-                        }], kb);
+                        }));
                 });
                 let after_mem = PEAK_ALLOC.current_usage();
                 println!(
@@ -306,16 +309,18 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
-                    .map(|_| {
-                        knights::entities!((lover_a, lover_b),
-                        [{lover_a @
+                    .flat_map(|_| {
+                        let lover_a = ufoid();
+                        let lover_b = ufoid();
+
+                        [knights::entity!(lover_a, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_b
-                        },
-                        {lover_b @
+                        }),
+                        knights::entity!(lover_b, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_a
-                        }])
+                        })]
                     })
                     .fold(TribleSet::new(), |mut kb, set| {
                         kb.union(&set);
@@ -332,16 +337,18 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
             let sets: Vec<_> = (0..i)
-                .map(|_| {
-                    knights::entities!((lover_a, lover_b),
-                    [{lover_a @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_b
-                    },
-                    {lover_b @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_a
-                    }])
+                .flat_map(|_| {
+                        let lover_a = ufoid();
+                        let lover_b = ufoid();
+                        
+                        [knights::entity!(lover_a, {
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_b
+                        }),
+                        knights::entity!(lover_b, {
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_a
+                        })]
                 })
                 .collect();
             b.iter_with_large_drop(|| {
@@ -362,16 +369,18 @@ fn entities_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
                     .into_par_iter()
-                    .map(|_| {
-                        knights::entities!((lover_a, lover_b),
-                        [{lover_a @
+                    .flat_map(|_| {
+                        let lover_a = ufoid();
+                        let lover_b = ufoid();
+                        
+                        [knights::entity!(lover_a, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_b
-                        },
-                        {lover_b @
+                        }),
+                        knights::entity!(lover_b, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_a
-                        }])
+                        })]
                     })
                     .reduce(
                         || TribleSet::new(),
@@ -391,16 +400,18 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/parallel/prealloc", 4 * i), |b| {
             let sets: Vec<_> = (0..i)
-                .map(|_| {
-                    knights::entities!((lover_a, lover_b),
-                    [{lover_a @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_b
-                    },
-                    {lover_b @
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
-                        loves: lover_a
-                    }])
+                    .flat_map(|_| {
+                        let lover_a = ufoid();
+                        let lover_b = ufoid();
+                        
+                        [knights::entity!(lover_a, {
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_b
+                        }),
+                        knights::entity!(lover_b, {
+                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            loves: lover_a
+                        })]
                 })
                 .collect();
             b.iter_with_large_drop(|| {
@@ -427,16 +438,18 @@ fn entities_benchmark(c: &mut Criterion) {
                     .into_par_iter()
                     .map(|_| {
                         (0..i / batch_size)
-                            .map(|_| {
-                                knights::entities!((lover_a, lover_b),
-                                [{lover_a @
-                                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                                    loves: lover_b
-                                },
-                                {lover_b @
-                                    name: Name(EN).fake::<String>().try_into().unwrap(),
-                                    loves: lover_a
-                                }])
+                        .flat_map(|_| {
+                            let lover_a = ufoid();
+                            let lover_b = ufoid();
+                            
+                            [knights::entity!(lover_a, {
+                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                loves: lover_b
+                            }),
+                            knights::entity!(lover_b, {
+                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                loves: lover_a
+                            })]
                             })
                             .fold(TribleSet::new(), |mut kb, set| {
                                 kb.union(&set);
@@ -464,37 +477,45 @@ fn query_benchmark(c: &mut Criterion) {
 
     let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
-        kb.union(&knights::entities!((lover_a, lover_b),
-        [{lover_a @
+        let lover_a = ufoid();
+        let lover_b = ufoid();
+        
+        kb.union(&knights::entity!(lover_a, {
             name: Name(EN).fake::<String>().try_into().unwrap(),
             loves: lover_b
-        },
-        {lover_b @
+        }));
+        kb.union(&knights::entity!(lover_b, {
             name: Name(EN).fake::<String>().try_into().unwrap(),
             loves: lover_a
-        }]));
+        }));
     });
 
-    let mut data_kb = knights::entities!((romeo, juliet),
-    [{juliet @
+    let mut data_kb = TribleSet::new();
+    
+    let juliet = ufoid();
+    let romeo = ufoid();
+    
+    kb.union(&knights::entity!(juliet, {
         name: "Juliet".try_into().unwrap(),
         loves: romeo
-    },
-    {romeo @
+    }));
+    kb.union(&knights::entity!(romeo, {
         name: "Romeo".try_into().unwrap(),
         loves: juliet
-    }]);
+    }));
 
     (0..1000).for_each(|_| {
-        data_kb.union(&knights::entities!((lover_a, lover_b),
-        [{lover_a @
+        let lover_a = ufoid();
+        let lover_b = ufoid();
+
+        data_kb.union(&knights::entity!(lover_a, {
             name: "Wameo".try_into().unwrap(),
             loves: lover_b
-        },
-        {lover_b @
+        }));
+        data_kb.union(&knights::entity!(lover_b, {
             name: Name(EN).fake::<String>().try_into().unwrap(),
             loves: lover_a
-        }]));
+        }));
     });
 
     kb.union(&data_kb);
@@ -540,12 +561,12 @@ fn query_benchmark(c: &mut Criterion) {
 fn attribute_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("attribute");
 
-    let mut name: Attribute<UFOID, ShortString> = Attribute::new();
-    let mut loves: Attribute<UFOID, UFOID> = Attribute::new();
+    let mut name: Attribute<ShortString> = Attribute::new();
+    let mut loves: Attribute<Id> = Attribute::new();
 
     (0..1000000).for_each(|_| {
-        let lover_a = UFOID::new();
-        let lover_b = UFOID::new();
+        let lover_a = ufoid();
+        let lover_b = ufoid();
         name.add(&lover_a, &(Name(EN).fake::<String>().try_into().unwrap()));
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
@@ -553,16 +574,16 @@ fn attribute_benchmark(c: &mut Criterion) {
     });
 
     (0..1000).for_each(|_| {
-        let lover_a = UFOID::new();
-        let lover_b = UFOID::new();
+        let lover_a = ufoid();
+        let lover_b = ufoid();
         name.add(&lover_a, &("Wameo".try_into().unwrap()));
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
         loves.add(&lover_b, &lover_a);
     });
 
-    let romeo = UFOID::new();
-    let juliet = UFOID::new();
+    let romeo = ufoid();
+    let juliet = ufoid();
     name.add(&romeo, &("Romeo".try_into().unwrap()));
     name.add(&juliet, &("Juliet".try_into().unwrap()));
     loves.add(&romeo, &juliet);

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use futures::{stream::BoxStream, Stream, StreamExt};
+use futures::{Stream, StreamExt};
 
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
@@ -8,7 +8,7 @@ use url::Url;
 
 use hex::FromHex;
 
-use crate::types::{syntactic::Hash, Blob, Value};
+use crate::{types::Hash, Blob, Value};
 
 use super::blobrepo::{BlobPull, BlobPush, BlobRepo};
 

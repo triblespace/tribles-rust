@@ -2,7 +2,7 @@ use std::{fmt, hash::Hasher, marker::PhantomData};
 
 use hex::ToHex;
 
-use crate::types::{Value, ValueParseError, Valuelike};
+use crate::{Value, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Hash<H> {
@@ -57,8 +57,8 @@ impl<H> Valuelike for Hash<H> {
         Ok(Hash::new(value))
     }
 
-    fn into_value(&self) -> Value {
-        self.value
+    fn into_value(value: &Self) -> Value {
+        value.value
     }
 }
 

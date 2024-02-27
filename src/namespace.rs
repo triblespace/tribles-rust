@@ -13,66 +13,32 @@
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! entities_inner {
-    (@triple ($set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
-        $set.insert(&$crate::trible::Trible::new(
-            $EntityId,
-            { use $Namespace as ns; ns::ids::$FieldName },
-            { use $Namespace as ns; let v: ns::types::$FieldName = $Value; v}))
-    };
-    (@entity ($set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),* $(,)?})) => {
-        $(entities_inner!(@triple ($set, $Namespace, $EntityId, $FieldName, $Value));)*
-    };
-    (@entity ($set:ident, $Namespace:path, {$($FieldName:ident : $Value:expr),* $(,)?})) => {
-        {
-            {
-                let id = { use $Namespace as ns; <ns::Id as $crate::types::Idlike>::factory() };
-                $(entities_inner!(@triple ($set, $Namespace, id, $FieldName, $Value));)*
-            }
-        }
-    };
-    ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*], $set:ident) => {
-        {
-            $(let $Var = { use $Namespace as ns; <ns::Id as $crate::types::Idlike>::factory() };)*
-            $(entities_inner!(@entity ($set, $Namespace, $Entity));)*
-            $set
-        }
-    };
-    ($Namespace:path, ($($Var:ident),*), [$($Entity:tt),*]) => {
-        {
-            let mut set = $crate::TribleSet::new();
-            entities_inner!($Namespace, ($($Var),*), [$($Entity),*], set)
-        }
-    };
-}
-pub use entities_inner;
-
-#[doc(hidden)]
-#[macro_export]
 macro_rules! entity_inner {
-    ($Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),* $(,)?}) => {
-        {
-            use $Namespace as ns;
-            let mut set = $crate::TribleSet::new();
-            $(set.insert(&$crate::trible::Trible::new(
-                $EntityId,
-                ns::ids::$FieldName,
-                { let v: ns::types::$FieldName = $Value; v}));)*
-            set
-        }
-    };
     ($Namespace:path, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             {
                 use $Namespace as ns;
                 let mut set = $crate::TribleSet::new();
-                let id = <ns::Id as $crate::types::Idlike>::factory();
-                $(set.insert(&$crate::trible::Trible::new(
+                let id = $crate::idgen();
+                $({let v: ns::types::$FieldName = $Value;
+                    set.insert(&$crate::trible::Trible::new(
                     id,
                     ns::ids::$FieldName,
-                    { let v: ns::types::$FieldName = $Value; v}));)*
+                    v));};)*
                 set
             }
+        }
+    };
+    ($Namespace:path, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
+        {
+            use $Namespace as ns;
+            let mut set = $crate::TribleSet::new();
+            $({ let v: ns::types::$FieldName = $Value;
+                set.insert(&$crate::trible::Trible::new(
+                $EntityId,
+                ns::ids::$FieldName,
+                v));})*
+            set
         }
     };
 }
@@ -85,10 +51,12 @@ macro_rules! pattern_inner {
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
             use $crate::query::TriblePattern;
-            let a_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
+            use $Namespace as ns;
+            let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::types::$FieldName> = $ctx.next_variable();
-            $constraints.push({ use $Namespace as ns; Box::new(a_var.is(ns::ids::$FieldName)) });
-            $constraints.push({ use $Namespace as ns; let v: ns::types::$FieldName = $Value; Box::new(v_var.is(v))});
+            let v: ns::types::$FieldName = $Value;
+            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName)));
+            $constraints.push(Box::new(v_var.is(v)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
 
@@ -97,7 +65,7 @@ macro_rules! pattern_inner {
         {
             use $crate::query::TriblePattern;
             use $Namespace as ns;
-            let a_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
+            let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::types::$FieldName> = $Value;
             $constraints.push(Box::new(a_var.is(ns::ids::$FieldName)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
@@ -107,25 +75,22 @@ macro_rules! pattern_inner {
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
-            use $Namespace as ns;
-            let e_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
-            $constraints.push({ use $Namespace as ns; let e: ns::Id = $EntityId; Box::new(e_var.is(e))});
+            let e_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
+            $constraints.push({ let e: $crate::Id = $EntityId; Box::new(e_var.is(e))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
-            use $Namespace as ns;
-            let e_var: $crate::query::Variable<ns::Id> = $EntityId;
+            let e_var: $crate::query::Variable<$crate::Id> = $EntityId;
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),*})) => {
         {
-            use $Namespace as ns;
-            let e_var: $crate::query::Variable<ns::Id> = $ctx.next_variable();
+            let e_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -144,10 +109,10 @@ pub use pattern_inner;
 pub use hex_literal;
 
 /// Define a rust module to represent a namespace.
-/// The module additionally defines `entities!` and `pattern!` macros.
+/// The module additionally defines `entity!` and `pattern!` macros.
 ///
-/// The `entities!` macro can be used to conveniently create triblesets
-/// containing entities conforming to the namespace.
+/// The `entity!` macro can be used to conveniently create triblesets
+/// containing an entity conforming to the namespace.
 ///
 /// The `pattern!` macro can be used to query datastructures implementing
 /// the [crate::query::TriblePattern] trait.
@@ -158,9 +123,8 @@ pub use hex_literal;
 ///
 /// NS! {
 ///     pub namespace namespace_name {
-///         @ tribles::types::syntactic::UFOID;
-///         attr_name: "FF00FF00FF00FF00FF00FF00FF00FF00" as tribles::types::syntactic::UFOID;
-///         attr_name2: "BBAABBAABBAABBAABBAABBAABBAABBAA" as tribles::types::syntactic::ShortString;
+///         attr_name: "FF00FF00FF00FF00FF00FF00FF00FF00" as tribles::Id;
+///         attr_name2: "BBAABBAABBAABBAABBAABBAABBAABBAA" as tribles::types::ShortString;
 ///     }
 /// }
 /// ```
@@ -169,15 +133,14 @@ pub use hex_literal;
 ///
 /// ```
 /// mod namespace_name {
-///   pub use tribles::types::syntactic::UFOID as id;
 ///   pub mod ids {
 ///       use hex_literal::hex;
-///       pub const attr_name: tribles::types::syntactic::UFOID  = tribles::types::syntactic::UFOID::raw(hex!("FF00FF00FF00FF00FF00FF00FF00FF00"));
-///       pub const attr_name2: tribles::types::syntactic::UFOID  = tribles::types::syntactic::UFOID::raw(hex!("BBAABBAABBAABBAABBAABBAABBAABBAA"));
+///       pub const attr_name: tribles::Id  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
+///       pub const attr_name2: tribles::Id  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
 ///   }
 ///   pub mod types {
-///       pub use tribles::types::syntactic::UFOID as attr_name;
-///       pub use tribles::types::syntactic::ShortString as attr_name2;
+///       pub use tribles::Id as attr_name;
+///       pub use tribles::types::ShortString as attr_name2;
 ///   }
 /// }
 /// ```
@@ -186,41 +149,16 @@ pub use hex_literal;
 /// `namespace_name::ids::attrName` and `namespace_name::types::attrName`.
 #[macro_export]
 macro_rules! NS {
-    ($visibility:vis namespace $mod_name:ident {@ $IdType:ty; $($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
+    ($visibility:vis namespace $mod_name:ident {$($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
         $visibility mod $mod_name {
-            pub type Id = $IdType;
             pub mod ids {
                 #![allow(non_upper_case_globals)]
-                $(pub const $FieldName:$IdType = <$IdType>::raw($crate::namespace::hex_literal::hex!($FieldId));)*
+                $(pub const $FieldName:$crate::Id = $crate::namespace::hex_literal::hex!($FieldId);)*
             }
             pub mod types {
                 #![allow(non_camel_case_types)]
                 $(pub type $FieldName = $FieldType;)*
             }
-
-            #[allow(unused)]
-            pub fn id_gen() -> Id {
-                <Id as $crate::types::Idlike>::factory()
-            }
-
-            #[allow(unused)]
-            macro_rules! entities {
-                ($vars:tt, $entities: tt, $set: ident) => {
-                    {
-                        use $crate::namespace::entities_inner;
-                        entities_inner!($mod_name, $vars, $entities, $set)
-                    }
-                };
-                ($vars:tt, $entities: tt) => {
-                    {
-                        use $crate::namespace::entities_inner;
-                        entities_inner!($mod_name, $vars, $entities)
-                    }
-                };
-            }
-
-            #[allow(unused)]
-            pub(crate) use entities;
             
             #[allow(unused)]
             macro_rules! entity {
@@ -228,6 +166,12 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         entity_inner!($mod_name, $entity)
+                    }
+                };
+                ($entity_id:expr, $entity:tt) => {
+                    {
+                        use $crate::namespace::entity_inner;
+                        entity_inner!($mod_name, $entity_id, $entity)
                     }
                 };
             }
@@ -257,54 +201,53 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, TribleSet};
+    use crate::{query::find, ufoid, TribleSet};
 
     use std::convert::TryInto;
 
     NS! {
         pub namespace knights {
-            @ crate::types::syntactic::UFOID;
-            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
-            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
-            title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::syntactic::ShortString;
+            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::Id;
+            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::ShortString;
+            title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::ShortString;
         }
     }
 
     #[test]
     fn ns_entities() {
-        println!(
-            "{:?}",
-            knights::entities!((romeo, juliet),
-            [{juliet @
-                name: "Juliet".try_into().unwrap(),
-                loves: romeo,
-                title: "Maiden".try_into().unwrap()
-            },
-            {romeo @
-                name: "Romeo".try_into().unwrap(),
-                loves: juliet,
-                title: "Prince".try_into().unwrap()
-            },
-            {
-                name: "Angelica".try_into().unwrap(),
-                title: "Nurse".try_into().unwrap()
-            }])
-        );
+        let romeo = ufoid();
+        let juliet = ufoid();
+
+        knights::entity!(juliet, {
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo,
+            title: "Maiden".try_into().unwrap()
+        });
+        knights::entity!(romeo, {
+            name: "Romeo".try_into().unwrap(),
+            loves: juliet,
+            title: "Prince".try_into().unwrap()
+        });
+        knights::entity!(
+        {
+            name: "Angelica".try_into().unwrap(),
+            title: "Nurse".try_into().unwrap()
+        });
     }
 
 
     #[test]
     fn ns_entity() {
-        let juliet = knights::id_gen();
-        let romeo = knights::id_gen();
+        let juliet = ufoid();
+        let romeo = ufoid();
 
         let mut tribles = TribleSet::new();
-        tribles.union(&knights::entity!({ juliet @
+        tribles.union(&knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
             loves: romeo,
             title: "Maiden".try_into().unwrap()
         }));
-        tribles.union(&knights::entity!({romeo @
+        tribles.union(&knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet,
             title: "Prince".try_into().unwrap()
@@ -318,22 +261,27 @@ mod tests {
 
     #[test]
     fn ns_pattern() {
-        let juliet = knights::id_gen();
-        let kb = knights::entities!((romeo),
-        [{juliet @
-            name: "Juliet".try_into().unwrap(),
-            loves: romeo,
-            title: "Maiden".try_into().unwrap()
-        },
-        {romeo @
+        let juliet = ufoid();
+        let romeo = ufoid();
+
+        let mut kb = TribleSet::new();
+        
+        kb.union(&knights::entity!(juliet,
+            {
+                name: "Juliet".try_into().unwrap(),
+                loves: romeo,
+                title: "Maiden".try_into().unwrap()
+            }));
+        kb.union(&knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet,
             title: "Prince".try_into().unwrap()
-        },
-        {
+        }));
+        kb.union(&knights::entity!({
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
-        }]);
+        }));
+
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
@@ -352,27 +300,30 @@ mod tests {
     fn ns_pattern_large() {
         let mut kb = TribleSet::new();
         (0..10000).for_each(|_| {
-            kb.union(&knights::entities!((lover_a, lover_b),
-            [{lover_a @
+            let lover_a = ufoid();
+            let lover_b = ufoid();
+            kb.union(&knights::entity!(lover_a, {
                 name: Name(EN).fake::<String>().try_into().unwrap(),
                 loves: lover_b
-            },
-            {lover_b @
+            }));
+            kb.union(&knights::entity!(lover_b, {
                 name: Name(EN).fake::<String>().try_into().unwrap(),
                 loves: lover_a
-            }]));
+            }));
         });
 
-        let juliet = knights::id_gen();
-        let data_kb = knights::entities!((romeo),
-        [{juliet @
+        let juliet = ufoid();
+        let romeo = ufoid();
+
+        let mut data_kb = TribleSet::new();
+        data_kb.union(&knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
             loves: romeo
-        },
-        {romeo @
+        }));
+        data_kb.union(&knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet
-        }]);
+        }));
 
         kb.union(&data_kb);
 

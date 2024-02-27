@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::types::{Value, ValueParseError, Valuelike};
+use crate::{Value, ValueParseError, Valuelike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
@@ -29,9 +29,9 @@ impl Valuelike for ShortString {
         Ok(ShortString(s))
     }
 
-    fn into_value(&self) -> Value {
+    fn into_value(value: &Self) -> Value {
         let mut data = [0; 32];
-        let bytes = self.0.as_bytes();
+        let bytes = value.0.as_bytes();
         data[..bytes.len()].copy_from_slice(bytes);
         data
     }

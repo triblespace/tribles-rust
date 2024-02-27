@@ -4,8 +4,8 @@ use digest::{Digest, OutputSizeUser};
 use crate::patch::{Entry, IdentityOrder, PATCHIterator, SingleSegmentation, PATCH};
 use crate::query::TriblePattern;
 use crate::types::handle::Handle;
-use crate::types::syntactic::{Hash, UFOID};
-use crate::types::{Blob, BlobParseError, Bloblike, Value, VALUE_LEN};
+use crate::types::Hash;
+use crate::{Blob, BlobParseError, Bloblike, Value, VALUE_LEN};
 use crate::{and, mask, query::find};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -102,7 +102,7 @@ where
                 mask!(
                     ctx,
                     (e, a),
-                    tribles.pattern::<UFOID, UFOID, Hash<H>>(e, a, v)
+                    tribles.pattern::<Hash<H>>(e, a, v)
                 )
             )
         )
@@ -159,10 +159,9 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            @ crate::types::syntactic::UFOID;
-            description: "5AD0FAFB1FECBC197A385EC20166899E" as crate::types::handle::Handle<
-                crate::types::syntactic::Blake2b,
-                crate::types::syntactic::LongString>;
+            description: "5AD0FAFB1FECBC197A385EC20166899E" as crate::types::Handle<
+                crate::types::hash::Blake2b,
+                crate::types::LongString>;
         }
     }
 
@@ -171,10 +170,9 @@ mod tests {
         let mut kb = TribleSet::new();
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
-            kb.union(&knights::entities!((entity),
-            [{entity @
+            kb.union(&knights::entity!({
                 description: blobs.put(Name(EN).fake::<String>().into())
-            }]));
+            }));
         }
         let kept = blobs.keep(kb);
         assert_eq!(blobs, kept);

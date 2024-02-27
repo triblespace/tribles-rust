@@ -1,9 +1,9 @@
 use std::convert::TryInto;
 
 use tribles::query::find;
+use tribles::ufoid;
 use tribles::NS;
 
-use tribles::patch;
 use tribles::TribleSet;
 
 use fake::faker::name::raw::*;
@@ -12,36 +12,41 @@ use fake::Fake;
 
 NS! {
     pub namespace knights {
-        @ tribles::types::syntactic::UFOID;
-        loves: "328edd7583de04e2bedd6bd4fd50e651" as tribles::types::syntactic::UFOID;
-        name: "328147856cc1984f0806dbb824d2b4cb" as tribles::types::syntactic::ShortString;
-        title: "328f2c33d2fdd675e733388770b2d6c4" as tribles::types::syntactic::ShortString;
+        loves: "39E2D06DBCD9CB96DE5BC46F362CFF31" as tribles::Id;
+        name: "7D4F339CC4AE0BBA2765F34BE1D108EF" as tribles::types::ShortString;
+        title: "3E0C58AC884072EA6429BB00A1BA1DA4" as tribles::types::ShortString;
     }
 }
 
 fn main() {
     let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
-        kb.union(&knights::entities!((lover_a, lover_b),
-        [{lover_a @
+        let lover_a = ufoid();
+        let lover_b = ufoid();
+
+        kb.union(&knights::entity!({
             name: Name(EN).fake::<String>().try_into().unwrap(),
             loves: lover_b
-        },
-        {lover_b @
+        }));
+        kb.union(&knights::entity!({
             name: Name(EN).fake::<String>().try_into().unwrap(),
             loves: lover_a
-        }]));
+        }));
     });
 
-    let data_kb = knights::entities!((romeo, juliet),
-    [{juliet @
+    let mut data_kb = TribleSet::new();
+
+    let romeo = ufoid();
+    let juliet = ufoid();
+
+    data_kb.union(&knights::entity!(juliet, {
         name: "Juliet".try_into().unwrap(),
         loves: romeo
-    },
-    {romeo @
+    }));
+    data_kb.union(&knights::entity!(romeo, {
         name: "Romeo".try_into().unwrap(),
         loves: juliet
-    }]);
+    }));
 
     kb.union(&data_kb);
 

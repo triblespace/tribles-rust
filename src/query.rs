@@ -25,28 +25,22 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::types::{Idlike, Value, ValueParseError, Valuelike};
+use crate::{Id, Value, ValueParseError, Valuelike};
 
 use crate::bitset::ByteBitset;
 
 pub trait TriblePattern {
-    type PatternConstraint<'a, E, A, V>: Constraint<'a>
-    where
-        E: Idlike,
-        A: Idlike,
-        V: Valuelike,
-        Self: 'a;
+    type PatternConstraint<'a, V>: Constraint<'a>
+    where V: Valuelike,
+          Self: 'a;
 
-    fn pattern<'a, E, A, V>(
+    fn pattern<'a, V>(
         &'a self,
-        e: Variable<E>,
-        a: Variable<A>,
+        e: Variable<Id>,
+        a: Variable<Id>,
         v: Variable<V>,
-    ) -> Self::PatternConstraint<'a, E, A, V>
-    where
-        E: Idlike,
-        A: Idlike,
-        V: Valuelike;
+    ) -> Self::PatternConstraint<'a, V>
+    where V: Valuelike;
 }
 
 pub type VariableId = u8;
@@ -102,7 +96,7 @@ where
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> Result<T, crate::types::ValueParseError> {
+    pub fn extract(self, binding: &Binding) -> Result<T, crate::ValueParseError> {
         T::from_value(binding.get(self.index).unwrap())
     }
 }
@@ -292,17 +286,16 @@ mod tests {
     //use fake::{Dummy, Fake, Faker};
     use std::{collections::HashSet, convert::TryInto};
 
-    use crate::{patch, NS};
+    use crate::{TribleSet, NS};
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::types::syntactic::shortstring::ShortString;
+    use crate::{ufoid, types::ShortString};
 
     use super::*;
 
     NS! {
         pub namespace knights {
-            @ crate::types::syntactic::UFOID;
-            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
-            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
+            loves: "8143F46E812E88C4544E7094080EC523" as crate::Id;
+            name: "D6E0F2A6E5214E1330565B4D4138E55C" as crate::types::ShortString;
         }
     }
 
@@ -353,20 +346,24 @@ mod tests {
 
     #[test]
     fn pattern() {
-        patch::init();
+        let romeo = ufoid();
+        let juliet = ufoid();
+        let waromeo = ufoid();
+        let mut kb = TribleSet::new();
 
-        let kb = knights::entities!((romeo, juliet, waromeo),
-        [{juliet @
+        kb.union(&knights::entity!(juliet,
+        {
             name: "Juliet".try_into().unwrap(),
             loves: romeo
-        },
-        {romeo @
+        }));
+
+        kb.union(&knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet
-        },
-        {waromeo @
+        }));
+        kb.union(&knights::entity!(waromeo, {
             name: "Romeo".try_into().unwrap()
-        }]);
+        }));
 
         let r: Vec<_> = find!(
             ctx,

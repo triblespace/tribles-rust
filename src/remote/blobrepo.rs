@@ -3,7 +3,7 @@ use std::{convert::Infallible, error::Error, fmt::{self, Debug}};
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use futures::{ stream, Stream, StreamExt};
 
-use crate::{types::{handle::Handle, syntactic::Hash, Blob, BlobParseError, Bloblike}, BlobSet};
+use crate::{types::{handle::Handle, Hash}, Blob, BlobParseError, Bloblike, BlobSet};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {

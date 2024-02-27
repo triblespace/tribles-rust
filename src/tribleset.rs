@@ -9,7 +9,7 @@ use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, A_END,
     A_START, E_END, E_START, TRIBLE_LEN,
 };
-use crate::types::{Blob, BlobParseError, Bloblike, Idlike, Value, Valuelike};
+use crate::{Blob, BlobParseError, Bloblike, Id, Value, Valuelike};
 use std::convert::TryInto;
 use std::iter::FromIterator;
 
@@ -76,23 +76,17 @@ impl FromIterator<Trible> for TribleSet {
 }
 
 impl TriblePattern for TribleSet {
-    type PatternConstraint<'a, E, A, V>
-     = TribleSetConstraint<'a, E, A, V>
-     where
-     E: Idlike,
-     A: Idlike,
-     V: Valuelike;
+    type PatternConstraint<'a, V>
+     = TribleSetConstraint<'a, V>
+     where V: Valuelike;
 
-    fn pattern<'a, E, A, V>(
+    fn pattern<'a, V>(
         &'a self,
-        e: crate::query::Variable<E>,
-        a: crate::query::Variable<A>,
+        e: crate::query::Variable<Id>,
+        a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
-    ) -> Self::PatternConstraint<'a, E, A, V>
-    where
-        E: Idlike,
-        A: Idlike,
-        V: Valuelike,
+    ) -> Self::PatternConstraint<'a, V>
+    where V: Valuelike,
     {
         TribleSetConstraint::new(e, a, v, self)
     }
@@ -167,7 +161,7 @@ impl Bloblike for TribleSet {
 mod tests {
     use std::convert::TryInto;
 
-    use crate::NS;
+    use crate::{ufoid, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -176,9 +170,8 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            @ crate::types::syntactic::UFOID;
-            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::types::syntactic::UFOID;
-            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::syntactic::ShortString;
+            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::Id;
+            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::ShortString;
         }
     }
 
@@ -186,15 +179,16 @@ mod tests {
     fn union() {
         let mut kb = TribleSet::new();
         for _i in 0..2000 {
-            kb.union(&knights::entities!((lover_a, lover_b),
-            [{lover_a @
+            let lover_a = ufoid();
+            let lover_b = ufoid();
+            kb.union(&knights::entity!(lover_a, {
                 name: Name(EN).fake::<String>().try_into().unwrap(),
                 loves: lover_b
-            },
-            {lover_b @
+            }));
+            kb.union(&knights::entity!(lover_b, {
                 name: Name(EN).fake::<String>().try_into().unwrap(),
                 loves: lover_a
-            }]));
+            }));
         }
         assert_eq!(kb.len(), 8000);
     }

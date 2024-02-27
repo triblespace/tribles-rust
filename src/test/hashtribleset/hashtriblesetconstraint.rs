@@ -5,27 +5,21 @@ use crate::{
 
 use super::*;
 
-pub struct HashTribleSetConstraint<'a, E, A, V>
-where
-    E: Idlike,
-    A: Idlike,
-    V: Valuelike,
+pub struct HashTribleSetConstraint<'a, V>
+where V: Valuelike,
 {
-    variable_e: Variable<E>,
-    variable_a: Variable<A>,
+    variable_e: Variable<Id>,
+    variable_a: Variable<Id>,
     variable_v: Variable<V>,
     set: &'a HashTribleSet,
 }
 
-impl<'a, E, A, V> HashTribleSetConstraint<'a, E, A, V>
-where
-    E: Idlike,
-    A: Idlike,
-    V: Valuelike,
+impl<'a, V> HashTribleSetConstraint<'a, V>
+where V: Valuelike,
 {
     pub fn new(
-        variable_e: Variable<E>,
-        variable_a: Variable<A>,
+        variable_e: Variable<Id>,
+        variable_a: Variable<Id>,
         variable_v: Variable<V>,
         set: &'a HashTribleSet,
     ) -> Self {
@@ -38,11 +32,8 @@ where
     }
 }
 
-impl<'a, E, A, V> Constraint<'a> for HashTribleSetConstraint<'a, E, A, V>
-where
-    E: Idlike,
-    A: Idlike,
-    V: Valuelike,
+impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
+where V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

@@ -4,10 +4,9 @@ use std::marker::PhantomData;
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use hex::ToHex;
 
-use crate::types::syntactic::Hash;
-use crate::types::{Blob, Value};
+use crate::types::Hash;
 
-use super::{Bloblike, ValueParseError, Valuelike};
+use crate::{Blob, Value, Bloblike, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {
@@ -72,7 +71,7 @@ impl<H, T> Valuelike for Handle<H, T> {
         })
     }
 
-    fn into_value(&self) -> Value {
-        self.hash.value
+    fn into_value(value: &Self) -> Value {
+        value.hash.value
     }
 }

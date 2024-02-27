@@ -6,54 +6,39 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use crate::query::Variable;
-use crate::types::{Id, Idlike, Value, Valuelike};
+use crate::{Id, Value, Valuelike};
 
 use self::attributeconstraint::AttributeConstraint;
 
 #[derive(Debug, Clone)]
-pub struct Attribute<E, V>
-where
-    E: Idlike,
-    V: Valuelike,
-{
+pub struct Attribute<V: Valuelike> {
     pub ev: HashMap<Id, HashSet<Value>>,
     pub ve: HashMap<Value, HashSet<Id>>,
-    pe: PhantomData<E>,
     pv: PhantomData<V>,
 }
 
-impl<E, V> Attribute<E, V>
-where
-    E: Idlike,
-    V: Valuelike,
-{
-    pub fn new() -> Attribute<E, V> {
+impl<V: Valuelike> Attribute<V> {
+    pub fn new() -> Attribute<V> {
         Attribute {
             ev: HashMap::new(),
             ve: HashMap::new(),
-            pe: PhantomData,
             pv: PhantomData,
         }
     }
 
-    pub fn add(&mut self, e: &E, v: &V) {
-        let id: Id = e.into_id();
-        let value: Value = v.into_value();
-        self.ev.entry(id).or_default().insert(value);
-        self.ve.entry(value).or_default().insert(id);
+    pub fn add(&mut self, e: &Id, v: &V) {
+        let value: Value = Valuelike::into_value(v);
+        self.ev.entry(*e).or_default().insert(value);
+        self.ve.entry(value).or_default().insert(*e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<E>, v: Variable<V>) -> AttributeConstraint<'a, E, V> {
+    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> AttributeConstraint<'a, V> {
         AttributeConstraint::new(e, v, self)
     }
 }
 
-impl<E, V> FromIterator<(E, V)> for Attribute<E, V>
-where
-    E: Idlike,
-    V: Valuelike,
-{
-    fn from_iter<I: IntoIterator<Item = (E, V)>>(iter: I) -> Self {
+impl<V: Valuelike> FromIterator<(Id, V)> for Attribute<V> {
+    fn from_iter<I: IntoIterator<Item = (Id, V)>>(iter: I) -> Self {
         let mut attr = Attribute::new();
 
         for (e, v) in iter {

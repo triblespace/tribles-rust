@@ -4,21 +4,20 @@ use tribles::attribute::Attribute;
 use tribles::query::and;
 use tribles::query::find;
 
-use tribles::patch;
-
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use tribles::types::syntactic::ShortString;
-use tribles::types::syntactic::UFOID;
+use tribles::types::ShortString;
+use tribles::ufoid;
+use tribles::Id;
 
 fn main() {
-    let mut name: Attribute<UFOID, ShortString> = Attribute::new();
-    let mut loves: Attribute<UFOID, UFOID> = Attribute::new();
+    let mut name: Attribute<ShortString> = Attribute::new();
+    let mut loves: Attribute<Id> = Attribute::new();
 
     (0..1000000).for_each(|_| {
-        let lover_a = UFOID::new();
-        let lover_b = UFOID::new();
+        let lover_a = ufoid();
+        let lover_b = ufoid();
         name.add(&lover_a, &(Name(EN).fake::<String>().try_into().unwrap()));
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
@@ -26,16 +25,16 @@ fn main() {
     });
 
     (0..1000).for_each(|_| {
-        let lover_a = UFOID::new();
-        let lover_b = UFOID::new();
+        let lover_a = ufoid();
+        let lover_b = ufoid();
         name.add(&lover_a, &("Wameo".try_into().unwrap()));
         name.add(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
         loves.add(&lover_a, &lover_b);
         loves.add(&lover_b, &lover_a);
     });
 
-    let romeo = UFOID::new();
-    let juliet = UFOID::new();
+    let romeo = ufoid();
+    let juliet = ufoid();
     name.add(&romeo, &("Romeo".try_into().unwrap()));
     name.add(&juliet, &("Juliet".try_into().unwrap()));
     loves.add(&romeo, &juliet);

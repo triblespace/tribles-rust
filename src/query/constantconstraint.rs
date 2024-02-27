@@ -12,7 +12,7 @@ impl<T> ConstantConstraint<T> {
     {
         ConstantConstraint {
             variable,
-            constant: constant.into_value(),
+            constant: Valuelike::into_value(&constant),
         }
     }
 }

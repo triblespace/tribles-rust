@@ -2,11 +2,11 @@ use std::convert::TryInto;
 
 use crate::{
     patch::{KeyOrdering, KeySegmentation},
-    types::{Idlike, Valuelike},
+    Valuelike,
 };
 use arbitrary::Arbitrary;
 
-use crate::types::{Id, Value};
+use crate::{Id, Value};
 
 pub const TRIBLE_LEN: usize = 64;
 pub const E_START: usize = 0;
@@ -23,16 +23,13 @@ pub struct Trible {
 }
 
 impl Trible {
-    pub fn new<E, A, V>(e: E, a: A, v: V) -> Trible
-    where
-        E: Idlike,
-        A: Idlike,
-        V: Valuelike,
+    pub fn new<V>(e: Id, a: Id, v: V) -> Trible
+    where V: Valuelike,
     {
         let mut data = [0; TRIBLE_LEN];
-        data[E_START..=E_END].copy_from_slice(&mut e.into_id()[..]);
-        data[A_START..=A_END].copy_from_slice(&mut a.into_id()[..]);
-        data[V_START..=V_END].copy_from_slice(&mut v.into_value()[..]);
+        data[E_START..=E_END].copy_from_slice(&e[..]);
+        data[A_START..=A_END].copy_from_slice(&a[..]);
+        data[V_START..=V_END].copy_from_slice(&Valuelike::into_value(&v)[..]);
 
         Self { data }
     }

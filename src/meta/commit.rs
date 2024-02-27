@@ -4,23 +4,23 @@ use itertools::Itertools;
 
 use ed25519::signature::{Signer, Verifier};
 
-use crate::types::semantic::ed25519::{RComponent, SComponent};
+use crate::types::ed25519::{RComponent, SComponent};
+use crate::Id;
 use crate::{
     namespace::NS,
     query::find,
-    tribleset::TribleSet,
-    types::{handle::Handle, syntactic::RawId},
+    TribleSet,
+    types::Handle,
 };
 
 NS! {
     pub namespace commit_ns {
-        @ crate::types::syntactic::RawId;
-        tribles: "4DD4DDD05CC31734B03ABB4E43188B1F" as crate::types::handle::Handle<crate::types::syntactic::Blake3, crate::TribleSet>;
-        short_message: "12290C0BE0E9207E324F24DDE0D89300" as crate::types::syntactic::ShortString;
-        authored_by: "ADB4FFAD247C886848161297EFF5A05B" as crate::types::syntactic::RawId;
-        ed25519_signature_r: "9DF34F84959928F93A3C40AEB6E9E499" as crate::types::semantic::ed25519::RComponent;
-        ed25519_signature_s: "1ACE03BF70242B289FDF00E4327C3BC6" as crate::types::semantic::ed25519::SComponent;
-        ed25519_pubkey: "B57D92D4630F8F1B697DAF49CDFA3757" as crate::types::semantic::ed25519::VerifyingKey;
+        tribles: "4DD4DDD05CC31734B03ABB4E43188B1F" as crate::types::handle::Handle<crate::types::hash::Blake3, crate::TribleSet>;
+        short_message: "12290C0BE0E9207E324F24DDE0D89300" as crate::types::ShortString;
+        authored_by: "ADB4FFAD247C886848161297EFF5A05B" as crate::Id;
+        ed25519_signature_r: "9DF34F84959928F93A3C40AEB6E9E499" as crate::types::ed25519::RComponent;
+        ed25519_signature_s: "1ACE03BF70242B289FDF00E4327C3BC6" as crate::types::ed25519::SComponent;
+        ed25519_pubkey: "B57D92D4630F8F1B697DAF49CDFA3757" as crate::types::ed25519::VerifyingKey;
     }
 }
 
@@ -38,26 +38,26 @@ impl ValidationError {
 
 pub fn sign(
     signing_key: SigningKey,
-    handle: Handle<crate::types::syntactic::Blake3, TribleSet>,
-    commit_id: RawId,
+    handle: Handle<crate::types::hash::Blake3, TribleSet>,
+    commit_id: Id,
 ) -> Result<TribleSet, ValidationError> {
     let hash = handle.hash.value;
     let signature = signing_key.sign(&hash);
     let r = RComponent::from_signature(signature);
     let s = SComponent::from_signature(signature);
-    let tribles = commit_ns::entities!((),
-    [{commit_id @
+    let tribles = commit_ns::entity!(commit_id,
+    {   
         tribles: handle,
         ed25519_pubkey: signing_key.verifying_key(),
         ed25519_signature_r: r,
         ed25519_signature_s: s,
-    }]);
+    });
     Ok(tribles)
 }
 
 pub fn verify(
     tribles: TribleSet,
-    commit_id: RawId,
+    commit_id: Id,
 ) -> Result<(), ValidationError> {
     let (payload, verifying_key, r, s) = find!(
         ctx,

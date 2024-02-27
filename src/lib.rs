@@ -13,9 +13,15 @@ pub mod test;
 pub mod trible;
 mod tribleset;
 pub mod types;
+mod id;
+mod value;
+mod blob;
 
 pub use blobset::BlobSet;
 pub use tribleset::TribleSet;
+pub use id::{*};
+pub use value::{*};
+pub use blob::{*};
 
 #[cfg(test)]
 mod tests {}

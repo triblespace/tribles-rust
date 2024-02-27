@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use crate::types::{Blob, BlobParseError, Bloblike};
+use crate::{Blob, BlobParseError, Bloblike};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]

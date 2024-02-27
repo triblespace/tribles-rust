@@ -24,7 +24,7 @@ pub struct TribleSet {
 }
 
 impl TribleSet {
-    pub fn union<'a>(&mut self, other: &Self) {
+    pub fn union(&mut self, other: &Self) {
         self.eav.union(&other.eav);
         self.eva.union(&other.eva);
         self.aev.union(&other.aev);

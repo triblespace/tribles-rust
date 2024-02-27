@@ -49,6 +49,38 @@ pub use entities_inner;
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! entity_inner {
+    ($Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:expr),* $(,)?}) => {
+        {
+            use $Namespace as ns;
+            let mut set = $crate::TribleSet::new();
+            $(set.insert(&$crate::trible::Trible::new(
+                $EntityId,
+                ns::ids::$FieldName,
+                { let v: ns::types::$FieldName = $Value; v}));)*
+            set
+        }
+    };
+    ($Namespace:path, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
+        {
+            {
+                use $Namespace as ns;
+                let mut set = $crate::TribleSet::new();
+                let id = <ns::Id as $crate::types::Idlike>::factory();
+                $(set.insert(&$crate::trible::Trible::new(
+                    id,
+                    ns::ids::$FieldName,
+                    { let v: ns::types::$FieldName = $Value; v}));)*
+                set
+            }
+        }
+    };
+}
+
+pub use entity_inner;
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pattern_inner {
     (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
         {
@@ -167,6 +199,11 @@ macro_rules! NS {
             }
 
             #[allow(unused)]
+            pub fn id_gen() -> Id {
+                <Id as $crate::types::Idlike>::factory()
+            }
+
+            #[allow(unused)]
             macro_rules! entities {
                 ($vars:tt, $entities: tt, $set: ident) => {
                     {
@@ -184,6 +221,19 @@ macro_rules! NS {
 
             #[allow(unused)]
             pub(crate) use entities;
+            
+            #[allow(unused)]
+            macro_rules! entity {
+                ($entity:tt) => {
+                    {
+                        use $crate::namespace::entity_inner;
+                        entity_inner!($mod_name, $entity)
+                    }
+                };
+            }
+
+            #[allow(unused)]
+            pub(crate) use entity;
 
             #[allow(unused)]
             macro_rules! pattern {
@@ -242,11 +292,33 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn ns_entity() {
+        let juliet = knights::id_gen();
+        let romeo = knights::id_gen();
+
+        let mut tribles = TribleSet::new();
+        tribles.union(&knights::entity!({ juliet @
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo,
+            title: "Maiden".try_into().unwrap()
+        }));
+        tribles.union(&knights::entity!({romeo @
+            name: "Romeo".try_into().unwrap(),
+            loves: juliet,
+            title: "Prince".try_into().unwrap()
+        }));
+        tribles.union(&knights::entity!({
+            name: "Angelica".try_into().unwrap(),
+            title: "Nurse".try_into().unwrap()
+        }));
+        println!("{:?}", tribles);
+    }
+
     #[test]
     fn ns_pattern() {
-        init();
-
-        let juliet = knights::Id::new();
+        let juliet = knights::id_gen();
         let kb = knights::entities!((romeo),
         [{juliet @
             name: "Juliet".try_into().unwrap(),
@@ -291,7 +363,7 @@ mod tests {
             }]));
         });
 
-        let juliet = knights::Id::new();
+        let juliet = knights::id_gen();
         let data_kb = knights::entities!((romeo),
         [{juliet @
             name: "Juliet".try_into().unwrap(),

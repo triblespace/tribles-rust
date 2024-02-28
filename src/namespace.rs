@@ -14,31 +14,26 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! entity_inner {
-    ($Namespace:path, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
+    ($Namespace:path, $Set:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             {
                 use $Namespace as ns;
-                let mut set = $crate::TribleSet::new();
-                let id = $crate::idgen();
                 $({let v: ns::types::$FieldName = $Value;
-                    set.insert(&$crate::trible::Trible::new(
+                    $Set.insert(&$crate::trible::Trible::new(
                     id,
                     ns::ids::$FieldName,
                     v));};)*
-                set
             }
         }
     };
-    ($Namespace:path, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
+    ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             use $Namespace as ns;
-            let mut set = $crate::TribleSet::new();
             $({ let v: ns::types::$FieldName = $Value;
-                set.insert(&$crate::trible::Trible::new(
+                $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
                 ns::ids::$FieldName,
                 v));})*
-            set
         }
     };
 }
@@ -165,13 +160,27 @@ macro_rules! NS {
                 ($entity:tt) => {
                     {
                         use $crate::namespace::entity_inner;
-                        entity_inner!($mod_name, $entity)
+                        let mut set = $crate::TribleSet::new();
+                        let id = $crate::idgen();
+                        entity_inner!($mod_name, &mut set, id, $entity);
+                        set
                     }
                 };
                 ($entity_id:expr, $entity:tt) => {
                     {
                         use $crate::namespace::entity_inner;
-                        entity_inner!($mod_name, $entity_id, $entity)
+                        let mut set = $crate::TribleSet::new();
+                        let id = $entity_id;
+                        entity_inner!($mod_name, &mut set, id, $entity);
+                        set
+                    }
+                };
+                ($set:expr, $entity_id:expr, $entity:tt) => {
+                    {
+                        use $crate::namespace::entity_inner;
+                        let set: &mut TribleSet= $set;
+                        let id = $entity_id;
+                        entity_inner!($mod_name, set, id, $entity);
                     }
                 };
             }

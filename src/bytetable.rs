@@ -338,6 +338,7 @@ mod tests {
     #[derive(Clone, Debug)]
     #[repr(C, u8)]
     enum DummyEntry {
+        #[allow(unused)]
         None {} = 0,
         Some { value: u8 } = 1,
     }

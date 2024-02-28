@@ -284,14 +284,14 @@ fn entities_benchmark(c: &mut Criterion) {
                 (0..i).for_each(|_| {
                     let lover_a = ufoid();
                     let lover_b = ufoid();
-                    kb.union(&knights::entity!(lover_a, {
+                    knights::entity!(&mut kb, lover_a, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_b
-                        }));
-                    kb.union(&knights::entity!(lover_b, {
+                        });
+                    knights::entity!(&mut kb, lover_b, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_a
-                        }));
+                        });
                 });
                 let after_mem = PEAK_ALLOC.current_usage();
                 println!(

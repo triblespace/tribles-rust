@@ -43,6 +43,7 @@ macro_rules! create_branch {
                 V: Clone,
             > $name<KEY_LEN, O, S, V>
         {
+            #[allow(unused)]
             pub(super) fn new(end_depth: usize) -> *mut Self {
                 unsafe {
                     let layout = Layout::new::<Self>();

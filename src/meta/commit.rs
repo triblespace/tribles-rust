@@ -25,6 +25,7 @@ NS! {
 }
 
 pub struct ValidationError {
+    #[allow(unused)]
     msg: String,
 }
 

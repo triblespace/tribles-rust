@@ -45,6 +45,41 @@ pub fn idgen() -> Id {
     id
 }
 
+#[cfg(feature = "proptest")]
+pub struct IdValueTree(Id);
+
+#[cfg(feature = "proptest")]
+#[derive(Debug)]
+pub struct RandId();
+#[cfg(feature = "proptest")]
+impl proptest::strategy::Strategy for RandId {
+    type Tree = IdValueTree;
+    type Value = Id;
+
+    fn new_tree(&self, runner: &mut proptest::prelude::prop::test_runner::TestRunner) -> proptest::prelude::prop::strategy::NewTree<Self> {
+        let rng = runner.rng();
+        let mut id = [0; 16];
+        rng.fill_bytes(&mut id[..]);
+
+        Ok(IdValueTree(id))
+    }
+}
+
+#[cfg(feature = "proptest")]
+impl proptest::strategy::ValueTree for IdValueTree {
+    type Value = Id;
+
+    fn simplify(&mut self) -> bool {
+        false
+    }
+    fn complicate(&mut self) -> bool {
+        false
+    }
+    fn current(&self) -> Id {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

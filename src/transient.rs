@@ -43,29 +43,28 @@ impl<V: Valuelike> Transient<V> {
     }
 }
 
-impl<V: Valuelike> FromIterator<(Id, V)> for Transient<V> {
-    fn from_iter<I: IntoIterator<Item = (Id, V)>>(iter: I) -> Self {
-        let mut attr = Transient::new();
+impl<'a, V> FromIterator<&'a (Id, V)> for Transient<V>
+where V: Valuelike {
+    fn from_iter<I: IntoIterator<Item = &'a (Id, V)>>(iter: I) -> Self {
+        let mut transient = Transient::new();
 
         for (e, v) in iter {
-            attr.add(&e, &v);
+            transient.insert(e, v);
         }
-        attr
+        transient
     }
 }
 
-/*
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use itertools::Itertools;
     use proptest::prelude::*;
 
     proptest! {
         #[test]
-        fn put(entries in prop::collection::vec((prop::num::u64::ANY, prop::num::u64::ANY), 1..1024)) {
-            let set = Attribute::from_iter(entries.iter());
+        fn put(entries in prop::collection::vec((crate::id::RandId(), crate::id::RandId()), 1..1024)) {
+            Transient::from_iter(entries.iter());
         }
     }
 }
-*/

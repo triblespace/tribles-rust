@@ -1,4 +1,4 @@
-pub mod attributeconstraint;
+pub mod transientconstraint;
 
 use std::collections::{HashMap, HashSet};
 
@@ -8,18 +8,18 @@ use std::marker::PhantomData;
 use crate::query::Variable;
 use crate::{Id, Value, Valuelike};
 
-use self::attributeconstraint::AttributeConstraint;
+use self::transientconstraint::TransientConstraint;
 
 #[derive(Debug, Clone)]
-pub struct Attribute<V: Valuelike> {
+pub struct Transient<V: Valuelike> {
     pub ev: HashMap<Id, HashSet<Value>>,
     pub ve: HashMap<Value, HashSet<Id>>,
     pv: PhantomData<V>,
 }
 
-impl<V: Valuelike> Attribute<V> {
-    pub fn new() -> Attribute<V> {
-        Attribute {
+impl<V: Valuelike> Transient<V> {
+    pub fn new() -> Transient<V> {
+        Transient {
             ev: HashMap::new(),
             ve: HashMap::new(),
             pv: PhantomData,
@@ -32,14 +32,14 @@ impl<V: Valuelike> Attribute<V> {
         self.ve.entry(value).or_default().insert(*e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> AttributeConstraint<'a, V> {
-        AttributeConstraint::new(e, v, self)
+    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> TransientConstraint<'a, V> {
+        TransientConstraint::new(e, v, self)
     }
 }
 
-impl<V: Valuelike> FromIterator<(Id, V)> for Attribute<V> {
+impl<V: Valuelike> FromIterator<(Id, V)> for Transient<V> {
     fn from_iter<I: IntoIterator<Item = (Id, V)>>(iter: I) -> Self {
-        let mut attr = Attribute::new();
+        let mut attr = Transient::new();
 
         for (e, v) in iter {
             attr.add(&e, &v);

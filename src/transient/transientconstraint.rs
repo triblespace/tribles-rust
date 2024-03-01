@@ -5,31 +5,31 @@ use crate::{
 
 use super::*;
 
-pub struct AttributeConstraint<'a, V>
+pub struct TransientConstraint<'a, V>
 where V: Valuelike,
 {
     variable_e: Variable<Id>,
     variable_v: Variable<V>,
-    attr: &'a Attribute<V>,
+    transient: &'a Transient<V>,
 }
 
-impl<'a, V> AttributeConstraint<'a, V>
+impl<'a, V> TransientConstraint<'a, V>
 where V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<Id>,
         variable_v: Variable<V>,
-        attr: &'a Attribute<V>,
+        transient: &'a Transient<V>,
     ) -> Self {
-        AttributeConstraint {
+        TransientConstraint {
             variable_e,
             variable_v,
-            attr,
+            transient,
         }
     }
 }
 
-impl<'a, V> Constraint<'a> for AttributeConstraint<'a, V>
+impl<'a, V> Constraint<'a> for TransientConstraint<'a, V>
 where V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
@@ -51,10 +51,10 @@ where V: Valuelike,
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
-            (None, None, true, false) => self.attr.ev.len(),
-            (None, None, false, true) => self.attr.ve.len(),
-            (Some(e), None, false, true) => self.attr.ev.get(&e[16..32]).map_or(0, |s| s.len()),
-            (None, Some(v), true, false) => self.attr.ve.get(&v).map_or(0, |s| s.len()),
+            (None, None, true, false) => self.transient.ev.len(),
+            (None, None, false, true) => self.transient.ve.len(),
+            (Some(e), None, false, true) => self.transient.ev.get(&e[16..32]).map_or(0, |s| s.len()),
+            (None, Some(v), true, false) => self.transient.ve.get(&v).map_or(0, |s| s.len()),
             _ => panic!(),
         }
     }
@@ -67,15 +67,15 @@ where V: Valuelike,
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
-            (None, None, true, false) => self.attr.ev.keys().copied().map(id_into_value).collect(),
-            (None, None, false, true) => self.attr.ve.keys().copied().collect(),
+            (None, None, true, false) => self.transient.ev.keys().copied().map(id_into_value).collect(),
+            (None, None, false, true) => self.transient.ve.keys().copied().collect(),
             (Some(e), None, false, true) => self
-                .attr
+                .transient
                 .ev
                 .get(&e[16..=31])
                 .map_or(vec![], |s| s.iter().copied().collect()),
             (None, Some(v), true, false) => self
-                .attr
+                .transient
                 .ve
                 .get(&v)
                 .map_or(vec![], |s| s.iter().copied().map(id_into_value).collect()),
@@ -92,18 +92,18 @@ where V: Valuelike,
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => {
-                proposals.retain(|e| self.attr.ev.contains_key(&e[16..=31]))
+                proposals.retain(|e| self.transient.ev.contains_key(&e[16..=31]))
             }
-            (None, None, false, true) => proposals.retain(|v| self.attr.ve.contains_key(v)),
+            (None, None, false, true) => proposals.retain(|v| self.transient.ve.contains_key(v)),
             (Some(e), None, false, true) => {
-                if let Some(vs) = self.attr.ev.get(&e[16..=31]) {
+                if let Some(vs) = self.transient.ev.get(&e[16..=31]) {
                     proposals.retain(|v| vs.contains(v));
                 } else {
                     proposals.clear()
                 }
             }
             (None, Some(v), true, false) => {
-                if let Some(vs) = self.attr.ve.get(&v) {
+                if let Some(vs) = self.transient.ve.get(&v) {
                     proposals.retain(|e| vs.contains(&e[16..=31]));
                 } else {
                     proposals.clear()

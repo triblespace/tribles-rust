@@ -1,5 +1,5 @@
 //! This is a collection of Rust types that can be (de)serialized as
-//! [Id]s, [Value]s, and [Blob]s.
+//! [Value]s, and [Blob]s.
 
 pub mod handle;
 pub mod hash;

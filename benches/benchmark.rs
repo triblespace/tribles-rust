@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use tribles::and;
-use tribles::attribute::Attribute;
+use tribles::transient::Transient;
 use tribles::{Id, types::ShortString};
 use tribles::NS;
 
@@ -561,8 +561,8 @@ fn query_benchmark(c: &mut Criterion) {
 fn attribute_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("attribute");
 
-    let mut name: Attribute<ShortString> = Attribute::new();
-    let mut loves: Attribute<Id> = Attribute::new();
+    let mut name: Transient<ShortString> = Transient::new();
+    let mut loves: Transient<Id> = Transient::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();

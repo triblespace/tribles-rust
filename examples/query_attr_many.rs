@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use tribles::attribute::Attribute;
+use tribles::transient::Transient;
 use tribles::query::and;
 use tribles::query::find;
 
@@ -12,8 +12,8 @@ use tribles::ufoid;
 use tribles::Id;
 
 fn main() {
-    let mut name: Attribute<ShortString> = Attribute::new();
-    let mut loves: Attribute<Id> = Attribute::new();
+    let mut name: Transient<ShortString> = Transient::new();
+    let mut loves: Transient<Id> = Transient::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();

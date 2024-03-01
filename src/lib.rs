@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-pub mod attribute;
+pub mod transient;
 pub mod bitset;
 mod blobset;
 pub mod bytetable;

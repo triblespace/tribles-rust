@@ -26,10 +26,16 @@ impl<V: Valuelike> Transient<V> {
         }
     }
 
-    pub fn add(&mut self, e: &Id, v: &V) {
+    pub fn insert(&mut self, e: &Id, v: &V) {
         let value: Value = Valuelike::into_value(v);
         self.ev.entry(*e).or_default().insert(value);
         self.ve.entry(value).or_default().insert(*e);
+    }
+
+    pub fn remove(&mut self, e: &Id, v: &V) {
+        let value: Value = Valuelike::into_value(v);
+        self.ev.entry(*e).or_default().remove(&value);
+        self.ve.entry(value).or_default().remove(e);
     }
 
     pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> TransientConstraint<'a, V> {

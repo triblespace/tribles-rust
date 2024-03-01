@@ -1122,15 +1122,11 @@ mod tests {
 
     #[test]
     fn empty_tree() {
-        init();
-
         let _tree = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
     }
 
     #[test]
     fn tree_put_one() {
-        init();
-
         const KEY_SIZE: usize = 64;
         let mut tree = PATCH::<KEY_SIZE, IdentityOrder, SingleSegmentation, ()>::new();
         let entry = Entry::new(&[0; KEY_SIZE], ());

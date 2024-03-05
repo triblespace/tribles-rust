@@ -17,8 +17,12 @@ pub mod mask;
 pub mod patchconstraint;
 
 use std::fmt;
+use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::thread::sleep;
+use std::time::Duration;
 
+use arrayvec::ArrayVec;
 pub use constantconstraint::*;
 pub use hashsetconstraint::*;
 pub use intersectionconstraint::*;
@@ -169,14 +173,17 @@ pub trait Constraint<'a> {
     fn confirm(&self, variable: VariableId, binding: Binding, proposal: &mut Vec<Value>);
 }
 
+pub struct State {
+    variable: VariableId,
+    values: Vec<Value>,
+}
 pub struct Query<C, P: Fn(&Binding) -> Result<R, ValueParseError>, R> {
     constraint: C,
-    binding: Binding,
-    variables: VariableSet,
-    variable_stack: [u8; 256],
-    value_stack: [Vec<Value>; 256],
-    stack_depth: isize,
     postprocessing: P,
+    mode: Search,
+    binding: Binding,
+    stack: arrayvec::ArrayVec<State, 256>,
+    unbound: arrayvec::ArrayVec<VariableId, 256>,
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Query<C, P, R> {
@@ -184,12 +191,11 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Qu
         let variables = constraint.variables();
         Query {
             constraint,
-            binding: Default::default(),
-            variables,
-            variable_stack: [0; 256],
-            value_stack: std::array::from_fn(|_| vec![]),
-            stack_depth: -1,
             postprocessing,
+            mode: Search::Vertical,
+            binding: Default::default(),
+            stack: arrayvec::ArrayVec::new(),
+            unbound: ArrayVec::from_iter(variables),
         }
     }
 }
@@ -199,6 +205,7 @@ enum Search {
     Vertical,
     Horizontal,
     Backtrack,
+    Done,
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Iterator
@@ -209,48 +216,62 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
 
     // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
-        let mut mode = if self.stack_depth == -1 {
-            Search::Vertical
-        } else {
-            Search::Horizontal
-        };
-
         loop {
-            match mode {
+            match self.mode {
                 Search::Vertical => {
-                    if let Some(next_variable) = self
-                        .variables
-                        .subtract(self.binding.bound)
-                        .into_iter()
-                        .min_by_key(|&v| self.constraint.estimate(v, self.binding))
-                    {
-                        self.stack_depth += 1;
-                        self.variable_stack[self.stack_depth as usize] = next_variable;
-                        self.value_stack[self.stack_depth as usize] =
-                            self.constraint.propose(next_variable, self.binding);
+                    self.mode = Search::Horizontal;
 
-                        mode = Search::Horizontal;
-                    } else {
-                        return Some((self.postprocessing)(&self.binding));
+                    match self.unbound.len() {
+                        0 => {
+                            return Some((self.postprocessing)(&self.binding));
+                        }
+                        1 => {
+                            let next_variable = self.unbound.pop().unwrap();
+                            self.stack.push(State {
+                                variable: next_variable,
+                                values: self.constraint.propose(next_variable, self.binding),
+                            })
+                        }
+                        _ => {
+                            let (index, &next_variable) = self
+                                .unbound
+                                .iter()
+                                .enumerate()
+                                .min_by_key(|(_, &v)| self.constraint.estimate(v, self.binding))
+                                .unwrap();
+                            self.unbound.swap_remove(index);
+                            self.stack.push(State {
+                                variable: next_variable,
+                                values: self.constraint.propose(next_variable, self.binding),
+                            });
+                        }
                     }
                 }
                 Search::Horizontal => {
-                    if let Some(assignment) = self.value_stack[self.stack_depth as usize].pop() {
-                        self.binding
-                            .set(self.variable_stack[self.stack_depth as usize], assignment);
-                        mode = Search::Vertical;
+                    if let Some(state) = self.stack.last_mut() {
+                        if let Some(assignment) = state.values.pop() {
+                            self.binding.set(state.variable, assignment);
+                            self.mode = Search::Vertical;
+                        } else {
+                            self.mode = Search::Backtrack;
+                        }
                     } else {
-                        mode = Search::Backtrack;
+                        self.mode = Search::Done;
+                        return None;
                     }
                 }
                 Search::Backtrack => {
-                    self.binding
-                        .unset(self.variable_stack[self.stack_depth as usize]);
-                    self.stack_depth -= 1;
-                    if self.stack_depth == -1 {
+                    if let Some(state) = self.stack.pop() {
+                        self.binding.unset(state.variable);
+                        self.unbound.push(state.variable);
+                        self.mode = Search::Horizontal;
+                    } else {
+                        self.mode = Search::Done;
                         return None;
                     }
-                    mode = Search::Horizontal;
+                }
+                Search::Done => {
+                    return None;
                 }
             }
         }

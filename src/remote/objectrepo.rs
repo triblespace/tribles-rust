@@ -32,25 +32,31 @@ impl<H> ObjectRepo<H> {
 pub enum ListErr {
     List(object_store::Error),
     NotAFile(&'static str),
-    BadNameHex(<Value as FromHex>::Error)
+    BadNameHex(<Value as FromHex>::Error),
 }
 
 impl<H> BlobPull<H> for ObjectRepo<H>
-where H: Digest + OutputSizeUser<OutputSize = U32> {
+where
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
     type LoadErr = object_store::Error;
     type ListErr = ListErr;
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::ListErr>> {
-        self.store.list(Some(&self.prefix)).map(|r| {
-            match r {
+        self.store
+            .list(Some(&self.prefix))
+            .map(|r| match r {
                 Ok(meta) => {
-                    let blob_name = meta.location.filename().ok_or(ListErr::NotAFile("no filename"))?;
+                    let blob_name = meta
+                        .location
+                        .filename()
+                        .ok_or(ListErr::NotAFile("no filename"))?;
                     let digest = Value::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
                     Ok(Hash::new(digest))
                 }
-                Err(e) => Err(ListErr::List(e))
-            }
-        }).boxed()
+                Err(e) => Err(ListErr::List(e)),
+            })
+            .boxed()
     }
 
     async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
@@ -62,23 +68,26 @@ where H: Digest + OutputSizeUser<OutputSize = U32> {
 }
 
 impl<H> BlobPush<H> for ObjectRepo<H>
-where H: Digest + OutputSizeUser<OutputSize = U32> {
+where
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
     type StoreErr = object_store::Error;
 
     async fn push_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr> {
         let digest: Value = H::digest(&blob).into();
         let path = self.prefix.child(hex::encode(digest));
-        let put_result = self.store.put_opts(&path, blob.clone(), PutMode::Create.into()).await;
+        let put_result = self
+            .store
+            .put_opts(&path, blob.clone(), PutMode::Create.into())
+            .await;
         match put_result {
-            Ok(_) | Err(object_store::Error::AlreadyExists {..}) => Ok(Hash::new(digest)),
-            Err(e) => Err(e)
+            Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(Hash::new(digest)),
+            Err(e) => Err(e),
         }
     }
 }
 
-
-impl<H> BlobRepo<H> for ObjectRepo<H>
-where H: Digest + OutputSizeUser<OutputSize = U32> {}
+impl<H> BlobRepo<H> for ObjectRepo<H> where H: Digest + OutputSizeUser<OutputSize = U32> {}
 
 pub struct ObjectHead<H> {
     store: Box<dyn ObjectStore>,

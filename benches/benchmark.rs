@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hex::ToHex;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -6,8 +7,8 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use tribles::and;
 use tribles::transient::Transient;
-use tribles::{Id, types::ShortString};
 use tribles::NS;
+use tribles::{types::ShortString, Id};
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::ufoid;
@@ -64,12 +65,14 @@ fn std_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| HashSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
+            b.iter_with_large_drop(|| {
+                HashSet::<Trible>::from_iter(black_box(&samples).iter().copied())
+            });
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let set = HashSet::<Trible>::from_iter(black_box(&samples).iter().copied());
-            b.iter(|| set.iter().collect::<Vec<_>>());
+            let set = HashSet::<Trible>::from_iter((&samples).iter().copied());
+            b.iter(|| black_box(&set).iter().count());
         });
     }
     //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
@@ -108,12 +111,14 @@ fn im_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
+            b.iter_with_large_drop(|| {
+                OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied())
+            });
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             let set = OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied());
-            b.iter(|| set.iter().collect::<Vec<_>>());
+            b.iter(|| black_box(&set).iter().count());
         });
     }
     //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
@@ -128,12 +133,13 @@ fn patch_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| {
+            b.iter_with_large_drop(|| {
                 let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
                 for t in black_box(&samples) {
                     let entry: Entry<64, ()> = Entry::new(&t.data, ());
                     patch.insert(&entry);
                 }
+                patch
             })
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
@@ -143,12 +149,7 @@ fn patch_benchmark(c: &mut Criterion) {
                 let entry: Entry<64, ()> = Entry::new(&t.data, ());
                 patch.insert(&entry);
             }
-            b.iter(|| {
-                let mut v = vec![];
-                for (k, _) in &patch {
-                    v.push(k);
-                }
-            });
+            b.iter(|| black_box(&patch).into_iter().count());
         });
         group.bench_with_input(BenchmarkId::new("infixes", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
@@ -158,8 +159,9 @@ fn patch_benchmark(c: &mut Criterion) {
                 patch.insert(&entry);
             }
             b.iter(|| {
-                let mut v = vec![];
-                patch.infixes(&[0; 0], &mut |x: [u8; 64]| v.push(x));
+                let mut i = 0;
+                black_box(&patch).infixes(&[0; 0], &mut |_: [u8; 64]| i += 1);
+                i
             });
         });
     }
@@ -181,14 +183,14 @@ fn patch_benchmark(c: &mut Criterion) {
                     patch
                 })
                 .collect();
-            b.iter(|| {
-                black_box(patchs.iter().fold(
+            b.iter_with_large_drop(|| {
+                black_box(&patchs).iter().fold(
                     PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new(),
                     |mut a, p| {
                         a.union(p);
                         a
                     },
-                ))
+                )
             });
         });
     }
@@ -220,33 +222,9 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| {
-                let set = TribleSet::from_iter(black_box(samples.iter().copied()));
-                set
-            })
+            b.iter_with_large_drop(|| TribleSet::from_iter(black_box(&samples).iter().copied()))
         });
     }
-
-    /*
-    let total_unioned = 1000000;
-    for i in [2, 10, 100, 1000].iter() {
-        group.throughput(Throughput::Elements(total_unioned as u64));
-        group.bench_with_input(BenchmarkId::new("union", i), i, |b, &i| {
-            let samples = random_tribles(total_unioned as usize);
-            let sets: Vec<_> = samples
-                .chunks(total_unioned / i)
-                .map(|samples| {
-                    let mut set = TribleSet::new();
-                    for t in samples {
-                        set.add(t);
-                    }
-                    set
-                })
-                .collect();
-            b.iter(|| black_box(TribleSet::union(sets.iter()).len()));
-        });
-    }
-    */
 
     group.finish();
 }
@@ -256,7 +234,7 @@ fn entities_benchmark(c: &mut Criterion) {
 
     group.throughput(Throughput::Elements(4));
     group.bench_function(BenchmarkId::new("entities", 4), |b| {
-        b.iter(|| {
+        b.iter_with_large_drop(|| {
             let mut kb = TribleSet::new();
             let lover_a = ufoid();
             let lover_b = ufoid();
@@ -270,7 +248,7 @@ fn entities_benchmark(c: &mut Criterion) {
                 loves: lover_a
             }));
 
-            black_box(&kb);
+            kb
         })
     });
 
@@ -278,27 +256,27 @@ fn entities_benchmark(c: &mut Criterion) {
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
-            b.iter(|| {
+            b.iter_with_large_drop(|| {
                 let before_mem = PEAK_ALLOC.current_usage();
                 let mut kb: TribleSet = TribleSet::new();
                 (0..i).for_each(|_| {
                     let lover_a = ufoid();
                     let lover_b = ufoid();
                     knights::entity!(&mut kb, lover_a, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_b
-                        });
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_b
+                    });
                     knights::entity!(&mut kb, lover_b, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_a
-                        });
+                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        loves: lover_a
+                    });
                 });
                 let after_mem = PEAK_ALLOC.current_usage();
                 println!(
                     "Trible size: {}",
                     (after_mem - before_mem) / kb.len() as usize
                 );
-                black_box(&kb);
+                kb
             })
         });
     }
@@ -313,20 +291,21 @@ fn entities_benchmark(c: &mut Criterion) {
                         let lover_a = ufoid();
                         let lover_b = ufoid();
 
-                        [knights::entity!(lover_a, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_b
-                        }),
-                        knights::entity!(lover_b, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_a
-                        })]
+                        [
+                            knights::entity!(lover_a, {
+                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                loves: lover_b
+                            }),
+                            knights::entity!(lover_b, {
+                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                loves: lover_a
+                            }),
+                        ]
                     })
                     .fold(TribleSet::new(), |mut kb, set| {
                         kb.union(&set);
                         kb
                     });
-                black_box(&kb);
                 kb
             })
         });
@@ -338,17 +317,19 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
             let sets: Vec<_> = (0..i)
                 .flat_map(|_| {
-                        let lover_a = ufoid();
-                        let lover_b = ufoid();
-                        
-                        [knights::entity!(lover_a, {
+                    let lover_a = ufoid();
+                    let lover_b = ufoid();
+
+                    [
+                        knights::entity!(lover_a, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_b
                         }),
                         knights::entity!(lover_b, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_a
-                        })]
+                        }),
+                    ]
                 })
                 .collect();
             b.iter_with_large_drop(|| {
@@ -356,7 +337,6 @@ fn entities_benchmark(c: &mut Criterion) {
                 for set in &sets {
                     kb.union(&set);
                 }
-                black_box(&kb);
                 kb
             });
         });
@@ -372,15 +352,17 @@ fn entities_benchmark(c: &mut Criterion) {
                     .flat_map(|_| {
                         let lover_a = ufoid();
                         let lover_b = ufoid();
-                        
-                        [knights::entity!(lover_a, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_b
-                        }),
-                        knights::entity!(lover_b, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
-                            loves: lover_a
-                        })]
+
+                        [
+                            knights::entity!(lover_a, {
+                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                loves: lover_b
+                            }),
+                            knights::entity!(lover_b, {
+                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                loves: lover_a
+                            }),
+                        ]
                     })
                     .reduce(
                         || TribleSet::new(),
@@ -389,7 +371,6 @@ fn entities_benchmark(c: &mut Criterion) {
                             a
                         },
                     );
-                black_box(&kb);
                 kb
             })
         });
@@ -400,18 +381,20 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/parallel/prealloc", 4 * i), |b| {
             let sets: Vec<_> = (0..i)
-                    .flat_map(|_| {
-                        let lover_a = ufoid();
-                        let lover_b = ufoid();
-                        
-                        [knights::entity!(lover_a, {
+                .flat_map(|_| {
+                    let lover_a = ufoid();
+                    let lover_b = ufoid();
+
+                    [
+                        knights::entity!(lover_a, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_b
                         }),
                         knights::entity!(lover_b, {
                             name: Name(EN).fake::<String>().try_into().unwrap(),
                             loves: lover_a
-                        })]
+                        }),
+                    ]
                 })
                 .collect();
             b.iter_with_large_drop(|| {
@@ -422,7 +405,6 @@ fn entities_benchmark(c: &mut Criterion) {
                         a
                     },
                 );
-                black_box(&kb);
                 kb
             });
         });
@@ -438,18 +420,20 @@ fn entities_benchmark(c: &mut Criterion) {
                     .into_par_iter()
                     .map(|_| {
                         (0..i / batch_size)
-                        .flat_map(|_| {
-                            let lover_a = ufoid();
-                            let lover_b = ufoid();
-                            
-                            [knights::entity!(lover_a, {
-                                name: Name(EN).fake::<String>().try_into().unwrap(),
-                                loves: lover_b
-                            }),
-                            knights::entity!(lover_b, {
-                                name: Name(EN).fake::<String>().try_into().unwrap(),
-                                loves: lover_a
-                            })]
+                            .flat_map(|_| {
+                                let lover_a = ufoid();
+                                let lover_b = ufoid();
+
+                                [
+                                    knights::entity!(lover_a, {
+                                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                                        loves: lover_b
+                                    }),
+                                    knights::entity!(lover_b, {
+                                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                                        loves: lover_a
+                                    }),
+                                ]
                             })
                             .fold(TribleSet::new(), |mut kb, set| {
                                 kb.union(&set);
@@ -463,7 +447,6 @@ fn entities_benchmark(c: &mut Criterion) {
                             a
                         },
                     );
-                black_box(&kb);
                 kb
             })
         });
@@ -479,7 +462,7 @@ fn query_benchmark(c: &mut Criterion) {
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        
+
         kb.union(&knights::entity!(lover_a, {
             name: Name(EN).fake::<String>().try_into().unwrap(),
             loves: lover_b
@@ -491,10 +474,10 @@ fn query_benchmark(c: &mut Criterion) {
     });
 
     let mut data_kb = TribleSet::new();
-    
+
     let juliet = ufoid();
     let romeo = ufoid();
-    
+
     kb.union(&knights::entity!(juliet, {
         name: "Juliet".try_into().unwrap(),
         loves: romeo
@@ -522,37 +505,35 @@ fn query_benchmark(c: &mut Criterion) {
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("pattern", 1), |b| {
-        b.iter_with_large_drop(|| {
-            let r = find!(
+        b.iter(|| {
+            find!(
                 ctx,
                 (juliet, name),
                 knights::pattern!(ctx, kb, [
-                {name: ("Romeo".try_into().unwrap()),
+                {name: (black_box("Romeo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @
                     name: name
                 }])
             )
-            .count();
-            black_box(r)
+            .count()
         })
     });
 
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("pattern", 1000), |b| {
-        b.iter_with_large_drop(|| {
-            let r = find!(
+        b.iter(|| {
+            find!(
                 ctx,
                 (juliet, name),
                 knights::pattern!(ctx, kb, [
-                {name: ("Wameo".try_into().unwrap()),
+                {name: (black_box("Wameo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @
                     name: name
                 }])
             )
-            .count();
-            black_box(r)
+            .count()
         })
     });
     group.finish();
@@ -591,39 +572,325 @@ fn attribute_benchmark(c: &mut Criterion) {
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("query", 1), |b| {
-        b.iter_with_large_drop(|| {
-            let r = find!(
+        b.iter(|| {
+            find!(
                 ctx,
                 (juliet, romeo, romeo_name, juliet_name),
                 and!(
-                    romeo_name.is("Romeo".try_into().unwrap()),
+                    romeo_name.is(black_box("Romeo").try_into().unwrap()),
                     name.has(romeo, romeo_name),
                     name.has(juliet, juliet_name),
                     loves.has(romeo, juliet)
                 )
             )
-            .count();
-            black_box(r)
+            .count()
         })
     });
 
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("query", 1000), |b| {
-        b.iter_with_large_drop(|| {
-            let r = find!(
+        b.iter(|| {
+            find!(
                 ctx,
                 (juliet, romeo, romeo_name, juliet_name),
                 and!(
-                    romeo_name.is("Wameo".try_into().unwrap()),
+                    romeo_name.is(black_box("Wameo").try_into().unwrap()),
                     name.has(romeo, romeo_name),
                     name.has(juliet, juliet_name),
                     loves.has(romeo, juliet)
                 )
             )
-            .count();
-            black_box(r)
+            .count()
         })
     });
+    group.finish();
+}
+
+fn oxigraph_benchmark(c: &mut Criterion) {
+    use oxigraph::model::*;
+    use oxigraph::sparql::QueryResults;
+    use oxigraph::store::Store;
+
+    let loves_node =
+        NamedNode::new(["urn:id:", &knights::ids::loves.encode_hex_upper::<String>()].concat())
+            .unwrap();
+    let name_node =
+        NamedNode::new(["urn:id:", &knights::ids::name.encode_hex_upper::<String>()].concat())
+            .unwrap();
+
+    let mut group = c.benchmark_group("oxigraph");
+
+    //insert
+    for i in [1000000] {
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("insert dataset", 4 * i), |b| {
+            b.iter_with_large_drop(|| {
+                let before_mem = PEAK_ALLOC.current_usage();
+
+                let mut dataset = Dataset::default();
+                (0..i).for_each(|_| {
+                    let lover_a =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
+                    let lover_b =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
+
+                    let quad = Quad::new(
+                        lover_a.clone(),
+                        loves_node.clone(),
+                        lover_b.clone(),
+                        GraphName::DefaultGraph,
+                    );
+                    dataset.insert(&quad);
+
+                    let quad = Quad::new(
+                        lover_b.clone(),
+                        loves_node.clone(),
+                        lover_a.clone(),
+                        GraphName::DefaultGraph,
+                    );
+                    dataset.insert(&quad);
+
+                    let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+                    let quad = Quad::new(
+                        lover_a.clone(),
+                        name_node.clone(),
+                        name,
+                        GraphName::DefaultGraph,
+                    );
+                    dataset.insert(&quad);
+
+                    let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+                    let quad = Quad::new(
+                        lover_b.clone(),
+                        name_node.clone(),
+                        name,
+                        GraphName::DefaultGraph,
+                    );
+                    dataset.insert(&quad);
+                });
+                let after_mem = PEAK_ALLOC.current_usage();
+                println!(
+                    "Quad size: {}",
+                    (after_mem - before_mem) / dataset.len() as usize
+                );
+                dataset
+            })
+        });
+    }
+
+    for i in [1000000] {
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("insert store", 4 * i), |b| {
+            b.iter_with_large_drop(|| {
+                let before_mem = PEAK_ALLOC.current_usage();
+
+                let store = Store::new().unwrap();
+                (0..i).for_each(|_| {
+                    let lover_a =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
+                    let lover_b =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
+
+                    let quad = Quad::new(
+                        lover_a.clone(),
+                        loves_node.clone(),
+                        lover_b.clone(),
+                        GraphName::DefaultGraph,
+                    );
+                    store.insert(&quad);
+
+                    let quad = Quad::new(
+                        lover_b.clone(),
+                        loves_node.clone(),
+                        lover_a.clone(),
+                        GraphName::DefaultGraph,
+                    );
+                    store.insert(&quad);
+
+                    let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+                    let quad = Quad::new(
+                        lover_a.clone(),
+                        name_node.clone(),
+                        name,
+                        GraphName::DefaultGraph,
+                    );
+                    store.insert(&quad);
+
+                    let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+                    let quad = Quad::new(
+                        lover_b.clone(),
+                        name_node.clone(),
+                        name,
+                        GraphName::DefaultGraph,
+                    );
+                    store.insert(&quad);
+                });
+                let after_mem = PEAK_ALLOC.current_usage();
+                println!("Quad size: {}", (after_mem - before_mem) / (4 * i) as usize);
+                store
+            })
+        });
+    }
+
+    //--------------------------------------------------------------------------
+
+    //Query
+
+    let store = Store::new().unwrap();
+
+    (0..1000000).for_each(|_| {
+        let lover_a =
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+        let lover_b: NamedNode =
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+
+        let quad = Quad::new(
+            lover_a.clone(),
+            loves_node.clone(),
+            lover_b.clone(),
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+
+        let quad = Quad::new(
+            lover_b.clone(),
+            loves_node.clone(),
+            lover_a.clone(),
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+
+        let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+        let quad = Quad::new(
+            lover_a.clone(),
+            name_node.clone(),
+            name,
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+
+        let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+        let quad = Quad::new(
+            lover_b.clone(),
+            name_node.clone(),
+            name,
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+    });
+
+    let juliet =
+        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+    let romeo: NamedNode =
+        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+
+    let quad = Quad::new(
+        romeo.clone(),
+        loves_node.clone(),
+        juliet.clone(),
+        GraphName::DefaultGraph,
+    );
+    store.insert(&quad);
+
+    let quad = Quad::new(
+        juliet.clone(),
+        loves_node.clone(),
+        romeo.clone(),
+        GraphName::DefaultGraph,
+    );
+    store.insert(&quad);
+
+    let name = Literal::new_simple_literal("Juliet");
+    let quad = Quad::new(
+        juliet.clone(),
+        name_node.clone(),
+        name,
+        GraphName::DefaultGraph,
+    );
+    store.insert(&quad);
+
+    let name = Literal::new_simple_literal("Romeo");
+    let quad = Quad::new(
+        romeo.clone(),
+        name_node.clone(),
+        name,
+        GraphName::DefaultGraph,
+    );
+    store.insert(&quad);
+
+    (0..1000).for_each(|_| {
+        let lover_a =
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+        let lover_b: NamedNode =
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+
+        let quad = Quad::new(
+            lover_a.clone(),
+            loves_node.clone(),
+            lover_b.clone(),
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+
+        let quad = Quad::new(
+            lover_b.clone(),
+            loves_node.clone(),
+            lover_a.clone(),
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+
+        let name = Literal::new_simple_literal("Wameo");
+        let quad = Quad::new(
+            lover_a.clone(),
+            name_node.clone(),
+            name,
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+
+        let name = Literal::new_simple_literal(Name(EN).fake::<String>());
+        let quad = Quad::new(
+            lover_b.clone(),
+            name_node.clone(),
+            name,
+            GraphName::DefaultGraph,
+        );
+        store.insert(&quad);
+    });
+
+    group.throughput(Throughput::Elements(1));
+    group.bench_function(BenchmarkId::new("sparql", 1), |b| {
+        b.iter(|| {
+            if let QueryResults::Solutions(solutions) =  store.query(
+                "SELECT ?romeo ?juliet ?name WHERE { ?romeo <urn:id:7D4F339CC4AE0BBA2765F34BE1D108EF> \"Romeo\". ?romeo <urn:id:39E2D06DBCD9CB96DE5BC46F362CFF31> ?juliet. ?juliet <urn:id:7D4F339CC4AE0BBA2765F34BE1D108EF> ?name. }").unwrap() {
+                solutions.count()
+            } else {
+                panic!()
+            }
+        })
+    });
+
+    // SPARQL query
+
+    group.throughput(Throughput::Elements(1000));
+    group.bench_function(BenchmarkId::new("sparql", 1000), |b| {
+        b.iter(|| {
+            if let QueryResults::Solutions(solutions) =  store.query(
+                "SELECT ?romeo ?juliet ?name WHERE { ?romeo <urn:id:7D4F339CC4AE0BBA2765F34BE1D108EF> \"Wameo\". ?romeo <urn:id:39E2D06DBCD9CB96DE5BC46F362CFF31> ?juliet. ?juliet <urn:id:7D4F339CC4AE0BBA2765F34BE1D108EF> ?name. }").unwrap() {
+                solutions.count()
+         } else {
+            panic!()
+         }
+        })
+    });
+
     group.finish();
 }
 
@@ -637,5 +904,6 @@ criterion_group!(
     query_benchmark,
     attribute_benchmark,
     hashtribleset_benchmark,
+    oxigraph_benchmark
 );
 criterion_main!(benches);

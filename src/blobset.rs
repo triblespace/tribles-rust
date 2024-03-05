@@ -5,8 +5,8 @@ use crate::patch::{Entry, IdentityOrder, PATCHIterator, SingleSegmentation, PATC
 use crate::query::TriblePattern;
 use crate::types::handle::Handle;
 use crate::types::Hash;
-use crate::{Blob, BlobParseError, Bloblike, Value, VALUE_LEN};
 use crate::{and, mask, query::find};
+use crate::{Blob, BlobParseError, Bloblike, Value, VALUE_LEN};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
@@ -50,12 +50,12 @@ where
     {
         let blob: Blob = value.into_blob();
         let hash = self.put_raw(blob);
-        unsafe{ Handle::new(hash) }
+        unsafe { Handle::new(hash) }
     }
 
     pub fn get<T>(&self, handle: Handle<H, T>) -> Option<Result<T, BlobParseError>>
     where
-        T: Bloblike
+        T: Bloblike,
     {
         let blob = self.get_raw(handle.hash)?;
         Some(T::from_blob(blob.clone()))
@@ -73,7 +73,9 @@ where
     }
 
     pub fn each_raw<F>(&self, mut f: F)
-    where F: FnMut(Hash<H>, Blob) {
+    where
+        F: FnMut(Hash<H>, Blob),
+    {
         self.blobs.infixes(&[0; 0], &mut |infix: [u8; VALUE_LEN]| {
             let h: Hash<H> = Hash::new(infix);
             let b = self.blobs.get(&infix).unwrap().clone();
@@ -99,11 +101,7 @@ where
             (v),
             and!(
                 v.of(&self.blobs),
-                mask!(
-                    ctx,
-                    (e, a),
-                    tribles.pattern::<Hash<H>>(e, a, v)
-                )
+                mask!(ctx, (e, a), tribles.pattern::<Hash<H>>(e, a, v))
             )
         )
         .flatten()
@@ -140,10 +138,14 @@ fn unwrap_hash_key<H>(pair: (Value, &Blob)) -> (Hash<H>, &Blob) {
 
 impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32> {
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
     type Item = (Hash<H>, &'a Blob);
     //TODO replace this with `impl` once https://github.com/rust-lang/rust/pull/120700 drops!
-    type IntoIter = std::iter::Map<PATCHIterator<'a, VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>, fn((Value, &Blob)) -> (Hash<H>, &Blob)>;
+    type IntoIter = std::iter::Map<
+        PATCHIterator<'a, VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>,
+        fn((Value, &Blob)) -> (Hash<H>, &Blob),
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
         (&self.blobs).into_iter().map(unwrap_hash_key)

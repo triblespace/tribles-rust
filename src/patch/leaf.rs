@@ -118,8 +118,8 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
                 return None;
             }
         }
-        
-        Some(unsafe{ &(*node).value })
+
+        Some(unsafe { &(*node).value })
     }
 
     pub(crate) unsafe fn infixes<

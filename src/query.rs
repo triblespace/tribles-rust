@@ -31,8 +31,9 @@ use crate::bitset::ByteBitset;
 
 pub trait TriblePattern {
     type PatternConstraint<'a, V>: Constraint<'a>
-    where V: Valuelike,
-          Self: 'a;
+    where
+        V: Valuelike,
+        Self: 'a;
 
     fn pattern<'a, V>(
         &'a self,
@@ -40,7 +41,8 @@ pub trait TriblePattern {
         a: Variable<Id>,
         v: Variable<V>,
     ) -> Self::PatternConstraint<'a, V>
-    where V: Valuelike;
+    where
+        V: Valuelike;
 }
 
 pub type VariableId = u8;
@@ -288,7 +290,7 @@ mod tests {
 
     use crate::{TribleSet, NS};
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{ufoid, types::ShortString};
+    use crate::{types::ShortString, ufoid};
 
     use super::*;
 

@@ -6,7 +6,8 @@ use crate::{
 use super::*;
 
 pub struct HashTribleSetConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
@@ -15,7 +16,8 @@ where V: Valuelike,
 }
 
 impl<'a, V> HashTribleSetConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<Id>,
@@ -33,7 +35,8 @@ where V: Valuelike,
 }
 
 impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

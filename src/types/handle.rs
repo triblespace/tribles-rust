@@ -6,7 +6,7 @@ use hex::ToHex;
 
 use crate::types::Hash;
 
-use crate::{Blob, Value, Bloblike, ValueParseError, Valuelike};
+use crate::{Blob, Bloblike, Value, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {
@@ -59,7 +59,7 @@ where
     fn from(value: &T) -> Self {
         let blob: Blob = value.into_blob();
         let digest = H::digest(blob);
-        unsafe {Handle::new(Hash::new(digest.into()))}
+        unsafe { Handle::new(Hash::new(digest.into())) }
     }
 }
 

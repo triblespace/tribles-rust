@@ -6,12 +6,7 @@ use ed25519::signature::{Signer, Verifier};
 
 use crate::types::ed25519::{RComponent, SComponent};
 use crate::Id;
-use crate::{
-    namespace::NS,
-    query::find,
-    TribleSet,
-    types::Handle,
-};
+use crate::{namespace::NS, query::find, types::Handle, TribleSet};
 
 NS! {
     pub namespace commit_ns {
@@ -47,7 +42,7 @@ pub fn sign(
     let r = RComponent::from_signature(signature);
     let s = SComponent::from_signature(signature);
     let tribles = commit_ns::entity!(commit_id,
-    {   
+    {
         tribles: handle,
         ed25519_pubkey: signing_key.verifying_key(),
         ed25519_signature_r: r,
@@ -56,10 +51,7 @@ pub fn sign(
     Ok(tribles)
 }
 
-pub fn verify(
-    tribles: TribleSet,
-    commit_id: Id,
-) -> Result<(), ValidationError> {
+pub fn verify(tribles: TribleSet, commit_id: Id) -> Result<(), ValidationError> {
     let (payload, verifying_key, r, s) = find!(
         ctx,
         (payload, key, r, s),

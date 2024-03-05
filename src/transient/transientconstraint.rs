@@ -1,12 +1,14 @@
 use crate::{
+    id_into_value,
     query::{Binding, Constraint, Variable, VariableId, VariableSet},
-    id_into_value, Value, Valuelike,
+    Value, Valuelike,
 };
 
 use super::*;
 
 pub struct TransientConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     variable_e: Variable<Id>,
     variable_v: Variable<V>,
@@ -14,7 +16,8 @@ where V: Valuelike,
 }
 
 impl<'a, V> TransientConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<Id>,
@@ -30,7 +33,8 @@ where V: Valuelike,
 }
 
 impl<'a, V> Constraint<'a> for TransientConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
@@ -53,7 +57,9 @@ where V: Valuelike,
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => self.transient.ev.len(),
             (None, None, false, true) => self.transient.ve.len(),
-            (Some(e), None, false, true) => self.transient.ev.get(&e[16..32]).map_or(0, |s| s.len()),
+            (Some(e), None, false, true) => {
+                self.transient.ev.get(&e[16..32]).map_or(0, |s| s.len())
+            }
             (None, Some(v), true, false) => self.transient.ve.get(&v).map_or(0, |s| s.len()),
             _ => panic!(),
         }
@@ -67,7 +73,13 @@ where V: Valuelike,
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, v_bound, e_var, v_var) {
-            (None, None, true, false) => self.transient.ev.keys().copied().map(id_into_value).collect(),
+            (None, None, true, false) => self
+                .transient
+                .ev
+                .keys()
+                .copied()
+                .map(id_into_value)
+                .collect(),
             (None, None, false, true) => self.transient.ve.keys().copied().collect(),
             (Some(e), None, false, true) => self
                 .transient

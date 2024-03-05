@@ -40,7 +40,6 @@ impl<H> std::hash::Hash for Hash<H> {
     }
 }
 
-
 impl<H> fmt::Debug for Hash<H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

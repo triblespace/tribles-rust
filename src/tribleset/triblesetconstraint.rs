@@ -3,15 +3,16 @@ use core::panic;
 //use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use super::*;
-use crate::query::*;
 use crate::id_from_value;
 use crate::id_into_value;
+use crate::query::*;
 use crate::Id;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
 pub struct TribleSetConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
@@ -20,7 +21,8 @@ where V: Valuelike,
 }
 
 impl<'a, V> TribleSetConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<Id>,
@@ -38,7 +40,8 @@ where V: Valuelike,
 }
 
 impl<'a, V> Constraint<'a> for TribleSetConstraint<'a, V>
-where V: Valuelike,
+where
+    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

@@ -56,7 +56,10 @@ impl proptest::strategy::Strategy for RandId {
     type Tree = IdValueTree;
     type Value = Id;
 
-    fn new_tree(&self, runner: &mut proptest::prelude::prop::test_runner::TestRunner) -> proptest::prelude::prop::strategy::NewTree<Self> {
+    fn new_tree(
+        &self,
+        runner: &mut proptest::prelude::prop::test_runner::TestRunner,
+    ) -> proptest::prelude::prop::strategy::NewTree<Self> {
         let rng = runner.rng();
         let mut id = [0; 16];
         rng.fill_bytes(&mut id[..]);

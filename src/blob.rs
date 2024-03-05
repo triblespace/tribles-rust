@@ -4,7 +4,6 @@ use bytes::Bytes;
 
 pub type Blob = Bytes;
 
-
 /// A type that is convertible to and from a [Blob].
 pub trait Bloblike: Sized {
     fn from_blob(blob: Blob) -> Result<Self, BlobParseError>;

@@ -1,8 +1,8 @@
 use std::convert::TryInto;
 
-use tribles::transient::Transient;
 use tribles::query::and;
 use tribles::query::find;
+use tribles::transient::Transient;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;

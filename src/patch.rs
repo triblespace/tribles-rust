@@ -1001,7 +1001,8 @@ where
 impl<'a, const KEY_LEN: usize, O, S, V: Clone> IntoIterator for &'a PATCH<KEY_LEN, O, S, V>
 where
     O: KeyOrdering<KEY_LEN>,
-    S: KeySegmentation<KEY_LEN> {
+    S: KeySegmentation<KEY_LEN>,
+{
     type Item = ([u8; KEY_LEN], &'a V);
     type IntoIter = PATCHIterator<'a, KEY_LEN, O, S, V>;
 
@@ -1011,39 +1012,32 @@ where
 }
 
 pub struct PATCHIterator<
-        'a,
-        const KEY_LEN: usize,
-        O: KeyOrdering<KEY_LEN>,
-        S: KeySegmentation<KEY_LEN>,
-        V: Clone> {
+    'a,
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+    V: Clone,
+> {
     patch: PhantomData<&'a PATCH<KEY_LEN, O, S, V>>,
-    stack: ArrayVec<std::slice::Iter<'a, Head<KEY_LEN, O, S, V>>, KEY_LEN>
+    stack: ArrayVec<std::slice::Iter<'a, Head<KEY_LEN, O, S, V>>, KEY_LEN>,
 }
 
-impl<
-'a,
-const KEY_LEN: usize,
-O: KeyOrdering<KEY_LEN>,
-S: KeySegmentation<KEY_LEN>,
-V: Clone
-> PATCHIterator<'a, KEY_LEN, O, S, V> {
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    PATCHIterator<'a, KEY_LEN, O, S, V>
+{
     fn new(patch: &'a PATCH<KEY_LEN, O, S, V>) -> Self {
-        let mut r = PATCHIterator{
+        let mut r = PATCHIterator {
             patch: PhantomData,
-            stack: ArrayVec::new()
+            stack: ArrayVec::new(),
         };
         r.stack.push(std::slice::from_ref(&patch.root).iter());
         r
     }
 }
 
-impl<
-'a,
-const KEY_LEN: usize,
-O: KeyOrdering<KEY_LEN>,
-S: KeySegmentation<KEY_LEN>,
-V: Clone
-> Iterator for PATCHIterator<'a, KEY_LEN, O, S, V> {
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    Iterator for PATCHIterator<'a, KEY_LEN, O, S, V>
+{
     type Item = ([u8; KEY_LEN], &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1054,16 +1048,15 @@ V: Clone
                     HeadTag::Empty => continue,
                     HeadTag::Leaf => {
                         let leaf: *const Leaf<KEY_LEN, V> = unsafe { child.ptr() };
-                        let key = O::tree_ordered(unsafe{&(*leaf).key});
-                        let value = unsafe{&(*leaf).value};
+                        let key = O::tree_ordered(unsafe { &(*leaf).key });
+                        let value = unsafe { &(*leaf).value };
                         self.stack.push(iter);
                         return Some((key, value));
-                    },
+                    }
                     _ => {
                         self.stack.push(iter);
                         iter = child.children();
                     }
-                    
                 }
             } else {
                 iter = self.stack.pop()?;

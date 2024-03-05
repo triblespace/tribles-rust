@@ -24,7 +24,8 @@ pub struct Trible {
 
 impl Trible {
     pub fn new<V>(e: Id, a: Id, v: V) -> Trible
-    where V: Valuelike,
+    where
+        V: Valuelike,
     {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);

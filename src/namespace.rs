@@ -154,7 +154,7 @@ macro_rules! NS {
                 #![allow(non_camel_case_types)]
                 $(pub type $FieldName = $FieldType;)*
             }
-            
+
             #[allow(unused)]
             macro_rules! entity {
                 ($entity:tt) => {
@@ -244,7 +244,6 @@ mod tests {
         });
     }
 
-
     #[test]
     fn ns_entity() {
         let juliet = ufoid();
@@ -274,13 +273,13 @@ mod tests {
         let romeo = ufoid();
 
         let mut kb = TribleSet::new();
-        
+
         kb.union(&knights::entity!(juliet,
-            {
-                name: "Juliet".try_into().unwrap(),
-                loves: romeo,
-                title: "Maiden".try_into().unwrap()
-            }));
+        {
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo,
+            title: "Maiden".try_into().unwrap()
+        }));
         kb.union(&knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet,

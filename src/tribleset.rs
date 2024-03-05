@@ -86,7 +86,8 @@ impl TriblePattern for TribleSet {
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a, V>
-    where V: Valuelike,
+    where
+        V: Valuelike,
     {
         TribleSetConstraint::new(e, a, v, self)
     }

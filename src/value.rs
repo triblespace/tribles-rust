@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-
 pub const VALUE_LEN: usize = 32;
 pub type Value = [u8; VALUE_LEN];
 

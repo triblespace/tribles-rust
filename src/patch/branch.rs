@@ -245,7 +245,10 @@ macro_rules! create_branch {
                 at_depth: usize,
                 key: &'b [u8; KEY_LEN],
             ) -> Option<&'a V>
-            where S: 'a, O: 'a {
+            where
+                S: 'a,
+                O: 'a,
+            {
                 let node_end_depth = (unsafe { (*node).end_depth } as usize);
                 let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).min).key };
                 for depth in at_depth..node_end_depth {

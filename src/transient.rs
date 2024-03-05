@@ -44,7 +44,9 @@ impl<V: Valuelike> Transient<V> {
 }
 
 impl<'a, V> FromIterator<&'a (Id, V)> for Transient<V>
-where V: Valuelike {
+where
+    V: Valuelike,
+{
     fn from_iter<I: IntoIterator<Item = &'a (Id, V)>>(iter: I) -> Self {
         let mut transient = Transient::new();
 
@@ -54,7 +56,6 @@ where V: Valuelike {
         transient
     }
 }
-
 
 #[cfg(test)]
 mod tests {

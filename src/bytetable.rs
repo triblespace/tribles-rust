@@ -313,7 +313,7 @@ macro_rules! create_bytetable {
         where T: ByteEntry + Clone + Debug {
             type Item = &'a T;
             type IntoIter = std::slice::Iter<'a, T>;
-        
+
             fn into_iter(self) -> Self::IntoIter {
                 self.iter()
             }
@@ -340,7 +340,9 @@ mod tests {
     enum DummyEntry {
         #[allow(unused)]
         None {} = 0,
-        Some { value: u8 } = 1,
+        Some {
+            value: u8,
+        } = 1,
     }
 
     impl DummyEntry {

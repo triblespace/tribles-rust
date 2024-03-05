@@ -218,13 +218,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
         loop {
             match mode {
                 Search::Vertical => {
-                    if let Some(next_variable) = {
-                        let unbound_variables = self.variables.subtract(self.binding.bound);
-                        let next_variable = unbound_variables
-                            .into_iter()
-                            .min_by_key(|&v| self.constraint.estimate(v, self.binding));
-                        next_variable
-                    } {
+                    if let Some(next_variable) = self
+                        .variables
+                        .subtract(self.binding.bound)
+                        .into_iter()
+                        .min_by_key(|&v| self.constraint.estimate(v, self.binding))
+                    {
                         self.stack_depth += 1;
                         self.variable_stack[self.stack_depth as usize] = next_variable;
                         self.value_stack[self.stack_depth as usize] =

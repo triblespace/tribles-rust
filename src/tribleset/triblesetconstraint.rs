@@ -2,6 +2,8 @@ use core::panic;
 //use std::convert::TryInto;
 //use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
+use im::Vector;
+
 use super::*;
 use crate::id_from_value;
 use crate::id_into_value;
@@ -133,54 +135,63 @@ where
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
-                let mut r = vec![];
+                let estimate = self.set.eav.segmented_len(&[0; 0]) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set
                     .eav
                     .infixes(&[0; 0], &mut |e| r.push(id_into_value(e)));
                 r
             }
             (None, None, None, false, true, false) => {
-                let mut r = vec![];
+                let estimate = self.set.aev.segmented_len(&[0; 0]) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set
                     .aev
                     .infixes(&[0; 0], &mut |a| r.push(id_into_value(a)));
                 r
             }
             (None, None, None, false, false, true) => {
-                let mut r = vec![];
+                let estimate = self.set.vea.segmented_len(&[0; 0]) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.vea.infixes(&[0; 0], &mut |v| r.push(v));
                 r
             }
 
             (Some(e), None, None, false, true, false) => {
-                let mut r = vec![];
+                let estimate = self.set.eav.segmented_len(&e) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.eav.infixes(&e, &mut |a| r.push(id_into_value(a)));
                 r
             }
             (Some(e), None, None, false, false, true) => {
-                let mut r = vec![];
+                let estimate = self.set.eva.segmented_len(&e) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.eva.infixes(&e, &mut |v| r.push(v));
                 r
             }
 
             (None, Some(a), None, true, false, false) => {
-                let mut r = vec![];
+                let estimate = self.set.aev.segmented_len(&a) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.aev.infixes(&a, &mut |e| r.push(id_into_value(e)));
                 r
             }
             (None, Some(a), None, false, false, true) => {
-                let mut r = vec![];
+                let estimate = self.set.ave.segmented_len(&a) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.ave.infixes(&a, &mut |v| r.push(v));
                 r
             }
 
             (None, None, Some(v), true, false, false) => {
-                let mut r = vec![];
+                let estimate = self.set.vea.segmented_len(&v) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.vea.infixes(&v, &mut |e| r.push(id_into_value(e)));
                 r
             }
             (None, None, Some(v), false, true, false) => {
-                let mut r = vec![];
+                let estimate = self.set.vae.segmented_len(&v) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.vae.infixes(&v, &mut |a| r.push(id_into_value(a)));
                 r
             }
@@ -188,7 +199,8 @@ where
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&a[..]);
                 prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v[..]);
-                let mut r = vec![];
+                let estimate = self.set.ave.segmented_len(&prefix) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set
                     .ave
                     .infixes(&prefix, &mut |e| r.push(id_into_value(e)));
@@ -198,7 +210,8 @@ where
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
                 prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v[..]);
-                let mut r = vec![];
+                let estimate = self.set.eva.segmented_len(&prefix) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set
                     .eva
                     .infixes(&prefix, &mut |a| r.push(id_into_value(a)));
@@ -208,7 +221,8 @@ where
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
                 prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);
-                let mut r = vec![];
+                let estimate = self.set.eav.segmented_len(&prefix) as usize;
+                let mut r = Vec::with_capacity(estimate);
                 self.set.eav.infixes(&prefix, &mut |v| r.push(v));
                 r
             }

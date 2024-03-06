@@ -131,7 +131,7 @@ impl<T> Variable<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Binding {
     pub bound: VariableSet,
     values: [Value; 256],
@@ -168,9 +168,9 @@ impl Default for Binding {
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn variable(&self, variable: VariableId) -> bool;
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize;
-    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value>;
-    fn confirm(&self, variable: VariableId, binding: Binding, proposal: &mut Vec<Value>);
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize;
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value>;
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<Value>);
 }
 
 pub struct State {
@@ -200,7 +200,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Qu
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Copy, Clone, Debug)]
 enum Search {
     Vertical,
     Horizontal,
@@ -217,7 +217,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
     // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.mode {
+            match &self.mode {
                 Search::Vertical => {
                     self.mode = Search::Horizontal;
 
@@ -229,7 +229,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
                             let next_variable = self.unbound.pop().unwrap();
                             self.stack.push(State {
                                 variable: next_variable,
-                                values: self.constraint.propose(next_variable, self.binding),
+                                values: self.constraint.propose(next_variable, &self.binding),
                             })
                         }
                         _ => {
@@ -237,12 +237,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
                                 .unbound
                                 .iter()
                                 .enumerate()
-                                .min_by_key(|(_, &v)| self.constraint.estimate(v, self.binding))
+                                .min_by_key(|(_, &v)| self.constraint.estimate(v, &self.binding))
                                 .unwrap();
                             self.unbound.swap_remove(index);
                             self.stack.push(State {
                                 variable: next_variable,
-                                values: self.constraint.propose(next_variable, self.binding),
+                                values: self.constraint.propose(next_variable, &self.binding),
                             });
                         }
                     }

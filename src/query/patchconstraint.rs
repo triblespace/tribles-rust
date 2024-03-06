@@ -39,18 +39,18 @@ where
         self.variable.index == variable
     }
 
-    fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
+    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
         self.patch.len() as usize
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
+    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<Value> {
         let mut r = vec![];
         self.patch
             .infixes::<0, VALUE_LEN, _>(&[0; 0], &mut |k| r.push(k));
         r
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<Value>) {
         proposals.retain(|v| self.patch.has_prefix(v));
     }
 }

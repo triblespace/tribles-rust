@@ -20,15 +20,15 @@ impl<'a> Constraint<'a> for MaskConstraint<'a> {
         self.mask.is_set(variable) && self.constraint.variable(variable)
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
         self.constraint.estimate(variable, binding)
     }
 
-    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
         self.constraint.propose(variable, binding)
     }
 
-    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
         self.constraint.confirm(variable, binding, proposals)
     }
 }

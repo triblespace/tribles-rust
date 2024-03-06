@@ -47,7 +47,7 @@ where
         self.variable_e.index == variable || self.variable_v.index == variable
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
 
@@ -65,7 +65,7 @@ where
         }
     }
 
-    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
 
@@ -95,7 +95,7 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
 

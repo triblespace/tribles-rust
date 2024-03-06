@@ -31,15 +31,15 @@ where
         self.variable.index == variable
     }
 
-    fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
+    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
         self.set.len()
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
+    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<Value> {
         self.set.iter().map(|v| Valuelike::into_value(v)).collect()
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<Value>) {
         proposals.retain(|v| T::from_value(*v).map_or(false, |v| self.set.contains(&v)));
     }
 }

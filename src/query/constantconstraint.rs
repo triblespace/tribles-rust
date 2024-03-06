@@ -26,15 +26,15 @@ impl<'a, T> Constraint<'a> for ConstantConstraint<T> {
         self.variable.index == variable
     }
 
-    fn estimate(&self, _variable: VariableId, _binding: Binding) -> usize {
+    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
         1
     }
 
-    fn propose(&self, _variable: VariableId, _binding: Binding) -> Vec<Value> {
+    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<Value> {
         vec![self.constant]
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<Value>) {
         proposals.retain(|v| *v == self.constant);
     }
 }

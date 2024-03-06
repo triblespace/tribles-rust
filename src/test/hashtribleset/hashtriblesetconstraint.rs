@@ -52,7 +52,7 @@ where
             || self.variable_v.index == variable
     }
 
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);
         let v_bound = binding.bound.is_set(self.variable_v.index);
@@ -114,7 +114,7 @@ where
         }
     }
 
-    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);
         let v_bound = binding.bound.is_set(self.variable_v.index);
@@ -210,7 +210,7 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);
         let v_bound = binding.bound.is_set(self.variable_v.index);

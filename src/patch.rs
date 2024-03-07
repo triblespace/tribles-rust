@@ -413,20 +413,19 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
         }
     }
 
-    //TODO rename
-    pub(crate) unsafe fn min(&self) -> *const Leaf<KEY_LEN, V> {
+    pub(crate) unsafe fn childleaf(&self) -> *const Leaf<KEY_LEN, V> {
         unsafe {
             match self.tag() {
                 HeadTag::Empty => std::ptr::null_mut(),
                 HeadTag::Leaf => self.ptr::<Leaf<KEY_LEN, V>>(),
-                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S, V>>()).min,
-                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S, V>>()).min,
+                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S, V>>()).childleaf,
+                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S, V>>()).childleaf,
             }
         }
     }

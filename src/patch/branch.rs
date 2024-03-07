@@ -4,16 +4,6 @@ use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use std::alloc::{alloc, dealloc, Layout};
 use std::convert::TryInto;
 
-fn min_key<const KEY_LEN: usize, V: Clone>(
-    l: *const Leaf<KEY_LEN, V>,
-    r: *const Leaf<KEY_LEN, V>,
-) -> *const Leaf<KEY_LEN, V> {
-    if l.is_null() {
-        return r;
-    }
-    return l;
-}
-
 macro_rules! create_branch {
     ($name:ident, $table:tt) => {
         #[derive(Debug)]
@@ -29,7 +19,7 @@ macro_rules! create_branch {
 
             rc: atomic::AtomicU32,
             pub end_depth: u32,
-            pub min: *const Leaf<KEY_LEN, V>,
+            pub childleaf: *const Leaf<KEY_LEN, V>,
             pub leaf_count: u64,
             pub segment_count: u64,
             pub hash: u128,
@@ -58,7 +48,7 @@ macro_rules! create_branch {
                             key_segments: PhantomData,
                             rc: atomic::AtomicU32::new(1),
                             end_depth: end_depth as u32,
-                            min: std::ptr::null_mut(),
+                            childleaf: std::ptr::null_mut(),
                             leaf_count: 0,
                             segment_count: 0,
                             hash: 0,
@@ -120,7 +110,7 @@ macro_rules! create_branch {
                                 key_segments: PhantomData,
                                 rc: atomic::AtomicU32::new(1),
                                 end_depth: (*node).end_depth,
-                                min: (*node).min,
+                                childleaf: (*node).childleaf,
                                 leaf_count: (*node).leaf_count,
                                 segment_count: (*node).segment_count,
                                 hash: (*node).hash,
@@ -151,7 +141,11 @@ macro_rules! create_branch {
             ) -> Head<KEY_LEN, O, S, V> {
                 if let Some(_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
-                    (*node).min = min_key((*node).min, child.min());
+                    (*node).childleaf = if !(*node).childleaf.is_null() {
+                        (*node).childleaf
+                    } else {
+                        child.childleaf()
+                    };
                     (*node).leaf_count += child.count();
                     (*node).segment_count += child.count_segment(end_depth);
                     (*node).hash ^= child_hash;
@@ -190,7 +184,7 @@ macro_rules! create_branch {
             }
 
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
-                Leaf::<KEY_LEN, V>::peek((*node).min, at_depth)
+                Leaf::<KEY_LEN, V>::peek((*node).childleaf, at_depth)
             }
 
             pub unsafe fn insert(
@@ -202,7 +196,7 @@ macro_rules! create_branch {
                 let node: *const Self = head.ptr();
                 let end_depth = (*node).end_depth as usize;
 
-                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).childleaf).key;
                 for depth in start_depth..end_depth {
                     let key_depth = O::key_index(depth);
                     if leaf_key[key_depth] != entry.peek(key_depth) {
@@ -250,7 +244,7 @@ macro_rules! create_branch {
                 O: 'a,
             {
                 let node_end_depth = (unsafe { (*node).end_depth } as usize);
-                let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).min).key };
+                let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).childleaf).key };
                 for depth in at_depth..node_end_depth {
                     let key_depth = O::key_index(depth);
                     if leaf_key[key_depth] != key[key_depth] {
@@ -274,7 +268,7 @@ macro_rules! create_branch {
                 F: FnMut([u8; INFIX_LEN]),
             {
                 let node_end_depth = ((*node).end_depth as usize);
-                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).childleaf).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
                     if leaf_key[O::key_index(depth)] != prefix[depth] {
                         return;
@@ -287,7 +281,7 @@ macro_rules! create_branch {
                     // because `..O::key_index(PREFIX_LEN + INFIX_LEN)` would not work,
                     // since `key_index` is not monotonic,
                     // so the next segment might be somewhere else.
-                    let infix = (*(*node).min).key
+                    let infix = (*(*node).childleaf).key
                         [O::key_index(PREFIX_LEN)..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)]
                         .try_into()
                         .expect("invalid infix range");
@@ -314,7 +308,7 @@ macro_rules! create_branch {
                 prefix: &[u8; PREFIX_LEN],
             ) -> bool {
                 let node_end_depth = ((*node).end_depth as usize);
-                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).childleaf).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
                     if leaf_key[O::key_index(depth)] != prefix[depth] {
                         return false;
@@ -340,7 +334,7 @@ macro_rules! create_branch {
                 prefix: &[u8; PREFIX_LEN],
             ) -> u64 {
                 let node_end_depth = ((*node).end_depth as usize);
-                let leaf_key: &[u8; KEY_LEN] = &(*(*node).min).key;
+                let leaf_key: &[u8; KEY_LEN] = &(*(*node).childleaf).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
                     let key_depth = O::key_index(depth);
                     if leaf_key[key_depth] != prefix[depth] {
@@ -402,7 +396,7 @@ macro_rules! create_grow {
                             end_depth: (*node).end_depth,
                             leaf_count: (*node).leaf_count,
                             segment_count: (*node).segment_count,
-                            min: (*node).min,
+                            childleaf: (*node).childleaf,
                             hash: (*node).hash,
                             child_table: (*node).child_table.grow(),
                         },

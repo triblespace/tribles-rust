@@ -163,7 +163,7 @@ mod tests {
         pub namespace knights {
             description: "5AD0FAFB1FECBC197A385EC20166899E" as crate::types::Handle<
                 crate::types::hash::Blake2b,
-                crate::types::LongString>;
+                String>;
         }
     }
 

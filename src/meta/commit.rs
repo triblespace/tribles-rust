@@ -11,7 +11,7 @@ use crate::{namespace::NS, query::find, types::Handle, TribleSet};
 NS! {
     pub namespace commit_ns {
         tribles: "4DD4DDD05CC31734B03ABB4E43188B1F" as crate::types::handle::Handle<crate::types::hash::Blake3, crate::TribleSet>;
-        short_message: "12290C0BE0E9207E324F24DDE0D89300" as crate::types::ShortString;
+        short_message: "12290C0BE0E9207E324F24DDE0D89300" as crate::types::SmallString;
         authored_by: "ADB4FFAD247C886848161297EFF5A05B" as crate::Id;
         ed25519_signature_r: "9DF34F84959928F93A3C40AEB6E9E499" as crate::types::ed25519::RComponent;
         ed25519_signature_s: "1ACE03BF70242B289FDF00E4327C3BC6" as crate::types::ed25519::SComponent;

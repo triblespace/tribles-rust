@@ -310,14 +310,14 @@ mod tests {
 
     use crate::{TribleSet, NS};
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{types::ShortString, ufoid};
+    use crate::{types::SmallString, ufoid};
 
     use super::*;
 
     NS! {
         pub namespace knights {
             loves: "8143F46E812E88C4544E7094080EC523" as crate::Id;
-            name: "D6E0F2A6E5214E1330565B4D4138E55C" as crate::types::ShortString;
+            name: "D6E0F2A6E5214E1330565B4D4138E55C" as crate::types::SmallString;
         }
     }
 
@@ -326,12 +326,12 @@ mod tests {
         let mut books = HashSet::new();
         let mut movies = HashSet::new();
 
-        books.insert(ShortString::new("LOTR".into()).unwrap());
-        books.insert(ShortString::new("Dragonrider".into()).unwrap());
-        books.insert(ShortString::new("Highlander".into()).unwrap());
+        books.insert(SmallString::new("LOTR").unwrap());
+        books.insert(SmallString::new("Dragonrider").unwrap());
+        books.insert(SmallString::new("Highlander").unwrap());
 
-        movies.insert(ShortString::new("LOTR".into()).unwrap());
-        movies.insert(ShortString::new("Highlander".into()).unwrap());
+        movies.insert(SmallString::new("LOTR").unwrap());
+        movies.insert(SmallString::new("Highlander").unwrap());
 
         let inter: Vec<_> = find!(ctx, (a), and!(a.of(&books), a.of(&movies),)).collect();
 

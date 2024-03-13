@@ -172,7 +172,7 @@ mod tests {
     NS! {
         pub namespace knights {
             loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::Id;
-            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::ShortString;
+            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::SmallString;
         }
     }
 
@@ -183,11 +183,11 @@ mod tests {
             let lover_a = ufoid();
             let lover_b = ufoid();
             kb.union(&knights::entity!(lover_a, {
-                name: Name(EN).fake::<String>().try_into().unwrap(),
+                name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
                 loves: lover_b
             }));
             kb.union(&knights::entity!(lover_b, {
-                name: Name(EN).fake::<String>().try_into().unwrap(),
+                name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
                 loves: lover_a
             }));
         }

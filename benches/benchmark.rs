@@ -8,7 +8,7 @@ use std::iter::FromIterator;
 use tribles::and;
 use tribles::transient::Transient;
 use tribles::NS;
-use tribles::{types::ShortString, Id};
+use tribles::{types::SmallString, Id};
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::ufoid;
@@ -31,8 +31,8 @@ static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 NS! {
     pub namespace knights {
         loves: "39E2D06DBCD9CB96DE5BC46F362CFF31" as tribles::Id;
-        name: "7D4F339CC4AE0BBA2765F34BE1D108EF" as tribles::types::ShortString;
-        title: "3E0C58AC884072EA6429BB00A1BA1DA4" as tribles::types::ShortString;
+        name: "7D4F339CC4AE0BBA2765F34BE1D108EF" as tribles::types::SmallString;
+        title: "3E0C58AC884072EA6429BB00A1BA1DA4" as tribles::types::SmallString;
     }
 }
 
@@ -240,11 +240,11 @@ fn entities_benchmark(c: &mut Criterion) {
             let lover_b = ufoid();
 
             kb.union(&knights::entity!(lover_a, {
-                name: Name(EN).fake::<String>().try_into().unwrap(),
+                name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                 loves: lover_b
             }));
             kb.union(&knights::entity!(lover_b, {
-                name: Name(EN).fake::<String>().try_into().unwrap(),
+                name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                 loves: lover_a
             }));
 
@@ -263,11 +263,11 @@ fn entities_benchmark(c: &mut Criterion) {
                     let lover_a = ufoid();
                     let lover_b = ufoid();
                     knights::entity!(&mut kb, lover_a, {
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                         loves: lover_b
                     });
                     knights::entity!(&mut kb, lover_b, {
-                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                        name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                         loves: lover_a
                     });
                 });
@@ -293,11 +293,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                         [
                             knights::entity!(lover_a, {
-                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                                 loves: lover_b
                             }),
                             knights::entity!(lover_b, {
-                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                                 loves: lover_a
                             }),
                         ]
@@ -322,11 +322,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                     [
                         knights::entity!(lover_a, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                             loves: lover_b
                         }),
                         knights::entity!(lover_b, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                             loves: lover_a
                         }),
                     ]
@@ -355,11 +355,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                         [
                             knights::entity!(lover_a, {
-                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                                 loves: lover_b
                             }),
                             knights::entity!(lover_b, {
-                                name: Name(EN).fake::<String>().try_into().unwrap(),
+                                name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                                 loves: lover_a
                             }),
                         ]
@@ -387,11 +387,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                     [
                         knights::entity!(lover_a, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                             loves: lover_b
                         }),
                         knights::entity!(lover_b, {
-                            name: Name(EN).fake::<String>().try_into().unwrap(),
+                            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                             loves: lover_a
                         }),
                     ]
@@ -426,11 +426,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                                 [
                                     knights::entity!(lover_a, {
-                                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                                        name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                                         loves: lover_b
                                     }),
                                     knights::entity!(lover_b, {
-                                        name: Name(EN).fake::<String>().try_into().unwrap(),
+                                        name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                                         loves: lover_a
                                     }),
                                 ]
@@ -464,11 +464,11 @@ fn query_benchmark(c: &mut Criterion) {
         let lover_b = ufoid();
 
         kb.union(&knights::entity!(lover_a, {
-            name: Name(EN).fake::<String>().try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_b
         }));
         kb.union(&knights::entity!(lover_b, {
-            name: Name(EN).fake::<String>().try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_a
         }));
     });
@@ -496,7 +496,7 @@ fn query_benchmark(c: &mut Criterion) {
             loves: lover_b
         }));
         data_kb.union(&knights::entity!(lover_b, {
-            name: Name(EN).fake::<String>().try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_a
         }));
     });
@@ -542,14 +542,14 @@ fn query_benchmark(c: &mut Criterion) {
 fn attribute_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("attribute");
 
-    let mut name: Transient<ShortString> = Transient::new();
+    let mut name: Transient<SmallString> = Transient::new();
     let mut loves: Transient<Id> = Transient::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        name.insert(&lover_a, &(Name(EN).fake::<String>().try_into().unwrap()));
-        name.insert(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
+        name.insert(&lover_a, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
+        name.insert(&lover_b, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
         loves.insert(&lover_a, &lover_b);
         loves.insert(&lover_b, &lover_a);
     });
@@ -558,7 +558,7 @@ fn attribute_benchmark(c: &mut Criterion) {
         let lover_a = ufoid();
         let lover_b = ufoid();
         name.insert(&lover_a, &("Wameo".try_into().unwrap()));
-        name.insert(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
+        name.insert(&lover_b, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
         loves.insert(&lover_a, &lover_b);
         loves.insert(&lover_b, &lover_a);
     });
@@ -703,7 +703,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                         lover_b.clone(),
                         GraphName::DefaultGraph,
                     );
-                    store.insert(&quad);
+                    store.insert(&quad).unwrap();
 
                     let quad = Quad::new(
                         lover_b.clone(),
@@ -711,7 +711,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                         lover_a.clone(),
                         GraphName::DefaultGraph,
                     );
-                    store.insert(&quad);
+                    store.insert(&quad).unwrap();
 
                     let name = Literal::new_simple_literal(Name(EN).fake::<String>());
                     let quad = Quad::new(
@@ -720,7 +720,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                         name,
                         GraphName::DefaultGraph,
                     );
-                    store.insert(&quad);
+                    store.insert(&quad).unwrap();
 
                     let name = Literal::new_simple_literal(Name(EN).fake::<String>());
                     let quad = Quad::new(
@@ -729,7 +729,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                         name,
                         GraphName::DefaultGraph,
                     );
-                    store.insert(&quad);
+                    store.insert(&quad).unwrap();
                 });
                 let after_mem = PEAK_ALLOC.current_usage();
                 println!("Quad size: {}", (after_mem - before_mem) / (4 * i) as usize);

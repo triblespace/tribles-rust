@@ -4,12 +4,12 @@
 pub mod ed25519;
 pub mod handle;
 pub mod hash;
-pub mod longstring;
-pub mod shortstring;
+pub mod string;
+pub mod smallstring;
 pub mod time;
 
 pub use handle::Handle;
 pub use hash::Hash;
-pub use longstring::*;
-pub use shortstring::*;
+pub use string::*;
+pub use smallstring::*;
 pub use time::*;

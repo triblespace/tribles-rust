@@ -7,19 +7,19 @@ use tribles::transient::Transient;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use tribles::types::ShortString;
+use tribles::types::SmallString;
 use tribles::ufoid;
 use tribles::Id;
 
 fn main() {
-    let mut name: Transient<ShortString> = Transient::new();
+    let mut name: Transient<SmallString> = Transient::new();
     let mut loves: Transient<Id> = Transient::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        name.insert(&lover_a, &(Name(EN).fake::<String>().try_into().unwrap()));
-        name.insert(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
+        name.insert(&lover_a, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
+        name.insert(&lover_b, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
         loves.insert(&lover_a, &lover_b);
         loves.insert(&lover_b, &lover_a);
     });
@@ -28,7 +28,7 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
         name.insert(&lover_a, &("Wameo".try_into().unwrap()));
-        name.insert(&lover_b, &(Name(EN).fake::<String>().try_into().unwrap()));
+        name.insert(&lover_b, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
         loves.insert(&lover_a, &lover_b);
         loves.insert(&lover_b, &lover_a);
     });

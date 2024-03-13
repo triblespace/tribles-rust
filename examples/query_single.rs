@@ -13,8 +13,8 @@ use fake::Fake;
 NS! {
     pub namespace knights {
         loves: "39E2D06DBCD9CB96DE5BC46F362CFF31" as tribles::Id;
-        name: "7D4F339CC4AE0BBA2765F34BE1D108EF" as tribles::types::ShortString;
-        title: "3E0C58AC884072EA6429BB00A1BA1DA4" as tribles::types::ShortString;
+        name: "7D4F339CC4AE0BBA2765F34BE1D108EF" as tribles::types::SmallString;
+        title: "3E0C58AC884072EA6429BB00A1BA1DA4" as tribles::types::SmallString;
     }
 }
 
@@ -25,11 +25,11 @@ fn main() {
         let lover_b = ufoid();
 
         kb.union(&knights::entity!({
-            name: Name(EN).fake::<String>().try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_b
         }));
         kb.union(&knights::entity!({
-            name: Name(EN).fake::<String>().try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_a
         }));
     });

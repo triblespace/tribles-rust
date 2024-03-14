@@ -6,7 +6,7 @@ use hex::ToHex;
 
 use crate::types::Hash;
 
-use crate::{Blob, Bloblike, Value, ValueParseError, Valuelike};
+use crate::{Bloblike, Value, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {
@@ -42,24 +42,20 @@ impl<H, T> fmt::Debug for Handle<H, T> {
     }
 }
 
-impl<H, T> Handle<H, T> {
+impl<H, T> Handle<H, T>
+where
+    T: for<'a> Bloblike<'a>,
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
     pub unsafe fn new(hash: Hash<H>) -> Handle<H, T> {
         Handle {
             hash,
             _type: PhantomData,
         }
     }
-}
 
-impl<H, T> From<&T> for Handle<H, T>
-where
-    T: Bloblike,
-    H: Digest + OutputSizeUser<OutputSize = U32>,
-{
-    fn from(value: &T) -> Self {
-        let blob: Blob = value.into_blob();
-        let digest = H::digest(blob);
-        unsafe { Handle::new(Hash::new(digest.into())) }
+    pub fn from(value: &T) -> Self {
+        value.as_handle()
     }
 }
 

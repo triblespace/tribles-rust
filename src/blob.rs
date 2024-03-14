@@ -1,43 +1,48 @@
 use std::fmt::Debug;
 
 use bytes::Bytes;
+use digest::{consts::U32, Digest, OutputSizeUser};
 
-pub type Blob = Bytes;
+use crate::{types::Hash, Handle};
 
 /// A type that is convertible to and from a [Blob].
-pub trait Bloblike: Sized {
-    fn from_blob(blob: Blob) -> Result<Self, BlobParseError>;
-    fn into_blob(&self) -> Blob;
+pub trait Bloblike<'a>: Sized {
+    type Read: 'a;
+
+    fn from_blob(blob: &'a Bytes) -> Result<Self::Read, BlobParseError>;
+    fn into_blob(self) -> Bytes;
+    fn as_handle<H>(&self) -> Handle<H, Self>
+    where
+        H: Digest + OutputSizeUser<OutputSize = U32>;
 }
 
-impl Bloblike for Blob {
-    fn from_blob(blob: Blob) -> Result<Self, BlobParseError> {
+impl<'a> Bloblike<'a> for Bytes {
+    type Read = &'a Bytes;
+    fn from_blob(blob: &'a Bytes) -> Result<Self::Read, BlobParseError> {
         Ok(blob)
     }
 
-    fn into_blob(&self) -> Blob {
-        self.clone()
+    fn into_blob(self) -> Bytes {
+        self
+    }
+    fn as_handle<H>(&self) -> Handle<H, Self>
+    where
+        H: Digest + OutputSizeUser<OutputSize = U32>,
+    {
+        let digest = H::digest(self);
+        unsafe { Handle::new(Hash::new(digest.into())) }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BlobParseError {
-    blob: Blob,
     msg: String,
 }
 
 impl BlobParseError {
-    pub fn new(blob: Blob, msg: &str) -> Self {
+    pub fn new(msg: &str) -> Self {
         BlobParseError {
-            blob,
             msg: msg.to_owned(),
         }
-    }
-}
-
-impl Eq for BlobParseError {}
-impl PartialEq for BlobParseError {
-    fn eq(&self, other: &Self) -> bool {
-        self.blob == other.blob && self.msg == other.msg
     }
 }

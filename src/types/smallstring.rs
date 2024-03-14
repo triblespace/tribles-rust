@@ -32,7 +32,8 @@ impl SmallString {
 
 impl Valuelike for SmallString {
     fn from_value(value: Value) -> Result<Self, ValueParseError> {
-        std::str::from_utf8(&value[..]).map_err(|_| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
+        std::str::from_utf8(&value[..])
+            .map_err(|_| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
         Ok(SmallString(value))
     }
 
@@ -44,7 +45,9 @@ impl Valuelike for SmallString {
 impl From<&SmallString> for String {
     fn from(s: &SmallString) -> Self {
         unsafe {
-            String::from_utf8_unchecked(s.0[0..s.0.iter().position(|&b| b == 0).unwrap_or(s.0.len())].into())
+            String::from_utf8_unchecked(
+                s.0[0..s.0.iter().position(|&b| b == 0).unwrap_or(s.0.len())].into(),
+            )
         }
     }
 }
@@ -52,7 +55,9 @@ impl From<&SmallString> for String {
 impl<'a> From<&'a SmallString> for &'a str {
     fn from(s: &'a SmallString) -> Self {
         unsafe {
-            std::str::from_utf8_unchecked(&s.0[0..s.0.iter().position(|&b| b == 0).unwrap_or(s.0.len())])
+            std::str::from_utf8_unchecked(
+                &s.0[0..s.0.iter().position(|&b| b == 0).unwrap_or(s.0.len())],
+            )
         }
     }
 }

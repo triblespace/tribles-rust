@@ -4,6 +4,7 @@ pub mod bitset;
 mod blob;
 mod blobset;
 pub mod bytetable;
+pub mod handle;
 mod id;
 pub mod meta;
 pub mod namespace;
@@ -19,6 +20,7 @@ mod value;
 
 pub use blob::*;
 pub use blobset::BlobSet;
+pub use handle::*;
 pub use id::*;
 pub use tribleset::TribleSet;
 pub use value::*;

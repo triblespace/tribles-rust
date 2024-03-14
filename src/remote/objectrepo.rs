@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use bytes::Bytes;
 use futures::{Stream, StreamExt};
 
 use digest::{typenum::U32, Digest, OutputSizeUser};
@@ -8,7 +9,7 @@ use url::Url;
 
 use hex::FromHex;
 
-use crate::{types::Hash, Blob, Value};
+use crate::{types::Hash, Value};
 
 use super::blobrepo::{BlobPull, BlobPush, BlobRepo};
 
@@ -59,7 +60,7 @@ where
             .boxed()
     }
 
-    async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
+    async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::LoadErr> {
         let path = self.prefix.child(hex::encode(hash.value));
         let result = self.store.get(&path).await?;
         let object = result.bytes().await?;
@@ -73,7 +74,7 @@ where
 {
     type StoreErr = object_store::Error;
 
-    async fn push_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr> {
+    async fn push(&self, blob: Bytes) -> Result<Hash<H>, Self::StoreErr> {
         let digest: Value = H::digest(&blob).into();
         let path = self.prefix.child(hex::encode(digest));
         let put_result = self

@@ -4,13 +4,11 @@ use std::{
     fmt::{self, Debug},
 };
 
+use bytes::Bytes;
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use futures::{stream, Stream, StreamExt};
 
-use crate::{
-    types::{handle::Handle, Hash},
-    Blob, BlobParseError, BlobSet, Bloblike,
-};
+use crate::{types::Hash, BlobParseError, BlobSet};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {
@@ -49,19 +47,19 @@ async fn transfer<'a, BS, BT, HS, HT, S>(
 where
     BS: BlobPull<HS>,
     BT: BlobPush<HT>,
-    HS: 'static,
-    HT: 'static,
+    HS: 'static + Digest + OutputSizeUser<OutputSize = U32>,
+    HT: 'static + Digest + OutputSizeUser<OutputSize = U32>,
 {
     let l = source.list();
     let r = l.then(
         move |source_hash: Result<Hash<HS>, <BS as BlobPull<HS>>::ListErr>| async move {
             let source_hash = source_hash.map_err(|e| TransferError::List(e))?;
             let blob = source
-                .pull_raw(source_hash)
+                .pull(source_hash)
                 .await
                 .map_err(|e| TransferError::Load(e))?;
             let target_hash = target
-                .push_raw(blob)
+                .push(blob)
                 .await
                 .map_err(|e| TransferError::Store(e))?;
             Ok((source_hash, target_hash))
@@ -82,33 +80,13 @@ pub trait BlobPull<H> {
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::ListErr>>;
 
-    async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr>;
-
-    async fn pull<T>(&self, handle: Handle<H, T>) -> Result<T, GetError<Self::LoadErr>>
-    where
-        T: Bloblike,
-    {
-        let blob = self
-            .pull_raw(handle.hash)
-            .await
-            .map_err(|e| GetError::Load(e))?;
-        T::from_blob(blob).map_err(|e| GetError::Parse(e))
-    }
+    async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::LoadErr>;
 }
 
 pub trait BlobPush<H> {
     type StoreErr;
 
-    async fn push_raw(&self, blob: Blob) -> Result<Hash<H>, Self::StoreErr>;
-
-    async fn push<T>(&self, value: T) -> Result<Handle<H, T>, Self::StoreErr>
-    where
-        T: Bloblike,
-    {
-        let blob: Blob = value.into_blob();
-        let hash = self.push_raw(blob).await?;
-        Ok(unsafe { Handle::new(hash) })
-    }
+    async fn push(&self, blob: Bytes) -> Result<Hash<H>, Self::StoreErr>;
 }
 
 pub trait BlobRepo<H>: BlobPull<H> + BlobPush<H> {}
@@ -135,7 +113,7 @@ where
         stream::iter((&self).into_iter().map(|(hash, _)| Ok(hash)))
     }
 
-    async fn pull_raw(&self, hash: Hash<H>) -> Result<Blob, Self::LoadErr> {
+    async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::LoadErr> {
         self.get_raw(hash)
             .map_or(Err(NotFoundErr()), |b| Ok(b.clone()))
     }

@@ -18,8 +18,14 @@ fn main() {
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        name.insert(&lover_a, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
-        name.insert(&lover_b, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
+        name.insert(
+            &lover_a,
+            &(Name(EN).fake::<String>()[..].try_into().unwrap()),
+        );
+        name.insert(
+            &lover_b,
+            &(Name(EN).fake::<String>()[..].try_into().unwrap()),
+        );
         loves.insert(&lover_a, &lover_b);
         loves.insert(&lover_b, &lover_a);
     });
@@ -28,7 +34,10 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
         name.insert(&lover_a, &("Wameo".try_into().unwrap()));
-        name.insert(&lover_b, &(Name(EN).fake::<String>()[..].try_into().unwrap()));
+        name.insert(
+            &lover_b,
+            &(Name(EN).fake::<String>()[..].try_into().unwrap()),
+        );
         loves.insert(&lover_a, &lover_b);
         loves.insert(&lover_b, &lover_a);
     });

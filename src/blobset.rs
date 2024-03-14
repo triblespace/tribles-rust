@@ -1,19 +1,20 @@
+use bytes::Bytes;
 use digest::typenum::U32;
 use digest::{Digest, OutputSizeUser};
 
 use crate::patch::{Entry, IdentityOrder, PATCHIterator, SingleSegmentation, PATCH};
 use crate::query::TriblePattern;
-use crate::types::handle::Handle;
 use crate::types::Hash;
+use crate::Handle;
 use crate::{and, mask, query::find};
-use crate::{Blob, BlobParseError, Bloblike, Value, VALUE_LEN};
+use crate::{BlobParseError, Bloblike, Value, VALUE_LEN};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 /// A pesistent mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
 pub struct BlobSet<H> {
-    blobs: PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>,
+    blobs: PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, Bytes>,
     _hasher: PhantomData<H>,
 }
 
@@ -46,26 +47,26 @@ where
 
     pub fn put<T>(&mut self, value: T) -> Handle<H, T>
     where
-        T: Bloblike,
+        T: for<'a> Bloblike<'a>,
     {
-        let blob: Blob = value.into_blob();
+        let blob: Bytes = value.into_blob();
         let hash = self.put_raw(blob);
         unsafe { Handle::new(hash) }
     }
 
-    pub fn get<T>(&self, handle: Handle<H, T>) -> Option<Result<T, BlobParseError>>
+    pub fn get<'a, T>(&'a self, handle: Handle<H, T>) -> Option<Result<T::Read, BlobParseError>>
     where
-        T: Bloblike,
+        T: Bloblike<'a>,
     {
         let blob = self.get_raw(handle.hash)?;
-        Some(T::from_blob(blob.clone()))
+        Some(T::from_blob(blob))
     }
 
-    pub fn get_raw(&self, hash: Hash<H>) -> Option<&Blob> {
+    pub fn get_raw(&self, hash: Hash<H>) -> Option<&Bytes> {
         self.blobs.get(&hash.value)
     }
 
-    pub fn put_raw(&mut self, blob: Blob) -> Hash<H> {
+    pub fn put_raw(&mut self, blob: Bytes) -> Hash<H> {
         let digest = H::digest(&blob).into();
         let entry = Entry::new(&digest, blob);
         self.blobs.insert(&entry);
@@ -74,7 +75,7 @@ where
 
     pub fn each_raw<F>(&self, mut f: F)
     where
-        F: FnMut(Hash<H>, Blob),
+        F: FnMut(Hash<H>, Bytes),
     {
         self.blobs.infixes(&[0; 0], &mut |infix: [u8; VALUE_LEN]| {
             let h: Hash<H> = Hash::new(infix);
@@ -115,11 +116,11 @@ where
     }
 }
 
-impl<H> FromIterator<(Hash<H>, Blob)> for BlobSet<H>
+impl<H> FromIterator<(Hash<H>, Bytes)> for BlobSet<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
-    fn from_iter<I: IntoIterator<Item = (Hash<H>, Blob)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (Hash<H>, Bytes)>>(iter: I) -> Self {
         let mut set = BlobSet::new();
 
         for (hash, blob) in iter {
@@ -131,24 +132,21 @@ where
     }
 }
 
-fn unwrap_hash_key<H>(pair: (Value, &Blob)) -> (Hash<H>, &Blob) {
-    let (value, blob) = pair;
-    (Hash::new(value), blob)
-}
-
 impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
-    type Item = (Hash<H>, &'a Blob);
+    type Item = (Hash<H>, &'a Bytes);
     //TODO replace this with `impl` once https://github.com/rust-lang/rust/pull/120700 drops!
     type IntoIter = std::iter::Map<
-        PATCHIterator<'a, VALUE_LEN, IdentityOrder, SingleSegmentation, Blob>,
-        fn((Value, &Blob)) -> (Hash<H>, &Blob),
+        PATCHIterator<'a, VALUE_LEN, IdentityOrder, SingleSegmentation, Bytes>,
+        fn((Value, &'a Bytes)) -> (Hash<H>, &'a Bytes),
     >;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.blobs).into_iter().map(unwrap_hash_key)
+        (&self.blobs)
+            .into_iter()
+            .map(|(value, blob)| (Hash::new(value), blob))
     }
 }
 
@@ -161,7 +159,7 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            description: "5AD0FAFB1FECBC197A385EC20166899E" as crate::types::Handle<
+            description: "5AD0FAFB1FECBC197A385EC20166899E" as crate::Handle<
                 crate::types::hash::Blake2b,
                 String>;
         }
@@ -173,7 +171,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(&knights::entity!({
-                description: blobs.put(Name(EN).fake::<String>().into())
+                description: blobs.put(Name(EN).fake::<String>())
             }));
         }
         let kept = blobs.keep(kb);

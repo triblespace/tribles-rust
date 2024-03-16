@@ -7,12 +7,13 @@ use super::Hash;
 impl<'a> Bloblike<'a> for String {
     type Read = &'a str;
 
-    fn from_blob(blob: &'a Bytes) -> Result<Self::Read, BlobParseError> {
-        std::str::from_utf8(&blob[..])
-            .map_err(|_| BlobParseError::new("failed to convert to utf-8 string"))
-    }
     fn into_blob(self) -> Bytes {
         self.into()
+    }
+
+    fn read_blob(blob: &'a Bytes) -> Result<Self::Read, BlobParseError> {
+        std::str::from_utf8(&blob[..])
+            .map_err(|_| BlobParseError::new("failed to convert to utf-8 string"))
     }
 
     fn as_handle<H>(&self) -> Handle<H, Self>

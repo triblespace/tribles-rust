@@ -98,7 +98,7 @@ impl TriblePattern for TribleSet {
 impl<'a> Bloblike<'a> for TribleSet {
     type Read = TribleSet;
 
-    fn from_blob(blob: &Bytes) -> Result<Self::Read, BlobParseError> {
+    fn read_blob(blob: &Bytes) -> Result<Self::Read, BlobParseError> {
         let len: usize = blob.len();
 
         if len % TRIBLE_LEN != 0 {

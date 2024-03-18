@@ -19,8 +19,6 @@ pub mod patchconstraint;
 use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::thread::sleep;
-use std::time::Duration;
 
 use arrayvec::ArrayVec;
 pub use constantconstraint::*;

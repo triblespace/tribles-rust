@@ -37,7 +37,7 @@ pub fn sign(
     handle: Handle<crate::types::hash::Blake3, TribleSet>,
     commit_id: Id,
 ) -> Result<TribleSet, ValidationError> {
-    let hash = handle.hash.value;
+    let hash = handle.hash.bytes;
     let signature = signing_key.sign(&hash);
     let r = RComponent::from_signature(signature);
     let s = SComponent::from_signature(signature);
@@ -68,7 +68,7 @@ pub fn verify(tribles: TribleSet, commit_id: Id) -> Result<(), ValidationError> 
     .ok_or(ValidationError::new("no signature in commit"))?
     .map_err(|_| ValidationError::new("unexpected bad value in tribles"))?;
 
-    let hash = payload.hash.value;
+    let hash = payload.hash.bytes;
     let signature = Signature::from_components(r.0, s.0);
     verifying_key
         .verify(&hash, &signature)

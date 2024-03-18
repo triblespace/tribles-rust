@@ -63,7 +63,7 @@ where
     }
 
     pub fn get_raw(&self, hash: Hash<H>) -> Option<&Bytes> {
-        self.blobs.get(&hash.value)
+        self.blobs.get(&hash.bytes)
     }
 
     pub fn put_raw(&mut self, blob: Bytes) -> Hash<H> {
@@ -107,8 +107,8 @@ where
         )
         .flatten()
         {
-            let blob = self.blobs.get(&hash.value).unwrap().clone();
-            let entry = Entry::new(&hash.value, blob);
+            let blob = self.blobs.get(&hash.bytes).unwrap().clone();
+            let entry = Entry::new(&hash.bytes, blob);
             set.blobs.insert(&entry);
         }
 
@@ -124,7 +124,7 @@ where
         let mut set = BlobSet::new();
 
         for (hash, blob) in iter {
-            let entry = Entry::new(&hash.value, blob);
+            let entry = Entry::new(&hash.bytes, blob);
             set.blobs.insert(&entry);
         }
 

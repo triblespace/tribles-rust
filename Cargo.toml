@@ -33,6 +33,7 @@ bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
 arrayvec = "0.7.4"
 proptest = { version = "1.4.0", optional = true }
 hifitime = "3.9.0"
+f256 = "0.2.0"
 
 #[dev-dependencies]
 criterion = "0.3"

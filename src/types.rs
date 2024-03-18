@@ -2,6 +2,7 @@
 //! [Value]s, and [Blob]s.
 
 pub mod ed25519;
+pub mod f256;
 pub mod hash;
 pub mod smallstring;
 pub mod string;

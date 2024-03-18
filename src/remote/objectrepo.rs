@@ -61,7 +61,7 @@ where
     }
 
     async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::LoadErr> {
-        let path = self.prefix.child(hex::encode(hash.value));
+        let path = self.prefix.child(hex::encode(hash.bytes));
         let result = self.store.get(&path).await?;
         let object = result.bytes().await?;
         Ok(object)

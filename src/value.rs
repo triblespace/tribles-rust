@@ -5,8 +5,8 @@ pub type Value = [u8; VALUE_LEN];
 
 /// A type that is convertible to and from a [Value].
 pub trait Valuelike: Sized {
-    fn from_value(value: Value) -> Result<Self, ValueParseError>;
-    fn into_value(v: &Self) -> Value;
+    fn from_value(bytes: Value) -> Result<Self, ValueParseError>;
+    fn into_value(item: &Self) -> Value;
 }
 
 impl Valuelike for Value {

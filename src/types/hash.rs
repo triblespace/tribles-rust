@@ -6,14 +6,14 @@ use crate::{Value, ValueParseError, Valuelike};
 
 #[repr(transparent)]
 pub struct Hash<H> {
-    pub value: Value,
+    pub bytes: Value,
     _hasher: PhantomData<H>,
 }
 
 impl<H> Hash<H> {
-    pub fn new(value: Value) -> Self {
+    pub fn new(bytes: Value) -> Self {
         Hash {
-            value,
+            bytes,
             _hasher: PhantomData,
         }
     }
@@ -29,14 +29,14 @@ impl<H> Clone for Hash<H> {
 
 impl<H> PartialEq for Hash<H> {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
+        self.bytes == other.bytes
     }
 }
 impl<H> Eq for Hash<H> {}
 
 impl<H> std::hash::Hash for Hash<H> {
     fn hash<S: Hasher>(&self, state: &mut S) {
-        self.value.hash(state);
+        self.bytes.hash(state);
     }
 }
 
@@ -46,18 +46,18 @@ impl<H> fmt::Debug for Hash<H> {
             f,
             "Hash<{}>({})",
             std::any::type_name::<H>(),
-            self.value.encode_hex::<String>()
+            self.bytes.encode_hex::<String>()
         )
     }
 }
 
 impl<H> Valuelike for Hash<H> {
-    fn from_value(value: Value) -> Result<Self, ValueParseError> {
-        Ok(Hash::new(value))
+    fn from_value(bytes: Value) -> Result<Self, ValueParseError> {
+        Ok(Hash::new(bytes))
     }
 
-    fn into_value(value: &Self) -> Value {
-        value.value
+    fn into_value(hash: &Self) -> Value {
+        hash.bytes
     }
 }
 

@@ -7,16 +7,16 @@ use hifitime::prelude::*;
 pub struct NsTAIInterval(pub i128, pub i128);
 
 impl Valuelike for NsTAIInterval {
-    fn from_value(value: crate::Value) -> Result<Self, crate::ValueParseError> {
-        let lower = i128::from_be_bytes(value[0..16].try_into().unwrap());
-        let upper = i128::from_be_bytes(value[16..32].try_into().unwrap());
+    fn from_value(bytes: crate::Value) -> Result<Self, crate::ValueParseError> {
+        let lower = i128::from_be_bytes(bytes[0..16].try_into().unwrap());
+        let upper = i128::from_be_bytes(bytes[16..32].try_into().unwrap());
         Ok(NsTAIInterval(lower, upper))
     }
 
-    fn into_value(v: &Self) -> crate::Value {
+    fn into_value(interval: &Self) -> crate::Value {
         let mut value = [0; 32];
-        value[0..16].copy_from_slice(&v.0.to_be_bytes());
-        value[16..32].copy_from_slice(&v.1.to_be_bytes());
+        value[0..16].copy_from_slice(&interval.0.to_be_bytes());
+        value[16..32].copy_from_slice(&interval.1.to_be_bytes());
         value
     }
 }

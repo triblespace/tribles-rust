@@ -37,7 +37,7 @@ impl<H, T> fmt::Debug for Handle<H, T> {
             "Handle<{}, {}>({})",
             std::any::type_name::<H>(),
             std::any::type_name::<T>(),
-            self.hash.value.encode_hex::<String>()
+            self.hash.bytes.encode_hex::<String>()
         )
     }
 }
@@ -68,6 +68,6 @@ impl<H, T> Valuelike for Handle<H, T> {
     }
 
     fn into_value(value: &Self) -> Value {
-        value.hash.value
+        value.hash.bytes
     }
 }

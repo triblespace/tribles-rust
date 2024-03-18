@@ -31,14 +31,14 @@ impl SmallString {
 }
 
 impl Valuelike for SmallString {
-    fn from_value(value: Value) -> Result<Self, ValueParseError> {
-        std::str::from_utf8(&value[..])
-            .map_err(|_| ValueParseError::new(value, "failed to convert to utf-8 string"))?;
-        Ok(SmallString(value))
+    fn from_value(bytes: Value) -> Result<Self, ValueParseError> {
+        std::str::from_utf8(&bytes[..])
+            .map_err(|_| ValueParseError::new(bytes, "failed to convert to utf-8 string"))?;
+        Ok(SmallString(bytes))
     }
 
-    fn into_value(value: &Self) -> Value {
-        value.0
+    fn into_value(smallstring: &Self) -> Value {
+        smallstring.0
     }
 }
 

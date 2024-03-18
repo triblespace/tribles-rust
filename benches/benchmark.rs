@@ -765,7 +765,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             lover_b.clone(),
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
 
         let quad = Quad::new(
             lover_b.clone(),
@@ -773,7 +773,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             lover_a.clone(),
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
 
         let name = Literal::new_simple_literal(Name(EN).fake::<String>());
         let quad = Quad::new(
@@ -782,7 +782,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             name,
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
 
         let name = Literal::new_simple_literal(Name(EN).fake::<String>());
         let quad = Quad::new(
@@ -791,7 +791,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             name,
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
     });
 
     let juliet =
@@ -805,7 +805,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         juliet.clone(),
         GraphName::DefaultGraph,
     );
-    store.insert(&quad);
+    store.insert(&quad).unwrap();
 
     let quad = Quad::new(
         juliet.clone(),
@@ -813,7 +813,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         romeo.clone(),
         GraphName::DefaultGraph,
     );
-    store.insert(&quad);
+    store.insert(&quad).unwrap();
 
     let name = Literal::new_simple_literal("Juliet");
     let quad = Quad::new(
@@ -822,7 +822,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         name,
         GraphName::DefaultGraph,
     );
-    store.insert(&quad);
+    store.insert(&quad).unwrap();
 
     let name = Literal::new_simple_literal("Romeo");
     let quad = Quad::new(
@@ -831,7 +831,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         name,
         GraphName::DefaultGraph,
     );
-    store.insert(&quad);
+    store.insert(&quad).unwrap();
 
     (0..1000).for_each(|_| {
         let lover_a =
@@ -845,7 +845,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             lover_b.clone(),
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
 
         let quad = Quad::new(
             lover_b.clone(),
@@ -853,7 +853,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             lover_a.clone(),
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
 
         let name = Literal::new_simple_literal("Wameo");
         let quad = Quad::new(
@@ -862,7 +862,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             name,
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
 
         let name = Literal::new_simple_literal(Name(EN).fake::<String>());
         let quad = Quad::new(
@@ -871,7 +871,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
             name,
             GraphName::DefaultGraph,
         );
-        store.insert(&quad);
+        store.insert(&quad).unwrap();
     });
 
     group.throughput(Throughput::Elements(1));

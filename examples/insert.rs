@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 
-use tribles::query::find;
 use tribles::ufoid;
 use tribles::NS;
 

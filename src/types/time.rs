@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::{ValueParseError, Valuelike};
+use crate::Valuelike;
 
 use hifitime::prelude::*;
 
@@ -55,6 +55,5 @@ mod tests {
         let epoch: NsTAIInterval = NsTAIInterval(0, 0);
         let time: (Epoch, Epoch) = epoch.into();
         let _: NsTAIInterval = time.into();
-        
     }
 }

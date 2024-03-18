@@ -8,7 +8,7 @@ use crate::{types::Hash, Handle};
 /// A type that is convertible to and from a [Blob].
 pub trait Bloblike<'a>: Sized {
     type Read: 'a;
-    
+
     fn into_blob(self) -> Bytes;
     fn read_blob(blob: &'a Bytes) -> Result<Self::Read, BlobParseError>;
     fn as_handle<H>(&self) -> Handle<H, Self>
@@ -18,11 +18,11 @@ pub trait Bloblike<'a>: Sized {
 
 impl<'a> Bloblike<'a> for Bytes {
     type Read = &'a Bytes;
-    
+
     fn into_blob(self) -> Bytes {
         self
     }
-    
+
     fn read_blob(blob: &'a Bytes) -> Result<Self::Read, BlobParseError> {
         Ok(blob)
     }

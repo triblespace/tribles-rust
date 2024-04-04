@@ -1,4 +1,3 @@
-mod blobrepo;
-pub mod objectrepo;
+pub mod repo;
 
-pub use blobrepo::BlobRepo;
+pub use repo::Repo;

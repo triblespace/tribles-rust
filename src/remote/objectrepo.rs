@@ -11,7 +11,7 @@ use hex::FromHex;
 
 use crate::{types::Hash, Value};
 
-use super::blobrepo::{BlobPull, BlobPush, BlobRepo};
+use super::repo::{Pull, Push, Repository};
 
 pub struct ObjectRepo<H> {
     store: Box<dyn ObjectStore>,
@@ -36,7 +36,7 @@ pub enum ListErr {
     BadNameHex(<Value as FromHex>::Error),
 }
 
-impl<H> BlobPull<H> for ObjectRepo<H>
+impl<H> Pull<H> for ObjectRepo<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
@@ -68,7 +68,7 @@ where
     }
 }
 
-impl<H> BlobPush<H> for ObjectRepo<H>
+impl<H> Push<H> for ObjectRepo<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
@@ -88,7 +88,7 @@ where
     }
 }
 
-impl<H> BlobRepo<H> for ObjectRepo<H> where H: Digest + OutputSizeUser<OutputSize = U32> {}
+impl<H> Repository<H> for ObjectRepo<H> where H: Digest + OutputSizeUser<OutputSize = U32> {}
 
 pub struct ObjectHead<H> {
     store: Box<dyn ObjectStore>,

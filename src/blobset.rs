@@ -159,7 +159,7 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            description: "5AD0FAFB1FECBC197A385EC20166899E" as crate::Handle<
+            "5AD0FAFB1FECBC197A385EC20166899E" as description: crate::Handle<
                 crate::types::hash::Blake2b,
                 String>;
         }

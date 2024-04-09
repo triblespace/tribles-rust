@@ -118,8 +118,8 @@ pub use hex_literal;
 ///
 /// NS! {
 ///     pub namespace namespace_name {
-///         attr_name: "FF00FF00FF00FF00FF00FF00FF00FF00" as tribles::Id;
-///         attr_name2: "BBAABBAABBAABBAABBAABBAABBAABBAA" as tribles::types::SmallString;
+///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::Id;
+///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::types::SmallString;
 ///     }
 /// }
 /// ```
@@ -144,7 +144,7 @@ pub use hex_literal;
 /// `namespace_name::ids::attrName` and `namespace_name::types::attrName`.
 #[macro_export]
 macro_rules! NS {
-    ($visibility:vis namespace $mod_name:ident {$($FieldName:ident: $FieldId:literal as $FieldType:ty;)*}) => {
+    ($visibility:vis namespace $mod_name:ident {$($FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
         $visibility mod $mod_name {
             pub mod ids {
                 #![allow(non_upper_case_globals)]
@@ -216,9 +216,9 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::Id;
-            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::SmallString;
-            title: "328f2c33d2fdd675e733388770b2d6c4" as crate::types::SmallString;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
+            "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: crate::types::SmallString;
         }
     }
 

@@ -10,12 +10,12 @@ use crate::{namespace::NS, query::find, Handle, TribleSet};
 
 NS! {
     pub namespace commit_ns {
-        tribles: "4DD4DDD05CC31734B03ABB4E43188B1F" as crate::Handle<crate::types::hash::Blake3, crate::TribleSet>;
-        short_message: "12290C0BE0E9207E324F24DDE0D89300" as crate::types::SmallString;
-        authored_by: "ADB4FFAD247C886848161297EFF5A05B" as crate::Id;
-        ed25519_signature_r: "9DF34F84959928F93A3C40AEB6E9E499" as crate::types::ed25519::RComponent;
-        ed25519_signature_s: "1ACE03BF70242B289FDF00E4327C3BC6" as crate::types::ed25519::SComponent;
-        ed25519_pubkey: "B57D92D4630F8F1B697DAF49CDFA3757" as crate::types::ed25519::VerifyingKey;
+        "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: crate::Handle<crate::types::hash::Blake3, crate::TribleSet>;
+        "12290C0BE0E9207E324F24DDE0D89300" as short_message: crate::types::SmallString;
+        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: crate::Id;
+        "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: crate::types::ed25519::RComponent;
+        "1ACE03BF70242B289FDF00E4327C3BC6" as ed25519_signature_s: crate::types::ed25519::SComponent;
+        "B57D92D4630F8F1B697DAF49CDFA3757" as ed25519_pubkey: crate::types::ed25519::VerifyingKey;
     }
 }
 

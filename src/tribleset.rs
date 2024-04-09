@@ -178,8 +178,8 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            loves: "328edd7583de04e2bedd6bd4fd50e651" as crate::Id;
-            name: "328147856cc1984f0806dbb824d2b4cb" as crate::types::SmallString;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
+            "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
         }
     }
 

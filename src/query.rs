@@ -314,8 +314,8 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            loves: "8143F46E812E88C4544E7094080EC523" as crate::Id;
-            name: "D6E0F2A6E5214E1330565B4D4138E55C" as crate::types::SmallString;
+            "8143F46E812E88C4544E7094080EC523" as loves: crate::Id;
+            "D6E0F2A6E5214E1330565B4D4138E55C" as name: crate::types::SmallString;
         }
     }
 

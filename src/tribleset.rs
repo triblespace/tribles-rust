@@ -1,4 +1,7 @@
 mod triblesetconstraint;
+mod triblesetarchive;
+
+pub use triblesetarchive::TribleSetArchive;
 
 use bytes::Bytes;
 use triblesetconstraint::*;
@@ -18,11 +21,11 @@ use std::iter::FromIterator;
 #[derive(Debug, Clone)]
 pub struct TribleSet {
     pub eav: PATCH<64, EAVOrder, TribleSegmentation, ()>,
+    pub vea: PATCH<64, VEAOrder, TribleSegmentation, ()>,
+    pub ave: PATCH<64, AVEOrder, TribleSegmentation, ()>,
+    pub vae: PATCH<64, VAEOrder, TribleSegmentation, ()>,
     pub eva: PATCH<64, EVAOrder, TribleSegmentation, ()>,
     pub aev: PATCH<64, AEVOrder, TribleSegmentation, ()>,
-    pub ave: PATCH<64, AVEOrder, TribleSegmentation, ()>,
-    pub vea: PATCH<64, VEAOrder, TribleSegmentation, ()>,
-    pub vae: PATCH<64, VAEOrder, TribleSegmentation, ()>,
 }
 
 impl TribleSet {

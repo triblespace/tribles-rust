@@ -12,6 +12,7 @@ use leaf::*;
 use crate::bytetable;
 use crate::bytetable::*;
 use core::hash::Hasher;
+use std::convert::TryInto;
 use rand::thread_rng;
 use rand::RngCore;
 use std::fmt;
@@ -982,6 +983,10 @@ where
         self.root.segmented_len(0, prefix)
     }
 
+    pub fn iter_prefix<'a, const PREFIX_LEN: usize>(&'a self) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V> {
+        PATCHPrefixIterator::new(self)
+    }
+
     pub fn union(&mut self, other: &Self) {
         self.root.union(&other.root, 0);
     }
@@ -1059,6 +1064,63 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
                 }
             } else {
                 iter = self.stack.pop()?;
+            }
+        }
+    }
+}
+
+pub struct PATCHPrefixIterator<
+    'a,
+    const KEY_LEN: usize,
+    const PREFIX_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+    V: Clone,
+> {
+    patch: PhantomData<&'a PATCH<KEY_LEN, O, S, V>>,
+    stack: ArrayVec<ArrayVec<&'a Head<KEY_LEN, O, S, V>, 256>, PREFIX_LEN>,
+}
+
+impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
+{
+    fn new(patch: &'a PATCH<KEY_LEN, O, S, V>) -> Self {
+        assert!(PREFIX_LEN <= KEY_LEN);
+        let mut r = PATCHPrefixIterator {
+            patch: PhantomData,
+            stack: ArrayVec::new(),
+        };
+        if patch.root.key() != None {
+            r.stack.push(std::slice::from_ref(&patch.root).iter().collect());
+        }
+        r
+    }
+}
+
+impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
+    Iterator for PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
+{
+    type Item = ([u8; PREFIX_LEN], &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut level = self.stack.last()?;
+        loop {
+            if let Some(child) = level.pop() {
+                if child.end_depth() >= PREFIX_LEN {
+                    let leaf: *const Leaf<KEY_LEN, V> = unsafe { child.childleaf() };
+                    let key = O::tree_ordered(unsafe { &(*leaf).key });
+                    let value = unsafe { &(*leaf).value };
+                    return Some((key[0..PREFIX_LEN].try_into().unwrap(), value));
+                } else {
+                    let mut next: ArrayVec<&Head<KEY_LEN, O, S, V>, 256> = child.children()
+                        .filter(|&c| c.key() == None).collect();
+                    next.sort_by_key(|&k| k.key().unwrap());
+                    self.stack.push(next);
+                    level = self.stack.last()?;
+                }
+            } else {
+                self.stack.pop();
+                level = self.stack.last()?;
             }
         }
     }

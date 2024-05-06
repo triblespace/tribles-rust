@@ -23,6 +23,8 @@ pub use blobset::BlobSet;
 pub use handle::*;
 pub use id::*;
 pub use tribleset::TribleSet;
+pub use tribleset::TribleSetArchive;
+
 pub use value::*;
 
 #[cfg(test)]

@@ -1103,24 +1103,24 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
     type Item = ([u8; PREFIX_LEN], u64);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut level = self.stack.last()?;
+        let mut level = self.stack.last_mut()?;
         loop {
             if let Some(child) = level.pop() {
                 if child.end_depth() >= PREFIX_LEN {
                     let leaf: *const Leaf<KEY_LEN, V> = unsafe { child.childleaf() };
                     let key = O::tree_ordered(unsafe { &(*leaf).key });
-                    let suffix_count = unsafe { child.count() };
+                    let suffix_count = child.count();
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
                     let mut next: ArrayVec<&Head<KEY_LEN, O, S, V>, 256> = child.children()
                         .filter(|&c| c.key() == None).collect();
                     next.sort_by_key(|&k| k.key().unwrap());
                     self.stack.push(next);
-                    level = self.stack.last()?;
+                    level = self.stack.last_mut()?;
                 }
             } else {
                 self.stack.pop();
-                level = self.stack.last()?;
+                level = self.stack.last_mut()?;
             }
         }
     }

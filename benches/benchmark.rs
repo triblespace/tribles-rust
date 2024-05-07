@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use tribles::and;
+use tribles::{and, TribleSetArchive};
 use tribles::transient::Transient;
 use tribles::NS;
 use tribles::{types::SmallString, Id};
@@ -223,6 +223,60 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| TribleSet::from_iter(black_box(&samples).iter().copied()))
+        });
+    }
+
+    group.finish();
+}
+
+fn archive_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("archive");
+
+    for i in [1000000].iter() {
+        group.throughput(Throughput::Elements(*i));
+        group.bench_with_input(BenchmarkId::new("random", i), i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let set = TribleSet::from_iter(black_box(&samples).iter().copied());
+            b.iter_with_large_drop(|| {
+                let before_mem = PEAK_ALLOC.current_usage();
+                let archive = TribleSetArchive::with(&set);
+                let after_mem = PEAK_ALLOC.current_usage();
+                println!(
+                    "Archived trible size: {}",
+                    (after_mem - before_mem) / set.len() as usize
+                );
+                archive
+            });
+        });
+    }
+
+    for i in [1000000] {
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("structured", 4 * i), |b| {
+            let mut set: TribleSet = TribleSet::new();
+            (0..i).for_each(|_| {
+                let lover_a = ufoid();
+                let lover_b = ufoid();
+                knights::entity!(&mut set, lover_a, {
+                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                    loves: lover_b
+                });
+                knights::entity!(&mut set, lover_b, {
+                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                    loves: lover_a
+                });
+            });
+            b.iter_with_large_drop(|| {
+                let before_mem = PEAK_ALLOC.current_usage();
+                let archive = TribleSetArchive::with(&set);
+                let after_mem = PEAK_ALLOC.current_usage();
+                println!(
+                    "Archived trible size: {}",
+                    (after_mem - before_mem) / set.len() as usize
+                );
+                archive
+            });
         });
     }
 
@@ -909,6 +963,7 @@ criterion_group!(
     im_benchmark,
     patch_benchmark,
     tribleset_benchmark,
+    archive_benchmark,
     entities_benchmark,
     query_benchmark,
     attribute_benchmark,

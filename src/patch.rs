@@ -1113,7 +1113,7 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
                     let mut next: ArrayVec<&Head<KEY_LEN, O, S, V>, 256> = child.children()
-                        .filter(|&c| c.key() == None).collect();
+                        .filter(|&c| c.key() != None).collect();
                     next.sort_by_key(|&k| k.key().unwrap());
                     self.stack.push(next);
                     level = self.stack.last_mut()?;

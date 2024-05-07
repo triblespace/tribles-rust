@@ -1,16 +1,14 @@
 //mod triblesetarchiveconstraint;
 
-use bytes::Bytes;
-use std::collections::HashSet;
+//use bytes::Bytes;
 use std::convert::TryInto;
 use std::iter;
-use triblesetarchiveconstraint::*;
+//use triblesetarchiveconstraint::*;
 
-use crate::query::TriblePattern;
+//use crate::query::TriblePattern;
 
-use crate::{id_into_value, Handle};
-use crate::{BlobParseError, Bloblike, Id, Value, Valuelike};
-use core::panic;
+use crate::id_into_value;
+use crate::Value;
 
 use itertools::Itertools;
 
@@ -37,8 +35,8 @@ pub struct TribleSetArchive {
     pub aev_c: WaveletMatrix<DArray>,
 }
 
-impl From<&TribleSet> for TribleSetArchive {
-    fn from(set: &TribleSet) -> Self {
+impl TribleSetArchive {
+    pub fn with(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
 
@@ -54,63 +52,63 @@ impl From<&TribleSet> for TribleSetArchive {
         e_a.extend(set.eav.iter_prefix::<16>()
             .map(|(e, count)| (id_into_value(e), count as usize))
             .map(|(e, count)| (domain.binary_search(&e).expect("e in domain"), count))
-            .flat_map(|(e, count)| iter::repeat(e).take(count)));
+            .flat_map(|(e, count)| iter::repeat(e).take(count))).unwrap();
         let e_a = e_a.build();
 
         let mut a_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
         a_a.extend(set.aev.iter_prefix::<16>()
             .map(|(a, count)| (id_into_value(a), count as usize))
             .map(|(a, count)| (domain.binary_search(&a).expect("e in domain"), count))
-            .flat_map(|(a, count)| iter::repeat(a).take(count)));
+            .flat_map(|(a, count)| iter::repeat(a).take(count))).unwrap();
         let a_a = a_a.build();
 
         let mut v_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
         v_a.extend(set.vea.iter_prefix::<32>()
             .map(|(v, count)| (v, count as usize))
             .map(|(v, count)| (domain.binary_search(&v).expect("v in domain"), count))
-            .flat_map(|(v, count)| iter::repeat(v).take(count)));
+            .flat_map(|(v, count)| iter::repeat(v).take(count))).unwrap();
         let v_a = v_a.build();
 
         //eav
         let mut eav_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         eav_c.extend(set.eav.iter_prefix::<64>()
             .map(|(t, _)| t[32..64].try_into().unwrap())
-            .map(|v| domain.binary_search(&v).expect("v in domain")));
+            .map(|v| domain.binary_search(&v).expect("v in domain"))).unwrap();
         let eav_c = WaveletMatrix::<DArray>::new(eav_c).unwrap();
 
         //vea
         let mut vea_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         vea_c.extend(set.vea.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|a| domain.binary_search(&a).expect("a in domain")));
+            .map(|a| domain.binary_search(&a).expect("a in domain"))).unwrap();
         let vea_c = WaveletMatrix::<DArray>::new(vea_c).unwrap();
 
         //ave
         let mut ave_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         ave_c.extend(set.ave.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|e| domain.binary_search(&e).expect("e in domain")));
+            .map(|e| domain.binary_search(&e).expect("e in domain"))).unwrap();
         let ave_c = WaveletMatrix::<DArray>::new(ave_c).unwrap();
 
         //vae
         let mut vae_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         vae_c.extend(set.vae.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|e| domain.binary_search(&e).expect("e in domain")));
+            .map(|e| domain.binary_search(&e).expect("e in domain"))).unwrap();
         let vae_c = WaveletMatrix::<DArray>::new(vae_c).unwrap();
 
         //eva
         let mut eva_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         eva_c.extend(set.eva.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|a| domain.binary_search(&a).expect("a in domain")));
+            .map(|a| domain.binary_search(&a).expect("a in domain"))).unwrap();
         let eva_c = WaveletMatrix::<DArray>::new(eva_c).unwrap();
 
         //aev
         let mut aev_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         aev_c.extend(set.aev.iter_prefix::<64>()
             .map(|(t, _)| t[32..64].try_into().unwrap())
-            .map(|v| domain.binary_search(&v).expect("v in domain")));
+            .map(|v| domain.binary_search(&v).expect("v in domain"))).unwrap();
         let aev_c = WaveletMatrix::<DArray>::new(aev_c).unwrap();
 
         TribleSetArchive {
@@ -146,7 +144,7 @@ impl TriblePattern for TribleSetArchive {
         TribleSetArchiveConstraint::new(e, a, v, self)
     }
 }
-*/
+
 
 impl<'a> Bloblike<'a> for TribleSetArchive {
     type Read = TribleSetArchive;
@@ -166,3 +164,4 @@ impl<'a> Bloblike<'a> for TribleSetArchive {
         todo!()
     }
 }
+*/

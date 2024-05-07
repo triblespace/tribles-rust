@@ -1100,7 +1100,7 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
 impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
     Iterator for PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
 {
-    type Item = ([u8; PREFIX_LEN], &'a V);
+    type Item = ([u8; PREFIX_LEN], u64);
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut level = self.stack.last()?;
@@ -1109,8 +1109,8 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
                 if child.end_depth() >= PREFIX_LEN {
                     let leaf: *const Leaf<KEY_LEN, V> = unsafe { child.childleaf() };
                     let key = O::tree_ordered(unsafe { &(*leaf).key });
-                    let value = unsafe { &(*leaf).value };
-                    return Some((key[0..PREFIX_LEN].try_into().unwrap(), value));
+                    let suffix_count = unsafe { child.count() };
+                    return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
                     let mut next: ArrayVec<&Head<KEY_LEN, O, S, V>, 256> = child.children()
                         .filter(|&c| c.key() == None).collect();

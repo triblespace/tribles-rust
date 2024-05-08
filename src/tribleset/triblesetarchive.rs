@@ -12,7 +12,7 @@ use crate::Value;
 
 use itertools::Itertools;
 
-use sucds::bit_vectors::BitVector;
+use sucds::bit_vectors::{Build, Access, Rank, Select, NumBits};
 use sucds::char_sequences::WaveletMatrix;
 use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 use sucds::int_vectors::CompactVector;
@@ -21,7 +21,7 @@ use super::TribleSet;
 
 #[derive(Debug, Clone)]
 pub struct TribleSetArchive<B>
-where B: BitVector {
+{
     pub domain: Vec<Value>,
 
     pub e_a: EliasFano,
@@ -36,7 +36,8 @@ where B: BitVector {
     pub aev_c: WaveletMatrix<B>,
 }
 
-impl TribleSetArchive {
+impl<B> TribleSetArchive<B>
+where B: Build + Access + Rank + Select + NumBits {
     pub fn with(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);

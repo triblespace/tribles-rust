@@ -20,7 +20,6 @@ use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use arrayvec::ArrayVec;
 pub use constantconstraint::*;
 pub use hashsetconstraint::*;
 pub use intersectionconstraint::*;
@@ -180,8 +179,8 @@ pub struct Query<C, P: Fn(&Binding) -> Result<R, ValueParseError>, R> {
     postprocessing: P,
     mode: Search,
     binding: Binding,
-    stack: arrayvec::ArrayVec<State, 256>,
-    unbound: arrayvec::ArrayVec<VariableId, 256>,
+    stack: Vec<State>,
+    unbound: Vec<VariableId>,
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Query<C, P, R> {
@@ -192,8 +191,8 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Qu
             postprocessing,
             mode: Search::Vertical,
             binding: Default::default(),
-            stack: arrayvec::ArrayVec::new(),
-            unbound: ArrayVec::from_iter(variables),
+            stack: Vec::new(),
+            unbound: Vec::from_iter(variables),
         }
     }
 }

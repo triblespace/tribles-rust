@@ -1,10 +1,12 @@
 // Persistent Adaptive Trie with Cuckoos and Hashes
+#![allow(unstable_name_collisions)]
 
 mod branch;
 mod entry;
 mod leaf;
 
-use arrayvec::ArrayVec;
+use sptr::Strict;
+
 use branch::*;
 pub use entry::Entry;
 use leaf::*;
@@ -12,6 +14,7 @@ use leaf::*;
 use crate::bytetable;
 use crate::bytetable::*;
 use core::hash::Hasher;
+use std::cmp::Reverse;
 use std::convert::TryInto;
 use rand::thread_rng;
 use rand::RngCore;
@@ -135,9 +138,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
 
     pub(crate) unsafe fn new<T>(tag: HeadTag, key: u8, ptr: *mut T) -> Self {
         Self {
-            tptr: ((ptr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
-                | ((key as u64) << 48)
-                | ((tag as u64) << 56)) as *mut u8,
+            tptr: ptr.map_addr(|addr| ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
+            | ((key as u64) << 48)
+            | ((tag as u64) << 56))
+            as usize) as *mut u8,
             key_ordering: PhantomData,
             key_segments: PhantomData,
             value: PhantomData,
@@ -160,13 +164,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
 
     #[inline]
     pub(crate) fn set_key(&mut self, key: u8) {
-        self.tptr =
-            ((self.tptr as u64 & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48)) as *mut u8;
+        self.tptr = self.tptr.map_addr(|addr| ((addr as u64 & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48)) as usize)
     }
 
     #[inline]
     pub(crate) unsafe fn ptr<T>(&self) -> *mut T {
-        ((((self.tptr as u64) << 16) as i64) >> 16 as u64) as *mut T
+        self.tptr.map_addr(|addr| ((((addr as u64) << 16) as i64) >> 16) as usize) as *mut T
     }
 
     // Node
@@ -1023,7 +1026,7 @@ pub struct PATCHIterator<
     V: Clone,
 > {
     patch: PhantomData<&'a PATCH<KEY_LEN, O, S, V>>,
-    stack: ArrayVec<std::slice::Iter<'a, Head<KEY_LEN, O, S, V>>, KEY_LEN>,
+    stack: Vec<std::slice::Iter<'a, Head<KEY_LEN, O, S, V>>>,
 }
 
 impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
@@ -1032,7 +1035,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
     fn new(patch: &'a PATCH<KEY_LEN, O, S, V>) -> Self {
         let mut r = PATCHIterator {
             patch: PhantomData,
-            stack: ArrayVec::new(),
+            stack: Vec::new(),
         };
         r.stack.push(std::slice::from_ref(&patch.root).iter());
         r
@@ -1078,7 +1081,7 @@ pub struct PATCHPrefixIterator<
     V: Clone,
 > {
     patch: PhantomData<&'a PATCH<KEY_LEN, O, S, V>>,
-    stack: ArrayVec<ArrayVec<&'a Head<KEY_LEN, O, S, V>, 256>, PREFIX_LEN>,
+    stack: Vec<Vec<&'a Head<KEY_LEN, O, S, V>>>,
 }
 
 impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
@@ -1088,10 +1091,12 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
         assert!(PREFIX_LEN <= KEY_LEN);
         let mut r = PATCHPrefixIterator {
             patch: PhantomData,
-            stack: ArrayVec::new(),
+            stack: Vec::with_capacity(PREFIX_LEN),
         };
         if patch.root.key() != None {
-            r.stack.push(std::slice::from_ref(&patch.root).iter().collect());
+            let mut level = Vec::with_capacity(256);
+            level.push(&patch.root);
+            r.stack.push(level);
         }
         r
     }
@@ -1103,24 +1108,23 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
     type Item = ([u8; PREFIX_LEN], u64);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut level = self.stack.last_mut()?;
+        let mut level = self.stack.pop()?;
         loop {
             if let Some(child) = level.pop() {
                 if child.end_depth() >= PREFIX_LEN {
                     let leaf: *const Leaf<KEY_LEN, V> = unsafe { child.childleaf() };
                     let key = O::tree_ordered(unsafe { &(*leaf).key });
                     let suffix_count = child.count();
+                    self.stack.push(level);
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
-                    let mut next: ArrayVec<&Head<KEY_LEN, O, S, V>, 256> = child.children()
+                    self.stack.push(level);
+                    level = child.children()
                         .filter(|&c| c.key() != None).collect();
-                    next.sort_by_key(|&k| k.key().unwrap());
-                    self.stack.push(next);
-                    level = self.stack.last_mut()?;
+                    level.sort_by_key(|&k| Reverse(k.key().unwrap())); // We need to reverse here because we pop from the vec.
                 }
             } else {
-                self.stack.pop();
-                level = self.stack.last_mut()?;
+                level = self.stack.pop()?;
             }
         }
     }

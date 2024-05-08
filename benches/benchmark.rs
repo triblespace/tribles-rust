@@ -2,6 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use hex::ToHex;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+use sucds::Serializable;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
@@ -231,27 +232,9 @@ fn tribleset_benchmark(c: &mut Criterion) {
 
 fn archive_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("archive");
-
-    for i in [1000000].iter() {
-        group.throughput(Throughput::Elements(*i));
-        group.bench_with_input(BenchmarkId::new("random", i), i, |b, &i| {
-            let samples = random_tribles(i as usize);
-            let set = TribleSet::from_iter(black_box(&samples).iter().copied());
-            b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
-                let archive = TribleSetArchive::with(&set);
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!(
-                    "Archived trible size: {}",
-                    (after_mem - before_mem) / set.len() as usize
-                );
-                archive
-            });
-        });
-    }
+    group.sample_size(10);
 
     for i in [1000000] {
-        group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("structured", 4 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
@@ -268,13 +251,43 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
                 let archive = TribleSetArchive::with(&set);
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!(
-                    "Archived trible size: {}",
-                    (after_mem - before_mem) / set.len() as usize
-                );
+                println!("Archived trible size:");
+                println!("  Domain:{}", (archive.domain.len()*32) as f64 / set.len() as f64);
+                println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
+                println!("  A_a:{}", archive.a_a.size_in_bytes() as f64 / set.len() as f64);
+                println!("  A_v:{}", archive.v_a.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_eav:{}", archive.eav_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_vea:{}", archive.vea_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_ave:{}", archive.ave_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_vae:{}", archive.vae_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_eva:{}", archive.eva_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_aev:{}", archive.aev_c.size_in_bytes() as f64 / set.len() as f64);
+
+                archive
+            });
+        });
+    }
+
+    for i in [1000000] {
+        group.throughput(Throughput::Elements(i));
+        group.bench_with_input(BenchmarkId::new("random", i), &i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let set = TribleSet::from_iter(black_box(&samples).iter().copied());
+            b.iter_with_large_drop(|| {
+                let archive = TribleSetArchive::with(&set);
+                println!("Archived trible size:");
+                println!("  Domain:{}", (archive.domain.len()*32) as f64 / set.len() as f64);
+                println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
+                println!("  A_a:{}", archive.a_a.size_in_bytes() as f64 / set.len() as f64);
+                println!("  A_v:{}", archive.v_a.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_eav:{}", archive.eav_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_vea:{}", archive.vea_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_ave:{}", archive.ave_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_vae:{}", archive.vae_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_eva:{}", archive.eva_c.size_in_bytes() as f64 / set.len() as f64);
+                println!("  C_aev:{}", archive.aev_c.size_in_bytes() as f64 / set.len() as f64);
+
                 archive
             });
         });

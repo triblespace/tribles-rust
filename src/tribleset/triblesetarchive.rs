@@ -51,7 +51,12 @@ impl TribleSetArchive {
         let mut e_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
         e_a.extend(set.eav.iter_prefix::<16>()
             .map(|(e, count)| (id_into_value(e), count as usize))
-            .map(|(e, count)| (domain.binary_search(&e).expect("e in domain"), count))
+            .map(|(e, count)| {
+                if let Err(_) = domain.binary_search(&e) {
+                    println!("{:?} {:?} {:?}", domain, e, domain.binary_search(&e));
+                }
+                (domain.binary_search(&e).expect("e in domain"), count)
+            })
             .flat_map(|(e, count)| iter::repeat(e).take(count))).unwrap();
         let e_a = e_a.build();
 
@@ -165,3 +170,36 @@ impl<'a> Bloblike<'a> for TribleSetArchive {
     }
 }
 */
+
+#[cfg(test)]
+mod tests {
+    use std::convert::TryInto;
+
+    use crate::{trible::Trible, ufoid, NS};
+
+    use super::*;
+    use fake::{faker::name::raw::Name, locales::EN, Fake};
+    use itertools::Itertools;
+    use proptest::prelude::*;
+
+    NS! {
+        pub namespace knights {
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
+            "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn create(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut set = TribleSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                set.insert(&Trible{ data: key});
+            }
+
+            let _archive = TribleSetArchive::with(&set);
+        }
+    }
+}

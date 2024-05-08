@@ -30,12 +30,12 @@ signature = "2.2.0"
 anyhow = "1.0"
 bytes = "1.5.0"
 bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
-arrayvec = "0.7.4"
 proptest = { version = "1.4.0", optional = true }
 hifitime = "3.9.0"
 f256 = "0.2.0"
 sucds = "0.8.1"
 itertools = "0.12.0"
+sptr = "0.3.2"
 
 #[dev-dependencies]
 criterion = "0.3"

@@ -1,11 +1,11 @@
 #![doc = include_str!("../README.md")]
 
 pub mod bitset;
-mod blob;
-mod blobset;
+pub mod blob;
+pub mod blobset;
 pub mod bytetable;
 pub mod handle;
-mod id;
+pub mod id;
 pub mod meta;
 pub mod namespace;
 pub mod patch;
@@ -14,9 +14,9 @@ pub mod remote;
 pub mod test;
 pub mod transient;
 pub mod trible;
-mod tribleset;
+pub mod tribleset;
 pub mod types;
-mod value;
+pub mod value;
 
 pub use blob::*;
 pub use blobset::BlobSet;
@@ -24,6 +24,7 @@ pub use handle::*;
 pub use id::*;
 pub use tribleset::TribleSet;
 pub use tribleset::TribleSetArchive;
+pub use tribleset::triblesetarchive::CompressedUniverse;
 
 pub use value::*;
 

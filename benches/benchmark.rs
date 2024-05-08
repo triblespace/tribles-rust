@@ -2,11 +2,14 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use hex::ToHex;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+use sucds::bit_vectors::Rank9Sel;
+use sucds::int_vectors::DacsOpt;
 use sucds::Serializable;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use tribles::{and, TribleSetArchive};
+use tribles::{and, fucid, CompressedUniverse, TribleSetArchive};
+use tribles::tribleset::triblesetarchive::{OrderedUniverse, Universe};
 use tribles::transient::Transient;
 use tribles::NS;
 use tribles::{types::SmallString, Id};
@@ -251,9 +254,9 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let archive = TribleSetArchive::with(&set);
+                let archive = TribleSetArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
-                println!("  Domain:{}", (archive.domain.len()*32) as f64 / set.len() as f64);
+                println!("  Domain:{}", archive.domain.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_a:{}", archive.a_a.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_v:{}", archive.v_a.size_in_bytes() as f64 / set.len() as f64);
@@ -275,9 +278,9 @@ fn archive_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
             b.iter_with_large_drop(|| {
-                let archive = TribleSetArchive::with(&set);
+                let archive = TribleSetArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
-                println!("  Domain:{}", (archive.domain.len()*32) as f64 / set.len() as f64);
+                println!("  Domain:{}", archive.domain.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_a:{}", archive.a_a.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_v:{}", archive.v_a.size_in_bytes() as f64 / set.len() as f64);

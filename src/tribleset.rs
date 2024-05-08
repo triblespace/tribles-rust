@@ -1,5 +1,5 @@
 mod triblesetconstraint;
-mod triblesetarchive;
+pub mod triblesetarchive;
 
 pub use triblesetarchive::TribleSetArchive;
 

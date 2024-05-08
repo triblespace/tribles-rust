@@ -12,7 +12,7 @@ use crate::Value;
 
 use itertools::Itertools;
 
-use sucds::bit_vectors::DArray;
+use sucds::bit_vectors::BitVector;
 use sucds::char_sequences::WaveletMatrix;
 use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 use sucds::int_vectors::CompactVector;
@@ -20,19 +20,20 @@ use sucds::int_vectors::CompactVector;
 use super::TribleSet;
 
 #[derive(Debug, Clone)]
-pub struct TribleSetArchive {
+pub struct TribleSetArchive<B>
+where B: BitVector {
     pub domain: Vec<Value>,
 
     pub e_a: EliasFano,
     pub a_a: EliasFano,
     pub v_a: EliasFano,
     
-    pub eav_c: WaveletMatrix<DArray>,
-    pub vea_c: WaveletMatrix<DArray>,
-    pub ave_c: WaveletMatrix<DArray>,
-    pub vae_c: WaveletMatrix<DArray>,
-    pub eva_c: WaveletMatrix<DArray>,
-    pub aev_c: WaveletMatrix<DArray>,
+    pub eav_c: WaveletMatrix<B>,
+    pub vea_c: WaveletMatrix<B>,
+    pub ave_c: WaveletMatrix<B>,
+    pub vae_c: WaveletMatrix<B>,
+    pub eva_c: WaveletMatrix<B>,
+    pub aev_c: WaveletMatrix<B>,
 }
 
 impl TribleSetArchive {
@@ -79,42 +80,42 @@ impl TribleSetArchive {
         eav_c.extend(set.eav.iter_prefix::<64>()
             .map(|(t, _)| t[32..64].try_into().unwrap())
             .map(|v| domain.binary_search(&v).expect("v in domain"))).unwrap();
-        let eav_c = WaveletMatrix::<DArray>::new(eav_c).unwrap();
+        let eav_c = WaveletMatrix::new(eav_c).unwrap();
 
         //vea
         let mut vea_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         vea_c.extend(set.vea.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
             .map(|a| domain.binary_search(&a).expect("a in domain"))).unwrap();
-        let vea_c = WaveletMatrix::<DArray>::new(vea_c).unwrap();
+        let vea_c = WaveletMatrix::new(vea_c).unwrap();
 
         //ave
         let mut ave_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         ave_c.extend(set.ave.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
             .map(|e| domain.binary_search(&e).expect("e in domain"))).unwrap();
-        let ave_c = WaveletMatrix::<DArray>::new(ave_c).unwrap();
+        let ave_c = WaveletMatrix::new(ave_c).unwrap();
 
         //vae
         let mut vae_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         vae_c.extend(set.vae.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
             .map(|e| domain.binary_search(&e).expect("e in domain"))).unwrap();
-        let vae_c = WaveletMatrix::<DArray>::new(vae_c).unwrap();
+        let vae_c = WaveletMatrix::new(vae_c).unwrap();
 
         //eva
         let mut eva_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         eva_c.extend(set.eva.iter_prefix::<64>()
             .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
             .map(|a| domain.binary_search(&a).expect("a in domain"))).unwrap();
-        let eva_c = WaveletMatrix::<DArray>::new(eva_c).unwrap();
+        let eva_c = WaveletMatrix::new(eva_c).unwrap();
 
         //aev
         let mut aev_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
         aev_c.extend(set.aev.iter_prefix::<64>()
             .map(|(t, _)| t[32..64].try_into().unwrap())
             .map(|v| domain.binary_search(&v).expect("v in domain"))).unwrap();
-        let aev_c = WaveletMatrix::<DArray>::new(aev_c).unwrap();
+        let aev_c = WaveletMatrix::new(aev_c).unwrap();
 
         TribleSetArchive {
             domain,
@@ -181,6 +182,7 @@ mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
     use itertools::Itertools;
     use proptest::prelude::*;
+    use sucds::bit_vectors::Rank9Sel;
 
     NS! {
         pub namespace knights {
@@ -199,7 +201,7 @@ mod tests {
                 set.insert(&Trible{ data: key});
             }
 
-            let _archive = TribleSetArchive::with(&set);
+            let _archive = TribleSetArchive::<Rank9Sel>::with(&set);
         }
     }
 }

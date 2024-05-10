@@ -1,7 +1,4 @@
 mod triblesetconstraint;
-pub mod triblesetarchive;
-
-pub use triblesetarchive::TribleSetArchive;
 
 use bytes::Bytes;
 use triblesetconstraint::*;

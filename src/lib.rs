@@ -17,14 +17,15 @@ pub mod trible;
 pub mod tribleset;
 pub mod types;
 pub mod value;
+pub mod triblearchive;
 
 pub use blob::*;
 pub use blobset::BlobSet;
 pub use handle::*;
 pub use id::*;
 pub use tribleset::TribleSet;
-pub use tribleset::TribleSetArchive;
-pub use tribleset::triblesetarchive::CompressedUniverse;
+pub use triblearchive::TribleArchive;
+pub use triblearchive::CompressedUniverse;
 
 pub use value::*;
 

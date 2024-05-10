@@ -10,7 +10,7 @@ use crate::Id;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
-pub struct TribleSetArchiveConstraint<'a, V>
+pub struct TribleArchiveConstraint<'a, V>
 where
     V: Valuelike,
 {
@@ -20,7 +20,7 @@ where
     set: &'a TribleSetArchive,
 }
 
-impl<'a, V> TribleSetArchiveConstraint<'a, V>
+impl<'a, V> TribleArchiveConstraint<'a, V>
 where
     V: Valuelike,
 {
@@ -30,7 +30,7 @@ where
         variable_v: Variable<V>,
         set: &'a TribleSetArchive,
     ) -> Self {
-        TribleSetArchiveConstraint {
+        TribleArchiveConstraint {
             variable_e,
             variable_a,
             variable_v,
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<'a, V> Constraint<'a> for TribleSetArchiveConstraint<'a, V>
+impl<'a, V> Constraint<'a> for TribleArchiveConstraint<'a, V>
 where
     V: Valuelike,
 {

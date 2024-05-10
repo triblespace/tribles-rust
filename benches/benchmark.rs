@@ -8,8 +8,8 @@ use sucds::Serializable;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use tribles::{and, fucid, CompressedUniverse, TribleSetArchive};
-use tribles::tribleset::triblesetarchive::{OrderedUniverse, Universe};
+use tribles::{and, fucid, TribleArchive};
+use tribles::triblearchive::{OrderedUniverse, Universe};
 use tribles::transient::Transient;
 use tribles::NS;
 use tribles::{types::SmallString, Id};
@@ -254,7 +254,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let archive = TribleSetArchive::<OrderedUniverse, Rank9Sel>::with(&set);
+                let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
                 println!("  Domain:{}", archive.domain.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
@@ -278,7 +278,7 @@ fn archive_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
             b.iter_with_large_drop(|| {
-                let archive = TribleSetArchive::<OrderedUniverse, Rank9Sel>::with(&set);
+                let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
                 println!("  Domain:{}", archive.domain.size_in_bytes() as f64 / set.len() as f64);
                 println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);

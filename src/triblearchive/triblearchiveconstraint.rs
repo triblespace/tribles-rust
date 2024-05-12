@@ -1,4 +1,5 @@
 use core::panic;
+use std::ops::Not;
 use std::ops::Range;
 //use std::convert::TryInto;
 //use std::{collections::HashSet, fmt::Debug, hash::Hash};
@@ -53,7 +54,7 @@ where U: Universe {
     Some(s..e)
 }
 
-fn restrict_range<U, B>(universe: &U, a: &EliasFano, c: WaveletMatrix<B>, r: Range<usize>,value: &Value) -> Option<Range<usize>>
+fn restrict_range<U, B>(universe: &U, a: &EliasFano, c: &WaveletMatrix<B>, value: &Value, r: &Range<usize>) -> Option<Range<usize>>
 where U: Universe,
     B: Build + Access + Rank + Select + NumBits {
     let s = r.start;
@@ -96,71 +97,77 @@ where
 
         //TODO add disting color counting ds to archive and estimate better
         (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => self.archive.vae_c.len(),
-            (None, None, None, false, true, false) => self.archive.eva_c.len(),
-            (None, None, None, false, false, true) => self.archive.aev_c.len(),
+            (None, None, None, true, false, false) => self.archive.e_a.len(),
+            (None, None, None, false, true, false) => self.archive.a_a.len(),
+            (None, None, None, false, false, true) => self.archive.v_a.len(),
             (Some(e), None, None, false, true, false) => {
                 base_range(
                     &self.archive.domain,
                     &self.archive.e_a,
                     &e
-                ).map(|r| r.len()).unwrap_or(0)
+                ).unwrap_or(0..0).len()
             }
             (Some(e), None, None, false, false, true) => {
                 base_range(
                     &self.archive.domain,
                     &self.archive.e_a,
                     &e
-                ).map(|r| r.len()).unwrap_or(0)
+                ).unwrap_or(0..0).len()
             }
             (None, Some(a), None, true, false, false) => {
                 base_range(
                     &self.archive.domain,
                     &self.archive.a_a,
                     &a
-                ).map(|r| r.len()).unwrap_or(0)
+                ).unwrap_or(0..0).len()
             }
             (None, Some(a), None, false, false, true) => {
                 base_range(
                     &self.archive.domain,
                     &self.archive.a_a,
                     &a
-                ).map(|r| r.len()).unwrap_or(0)
+                ).unwrap_or(0..0).len()
             }
             (None, None, Some(v), true, false, false) => {
                 base_range(
                     &self.archive.domain,
                     &self.archive.v_a,
                     &v
-                ).map(|r| r.len()).unwrap_or(0)
+                ).unwrap_or(0..0).len()
             }
             (None, None, Some(v), false, true, false) => {
                 base_range(
                     &self.archive.domain,
                     &self.archive.v_a,
                     &v
-                ).map(|r| r.len()).unwrap_or(0)
+                ).unwrap_or(0..0).len()
             }
             (None, Some(a), Some(v), true, false, false) => {
                 base_range(
                     &self.archive.domain,
-                    &self.archive.v_a,
-                    &v
-                ).map(|r|
-                    restrict_1(universe, a, value)
-                ).unwrap_or(0)
+                    &self.archive.a_a,
+                    &a
+                ).and_then(|r|
+                    restrict_range(&self.archive.domain, &self.archive.v_a, &self.archive.aev_c, &v, &r)
+                ).unwrap_or(0..0).len()
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&e);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
-                self.set.eva.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).and_then(|r|
+                    restrict_range(&self.archive.domain, &self.archive.v_a, &self.archive.eav_c, &v, &r)
+                ).unwrap_or(0..0).len()
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let mut prefix = [0u8; ID_LEN + ID_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&e);
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a);
-                self.set.eav.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).and_then(|r|
+                    restrict_range(&self.archive.domain, &self.archive.a_a, &self.archive.eva_c, &a, &r)
+                ).unwrap_or(0..0).len()
             }
             _ => panic!(),
         }) as usize
@@ -171,90 +178,123 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
-        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
+        let e_bound = binding.get(self.variable_e.index);
+        let a_bound = binding.get(self.variable_a.index);
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => {
-                let mut r = vec![];
-                self.set
-                    .eav
-                    .infixes(&[0; 0], &mut |e| r.push(id_into_value(e)));
-                r
-            }
-            (None, None, None, false, true, false) => {
-                let mut r = vec![];
-                self.set
-                    .aev
-                    .infixes(&[0; 0], &mut |a| r.push(id_into_value(a)));
-                r
-            }
-            (None, None, None, false, false, true) => {
-                let mut r = vec![];
-                self.set.vea.infixes(&[0; 0], &mut |v| r.push(v));
-                r
-            }
-
+            (None, None, None, true, false, false) =>
+                self.archive.e_a.iter(0).dedup().map(|e| self.archive.domain.access(e)).collect(),
+            (None, None, None, false, true, false) =>
+                self.archive.a_a.iter(0).dedup().map(|a| self.archive.domain.access(a)).collect(),
+            (None, None, None, false, false, true) =>
+                self.archive.v_a.iter(0).dedup().map(|v| self.archive.domain.access(v)).collect(),
             (Some(e), None, None, false, true, false) => {
-                let mut r = vec![];
-                self.set.eav.infixes(&e, &mut |a| r.push(id_into_value(a)));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).unwrap_or(0..0)
+                .map(|e| self.archive.eva_c.access(e).unwrap())
+                .unique()
+                .map(|a| self.archive.domain.access(a))
+                .collect()
             }
             (Some(e), None, None, false, false, true) => {
-                let mut r = vec![];
-                self.set.eva.infixes(&e, &mut |v| r.push(v));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).unwrap_or(0..0)
+                .map(|v| self.archive.eav_c.access(v).unwrap())
+                .unique()
+                .map(|v| self.archive.domain.access(v))
+                .collect()
             }
 
             (None, Some(a), None, true, false, false) => {
-                let mut r = vec![];
-                self.set.aev.infixes(&a, &mut |e| r.push(id_into_value(e)));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.a_a,
+                    &a
+                ).unwrap_or(0..0)
+                .map(|e| self.archive.ave_c.access(e).unwrap())
+                .unique()
+                .map(|e| self.archive.domain.access(e))
+                .collect()
             }
             (None, Some(a), None, false, false, true) => {
-                let mut r = vec![];
-                self.set.ave.infixes(&a, &mut |v| r.push(v));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.a_a,
+                    &a
+                ).unwrap_or(0..0)
+                .map(|v| self.archive.aev_c.access(v).unwrap())
+                .unique()
+                .map(|v| self.archive.domain.access(v))
+                .collect()
             }
 
             (None, None, Some(v), true, false, false) => {
-                let mut r = vec![];
-                self.set.vea.infixes(&v, &mut |e| r.push(id_into_value(e)));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.v_a,
+                    &v
+                ).unwrap_or(0..0)
+                .map(|e| self.archive.vae_c.access(e).unwrap())
+                .unique()
+                .map(|e| self.archive.domain.access(e))
+                .collect()
             }
             (None, None, Some(v), false, true, false) => {
-                let mut r = vec![];
-                self.set.vae.infixes(&v, &mut |a| r.push(id_into_value(a)));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.v_a,
+                    &v
+                ).unwrap_or(0..0)
+                .map(|a| self.archive.vea_c.access(a).unwrap())
+                .unique()
+                .map(|a| self.archive.domain.access(a))
+                .collect()
             }
             (None, Some(a), Some(v), true, false, false) => {
-                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&a[..]);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v[..]);
-                let mut r = vec![];
-                self.set
-                    .ave
-                    .infixes(&prefix, &mut |e| r.push(id_into_value(e)));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.a_a,
+                    &a
+                ).and_then(|r|
+                    restrict_range(&self.archive.domain, &self.archive.v_a, &self.archive.aev_c, &v, &r))
+                .unwrap_or(0..0)
+                .map(|e| self.archive.vae_c.access(e).unwrap())
+                .unique()
+                .map(|e| self.archive.domain.access(e))
+                .collect()
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&e[..]);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v[..]);
-                let mut r = vec![];
-                self.set
-                    .eva
-                    .infixes(&prefix, &mut |a| r.push(id_into_value(a)));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).and_then(|r|
+                    restrict_range(&self.archive.domain, &self.archive.v_a, &self.archive.eav_c, &v, &r))
+                .unwrap_or(0..0)
+                .map(|a| self.archive.vea_c.access(a).unwrap())
+                .unique()
+                .map(|a| self.archive.domain.access(a))
+                .collect()
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let mut prefix = [0u8; ID_LEN + ID_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&e[..]);
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);
-                let mut r = vec![];
-                self.set.eav.infixes(&prefix, &mut |v| r.push(v));
-                r
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).and_then(|r|
+                    restrict_range(&self.archive.domain, &self.archive.a_a, &self.archive.eva_c, &a, &r))
+                .unwrap_or(0..0)
+                .map(|v| self.archive.aev_c.access(v).unwrap())
+                .unique()
+                .map(|v| self.archive.domain.access(v))
+                .collect()
             }
             _ => panic!(),
         }
@@ -271,14 +311,24 @@ where
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
-                proposals.retain(|value| self.set.eav.has_prefix(&id_from_value(*value)))
+                proposals.retain(|e| base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).unwrap_or(0..0).is_empty().not())
             }
             (None, None, None, false, true, false) => {
-                proposals.retain(|value| self.set.aev.has_prefix(&id_from_value(*value)))
-            }
+                proposals.retain(|a| base_range(
+                    &self.archive.domain,
+                    &self.archive.a_a,
+                    &a
+                ).unwrap_or(0..0).is_empty().not())            }
             (None, None, None, false, false, true) => {
-                proposals.retain(|value| self.set.vea.has_prefix(value))
-            }
+                proposals.retain(|v| base_range(
+                    &self.archive.domain,
+                    &self.archive.v_a,
+                    &v
+                ).unwrap_or(0..0).is_empty().not())            }
             (Some(e), None, None, false, true, false) => proposals.retain(|value| {
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);

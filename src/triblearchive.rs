@@ -1,10 +1,10 @@
-//mod triblearchiveconstraint;
 mod universe;
+mod triblearchiveconstraint;
 
 //use bytes::Bytes;
 use std::convert::TryInto;
 use std::iter;
-//use triblesetarchiveconstraint::*;
+use triblearchiveconstraint::*;
 
 //use crate::query::TriblePattern;
 

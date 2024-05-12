@@ -1,4 +1,5 @@
 use core::panic;
+use std::ops::Range;
 //use std::convert::TryInto;
 //use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
@@ -7,41 +8,68 @@ use crate::id_from_value;
 use crate::id_into_value;
 use crate::query::*;
 use crate::Id;
+use crate::Valuelike;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
-pub struct TribleArchiveConstraint<'a, V>
+pub struct TribleArchiveConstraint<'a, V, U, B>
 where
     V: Valuelike,
+    U: Universe,
+    B: Build + Access + Rank + Select + NumBits 
 {
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
     variable_v: Variable<V>,
-    set: &'a TribleSetArchive,
+    archive: &'a TribleArchive<U, B>,
 }
 
-impl<'a, V> TribleArchiveConstraint<'a, V>
+impl<'a, V, U, B> TribleArchiveConstraint<'a, V, U, B>
 where
     V: Valuelike,
+    U: Universe,
+    B: Build + Access + Rank + Select + NumBits 
 {
     pub fn new(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
-        set: &'a TribleSetArchive,
+        archive: &'a TribleArchive<U, B>,
     ) -> Self {
         TribleArchiveConstraint {
             variable_e,
             variable_a,
             variable_v,
-            set,
+            archive,
         }
     }
 }
 
-impl<'a, V> Constraint<'a> for TribleArchiveConstraint<'a, V>
+fn base_range<U>(universe: &U, a: &EliasFano, value: &Value) -> Option<Range<usize>>
+where U: Universe {
+    let d = universe.search(value)?;
+    let s = a.rank(d)?;
+    let e = a.rank(d + 1)?;
+    Some(s..e)
+}
+
+fn restrict_range<U, B>(universe: &U, a: &EliasFano, c: WaveletMatrix<B>, r: Range<usize>,value: &Value) -> Option<Range<usize>>
+where U: Universe,
+    B: Build + Access + Rank + Select + NumBits {
+    let s = r.start;
+    let e = r.end;
+    let d = universe.search(value)?;
+    
+    let s_ = a.rank(d)? + c.rank(s, d)?;
+    let e_ = a.rank(d)? + c.rank(e, d)?;
+    Some(s_..e_)
+}
+
+impl<'a, V, U, B> Constraint<'a> for TribleArchiveConstraint<'a, V, U, B>
 where
     V: Valuelike,
+    U: Universe,
+    B: Build + Access + Rank + Select + NumBits 
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
@@ -62,49 +90,65 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
-        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
+        let e_bound = binding.get(self.variable_e.index);
+        let a_bound = binding.get(self.variable_a.index);
         let v_bound = binding.get(self.variable_v.index);
 
+        //TODO add disting color counting ds to archive and estimate better
         (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => self.set.eav.segmented_len(&[0; 0]),
-            (None, None, None, false, true, false) => self.set.aev.segmented_len(&[0; 0]),
-            (None, None, None, false, false, true) => self.set.vea.segmented_len(&[0; 0]),
+            (None, None, None, true, false, false) => self.archive.vae_c.len(),
+            (None, None, None, false, true, false) => self.archive.eva_c.len(),
+            (None, None, None, false, false, true) => self.archive.aev_c.len(),
             (Some(e), None, None, false, true, false) => {
-                let mut prefix = [0u8; ID_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&e[..]);
-                self.set.eav.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).map(|r| r.len()).unwrap_or(0)
             }
             (Some(e), None, None, false, false, true) => {
-                let mut prefix = [0u8; ID_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&e[..]);
-                self.set.eva.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.e_a,
+                    &e
+                ).map(|r| r.len()).unwrap_or(0)
             }
             (None, Some(a), None, true, false, false) => {
-                let mut prefix = [0u8; ID_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&a[..]);
-                self.set.aev.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.a_a,
+                    &a
+                ).map(|r| r.len()).unwrap_or(0)
             }
             (None, Some(a), None, false, false, true) => {
-                let mut prefix = [0u8; ID_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&a[..]);
-                self.set.ave.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.a_a,
+                    &a
+                ).map(|r| r.len()).unwrap_or(0)
             }
             (None, None, Some(v), true, false, false) => {
-                let mut prefix = [0u8; VALUE_LEN];
-                prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
-                self.set.vea.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.v_a,
+                    &v
+                ).map(|r| r.len()).unwrap_or(0)
             }
             (None, None, Some(v), false, true, false) => {
-                let mut prefix = [0u8; VALUE_LEN];
-                prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
-                self.set.vae.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.v_a,
+                    &v
+                ).map(|r| r.len()).unwrap_or(0)
             }
             (None, Some(a), Some(v), true, false, false) => {
-                let mut prefix = [0u8; ID_LEN + VALUE_LEN];
-                prefix[0..ID_LEN].copy_from_slice(&a);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
-                self.set.ave.segmented_len(&prefix)
+                base_range(
+                    &self.archive.domain,
+                    &self.archive.v_a,
+                    &v
+                ).map(|r|
+                    restrict_1(universe, a, value)
+                ).unwrap_or(0)
             }
             (Some(e), None, Some(v), false, true, false) => {
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN];

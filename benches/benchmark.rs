@@ -2,16 +2,16 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use hex::ToHex;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
-use sucds::bit_vectors::Rank9Sel;
-use sucds::int_vectors::DacsOpt;
-use sucds::Serializable;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
-use tribles::{and, fucid, TribleArchive};
-use tribles::triblearchive::{OrderedUniverse, Universe};
+use sucds::bit_vectors::Rank9Sel;
+use sucds::int_vectors::DacsOpt;
+use sucds::Serializable;
 use tribles::transient::Transient;
+use tribles::triblearchive::{OrderedUniverse, Universe};
 use tribles::NS;
+use tribles::{and, fucid, TribleArchive};
 use tribles::{types::SmallString, Id};
 
 use tribles::test::hashtribleset::HashTribleSet;
@@ -256,16 +256,46 @@ fn archive_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
-                println!("  Domain:{}", archive.domain.size_in_bytes() as f64 / set.len() as f64);
-                println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
-                println!("  A_a:{}", archive.a_a.size_in_bytes() as f64 / set.len() as f64);
-                println!("  A_v:{}", archive.v_a.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_eav:{}", archive.eav_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_vea:{}", archive.vea_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_ave:{}", archive.ave_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_vae:{}", archive.vae_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_eva:{}", archive.eva_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_aev:{}", archive.aev_c.size_in_bytes() as f64 / set.len() as f64);
+                println!(
+                    "  Domain:{}",
+                    archive.domain.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  A_e:{}",
+                    archive.e_a.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  A_a:{}",
+                    archive.a_a.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  A_v:{}",
+                    archive.v_a.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_eav:{}",
+                    archive.eav_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_vea:{}",
+                    archive.vea_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_ave:{}",
+                    archive.ave_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_vae:{}",
+                    archive.vae_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_eva:{}",
+                    archive.eva_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_aev:{}",
+                    archive.aev_c.size_in_bytes() as f64 / set.len() as f64
+                );
 
                 archive
             });
@@ -280,16 +310,46 @@ fn archive_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
-                println!("  Domain:{}", archive.domain.size_in_bytes() as f64 / set.len() as f64);
-                println!("  A_e:{}", archive.e_a.size_in_bytes() as f64 / set.len() as f64);
-                println!("  A_a:{}", archive.a_a.size_in_bytes() as f64 / set.len() as f64);
-                println!("  A_v:{}", archive.v_a.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_eav:{}", archive.eav_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_vea:{}", archive.vea_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_ave:{}", archive.ave_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_vae:{}", archive.vae_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_eva:{}", archive.eva_c.size_in_bytes() as f64 / set.len() as f64);
-                println!("  C_aev:{}", archive.aev_c.size_in_bytes() as f64 / set.len() as f64);
+                println!(
+                    "  Domain:{}",
+                    archive.domain.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  A_e:{}",
+                    archive.e_a.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  A_a:{}",
+                    archive.a_a.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  A_v:{}",
+                    archive.v_a.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_eav:{}",
+                    archive.eav_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_vea:{}",
+                    archive.vea_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_ave:{}",
+                    archive.ave_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_vae:{}",
+                    archive.vae_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_eva:{}",
+                    archive.eva_c.size_in_bytes() as f64 / set.len() as f64
+                );
+                println!(
+                    "  C_aev:{}",
+                    archive.aev_c.size_in_bytes() as f64 / set.len() as f64
+                );
 
                 archive
             });

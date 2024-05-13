@@ -14,10 +14,10 @@ use leaf::*;
 use crate::bytetable;
 use crate::bytetable::*;
 use core::hash::Hasher;
-use std::cmp::Reverse;
-use std::convert::TryInto;
 use rand::thread_rng;
 use rand::RngCore;
+use std::cmp::Reverse;
+use std::convert::TryInto;
 use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -138,10 +138,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
 
     pub(crate) unsafe fn new<T>(tag: HeadTag, key: u8, ptr: *mut T) -> Self {
         Self {
-            tptr: ptr.map_addr(|addr| ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
-            | ((key as u64) << 48)
-            | ((tag as u64) << 56))
-            as usize) as *mut u8,
+            tptr: ptr.map_addr(|addr| {
+                ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
+                    | ((key as u64) << 48)
+                    | ((tag as u64) << 56)) as usize
+            }) as *mut u8,
             key_ordering: PhantomData,
             key_segments: PhantomData,
             value: PhantomData,
@@ -164,12 +165,15 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>,
 
     #[inline]
     pub(crate) fn set_key(&mut self, key: u8) {
-        self.tptr = self.tptr.map_addr(|addr| ((addr as u64 & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48)) as usize)
+        self.tptr = self.tptr.map_addr(|addr| {
+            ((addr as u64 & 0xff_00_ff_ff_ff_ff_ff_ffu64) | ((key as u64) << 48)) as usize
+        })
     }
 
     #[inline]
     pub(crate) unsafe fn ptr<T>(&self) -> *mut T {
-        self.tptr.map_addr(|addr| ((((addr as u64) << 16) as i64) >> 16) as usize) as *mut T
+        self.tptr
+            .map_addr(|addr| ((((addr as u64) << 16) as i64) >> 16) as usize) as *mut T
     }
 
     // Node
@@ -986,7 +990,9 @@ where
         self.root.segmented_len(0, prefix)
     }
 
-    pub fn iter_prefix<'a, const PREFIX_LEN: usize>(&'a self) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V> {
+    pub fn iter_prefix<'a, const PREFIX_LEN: usize>(
+        &'a self,
+    ) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V> {
         PATCHPrefixIterator::new(self)
     }
 
@@ -1084,8 +1090,14 @@ pub struct PATCHPrefixIterator<
     stack: Vec<Vec<&'a Head<KEY_LEN, O, S, V>>>,
 }
 
-impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
-    PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
+impl<
+        'a,
+        const KEY_LEN: usize,
+        const PREFIX_LEN: usize,
+        O: KeyOrdering<KEY_LEN>,
+        S: KeySegmentation<KEY_LEN>,
+        V: Clone,
+    > PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
 {
     fn new(patch: &'a PATCH<KEY_LEN, O, S, V>) -> Self {
         assert!(PREFIX_LEN <= KEY_LEN);
@@ -1102,8 +1114,14 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
     }
 }
 
-impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>, V: Clone>
-    Iterator for PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
+impl<
+        'a,
+        const KEY_LEN: usize,
+        const PREFIX_LEN: usize,
+        O: KeyOrdering<KEY_LEN>,
+        S: KeySegmentation<KEY_LEN>,
+        V: Clone,
+    > Iterator for PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S, V>
 {
     type Item = ([u8; PREFIX_LEN], u64);
 
@@ -1119,8 +1137,7 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>,
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
                     self.stack.push(level);
-                    level = child.children()
-                        .filter(|&c| c.key() != None).collect();
+                    level = child.children().filter(|&c| c.key() != None).collect();
                     level.sort_by_key(|&k| Reverse(k.key().unwrap())); // We need to reverse here because we pop from the vec.
                 }
             } else {

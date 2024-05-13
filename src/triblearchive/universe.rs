@@ -6,12 +6,13 @@ use std::ops::Range;
 use std::ops::RangeBounds;
 
 use indxvec::Search;
-use sucds::int_vectors::{ Build as IBuild, Access as IAccess, NumVals};
+use sucds::int_vectors::{Access as IAccess, Build as IBuild, NumVals};
 use sucds::Serializable;
 
 pub trait Universe {
     fn with<I>(iter: I) -> Self
-    where I: Iterator<Item = Value>;
+    where
+        I: Iterator<Item = Value>;
     fn access(&self, pos: usize) -> Value;
     fn search(&self, v: &Value) -> Option<usize>;
     fn size_in_bytes(&self) -> usize;
@@ -25,9 +26,11 @@ pub struct OrderedUniverse {
 
 impl Universe for OrderedUniverse {
     fn with<I>(iter: I) -> Self
-    where I: Iterator<Item = Value> {
+    where
+        I: Iterator<Item = Value>,
+    {
         Self {
-            values: iter.collect()
+            values: iter.collect(),
         }
     }
 
@@ -54,9 +57,13 @@ pub struct CompressedUniverse<C> {
 }
 
 impl<C> Universe for CompressedUniverse<C>
-where C: IBuild + IAccess + NumVals + Serializable {
+where
+    C: IBuild + IAccess + NumVals + Serializable,
+{
     fn with<I>(iter: I) -> Self
-    where I: Iterator<Item = Value> {
+    where
+        I: Iterator<Item = Value>,
+    {
         let mut clms: Vec<Vec<usize>> = vec![Vec::new(), Vec::new(), Vec::new(), Vec::new()];
 
         for value in iter {
@@ -72,9 +79,7 @@ where C: IBuild + IAccess + NumVals + Serializable {
             columns.push(column);
         }
 
-        Self {
-            segments: columns
-        }
+        Self { segments: columns }
     }
 
     fn access(&self, pos: usize) -> Value {
@@ -89,7 +94,9 @@ where C: IBuild + IAccess + NumVals + Serializable {
     }
 
     fn search(&self, v: &Value) -> Option<usize> {
-        (0..=self.segments[0].num_vals()-1).binary_by(|p| self.access(p).cmp(v)).ok()
+        (0..=self.segments[0].num_vals() - 1)
+            .binary_by(|p| self.access(p).cmp(v))
+            .ok()
         /* //TODO fix this and bench.
         let v0 = usize::from_be_bytes(v[0..8].try_into().unwrap());
         let v1 = usize::from_be_bytes(v[8..16].try_into().unwrap());
@@ -116,7 +123,6 @@ where C: IBuild + IAccess + NumVals + Serializable {
 
     fn size_in_bytes(&self) -> usize {
         self.segments.iter().map(|c| c.size_in_bytes()).sum()
-
     }
 
     fn len(&self) -> usize {

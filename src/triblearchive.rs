@@ -1,5 +1,5 @@
-mod universe;
 mod triblearchiveconstraint;
+mod universe;
 
 //use bytes::Bytes;
 use std::convert::TryInto;
@@ -13,7 +13,7 @@ use crate::Value;
 
 use itertools::Itertools;
 
-use sucds::bit_vectors::{Build, Access, Rank, Select, NumBits};
+use sucds::bit_vectors::{Access, Build, NumBits, Rank, Select};
 use sucds::char_sequences::WaveletMatrix;
 use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 
@@ -24,14 +24,13 @@ use crate::TribleSet;
 pub use universe::*;
 
 #[derive(Debug, Clone)]
-pub struct TribleArchive<U, B>
-{
+pub struct TribleArchive<U, B> {
     pub domain: U,
 
     pub e_a: EliasFano,
     pub a_a: EliasFano,
     pub v_a: EliasFano,
-    
+
     pub eav_c: WaveletMatrix<B>,
     pub vea_c: WaveletMatrix<B>,
     pub ave_c: WaveletMatrix<B>,
@@ -41,9 +40,10 @@ pub struct TribleArchive<U, B>
 }
 
 impl<U, B> TribleArchive<U, B>
-where 
+where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits {
+    B: Build + Access + Rank + Select + NumBits,
+{
     pub fn with(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
@@ -53,69 +53,111 @@ where
         let v_iter = set.vea.iter_prefix::<32>().map(|(v, _)| v);
 
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
-        let alph_width = sucds::utils::needed_bits(domain.len()-1);
-        
+        let alph_width = sucds::utils::needed_bits(domain.len() - 1);
+
         let mut e_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
-        e_a.extend(set.eav.iter_prefix::<16>()
-            .map(|(e, count)| (id_into_value(e), count as usize))
-            .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
-            .flat_map(|(e, count)| iter::repeat(e).take(count))).unwrap();
+        e_a.extend(
+            set.eav
+                .iter_prefix::<16>()
+                .map(|(e, count)| (id_into_value(e), count as usize))
+                .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
+                .flat_map(|(e, count)| iter::repeat(e).take(count)),
+        )
+        .unwrap();
         let e_a = e_a.build();
 
         let mut a_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
-        a_a.extend(set.aev.iter_prefix::<16>()
-            .map(|(a, count)| (id_into_value(a), count as usize))
-            .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
-            .flat_map(|(a, count)| iter::repeat(a).take(count))).unwrap();
+        a_a.extend(
+            set.aev
+                .iter_prefix::<16>()
+                .map(|(a, count)| (id_into_value(a), count as usize))
+                .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
+                .flat_map(|(a, count)| iter::repeat(a).take(count)),
+        )
+        .unwrap();
         let a_a = a_a.build();
 
         let mut v_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
-        v_a.extend(set.vea.iter_prefix::<32>()
-            .map(|(v, count)| (v, count as usize))
-            .map(|(v, count)| (domain.search(&v).expect("v in domain"), count))
-            .flat_map(|(v, count)| iter::repeat(v).take(count))).unwrap();
+        v_a.extend(
+            set.vea
+                .iter_prefix::<32>()
+                .map(|(v, count)| (v, count as usize))
+                .map(|(v, count)| (domain.search(&v).expect("v in domain"), count))
+                .flat_map(|(v, count)| iter::repeat(v).take(count)),
+        )
+        .unwrap();
         let v_a = v_a.build();
 
         //eav
         let mut eav_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        eav_c.extend(set.eav.iter_prefix::<64>()
-            .map(|(t, _)| t[32..64].try_into().unwrap())
-            .map(|v| domain.search(&v).expect("v in domain"))).unwrap();
+        eav_c
+            .extend(
+                set.eav
+                    .iter_prefix::<64>()
+                    .map(|(t, _)| t[32..64].try_into().unwrap())
+                    .map(|v| domain.search(&v).expect("v in domain")),
+            )
+            .unwrap();
         let eav_c = WaveletMatrix::new(eav_c).unwrap();
 
         //vea
         let mut vea_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        vea_c.extend(set.vea.iter_prefix::<64>()
-            .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|a| domain.search(&a).expect("a in domain"))).unwrap();
+        vea_c
+            .extend(
+                set.vea
+                    .iter_prefix::<64>()
+                    .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
+                    .map(|a| domain.search(&a).expect("a in domain")),
+            )
+            .unwrap();
         let vea_c = WaveletMatrix::new(vea_c).unwrap();
 
         //ave
         let mut ave_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        ave_c.extend(set.ave.iter_prefix::<64>()
-            .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|e| domain.search(&e).expect("e in domain"))).unwrap();
+        ave_c
+            .extend(
+                set.ave
+                    .iter_prefix::<64>()
+                    .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
+                    .map(|e| domain.search(&e).expect("e in domain")),
+            )
+            .unwrap();
         let ave_c = WaveletMatrix::new(ave_c).unwrap();
 
         //vae
         let mut vae_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        vae_c.extend(set.vae.iter_prefix::<64>()
-            .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|e| domain.search(&e).expect("e in domain"))).unwrap();
+        vae_c
+            .extend(
+                set.vae
+                    .iter_prefix::<64>()
+                    .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
+                    .map(|e| domain.search(&e).expect("e in domain")),
+            )
+            .unwrap();
         let vae_c = WaveletMatrix::new(vae_c).unwrap();
 
         //eva
         let mut eva_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        eva_c.extend(set.eva.iter_prefix::<64>()
-            .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
-            .map(|a| domain.search(&a).expect("a in domain"))).unwrap();
+        eva_c
+            .extend(
+                set.eva
+                    .iter_prefix::<64>()
+                    .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
+                    .map(|a| domain.search(&a).expect("a in domain")),
+            )
+            .unwrap();
         let eva_c = WaveletMatrix::new(eva_c).unwrap();
 
         //aev
         let mut aev_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        aev_c.extend(set.aev.iter_prefix::<64>()
-            .map(|(t, _)| t[32..64].try_into().unwrap())
-            .map(|v| domain.search(&v).expect("v in domain"))).unwrap();
+        aev_c
+            .extend(
+                set.aev
+                    .iter_prefix::<64>()
+                    .map(|(t, _)| t[32..64].try_into().unwrap())
+                    .map(|v| domain.search(&v).expect("v in domain")),
+            )
+            .unwrap();
         let aev_c = WaveletMatrix::new(aev_c).unwrap();
 
         TribleArchive {

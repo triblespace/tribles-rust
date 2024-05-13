@@ -8,8 +8,6 @@ use super::*;
 use crate::query::*;
 use crate::Id;
 use crate::Valuelike;
-use crate::ID_LEN;
-use crate::VALUE_LEN;
 
 pub struct TribleArchiveConstraint<'a, V, U, B>
 where

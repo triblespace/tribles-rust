@@ -8,7 +8,8 @@ use triblearchiveconstraint::*;
 
 //use crate::query::TriblePattern;
 
-use crate::id_into_value;
+use crate::{id_into_value, Id, Valuelike};
+use crate::query::TriblePattern;
 use crate::Value;
 
 use itertools::Itertools;
@@ -175,11 +176,16 @@ where
     }
 }
 
-/*
-impl TriblePattern for TribleSetArchive {
+
+impl<U, B> TriblePattern for TribleArchive<U, B>
+where
+    U: Universe,
+    B: Build + Access + Rank + Select + NumBits, {
     type PatternConstraint<'a, V>
-     = TribleSetArchiveConstraint<'a, V>
-     where V: Valuelike;
+     = TribleArchiveConstraint<'a, V, U, B>
+     where V: Valuelike,
+           U: 'a,
+           B: 'a;
 
     fn pattern<'a, V>(
         &'a self,
@@ -190,11 +196,11 @@ impl TriblePattern for TribleSetArchive {
     where
         V: Valuelike,
     {
-        TribleSetArchiveConstraint::new(e, a, v, self)
+        TribleArchiveConstraint::new(e, a, v, self)
     }
 }
 
-
+/*
 impl<'a> Bloblike<'a> for TribleSetArchive {
     type Read = TribleSetArchive;
 

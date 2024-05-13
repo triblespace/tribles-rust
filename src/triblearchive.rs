@@ -56,37 +56,46 @@ where
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
         let alph_width = sucds::utils::needed_bits(domain.len() - 1);
 
-        let mut e_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
-        e_a.extend(
-            set.eav
+        let mut e_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
+        let mut sum = 0;
+        let mut last = 0;
+        for (e, count) in set.eav
                 .iter_prefix::<16>()
                 .map(|(e, count)| (id_into_value(e), count as usize))
-                .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
-                .flat_map(|(e, count)| iter::repeat(e).take(count)),
-        )
-        .unwrap();
+                .map(|(e, count)| (domain.search(&e).expect("e in domain"), count)) {    
+            e_a.extend(iter::repeat(sum).take((e + 1) - last)).unwrap();
+            sum = sum + count;
+            last = e + 1;
+        }
+        e_a.extend(iter::repeat(sum).take(domain.len() - last)).unwrap();
         let e_a = e_a.build();
 
-        let mut a_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
-        a_a.extend(
-            set.aev
+        let mut a_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
+        let mut sum = 0;
+        let mut last = 0;
+        for (a, count) in set.aev
                 .iter_prefix::<16>()
                 .map(|(a, count)| (id_into_value(a), count as usize))
-                .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
-                .flat_map(|(a, count)| iter::repeat(a).take(count)),
-        )
-        .unwrap();
+                .map(|(a, count)| (domain.search(&a).expect("a in domain"), count)) {    
+            a_a.extend(iter::repeat(sum).take((a + 1) - last)).unwrap();
+            sum = sum + count;
+            last = a + 1;
+        }
+        a_a.extend(iter::repeat(sum).take(domain.len() - last)).unwrap();
         let a_a = a_a.build();
 
-        let mut v_a = EliasFanoBuilder::new(domain.len(), triple_count).expect("|T| > 0");
-        v_a.extend(
-            set.vea
+        let mut v_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
+        let mut sum = 0;
+        let mut last = 0;
+        for (v, count) in set.vea
                 .iter_prefix::<32>()
                 .map(|(v, count)| (v, count as usize))
-                .map(|(v, count)| (domain.search(&v).expect("v in domain"), count))
-                .flat_map(|(v, count)| iter::repeat(v).take(count)),
-        )
-        .unwrap();
+                .map(|(v, count)| (domain.search(&v).expect("v in domain"), count)) {    
+            v_a.extend(iter::repeat(sum).take((v + 1) - last)).unwrap();
+            sum = sum + count;
+            last = v + 1;
+        }
+        v_a.extend(iter::repeat(sum).take(domain.len() - last)).unwrap();
         let v_a = v_a.build();
 
         //eav
@@ -223,8 +232,10 @@ impl<'a> Bloblike<'a> for TribleSetArchive {
 
 #[cfg(test)]
 mod tests {
+    use core::arch;
     use std::convert::TryInto;
 
+    use crate::find;
     use crate::{trible::Trible, ufoid, NS};
 
     use super::*;
@@ -238,6 +249,7 @@ mod tests {
         pub namespace knights {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
             "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: crate::types::SmallString;
         }
     }
 
@@ -287,5 +299,44 @@ mod tests {
                 assert_eq!(original, found);
             }
         }
+    }
+
+    #[test]
+    fn archive_pattern() {
+        let juliet = ufoid();
+        let romeo = ufoid();
+
+        let mut kb = TribleSet::new();
+
+        kb.union(&knights::entity!(juliet,
+        {
+            name: "Juliet".try_into().unwrap(),
+            loves: romeo,
+            title: "Maiden".try_into().unwrap()
+        }));
+        kb.union(&knights::entity!(romeo, {
+            name: "Romeo".try_into().unwrap(),
+            loves: juliet,
+            title: "Prince".try_into().unwrap()
+        }));
+        kb.union(&knights::entity!({
+            name: "Angelica".try_into().unwrap(),
+            title: "Nurse".try_into().unwrap()
+        }));
+
+        let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&kb);
+
+        let r: Vec<_> = find!(
+            ctx,
+            (juliet, name),
+            knights::pattern!(ctx, archive, [
+            {name: ("Romeo".try_into().unwrap()),
+             loves: juliet},
+            {juliet @
+                name: name
+            }])
+        )
+        .collect();
+        assert_eq!(vec![Ok((juliet, "Juliet".try_into().unwrap(),))], r);
     }
 }

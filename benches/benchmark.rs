@@ -634,7 +634,7 @@ fn query_benchmark(c: &mut Criterion) {
     kb.union(&data_kb);
 
     group.throughput(Throughput::Elements(1));
-    group.bench_function(BenchmarkId::new("pattern", 1), |b| {
+    group.bench_function(BenchmarkId::new("tribleset/single", 1), |b| {
         b.iter(|| {
             find!(
                 ctx,
@@ -651,12 +651,50 @@ fn query_benchmark(c: &mut Criterion) {
     });
 
     group.throughput(Throughput::Elements(1000));
-    group.bench_function(BenchmarkId::new("pattern", 1000), |b| {
+    group.bench_function(BenchmarkId::new("tribleset/multi", 1000), |b| {
         b.iter(|| {
             find!(
                 ctx,
                 (juliet, name),
                 knights::pattern!(ctx, kb, [
+                {name: (black_box("Wameo").try_into().unwrap()),
+                 loves: juliet},
+                {juliet @
+                    name: name
+                }])
+            )
+            .count()
+        })
+    });
+
+    group.sample_size(10);
+
+    let kb_archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&kb);
+
+    group.throughput(Throughput::Elements(1));
+    group.bench_function(BenchmarkId::new("archive/single", 1), |b| {
+        b.iter(|| {
+            find!(
+                ctx,
+                (juliet, name),
+                knights::pattern!(ctx, kb_archive, [
+                {name: (black_box("Romeo").try_into().unwrap()),
+                 loves: juliet},
+                {juliet @
+                    name: name
+                }])
+            )
+            .count()
+        })
+    });
+
+    group.throughput(Throughput::Elements(1000));
+    group.bench_function(BenchmarkId::new("archive/multi", 1000), |b| {
+        b.iter(|| {
+            find!(
+                ctx,
+                (juliet, name),
+                knights::pattern!(ctx, kb_archive, [
                 {name: (black_box("Wameo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @
@@ -744,7 +782,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     });
     group.finish();
 }
-
+/*
 fn oxigraph_benchmark(c: &mut Criterion) {
     use oxigraph::model::*;
     use oxigraph::sparql::QueryResults;
@@ -1032,7 +1070,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     group.finish();
 }
-
+*/
 criterion_group!(
     benches,
     std_benchmark,
@@ -1044,6 +1082,6 @@ criterion_group!(
     query_benchmark,
     attribute_benchmark,
     hashtribleset_benchmark,
-    oxigraph_benchmark
+    //oxigraph_benchmark
 );
 criterion_main!(benches);

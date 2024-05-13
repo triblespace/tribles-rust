@@ -47,8 +47,8 @@ where
     U: Universe,
 {
     if let Some(d) = universe.search(value) {
-        let s = a.rank(d).unwrap();
-        let e = a.rank(d + 1).unwrap();
+        let s = a.select(d).unwrap();
+        let e = a.select(d + 1).unwrap();
         s..e
     } else {
         0..0
@@ -69,8 +69,8 @@ where
     let s = r.start;
     let e = r.end;
     if let Some(d) = universe.search(value) {
-        let s_ = a.rank(d).unwrap() + c.rank(s, d).unwrap();
-        let e_ = a.rank(d).unwrap() + c.rank(e, d).unwrap();
+        let s_ = a.select(d).unwrap() + c.rank(s, d).unwrap();
+        let e_ = a.select(d).unwrap() + c.rank(e, d).unwrap();
         s_..e_
     } else {
         0..0

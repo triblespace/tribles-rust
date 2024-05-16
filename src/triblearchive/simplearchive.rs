@@ -56,7 +56,7 @@ impl Bloblike for SimpleArchive {
     where
         H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32>,
     {
-        let digest = H::digest(self.0);
+        let digest = H::digest(&self.0);
         unsafe { Handle::new(Hash::new(digest.into())) }
     }
 }

@@ -61,7 +61,7 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        if let Some(trible) = Trible::new_values(
+        if let Ok(trible) = Trible::new_values(
             binding.get(self.variable_e.index).unwrap_or([0; 32]),
             binding.get(self.variable_a.index).unwrap_or([0; 32]),
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
@@ -129,7 +129,7 @@ where
             o
         }
 
-        if let Some(trible) = Trible::new_values(
+        if let Ok(trible) = Trible::new_values(
             binding.get(self.variable_e.index).unwrap_or([0; 32]),
             binding.get(self.variable_a.index).unwrap_or([0; 32]),
             binding.get(self.variable_v.index).unwrap_or([0; 32]),
@@ -223,7 +223,7 @@ where
             (false, false, false) => panic!(),
             (true, false, false) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -248,7 +248,7 @@ where
             }
             (false, true, false) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -273,7 +273,7 @@ where
             }
             (false, false, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -299,7 +299,7 @@ where
 
             (true, true, false) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -325,7 +325,7 @@ where
 
             (true, false, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -351,7 +351,7 @@ where
 
             (false, true, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {
@@ -377,7 +377,7 @@ where
 
             (true, true, true) => {
                 proposals.retain(|value| {
-                    if let Some(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e.index).unwrap_or(if e_var {
                             *value
                         } else {

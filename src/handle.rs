@@ -44,7 +44,7 @@ impl<H, T> fmt::Debug for Handle<H, T> {
 
 impl<H, T> Handle<H, T>
 where
-    T: for<'a> Bloblike<'a>,
+    T: Bloblike,
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
     pub unsafe fn new(hash: Hash<H>) -> Handle<H, T> {

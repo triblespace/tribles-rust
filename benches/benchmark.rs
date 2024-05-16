@@ -9,9 +9,9 @@ use sucds::bit_vectors::Rank9Sel;
 use sucds::int_vectors::DacsOpt;
 use sucds::Serializable;
 use tribles::transient::Transient;
-use tribles::triblearchive::{OrderedUniverse, Universe};
+use tribles::triblearchive::succinctarchive::{SuccinctArchive, OrderedUniverse, Universe};
 use tribles::NS;
-use tribles::{and, fucid, TribleArchive};
+use tribles::{and, fucid};
 use tribles::{types::SmallString, Id};
 
 use tribles::test::hashtribleset::HashTribleSet;
@@ -254,7 +254,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&set);
+                let archive = SuccinctArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
                 println!(
                     "  Domain:{}",
@@ -308,7 +308,7 @@ fn archive_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
             b.iter_with_large_drop(|| {
-                let archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&set);
+                let archive = SuccinctArchive::<OrderedUniverse, Rank9Sel>::with(&set);
                 println!("Archived trible size:");
                 println!(
                     "  Domain:{}",
@@ -669,7 +669,7 @@ fn query_benchmark(c: &mut Criterion) {
 
     group.sample_size(10);
 
-    let kb_archive = TribleArchive::<OrderedUniverse, Rank9Sel>::with(&kb);
+    let kb_archive = SuccinctArchive::<OrderedUniverse, Rank9Sel>::with(&kb);
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {
@@ -782,7 +782,7 @@ fn attribute_benchmark(c: &mut Criterion) {
     });
     group.finish();
 }
-/*
+
 fn oxigraph_benchmark(c: &mut Criterion) {
     use oxigraph::model::*;
     use oxigraph::sparql::QueryResults;
@@ -1070,7 +1070,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     group.finish();
 }
-*/
+
 criterion_group!(
     benches,
     std_benchmark,
@@ -1082,6 +1082,6 @@ criterion_group!(
     query_benchmark,
     attribute_benchmark,
     hashtribleset_benchmark,
-    //oxigraph_benchmark
+    oxigraph_benchmark
 );
 criterion_main!(benches);

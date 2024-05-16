@@ -23,8 +23,6 @@ pub use blob::*;
 pub use blobset::BlobSet;
 pub use handle::*;
 pub use id::*;
-pub use triblearchive::CompressedUniverse;
-pub use triblearchive::TribleArchive;
 pub use tribleset::TribleSet;
 
 pub use value::*;

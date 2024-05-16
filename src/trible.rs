@@ -35,9 +35,13 @@ impl Trible {
         Self { data }
     }
 
-    pub fn new_values(e: Value, a: Value, v: Value) -> Option<Trible> {
-        if e[0..16].iter().any(|&x| x != 0) || a[0..16].iter().any(|&x| x != 0) {
-            return None;
+    pub fn new_values(e: Value, a: Value, v: Value) -> Result<Trible, &'static str> {
+        if e[0..16].iter().any(|&x| x != 0) {
+            return Err(&"entity value is not a valid id");
+        }
+
+        if a[0..16].iter().any(|&x| x != 0) {
+            return Err(&"attribute value is not a valid id");
         }
 
         let mut data = [0; TRIBLE_LEN];
@@ -45,7 +49,7 @@ impl Trible {
         data[A_START..=A_END].copy_from_slice(&a[16..32]);
         data[V_START..=V_END].copy_from_slice(&v[..]);
 
-        Some(Self { data })
+        Ok(Self { data })
     }
 
     pub fn new_raw(data: [u8; 64]) -> Trible {

@@ -47,19 +47,19 @@ where
 
     pub fn put<T>(&mut self, value: T) -> Handle<H, T>
     where
-        T: for<'a> Bloblike<'a>,
+        T: Bloblike,
     {
         let blob: Bytes = value.into_blob();
         let hash = self.put_raw(blob);
         unsafe { Handle::new(hash) }
     }
 
-    pub fn get<'a, T>(&'a self, handle: Handle<H, T>) -> Option<Result<T::Read, BlobParseError>>
+    pub fn get<'a, T>(&'a self, handle: Handle<H, T>) -> Option<Result<T, BlobParseError>>
     where
-        T: Bloblike<'a>,
+        T: Bloblike,
     {
         let blob = self.get_raw(handle.hash)?;
-        Some(T::read_blob(blob))
+        Some(T::read_blob(blob.clone()))
     }
 
     pub fn get_raw(&self, hash: Hash<H>) -> Option<&Bytes> {
@@ -152,7 +152,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{TribleSet, NS};
+    use crate::{ TribleSet, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -161,7 +161,7 @@ mod tests {
         pub namespace knights {
             "5AD0FAFB1FECBC197A385EC20166899E" as description: crate::Handle<
                 crate::types::hash::Blake2b,
-                String>;
+                crate::types::ZCString>;
         }
     }
 
@@ -171,7 +171,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(&knights::entity!({
-                description: blobs.put(Name(EN).fake::<String>())
+                description: blobs.put(Name(EN).fake::<String>().into())
             }));
         }
         let kept = blobs.keep(kb);

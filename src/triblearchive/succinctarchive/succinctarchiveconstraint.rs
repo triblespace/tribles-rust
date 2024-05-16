@@ -9,7 +9,7 @@ use crate::query::*;
 use crate::Id;
 use crate::Valuelike;
 
-pub struct TribleArchiveConstraint<'a, V, U, B>
+pub struct SuccinctArchiveConstraint<'a, V, U, B>
 where
     V: Valuelike,
     U: Universe,
@@ -18,10 +18,10 @@ where
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
     variable_v: Variable<V>,
-    archive: &'a TribleArchive<U, B>,
+    archive: &'a SuccinctArchive<U, B>,
 }
 
-impl<'a, V, U, B> TribleArchiveConstraint<'a, V, U, B>
+impl<'a, V, U, B> SuccinctArchiveConstraint<'a, V, U, B>
 where
     V: Valuelike,
     U: Universe,
@@ -31,9 +31,9 @@ where
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
-        archive: &'a TribleArchive<U, B>,
+        archive: &'a SuccinctArchive<U, B>,
     ) -> Self {
-        TribleArchiveConstraint {
+        SuccinctArchiveConstraint {
             variable_e,
             variable_a,
             variable_v,
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<'a, V, U, B> Constraint<'a> for TribleArchiveConstraint<'a, V, U, B>
+impl<'a, V, U, B> Constraint<'a> for SuccinctArchiveConstraint<'a, V, U, B>
 where
     V: Valuelike,
     U: Universe,

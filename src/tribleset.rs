@@ -1,18 +1,14 @@
 mod triblesetconstraint;
 
-use bytes::Bytes;
 use triblesetconstraint::*;
 
 use crate::query::TriblePattern;
 
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, A_END,
-    A_START, E_END, E_START, TRIBLE_LEN,
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, TRIBLE_LEN,
 };
-use crate::{types::Hash, Handle};
-use crate::{BlobParseError, Bloblike, Id, Value, Valuelike};
-use std::convert::TryInto;
+use crate::{ Id, Value, Valuelike };
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -92,76 +88,6 @@ impl TriblePattern for TribleSet {
         V: Valuelike,
     {
         TribleSetConstraint::new(e, a, v, self)
-    }
-}
-
-impl<'a> Bloblike<'a> for TribleSet {
-    type Read = TribleSet;
-
-    fn read_blob(blob: &Bytes) -> Result<Self::Read, BlobParseError> {
-        let len: usize = blob.len();
-
-        if len % TRIBLE_LEN != 0 {
-            return Err(BlobParseError::new(
-                "tribleset blob must be multiples of 64bytes long",
-            ));
-        }
-
-        let mut tribles = TribleSet::new();
-
-        let mut prev_trible = None;
-        for trible in blob.chunks_exact(TRIBLE_LEN) {
-            let t: &[u8; 64] = trible.try_into().unwrap();
-            if t[E_START..=E_END] == [0; 16] {
-                return Err(BlobParseError::new(
-                    "validation error: trible contains NULL id in E position",
-                ));
-            }
-            if t[A_START..=A_END] == [0; 16] {
-                return Err(BlobParseError::new(
-                    "validation error: trible contains NULL id in A position",
-                ));
-            }
-            if let Some(prev) = prev_trible {
-                if prev == t {
-                    return Err(BlobParseError::new(
-                        "validation error: redundant trible in tribleset blob",
-                    ));
-                }
-                if prev > t {
-                    return Err(BlobParseError::new(
-                        "validation error: tribles in commit must be sorted in ascending order",
-                    ));
-                }
-
-                prev_trible = Some(t);
-            }
-            tribles.insert_raw(t);
-        }
-
-        Ok(tribles)
-    }
-
-    fn into_blob(self) -> Bytes {
-        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
-        self.eav
-            .infixes(&[0; 0], &mut |k: [u8; 64]| tribles.push(k));
-        tribles.sort_unstable();
-        let buffer: Vec<u8> = bytemuck::allocation::cast_vec(tribles);
-        buffer.into()
-    }
-
-    fn as_handle<H>(&self) -> Handle<H, Self>
-    where
-        H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32>,
-    {
-        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
-        self.eav
-            .infixes(&[0; 0], &mut |k: [u8; 64]| tribles.push(k));
-        tribles.sort_unstable();
-        let buffer: Vec<u8> = bytemuck::allocation::cast_vec(tribles);
-        let digest = H::digest(buffer);
-        unsafe { Handle::new(Hash::new(digest.into())) }
     }
 }
 

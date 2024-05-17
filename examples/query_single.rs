@@ -1,10 +1,6 @@
 use std::convert::TryInto;
 
-use tribles::query::find;
-use tribles::ufoid;
-use tribles::NS;
-
-use tribles::TribleSet;
+use tribles::{ NS, TribleSet, ufoid, Id, query::find, types::SmallString };
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
@@ -12,9 +8,9 @@ use fake::Fake;
 
 NS! {
     pub namespace knights {
-        "39E2D06DBCD9CB96DE5BC46F362CFF31" as loves: tribles::Id;
-        "7D4F339CC4AE0BBA2765F34BE1D108EF" as name: tribles::types::SmallString;
-        "3E0C58AC884072EA6429BB00A1BA1DA4" as title: tribles::types::SmallString;
+        "39E2D06DBCD9CB96DE5BC46F362CFF31" as loves: Id;
+        "7D4F339CC4AE0BBA2765F34BE1D108EF" as name: SmallString;
+        "3E0C58AC884072EA6429BB00A1BA1DA4" as title: SmallString;
     }
 }
 

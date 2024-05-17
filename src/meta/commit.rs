@@ -4,18 +4,16 @@ use itertools::Itertools;
 
 use ed25519::signature::{Signer, Verifier};
 
-use crate::types::ed25519::{RComponent, SComponent};
-use crate::Id;
-use crate::{namespace::NS, query::find, Handle, TribleSet};
+use crate::{namespace::NS, query::find, triblearchive::SimpleArchive, Handle, Id, TribleSet, types::{ hash::Blake3, ed25519 as ed, SmallString, ed25519::{RComponent, SComponent}}};
 
 NS! {
     pub namespace commit_ns {
-        "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: crate::Handle<crate::types::hash::Blake3, crate::TribleSet>;
-        "12290C0BE0E9207E324F24DDE0D89300" as short_message: crate::types::SmallString;
-        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: crate::Id;
-        "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: crate::types::ed25519::RComponent;
-        "1ACE03BF70242B289FDF00E4327C3BC6" as ed25519_signature_s: crate::types::ed25519::SComponent;
-        "B57D92D4630F8F1B697DAF49CDFA3757" as ed25519_pubkey: crate::types::ed25519::VerifyingKey;
+        "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: Handle<Blake3, SimpleArchive>;
+        "12290C0BE0E9207E324F24DDE0D89300" as short_message: SmallString;
+        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: Id;
+        "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: ed::RComponent;
+        "1ACE03BF70242B289FDF00E4327C3BC6" as ed25519_signature_s: ed::SComponent;
+        "B57D92D4630F8F1B697DAF49CDFA3757" as ed25519_pubkey: ed::VerifyingKey;
     }
 }
 
@@ -34,7 +32,7 @@ impl ValidationError {
 
 pub fn sign(
     signing_key: SigningKey,
-    handle: Handle<crate::types::hash::Blake3, TribleSet>,
+    handle: Handle<Blake3, SimpleArchive>,
     commit_id: Id,
 ) -> Result<TribleSet, ValidationError> {
     let hash = handle.hash.bytes;

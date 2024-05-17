@@ -305,16 +305,15 @@ mod tests {
     //use fake::{Dummy, Fake, Faker};
     use std::{collections::HashSet, convert::TryInto};
 
-    use crate::{TribleSet, NS};
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{types::SmallString, ufoid};
+    use crate::{types::SmallString, ufoid, TribleSet, NS, Id};
 
     use super::*;
 
     NS! {
         pub namespace knights {
-            "8143F46E812E88C4544E7094080EC523" as loves: crate::Id;
-            "D6E0F2A6E5214E1330565B4D4138E55C" as name: crate::types::SmallString;
+            "8143F46E812E88C4544E7094080EC523" as loves: Id;
+            "D6E0F2A6E5214E1330565B4D4138E55C" as name: SmallString;
         }
     }
 

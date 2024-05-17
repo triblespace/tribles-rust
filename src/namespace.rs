@@ -124,16 +124,19 @@ pub use hex_literal;
 /// }
 /// ```
 ///
-/// will be translated into a module with the following structure
+/// will define a module with a structure similar to
 ///
 /// ```
 /// mod namespace_name {
+///   use super::*; // enables lexical scoping
 ///   pub mod ids {
+///       use super::*;
 ///       use hex_literal::hex;
 ///       pub const attr_name: tribles::Id  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
 ///       pub const attr_name2: tribles::Id  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
 ///   }
 ///   pub mod types {
+///       use super::*;
 ///       pub use tribles::Id as attr_name;
 ///       pub use tribles::types::SmallString as attr_name2;
 ///   }
@@ -146,12 +149,16 @@ pub use hex_literal;
 macro_rules! NS {
     ($visibility:vis namespace $mod_name:ident {$($FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
         $visibility mod $mod_name {
+            #![allow(unused)]
+            use super::*;
             pub mod ids {
-                #![allow(non_upper_case_globals)]
+                #![allow(non_upper_case_globals, unused)]
+                use super::*;
                 $(pub const $FieldName:$crate::Id = $crate::namespace::hex_literal::hex!($FieldId);)*
             }
             pub mod types {
-                #![allow(non_camel_case_types)]
+                #![allow(non_camel_case_types, unused)]
+                use super::*;
                 $(pub type $FieldName = $FieldType;)*
             }
 
@@ -210,15 +217,15 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, ufoid, TribleSet};
+    use crate::{query::find, ufoid, TribleSet, Id, types::SmallString};
 
     use std::convert::TryInto;
 
     NS! {
         pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
-            "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: crate::types::SmallString;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
+            "328147856cc1984f0806dbb824d2b4cb" as name: SmallString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: SmallString;
         }
     }
 

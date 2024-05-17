@@ -235,8 +235,7 @@ mod tests {
     use core::arch;
     use std::convert::TryInto;
 
-    use crate::find;
-    use crate::{trible::Trible, ufoid, NS};
+    use crate::{trible::Trible, ufoid, NS, Id, find, types::SmallString};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -247,9 +246,9 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
-            "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: crate::types::SmallString;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
+            "328147856cc1984f0806dbb824d2b4cb" as name: SmallString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: SmallString;
         }
     }
 

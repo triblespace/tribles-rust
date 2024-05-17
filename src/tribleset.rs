@@ -95,7 +95,7 @@ impl TriblePattern for TribleSet {
 mod tests {
     use std::convert::TryInto;
 
-    use crate::{ufoid, NS};
+    use crate::{ufoid, NS, Id, types::SmallString};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -104,8 +104,8 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: crate::Id;
-            "328147856cc1984f0806dbb824d2b4cb" as name: crate::types::SmallString;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
+            "328147856cc1984f0806dbb824d2b4cb" as name: SmallString;
         }
     }
 

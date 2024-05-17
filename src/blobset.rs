@@ -152,16 +152,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{ TribleSet, NS};
+    use crate::{ TribleSet, NS, Handle, types::hash::Blake3, types::ZCString };
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
     NS! {
         pub namespace knights {
-            "5AD0FAFB1FECBC197A385EC20166899E" as description: crate::Handle<
-                crate::types::hash::Blake2b,
-                crate::types::ZCString>;
+            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, ZCString>;
         }
     }
 

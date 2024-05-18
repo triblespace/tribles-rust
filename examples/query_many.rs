@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use tribles::{NS, TribleSet, ufoid, Id, query::find, types::SmallString};
+use tribles::{query::find, types::SmallString, ufoid, Id, TribleSet, NS};
 
 use fake::faker::name::raw::*;
 use fake::locales::*;

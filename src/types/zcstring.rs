@@ -21,7 +21,7 @@ impl From<String> for ZCString {
     }
 }
 
-impl Bloblike for ZCString  {
+impl Bloblike for ZCString {
     fn into_blob(self) -> Bytes {
         self.0
     }
@@ -30,7 +30,6 @@ impl Bloblike for ZCString  {
         std::str::from_utf8(&blob[..])
             .map_err(|_| BlobParseError::new("failed to convert to utf-8 string"))?;
         Ok(ZCString(blob))
-
     }
 
     fn as_handle<H>(&self) -> Handle<H, Self>

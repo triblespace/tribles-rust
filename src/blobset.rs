@@ -152,7 +152,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{ TribleSet, NS, Handle, types::hash::Blake3, types::ZCString };
+    use crate::{types::hash::Blake3, types::ZCString, Handle, TribleSet, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

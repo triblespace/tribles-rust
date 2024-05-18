@@ -1,6 +1,7 @@
 mod succinctarchiveconstraint;
 mod universe;
 
+use std::borrow::Borrow;
 //use bytes::Bytes;
 use std::convert::TryInto;
 use std::iter;
@@ -8,9 +9,10 @@ use succinctarchiveconstraint::*;
 
 //use crate::query::TriblePattern;
 
-use crate::{id_into_value, Id, Valuelike};
 use crate::query::TriblePattern;
+use crate::trible::Trible;
 use crate::Value;
+use crate::{id_into_value, Id, Valuelike};
 
 use itertools::Itertools;
 
@@ -45,7 +47,28 @@ where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
-    pub fn with(set: &TribleSet) -> Self {
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = Trible> + 'a {
+        (0..self.eav_c.len()).map(move |i| {
+            let v = self.eav_c.access(i).unwrap();
+            let a = self.v_a.select(v).unwrap() + self.eav_c.rank(i, v).unwrap();
+            let e = self.a_a.select(v).unwrap() + self.vea_c.rank(i, a).unwrap();
+
+            let e = self.domain.access(e);
+            let a = self.domain.access(a);
+            let v = self.domain.access(v);
+
+            let t = Trible::new_raw_values(e, a, v);
+            t
+        })
+    }
+}
+
+impl<U, B> From<&TribleSet> for SuccinctArchive<U, B>
+where
+    U: Universe,
+    B: Build + Access + Rank + Select + NumBits,
+{
+    fn from(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
 
@@ -59,43 +82,52 @@ where
         let mut e_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
         let mut sum = 0;
         let mut last = 0;
-        for (e, count) in set.eav
-                .iter_prefix::<16>()
-                .map(|(e, count)| (id_into_value(e), count as usize))
-                .map(|(e, count)| (domain.search(&e).expect("e in domain"), count)) {    
+        for (e, count) in set
+            .eav
+            .iter_prefix::<16>()
+            .map(|(e, count)| (id_into_value(e), count as usize))
+            .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
+        {
             e_a.extend(iter::repeat(sum).take((e + 1) - last)).unwrap();
             sum = sum + count;
             last = e + 1;
         }
-        e_a.extend(iter::repeat(sum).take(domain.len() - last)).unwrap();
+        e_a.extend(iter::repeat(sum).take(domain.len() - last))
+            .unwrap();
         let e_a = e_a.build();
 
         let mut a_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
         let mut sum = 0;
         let mut last = 0;
-        for (a, count) in set.aev
-                .iter_prefix::<16>()
-                .map(|(a, count)| (id_into_value(a), count as usize))
-                .map(|(a, count)| (domain.search(&a).expect("a in domain"), count)) {    
+        for (a, count) in set
+            .aev
+            .iter_prefix::<16>()
+            .map(|(a, count)| (id_into_value(a), count as usize))
+            .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
+        {
             a_a.extend(iter::repeat(sum).take((a + 1) - last)).unwrap();
             sum = sum + count;
             last = a + 1;
         }
-        a_a.extend(iter::repeat(sum).take(domain.len() - last)).unwrap();
+        a_a.extend(iter::repeat(sum).take(domain.len() - last))
+            .unwrap();
         let a_a = a_a.build();
 
         let mut v_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
         let mut sum = 0;
         let mut last = 0;
-        for (v, count) in set.vea
-                .iter_prefix::<32>()
-                .map(|(v, count)| (v, count as usize))
-                .map(|(v, count)| (domain.search(&v).expect("v in domain"), count)) {    
+        for (v, count) in set
+            .vea
+            .iter_prefix::<32>()
+            .map(|(v, count)| (v, count as usize))
+            .map(|(v, count)| (domain.search(&v).expect("v in domain"), count))
+        {
             v_a.extend(iter::repeat(sum).take((v + 1) - last)).unwrap();
             sum = sum + count;
             last = v + 1;
         }
-        v_a.extend(iter::repeat(sum).take(domain.len() - last)).unwrap();
+        v_a.extend(iter::repeat(sum).take(domain.len() - last))
+            .unwrap();
         let v_a = v_a.build();
 
         //eav
@@ -185,11 +217,21 @@ where
     }
 }
 
+impl<U, B> From<&SuccinctArchive<U, B>> for TribleSet
+where
+    U: Universe,
+    B: Build + Access + Rank + Select + NumBits,
+{
+    fn from(archive: &SuccinctArchive<U, B>) -> Self {
+        archive.iter().collect()
+    }
+}
 
 impl<U, B> TriblePattern for SuccinctArchive<U, B>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits, {
+    B: Build + Access + Rank + Select + NumBits,
+{
     type PatternConstraint<'a, V>
      = SuccinctArchiveConstraint<'a, V, U, B>
      where V: Valuelike,
@@ -235,7 +277,7 @@ mod tests {
     use core::arch;
     use std::convert::TryInto;
 
-    use crate::{trible::Trible, ufoid, NS, Id, find, types::SmallString};
+    use crate::{find, trible::Trible, types::SmallString, ufoid, Id, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -262,7 +304,22 @@ mod tests {
                 set.insert(&Trible{ data: key});
             }
 
-            let _archive = SuccinctArchive::<CompressedUniverse<DacsOpt>, Rank9Sel>::with(&set);
+            let _archive: SuccinctArchive::<CompressedUniverse<DacsOpt>, Rank9Sel> = (&set).into();
+        }
+
+        #[test]
+        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+            let mut set = TribleSet::new();
+            for entry in entries {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                set.insert(&Trible{ data: key});
+            }
+
+            let archive: SuccinctArchive::<CompressedUniverse<DacsOpt>, Rank9Sel> = (&set).into();
+            let set_: TribleSet = (&archive).into();
+
+            assert_eq!(set, set_);
         }
 
         #[test]
@@ -323,7 +380,7 @@ mod tests {
             title: "Nurse".try_into().unwrap()
         }));
 
-        let archive = SuccinctArchive::<OrderedUniverse, Rank9Sel>::with(&kb);
+        let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
 
         let r: Vec<_> = find!(
             ctx,

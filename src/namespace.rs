@@ -217,7 +217,7 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, ufoid, TribleSet, Id, types::SmallString};
+    use crate::{query::find, types::SmallString, ufoid, Id, TribleSet};
 
     use std::convert::TryInto;
 

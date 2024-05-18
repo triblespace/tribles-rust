@@ -306,7 +306,7 @@ mod tests {
     use std::{collections::HashSet, convert::TryInto};
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{types::SmallString, ufoid, TribleSet, NS, Id};
+    use crate::{types::SmallString, ufoid, Id, TribleSet, NS};
 
     use super::*;
 

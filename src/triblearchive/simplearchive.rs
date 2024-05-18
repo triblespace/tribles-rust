@@ -1,8 +1,12 @@
-use std::convert::TryInto;
+use std::{borrow::Borrow, convert::TryInto};
 
 use bytes::Bytes;
 
-use crate::{trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN}, types::Hash, BlobParseError, Bloblike, Handle, TribleSet};
+use crate::{
+    trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},
+    types::Hash,
+    BlobParseError, Bloblike, Handle, TribleSet,
+};
 
 pub struct SimpleArchive(Bytes);
 
@@ -15,7 +19,7 @@ impl Bloblike for SimpleArchive {
                 "simple archive must be multiples of 64bytes long",
             ));
         }
-        
+
         let mut prev_trible = None;
         for trible in blob.chunks_exact(TRIBLE_LEN) {
             let t: &[u8; 64] = trible.try_into().unwrap();
@@ -31,9 +35,7 @@ impl Bloblike for SimpleArchive {
             }
             if let Some(prev) = prev_trible {
                 if prev == t {
-                    return Err(BlobParseError::new(
-                        "validation error: redundant trible",
-                    ));
+                    return Err(BlobParseError::new("validation error: redundant trible"));
                 }
                 if prev > t {
                     return Err(BlobParseError::new(
@@ -61,19 +63,19 @@ impl Bloblike for SimpleArchive {
     }
 }
 
-impl From<TribleSet> for SimpleArchive {
-    fn from(value: TribleSet) -> Self {
-        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(value.len());
-        tribles.extend(value.eav.iter_prefix::<64>().map(|p| p.0));
+impl From<&TribleSet> for SimpleArchive {
+    fn from(set: &TribleSet) -> Self {
+        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(set.len());
+        tribles.extend(set.eav.iter_prefix::<64>().map(|p| p.0));
         let buffer: Vec<u8> = bytemuck::allocation::cast_vec(tribles);
         SimpleArchive(buffer.into())
     }
 }
 
-impl From<SimpleArchive> for TribleSet {
-    fn from(value: SimpleArchive) -> Self {
+impl From<&SimpleArchive> for TribleSet {
+    fn from(archive: &SimpleArchive) -> Self {
         let mut tribles = TribleSet::new();
-        for t in value.0.chunks_exact(TRIBLE_LEN) {
+        for t in archive.0.chunks_exact(TRIBLE_LEN) {
             tribles.insert_raw(t.try_into().unwrap());
         }
         tribles

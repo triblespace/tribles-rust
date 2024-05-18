@@ -6,9 +6,10 @@ use crate::query::TriblePattern;
 
 use crate::patch::{Entry, PATCH};
 use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder, TRIBLE_LEN,
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
+    TRIBLE_LEN,
 };
-use crate::{ Id, Value, Valuelike };
+use crate::{Id, Value, Valuelike};
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -61,6 +62,14 @@ impl TribleSet {
     }
 }
 
+impl PartialEq for TribleSet {
+    fn eq(&self, other: &Self) -> bool {
+        self.eav == other.eav
+    }
+}
+
+impl Eq for TribleSet {}
+
 impl FromIterator<Trible> for TribleSet {
     fn from_iter<I: IntoIterator<Item = Trible>>(iter: I) -> Self {
         let mut set = TribleSet::new();
@@ -95,7 +104,7 @@ impl TriblePattern for TribleSet {
 mod tests {
     use std::convert::TryInto;
 
-    use crate::{ufoid, NS, Id, types::SmallString};
+    use crate::{types::SmallString, ufoid, Id, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

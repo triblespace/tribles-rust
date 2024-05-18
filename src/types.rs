@@ -5,10 +5,10 @@ pub mod ed25519;
 pub mod f256;
 pub mod hash;
 pub mod smallstring;
-pub mod zcstring;
 pub mod time;
+pub mod zcstring;
 
 pub use hash::Hash;
 pub use smallstring::*;
-pub use zcstring::*;
 pub use time::*;
+pub use zcstring::*;

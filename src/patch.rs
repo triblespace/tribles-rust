@@ -1011,6 +1011,13 @@ where
     }
 }
 
+impl<const KEY_LEN: usize, O, S, V: Clone> Eq for PATCH<KEY_LEN, O, S, V>
+where
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+{
+}
+
 impl<'a, const KEY_LEN: usize, O, S, V: Clone> IntoIterator for &'a PATCH<KEY_LEN, O, S, V>
 where
     O: KeyOrdering<KEY_LEN>,

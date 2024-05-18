@@ -4,7 +4,18 @@ use itertools::Itertools;
 
 use ed25519::signature::{Signer, Verifier};
 
-use crate::{namespace::NS, query::find, triblearchive::SimpleArchive, Handle, Id, TribleSet, types::{ hash::Blake3, ed25519 as ed, SmallString, ed25519::{RComponent, SComponent}}};
+use crate::{
+    namespace::NS,
+    query::find,
+    triblearchive::SimpleArchive,
+    types::{
+        ed25519 as ed,
+        ed25519::{RComponent, SComponent},
+        hash::Blake3,
+        SmallString,
+    },
+    Handle, Id, TribleSet,
+};
 
 NS! {
     pub namespace commit_ns {

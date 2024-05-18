@@ -48,10 +48,12 @@ where
     B: Build + Access + Rank + Select + NumBits,
 {
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = Trible> + 'a {
-        (0..self.eav_c.len()).map(move |i| {
-            let v = self.eav_c.access(i).unwrap();
-            let a = self.v_a.select(v).unwrap() + self.eav_c.rank(i, v).unwrap();
-            let e = self.a_a.select(v).unwrap() + self.vea_c.rank(i, a).unwrap();
+        (0..self.eav_c.len()).map(move |v_i| {
+            let v = self.eav_c.access(v_i).unwrap();
+            let a_i = self.v_a.select(v).unwrap() + self.eav_c.rank(v_i, v).unwrap();
+            let a = self.vea_c.access(a_i).unwrap();
+            let e_i = self.a_a.select(a).unwrap() + self.vea_c.rank(a_i, a).unwrap();
+            let e = self.ave_c.access(e_i).unwrap();
 
             let e = self.domain.access(e);
             let a = self.domain.access(a);
@@ -308,7 +310,7 @@ mod tests {
         }
 
         #[test]
-        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..4)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];

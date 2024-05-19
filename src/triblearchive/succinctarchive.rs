@@ -11,8 +11,8 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{Bloblike, Value};
 use crate::{id_into_value, Id, Valuelike};
+use crate::{Bloblike, Value};
 
 use itertools::Itertools;
 
@@ -256,21 +256,23 @@ where
 impl<U, B> Bloblike for SuccinctArchive<U, B>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits, {
-        fn into_blob(self) -> bytes::Bytes {
+    B: Build + Access + Rank + Select + NumBits,
+{
+    fn into_blob(self) -> bytes::Bytes {
         todo!()
     }
-    
-        fn read_blob(blob: bytes::Bytes) -> Result<Self, crate::BlobParseError> {
+
+    fn read_blob(blob: bytes::Bytes) -> Result<Self, crate::BlobParseError> {
         todo!()
     }
-    
-        fn as_handle<H>(&self) -> crate::Handle<H, Self>
+
+    fn as_handle<H>(&self) -> crate::Handle<H, Self>
     where
-        H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32> {
+        H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32>,
+    {
         todo!()
     }
-    }
+}
 
 #[cfg(test)]
 mod tests {

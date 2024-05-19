@@ -239,7 +239,7 @@ fn archive_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.throughput(Throughput::Elements(4 * i));
-        group.bench_function(BenchmarkId::new("structured", 4 * i), |b| {
+        group.bench_function(BenchmarkId::new("structured/archive", 4 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
                 let lover_a = ufoid();
@@ -303,8 +303,32 @@ fn archive_benchmark(c: &mut Criterion) {
     }
 
     for i in [1000000] {
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("structured/unarchive", 4 * i), |b| {
+            let mut set: TribleSet = TribleSet::new();
+            (0..i).for_each(|_| {
+                let lover_a = ufoid();
+                let lover_b = ufoid();
+                knights::entity!(&mut set, lover_a, {
+                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                    loves: lover_b
+                });
+                knights::entity!(&mut set, lover_b, {
+                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                    loves: lover_a
+                });
+            });
+            let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+            b.iter_with_large_drop(|| {
+                let set: TribleSet = (&archive).into();
+                set
+            });
+        });
+    }
+
+    for i in [1000000] {
         group.throughput(Throughput::Elements(i));
-        group.bench_with_input(BenchmarkId::new("random", i), &i, |b, &i| {
+        group.bench_with_input(BenchmarkId::new("random/archive", i), &i, |b, &i| {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
             b.iter_with_large_drop(|| {
@@ -352,6 +376,19 @@ fn archive_benchmark(c: &mut Criterion) {
                 );
 
                 archive
+            });
+        });
+    }
+
+    for i in [1000000] {
+        group.throughput(Throughput::Elements(i));
+        group.bench_with_input(BenchmarkId::new("random/unarchive", i), &i, |b, &i| {
+            let samples = random_tribles(i as usize);
+            let set = TribleSet::from_iter(black_box(&samples).iter().copied());
+            let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+            b.iter_with_large_drop(|| {
+                let set: TribleSet = (&archive).into();
+                set
             });
         });
     }
@@ -707,8 +744,8 @@ fn query_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-fn attribute_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("attribute");
+fn transient_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("transient");
 
     let mut name: Transient<SmallString> = Transient::new();
     let mut loves: Transient<Id> = Transient::new();
@@ -1080,7 +1117,7 @@ criterion_group!(
     archive_benchmark,
     entities_benchmark,
     query_benchmark,
-    attribute_benchmark,
+    transient_benchmark,
     hashtribleset_benchmark,
     oxigraph_benchmark
 );

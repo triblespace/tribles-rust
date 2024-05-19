@@ -310,7 +310,7 @@ mod tests {
         }
 
         #[test]
-        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..4)) {
+        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];

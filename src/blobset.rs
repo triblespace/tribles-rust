@@ -1,21 +1,18 @@
-use bytes::Bytes;
+use minibytes::Bytes;
 use digest::typenum::U32;
 use digest::{Digest, OutputSizeUser};
 
-use crate::patch::{Entry, IdentityOrder, PATCHIterator, SingleSegmentation, PATCH};
-use crate::query::TriblePattern;
 use crate::types::Hash;
-use crate::Handle;
-use crate::{and, mask, query::find};
+use crate::{Handle, TribleSet};
 use crate::{BlobParseError, Bloblike, Value, VALUE_LEN};
+use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-/// A pesistent mapping from [Handle]s to [Blob]s.
+/// A mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
 pub struct BlobSet<H> {
-    blobs: PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, Bytes>,
-    _hasher: PhantomData<H>,
+    blobs: HashMap<Hash<H>, Bytes>,
 }
 
 impl<H> Eq for BlobSet<H> {}
@@ -30,18 +27,17 @@ impl<H> BlobSet<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
-    pub fn union<'a>(&mut self, other: &Self) {
-        self.blobs.union(&other.blobs);
+    pub fn union<'a>(&mut self, other: Self) {
+        self.blobs.extend(other);
     }
 
     pub fn new() -> BlobSet<H> {
         BlobSet {
-            blobs: PATCH::new(),
-            _hasher: PhantomData,
+            blobs: HashMap::new(),
         }
     }
 
-    pub fn len(&self) -> u64 {
+    pub fn len(&self) -> usize {
         self.blobs.len()
     }
 
@@ -63,25 +59,18 @@ where
     }
 
     pub fn get_raw(&self, hash: Hash<H>) -> Option<&Bytes> {
-        self.blobs.get(&hash.bytes)
+        self.blobs.get(&hash)
     }
 
     pub fn put_raw(&mut self, blob: Bytes) -> Hash<H> {
-        let digest = H::digest(&blob).into();
-        let entry = Entry::new(&digest, blob);
-        self.blobs.insert(&entry);
-        Hash::new(digest)
+        let hash = Hash::digest(&blob);
+        self.blobs.insert(hash, blob);
+        hash
     }
 
-    pub fn each_raw<F>(&self, mut f: F)
-    where
-        F: FnMut(Hash<H>, Bytes),
+    pub fn iter_raw<'a>(&'a self) -> impl Iterator<Item = (&'a Hash<H>, &'a Bytes)> + 'a
     {
-        self.blobs.infixes(&[0; 0], &mut |infix: [u8; VALUE_LEN]| {
-            let h: Hash<H> = Hash::new(infix);
-            let b = self.blobs.get(&infix).unwrap().clone();
-            f(h, b);
-        });
+        self.blobs.iter()
     }
 
     // Note that keep is conservative and keeps every blob for which there exists
@@ -91,28 +80,8 @@ where
     // a different type. But this is under the assumption that an attacker is only
     // allowed to write non-handle typed triples, otherwise they might as well
     // introduce blobs directly.
-    pub fn keep<T>(&self, tribles: T) -> BlobSet<H>
-    where
-        T: TriblePattern,
-    {
-        let mut set = BlobSet::new();
-
-        for (hash,) in find!(
-            ctx,
-            (v),
-            and!(
-                v.of(&self.blobs),
-                mask!(ctx, (e, a), tribles.pattern::<Hash<H>>(e, a, v))
-            )
-        )
-        .flatten()
-        {
-            let blob = self.blobs.get(&hash.bytes).unwrap().clone();
-            let entry = Entry::new(&hash.bytes, blob);
-            set.blobs.insert(&entry);
-        }
-
-        set
+    pub fn keep(&mut self, tribles: TribleSet) {
+        self.blobs.retain(|k, _| tribles.vae.has_prefix(&k.bytes));
     }
 }
 
@@ -124,11 +93,22 @@ where
         let mut set = BlobSet::new();
 
         for (hash, blob) in iter {
-            let entry = Entry::new(&hash.bytes, blob);
-            set.blobs.insert(&entry);
+            set.blobs.insert(hash, blob);
         }
 
         set
+    }
+}
+
+impl<'a, H> IntoIterator for BlobSet<H>
+where
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
+    type Item = (Hash<H>, Bytes);
+    type IntoIter = std::collections::hash_map::IntoIter<Hash<H>, Bytes>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.blobs.into_iter()
     }
 }
 
@@ -136,17 +116,11 @@ impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
     H: Digest + OutputSizeUser<OutputSize = U32>,
 {
-    type Item = (Hash<H>, &'a Bytes);
-    //TODO replace this with `impl` once https://github.com/rust-lang/rust/pull/120700 drops!
-    type IntoIter = std::iter::Map<
-        PATCHIterator<'a, VALUE_LEN, IdentityOrder, SingleSegmentation, Bytes>,
-        fn((Value, &'a Bytes)) -> (Hash<H>, &'a Bytes),
-    >;
+    type Item = (&'a Hash<H>, &'a Bytes);
+    type IntoIter = std::collections::hash_map::Iter<'a, Hash<H>, Bytes>;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.blobs)
-            .into_iter()
-            .map(|(value, blob)| (Hash::new(value), blob))
+        (&self.blobs).into_iter()
     }
 }
 
@@ -164,6 +138,21 @@ mod tests {
     }
 
     #[test]
+    fn union() {
+        let mut blobs_a:BlobSet<Blake3> = BlobSet::new();
+        let mut blobs_b:BlobSet<Blake3> = BlobSet::new();
+
+        for _i in 0..1000 {
+            blobs_a.put(ZCString::from(Name(EN).fake::<String>()));
+        }
+        for _i in 0..1000 {
+            blobs_b.put(ZCString::from(Name(EN).fake::<String>()));
+        }
+        
+        blobs_a.union(blobs_b);
+    }
+
+    #[test]
     fn keep() {
         let mut kb = TribleSet::new();
         let mut blobs = BlobSet::new();
@@ -172,7 +161,6 @@ mod tests {
                 description: blobs.put(Name(EN).fake::<String>().into())
             }));
         }
-        let kept = blobs.keep(kb);
-        assert_eq!(blobs, kept);
+        blobs.keep(kb);
     }
 }

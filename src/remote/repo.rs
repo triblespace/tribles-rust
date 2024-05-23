@@ -4,7 +4,7 @@ use std::{
     fmt::{self, Debug},
 };
 
-use bytes::Bytes;
+use minibytes::Bytes;
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use futures::{stream, Stream, StreamExt};
 
@@ -128,7 +128,7 @@ where
     type Err = Infallible;
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::Err>> {
-        stream::iter((&self).into_iter().map(|(hash, _)| Ok(hash)))
+        stream::iter((&self).into_iter().map(|(&hash, _)| Ok(hash)))
     }
 }
 

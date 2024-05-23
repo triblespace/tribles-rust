@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use bytes::Bytes;
+use minibytes::Bytes;
 
 use crate::{
     trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},

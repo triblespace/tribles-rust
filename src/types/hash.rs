@@ -1,6 +1,8 @@
 use std::{fmt, hash::Hasher, marker::PhantomData};
 
+use digest::{Digest, OutputSizeUser};
 use hex::ToHex;
+use minibytes::Bytes;
 
 use crate::{Value, ValueParseError, Valuelike};
 
@@ -16,6 +18,13 @@ impl<H> Hash<H> {
             bytes,
             _hasher: PhantomData,
         }
+    }
+}
+impl<H> Hash<H>
+where
+    H: Digest + OutputSizeUser<OutputSize = U32> {
+    pub fn digest(blob: &Bytes) -> Self {
+        Self::new(H::digest(&blob).into())
     }
 }
 

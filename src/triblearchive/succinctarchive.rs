@@ -254,11 +254,11 @@ where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
-    fn into_blob(self) -> bytes::Bytes {
+    fn into_blob(self) -> minibytes::Bytes {
         todo!()
     }
 
-    fn read_blob(_blob: bytes::Bytes) -> Result<Self, crate::BlobParseError> {
+    fn read_blob(_blob: minibytes::Bytes) -> Result<Self, crate::BlobParseError> {
         todo!()
     }
 

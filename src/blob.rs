@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use bytes::Bytes;
+use minibytes::Bytes;
 use digest::{consts::U32, Digest, OutputSizeUser};
 
 use crate::{types::Hash, Handle};

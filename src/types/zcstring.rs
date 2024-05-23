@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use minibytes::Bytes;
 
 use crate::{BlobParseError, Bloblike, Handle};
 

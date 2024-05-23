@@ -4,11 +4,11 @@ use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 
-use bytes::Bytes;
+use minibytes::Bytes;
 use futures::{Stream, StreamExt};
 
 use digest::{typenum::U32, Digest, OutputSizeUser};
-use object_store::UpdateVersion;
+use object_store::{PutPayload, UpdateVersion};
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
 use url::Url;
 
@@ -76,7 +76,7 @@ where
         let path = self.prefix.child(hex::encode(hash.bytes));
         let result = self.store.get(&path).await?;
         let object = result.bytes().await?;
-        Ok(object)
+        Ok(object.into())
     }
 }
 
@@ -91,7 +91,10 @@ where
         let path = self.prefix.child(hex::encode(digest));
         let put_result = self
             .store
-            .put_opts(&path, blob.clone(), PutMode::Create.into())
+            .put_opts(
+                &path,
+                bytes::Bytes::copy_from_slice(&blob).into(), // This copy could be avoided if bytes::Bytes was open...
+                PutMode::Create.into())
             .await;
         match put_result {
             Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(Hash::new(digest)),
@@ -200,7 +203,7 @@ where
         old_hash: Option<Hash<H>>,
         new_hash: Hash<H>,
     ) -> Result<CommitResult<H>, Self::CommitErr> {
-        let new_bytes = Bytes::copy_from_slice(&new_hash.bytes);
+        let new_bytes = bytes::Bytes::copy_from_slice(&new_hash.bytes);
 
         if let Some(old_hash) = old_hash {
             let mut result = self.store.get(&self.path).await;
@@ -223,7 +226,7 @@ where
                             .store
                             .put_opts(
                                 &self.path,
-                                new_bytes.clone(),
+                                new_bytes.clone().into(),
                                 PutMode::Update(version).into(),
                             )
                             .await
@@ -247,7 +250,7 @@ where
                 // Attempt to commit
                 match self
                     .store
-                    .put_opts(&self.path, new_bytes.clone(), PutMode::Create.into())
+                    .put_opts(&self.path, new_bytes.clone().into(), PutMode::Create.into())
                     .await
                 {
                     Ok(_) => return Ok(CommitResult::Success()), // Successfully committed

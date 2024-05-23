@@ -1,13 +1,9 @@
 mod succinctarchiveconstraint;
 mod universe;
 
-use std::borrow::Borrow;
-//use bytes::Bytes;
 use std::convert::TryInto;
 use std::iter;
 use succinctarchiveconstraint::*;
-
-//use crate::query::TriblePattern;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
@@ -262,7 +258,7 @@ where
         todo!()
     }
 
-    fn read_blob(blob: bytes::Bytes) -> Result<Self, crate::BlobParseError> {
+    fn read_blob(_blob: bytes::Bytes) -> Result<Self, crate::BlobParseError> {
         todo!()
     }
 
@@ -276,13 +272,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use core::arch;
     use std::convert::TryInto;
 
     use crate::{find, trible::Trible, types::SmallString, ufoid, Id, NS};
 
     use super::*;
-    use fake::{faker::name::raw::Name, locales::EN, Fake};
     use itertools::Itertools;
     use proptest::prelude::*;
     use sucds::bit_vectors::Rank9Sel;

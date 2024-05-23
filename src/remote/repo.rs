@@ -38,7 +38,7 @@ where
     }
 }
 
-async fn transfer<'a, BS, BT, HS, HT, S>(
+pub async fn transfer<'a, BS, BT, HS, HT, S>(
     source: &'a BS,
     target: &'a BT,
 ) -> impl Stream<
@@ -72,7 +72,7 @@ where
 }
 
 #[derive(Debug)]
-enum GetError<E> {
+pub enum GetError<E> {
     Load(E),
     Parse(BlobParseError),
 }

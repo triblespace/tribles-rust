@@ -107,7 +107,7 @@ pub struct ObjectHead<H> {
 }
 
 impl<H> ObjectHead<H> {
-    fn with_url(url: &Url) -> Result<ObjectHead<H>, object_store::Error> {
+    pub fn with_url(url: &Url) -> Result<ObjectHead<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;
         Ok(ObjectHead {
             store,

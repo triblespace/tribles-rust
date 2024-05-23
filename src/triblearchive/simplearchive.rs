@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, convert::TryInto};
+use std::convert::TryInto;
 
 use bytes::Bytes;
 

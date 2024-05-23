@@ -2,8 +2,6 @@ use crate::Value;
 use crate::VALUE_LEN;
 
 use std::convert::TryInto;
-use std::ops::Range;
-use std::ops::RangeBounds;
 
 use indxvec::Search;
 use sucds::int_vectors::{Access as IAccess, Build as IBuild, NumVals};

@@ -404,7 +404,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn insert(&mut self, leaf: Self, leaf_hash: u128, start_depth: usize) {
+    pub(crate) fn insert_leaf(&mut self, leaf: Self, leaf_hash: u128, start_depth: usize) {
         unsafe {
             let tag = self.tag();
             if tag == HeadTag::Empty {
@@ -433,7 +433,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
             if tag != HeadTag::Leaf {
                 self.upsert(leaf, leaf_hash, |child, inserted, inserted_hash| {
-                    child.insert(inserted, inserted_hash, head_depth)
+                    child.insert_leaf(inserted, inserted_hash, head_depth)
                 });
             }
         }
@@ -819,7 +819,7 @@ where
     }
 
     pub fn insert(&mut self, entry: &Entry<KEY_LEN>) {
-        self.root.insert(entry.leaf(), entry.hash, 0);
+        self.root.insert_leaf(entry.leaf(), entry.hash, 0);
     }
 
     pub fn len(&self) -> u64 {

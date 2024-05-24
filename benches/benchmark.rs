@@ -6,13 +6,10 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
-use sucds::int_vectors::DacsOpt;
 use sucds::Serializable;
 use tribles::transient::Transient;
 use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
-use tribles::NS;
-use tribles::{and, fucid};
-use tribles::{types::SmallString, Id};
+use tribles::{NS, and, types::SmallString, Id};
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::ufoid;
@@ -509,7 +506,7 @@ fn entities_benchmark(c: &mut Criterion) {
         });
     }
 
-    for i in [1000000] {
+    for i in [100] {
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/parallel", 4 * i), |b| {
@@ -543,7 +540,7 @@ fn entities_benchmark(c: &mut Criterion) {
         });
     }
 
-    for i in [1000000] {
+    for i in [4] {
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("union/parallel/prealloc", 4 * i), |b| {
@@ -577,7 +574,7 @@ fn entities_benchmark(c: &mut Criterion) {
         });
     }
 
-    for i in [1000000] {
+    for i in [4] {
         let batch_size = 2;
         group.sample_size(10);
         group.throughput(Throughput::Elements(4 * i));

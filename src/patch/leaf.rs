@@ -83,7 +83,8 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
 
     pub(crate) unsafe fn insert<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
         head: &mut Head<KEY_LEN, O, S>,
-        entry: &Entry<KEY_LEN>,
+        leaf: Head<KEY_LEN, O, S>,
+        leaf_hash: u128,
         at_depth: usize,
     ) {
         debug_assert!(head.tag() == HeadTag::Leaf);
@@ -92,7 +93,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             let leaf_key: &[u8; KEY_LEN] = &(*node).key;
             for depth in at_depth..KEY_LEN {
                 let key_depth = O::key_index(depth);
-                if leaf_key[key_depth] != entry.peek(key_depth) {
+                if leaf_key[key_depth] != leaf.peek(key_depth) {
                     let key = head.key().unwrap();
                     let new_branch = Branch2::new(depth);
                     let new_head = Head::new(HeadTag::Branch2, key, new_branch);
@@ -100,7 +101,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
 
                     let old_head_hash = old_head.hash();
 
-                    Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
+                    Branch2::insert_child(new_branch, leaf.with_start(depth), leaf_hash);
                     Branch2::insert_child(new_branch, old_head.with_start(depth), old_head_hash);
 
                     return;

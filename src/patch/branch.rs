@@ -55,8 +55,10 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) unsafe fn rc_inc(node: *mut Self) -> *mut Self {
+            pub(super) unsafe fn rc_inc(head: &Head<KEY_LEN, O, S>) -> Head<KEY_LEN, O, S> {
+                debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
+                    let node: *mut Self = head.ptr();
                     let mut current = (*node).rc.load(Relaxed);
                     loop {
                         if current == u32::MAX {
@@ -66,15 +68,20 @@ macro_rules! create_branch {
                             .rc
                             .compare_exchange(current, current + 1, Relaxed, Relaxed)
                         {
-                            Ok(_) => return node,
+                            Ok(_) => return Head::<KEY_LEN, O, S>::new(
+                                HeadTag::$name,
+                                head.key().unwrap(),
+                                node),
                             Err(v) => current = v,
                         }
                     }
                 }
             }
 
-            pub(super) unsafe fn rc_dec(node: *mut Self) {
+            pub(super) unsafe fn rc_dec(head: &mut Head<KEY_LEN, O, S>) {
+                debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
+                    let node: *mut Self = head.ptr();
                     if (*node).rc.fetch_sub(1, Release) != 1 {
                         return;
                     }
@@ -88,7 +95,7 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S>) -> *mut Self {
+            pub(super) unsafe fn rc_cow(head: &mut Head<KEY_LEN, O, S>) {
                 debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
                     let node: *const Self = head.ptr();
@@ -115,7 +122,6 @@ macro_rules! create_branch {
 
                         *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
                     }
-                    head.ptr()
                 }
             }
 
@@ -129,20 +135,24 @@ macro_rules! create_branch {
                 }
             }
 
-            pub unsafe fn each_child<F>(node: *mut Self, mut f: F)
+            pub unsafe fn each_child<F>(head: Head<KEY_LEN, O, S>, mut f: F)
             where
-                F: FnMut(u8, Head<KEY_LEN, O, S>),
+                F: FnMut(Head<KEY_LEN, O, S>),
             {
-                if (*node).rc.load(Acquire) == 1 {
-                    for child in &mut (*node).child_table {
-                        if let Some(key) = child.key() {
-                            f(key, std::mem::replace(child, Head::empty()));
+                debug_assert!(head.tag() == HeadTag::$name);
+                unsafe {
+                    let node: *mut Self = head.ptr();
+                    if (*node).rc.load(Acquire) == 1 {
+                        for child in &mut (*node).child_table {
+                            if let Some(_) = child.key() {
+                                f(std::mem::replace(child, Head::empty()));
+                            }
                         }
-                    }
-                } else {
-                    for child in &(*node).child_table {
-                        if let Some(key) = child.key() {
-                            f(key, child.clone());
+                    } else {
+                        for child in &(*node).child_table {
+                            if let Some(_) = child.key() {
+                                f(child.clone());
+                            }
                         }
                     }
                 }
@@ -169,24 +179,25 @@ macro_rules! create_branch {
                 }
             }
 
-            pub unsafe fn upsert<E, F>(
+            pub unsafe fn upsert<F>(
                 head: &mut Head<KEY_LEN, O, S>,
-                key: u8,
                 inserted: Head<KEY_LEN, O, S>,
-                update: E,
-                insert: F,
+                inserted_hash: u128,
+                update: F,
             ) where
-                E: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
-                F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
+                F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>, u128),
             {
                 debug_assert!(head.tag() == HeadTag::$name);
-                let inner = Self::rc_mut(head);
+                Self::rc_cow(head);
+                let inner: *mut Self = head.ptr();
+                let inserted = inserted.with_start((*inner).end_depth as usize);
+                let key = inserted.key().unwrap();
                 if let Some(child) = (*inner).child_table.get_mut(key) {
                     let old_child_hash = child.hash();
                     let old_child_segment_count = child.count_segment((*inner).end_depth as usize);
                     let old_child_leaf_count = child.count();
 
-                    update(child, inserted);
+                    update(child, inserted, inserted_hash);
 
                     (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
                     (*inner).segment_count = ((*inner).segment_count - old_child_segment_count)
@@ -194,7 +205,7 @@ macro_rules! create_branch {
                     (*inner).leaf_count =
                         ((*inner).leaf_count - old_child_leaf_count) + child.count();
                 } else {
-                    insert(head, inserted);
+                    head.insert_child(inserted, inserted_hash);
                 }
             }
 
@@ -204,23 +215,25 @@ macro_rules! create_branch {
 
             pub unsafe fn insert(
                 head: &mut Head<KEY_LEN, O, S>,
-                entry: &Entry<KEY_LEN>,
+                leaf: Head<KEY_LEN, O, S>,
+                leaf_hash: u128,
                 start_depth: usize,
             ) {
                 debug_assert!(head.tag() == HeadTag::$name);
-                let node: *const Self = head.ptr();
-                let end_depth = (*node).end_depth as usize;
 
-                let leaf_key: &[u8; KEY_LEN] = &(*(*node).childleaf).key;
-                for depth in start_depth..end_depth {
-                    let key_depth = O::key_index(depth);
-                    if leaf_key[key_depth] != entry.peek(key_depth) {
+                let head_depth = head.end_depth();
+                let head_key = head.leaf_key();
+                let leaf_key = leaf.leaf_key();
+
+                for depth in start_depth..std::cmp::min(head_depth, KEY_LEN) {
+                    let i = O::key_index(depth);
+                    if head_key[i] != leaf_key[depth] {
                         let new_branch = Branch2::new(depth);
                         let new_head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
                         let old_head = std::mem::replace(head, new_head);
 
                         let old_head_hash = old_head.hash();
-                        Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
+                        Branch2::insert_child(new_branch, leaf.with_start(depth), leaf_hash);
                         Branch2::insert_child(
                             new_branch,
                             old_head.with_start(depth),
@@ -231,29 +244,10 @@ macro_rules! create_branch {
                     }
                 }
 
-                let inner = Self::rc_mut(head);
-                let key_end_depth = O::key_index(end_depth);
-                if let Some(child) = (*inner).child_table.get_mut(entry.peek(key_end_depth)) {
-                    let old_child_hash = child.hash();
-                    let old_child_segment_count = child.count_segment(end_depth);
-                    let old_child_leaf_count = child.count();
-
-                    child.insert(entry, end_depth);
-
-                    (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
-                    (*inner).segment_count = ((*inner).segment_count - old_child_segment_count)
-                        + child.count_segment(end_depth);
-                    (*inner).leaf_count =
-                        ((*inner).leaf_count - old_child_leaf_count) + child.count();
-
-                    return;
-                } else {
-                    let displaced = Self::insert_child(inner, entry.leaf(end_depth), entry.hash);
-                    if None != displaced.key() {
-                        head.growing_reinsert(displaced);
-                    }
-                    return;
-                }
+                head.upsert(
+                    leaf,
+                    leaf_hash,
+                    |child, inserted, inserted_hash| child.insert(inserted, inserted_hash, head_depth));
             }
 
             pub(super) unsafe fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(

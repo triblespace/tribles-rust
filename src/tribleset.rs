@@ -110,6 +110,7 @@ mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
     use itertools::Itertools;
     use proptest::prelude::*;
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
     NS! {
         pub namespace knights {
@@ -134,6 +135,34 @@ mod tests {
             }));
         }
         assert_eq!(kb.len(), 8000);
+    }
+
+    #[test]
+    fn union_parallel() {
+        let kb = (0..100)
+        .into_par_iter()
+        .flat_map(|_| {
+            let lover_a = ufoid();
+            let lover_b = ufoid();
+            [
+                knights::entity!(lover_a, {
+                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                    loves: lover_b
+                }),
+                knights::entity!(lover_b, {
+                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                    loves: lover_a
+                }),
+            ]
+        })
+        .reduce(
+            || TribleSet::new(),
+            |mut a, b| {
+                a.union(b);
+                a
+            },
+        );
+        assert_eq!(kb.len(), 400);
     }
 
     proptest! {

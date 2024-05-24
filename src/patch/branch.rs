@@ -68,10 +68,13 @@ macro_rules! create_branch {
                             .rc
                             .compare_exchange(current, current + 1, Relaxed, Relaxed)
                         {
-                            Ok(_) => return Head::<KEY_LEN, O, S>::new(
-                                HeadTag::$name,
-                                head.key().unwrap(),
-                                node),
+                            Ok(_) => {
+                                return Head::<KEY_LEN, O, S>::new(
+                                    HeadTag::$name,
+                                    head.key().unwrap(),
+                                    node,
+                                )
+                            }
                             Err(v) => current = v,
                         }
                     }
@@ -209,55 +212,16 @@ macro_rules! create_branch {
                 }
             }
 
-            pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
-                Leaf::<KEY_LEN>::peek((*node).childleaf, at_depth)
-            }
-
-            pub unsafe fn insert(
-                head: &mut Head<KEY_LEN, O, S>,
-                leaf: Head<KEY_LEN, O, S>,
-                leaf_hash: u128,
-                start_depth: usize,
-            ) {
-                debug_assert!(head.tag() == HeadTag::$name);
-
-                let head_depth = head.end_depth();
-                let head_key = head.leaf_key();
-                let leaf_key = leaf.leaf_key();
-
-                for depth in start_depth..std::cmp::min(head_depth, KEY_LEN) {
-                    let i = O::key_index(depth);
-                    if head_key[i] != leaf_key[depth] {
-                        let new_branch = Branch2::new(depth);
-                        let new_head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
-                        let old_head = std::mem::replace(head, new_head);
-
-                        let old_head_hash = old_head.hash();
-                        Branch2::insert_child(new_branch, leaf.with_start(depth), leaf_hash);
-                        Branch2::insert_child(
-                            new_branch,
-                            old_head.with_start(depth),
-                            old_head_hash,
-                        );
-
-                        return;
-                    }
-                }
-
-                head.upsert(
-                    leaf,
-                    leaf_hash,
-                    |child, inserted, inserted_hash| child.insert(inserted, inserted_hash, head_depth));
-            }
-
             pub(super) unsafe fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
-                node: *const Self,
+                head: &Head<KEY_LEN, O, S>,
                 prefix: &[u8; PREFIX_LEN],
                 at_depth: usize,
                 f: &mut F,
             ) where
                 F: FnMut([u8; INFIX_LEN]),
             {
+                debug_assert!(head.tag() == HeadTag::$name);
+                let node: *const Self = head.ptr();
                 let node_end_depth = ((*node).end_depth as usize);
                 let leaf_key: &[u8; KEY_LEN] = &(*(*node).childleaf).key;
                 for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {

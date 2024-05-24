@@ -69,44 +69,11 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
     }
 
-    pub(crate) unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
-        unsafe { (*node).key[at_depth] }
-    }
-
     pub(crate) unsafe fn hash(node: *const Self) -> u128 {
         unsafe {
             let mut hasher = SipHasher24::new_with_key(&SIP_KEY);
             hasher.write(&(*node).key[..]);
             return hasher.finish128().into();
-        }
-    }
-
-    pub(crate) unsafe fn insert<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
-        head: &mut Head<KEY_LEN, O, S>,
-        leaf: Head<KEY_LEN, O, S>,
-        leaf_hash: u128,
-        at_depth: usize,
-    ) {
-        debug_assert!(head.tag() == HeadTag::Leaf);
-        unsafe {
-            let node: *const Self = head.ptr();
-            let leaf_key: &[u8; KEY_LEN] = &(*node).key;
-            for depth in at_depth..KEY_LEN {
-                let key_depth = O::key_index(depth);
-                if leaf_key[key_depth] != leaf.peek(key_depth) {
-                    let key = head.key().unwrap();
-                    let new_branch = Branch2::new(depth);
-                    let new_head = Head::new(HeadTag::Branch2, key, new_branch);
-                    let old_head = std::mem::replace(head, new_head);
-
-                    let old_head_hash = old_head.hash();
-
-                    Branch2::insert_child(new_branch, leaf.with_start(depth), leaf_hash);
-                    Branch2::insert_child(new_branch, old_head.with_start(depth), old_head_hash);
-
-                    return;
-                }
-            }
         }
     }
 
@@ -117,13 +84,15 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
-        node: *const Self,
+        head: &Head<KEY_LEN, O, S>,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
+        debug_assert!(head.tag() == HeadTag::Leaf);
+        let node: *const Self = head.ptr();
         let leaf_key = &(*node).key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {

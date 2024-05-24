@@ -134,6 +134,25 @@ macro_rules! create_branch {
                 }
             }
 
+            pub unsafe fn each_child<F>(node: *mut Self, mut f: F)
+            where
+                F: FnMut(u8, Head<KEY_LEN, O, S, V>),
+            {
+                if (*node).rc.load(Acquire) == 1 {
+                    for child in &mut (*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, std::mem::replace(child, Head::empty()));
+                        }
+                    }
+                } else {
+                    for child in &(*node).child_table {
+                        if let Some(key) = child.key() {
+                            f(key, child.clone());
+                        }
+                    }
+                }
+            }
+
             pub unsafe fn insert_child(
                 node: *mut Self,
                 child: Head<KEY_LEN, O, S, V>,
@@ -158,11 +177,12 @@ macro_rules! create_branch {
             pub unsafe fn upsert<E, F>(
                 head: &mut Head<KEY_LEN, O, S, V>,
                 key: u8,
+                inserted: Head<KEY_LEN, O, S, V>,
                 update: E,
                 insert: F,
             ) where
-                E: Fn(&mut Head<KEY_LEN, O, S, V>),
-                F: Fn(&mut Head<KEY_LEN, O, S, V>),
+                E: Fn(&mut Head<KEY_LEN, O, S, V>, Head<KEY_LEN, O, S, V>),
+                F: Fn(&mut Head<KEY_LEN, O, S, V>, Head<KEY_LEN, O, S, V>),
             {
                 debug_assert!(head.tag() == HeadTag::$name);
                 let inner = Self::rc_mut(head);
@@ -171,7 +191,7 @@ macro_rules! create_branch {
                     let old_child_segment_count = child.count_segment((*inner).end_depth as usize);
                     let old_child_leaf_count = child.count();
 
-                    update(child);
+                    update(child, inserted);
 
                     (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
                     (*inner).segment_count = ((*inner).segment_count - old_child_segment_count)
@@ -179,7 +199,7 @@ macro_rules! create_branch {
                     (*inner).leaf_count =
                         ((*inner).leaf_count - old_child_leaf_count) + child.count();
                 } else {
-                    insert(head);
+                    insert(head, inserted);
                 }
             }
 
@@ -201,10 +221,13 @@ macro_rules! create_branch {
                     let key_depth = O::key_index(depth);
                     if leaf_key[key_depth] != entry.peek(key_depth) {
                         let new_branch = Branch2::new(depth);
-                        Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
-                        Branch2::insert_child(new_branch, head.with_start(depth), head.hash());
+                        let new_head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
+                        let old_head = std::mem::replace(head, new_head);
 
-                        *head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
+                        let old_head_hash = old_head.hash();
+                        Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
+                        Branch2::insert_child(new_branch, old_head.with_start(depth), old_head_hash);
+
                         return;
                     }
                 }

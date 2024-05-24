@@ -191,7 +191,7 @@ fn patch_benchmark(c: &mut Criterion) {
                 black_box(&patchs).iter().fold(
                     PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new(),
                     |mut a, p| {
-                        a.union(p);
+                        a.union(p.clone());
                         a
                     },
                 )
@@ -406,11 +406,11 @@ fn entities_benchmark(c: &mut Criterion) {
             let lover_a = ufoid();
             let lover_b = ufoid();
 
-            kb.union(&knights::entity!(lover_a, {
+            kb.union(knights::entity!(lover_a, {
                 name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                 loves: lover_b
             }));
-            kb.union(&knights::entity!(lover_b, {
+            kb.union(knights::entity!(lover_b, {
                 name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                 loves: lover_a
             }));
@@ -470,7 +470,7 @@ fn entities_benchmark(c: &mut Criterion) {
                         ]
                     })
                     .fold(TribleSet::new(), |mut kb, set| {
-                        kb.union(&set);
+                        kb.union(set);
                         kb
                     });
                 kb
@@ -502,7 +502,7 @@ fn entities_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let mut kb = TribleSet::new();
                 for set in &sets {
-                    kb.union(&set);
+                    kb.union(set.clone());
                 }
                 kb
             });
@@ -534,7 +534,7 @@ fn entities_benchmark(c: &mut Criterion) {
                     .reduce(
                         || TribleSet::new(),
                         |mut a, b| {
-                            a.union(&b);
+                            a.union(b);
                             a
                         },
                     );
@@ -568,7 +568,7 @@ fn entities_benchmark(c: &mut Criterion) {
                 let kb = sets.par_iter().cloned().reduce(
                     || TribleSet::new(),
                     |mut a, b| {
-                        a.union(&b);
+                        a.union(b);
                         a
                     },
                 );
@@ -603,14 +603,14 @@ fn entities_benchmark(c: &mut Criterion) {
                                 ]
                             })
                             .fold(TribleSet::new(), |mut kb, set| {
-                                kb.union(&set);
+                                kb.union(set);
                                 kb
                             })
                     })
                     .reduce(
                         || TribleSet::new(),
                         |mut a, b| {
-                            a.union(&b);
+                            a.union(b);
                             a
                         },
                     );
@@ -630,11 +630,11 @@ fn query_benchmark(c: &mut Criterion) {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        kb.union(&knights::entity!(lover_a, {
+        kb.union(knights::entity!(lover_a, {
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_b
         }));
-        kb.union(&knights::entity!(lover_b, {
+        kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_a
         }));
@@ -645,11 +645,11 @@ fn query_benchmark(c: &mut Criterion) {
     let juliet = ufoid();
     let romeo = ufoid();
 
-    kb.union(&knights::entity!(juliet, {
+    kb.union(knights::entity!(juliet, {
         name: "Juliet".try_into().unwrap(),
         loves: romeo
     }));
-    kb.union(&knights::entity!(romeo, {
+    kb.union(knights::entity!(romeo, {
         name: "Romeo".try_into().unwrap(),
         loves: juliet
     }));
@@ -658,17 +658,17 @@ fn query_benchmark(c: &mut Criterion) {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        data_kb.union(&knights::entity!(lover_a, {
+        data_kb.union(knights::entity!(lover_a, {
             name: "Wameo".try_into().unwrap(),
             loves: lover_b
         }));
-        data_kb.union(&knights::entity!(lover_b, {
+        data_kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_a
         }));
     });
 
-    kb.union(&data_kb);
+    kb.union(data_kb);
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("tribleset/single", 1), |b| {

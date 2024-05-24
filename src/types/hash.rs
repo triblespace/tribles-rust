@@ -22,7 +22,8 @@ impl<H> Hash<H> {
 }
 impl<H> Hash<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32> {
+    H: Digest + OutputSizeUser<OutputSize = U32>,
+{
     pub fn digest(blob: &Bytes) -> Self {
         Self::new(H::digest(&blob).into())
     }

@@ -360,18 +360,18 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb.union(&knights::entity!(juliet,
+        kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_into().unwrap(),
             loves: romeo,
             title: "Maiden".try_into().unwrap()
         }));
-        kb.union(&knights::entity!(romeo, {
+        kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet,
             title: "Prince".try_into().unwrap()
         }));
-        kb.union(&knights::entity!({
+        kb.union(knights::entity!({
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
         }));

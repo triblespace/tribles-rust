@@ -23,13 +23,13 @@ pub struct TribleSet {
 }
 
 impl TribleSet {
-    pub fn union(&mut self, other: &Self) {
-        self.eav.union(&other.eav);
-        self.eva.union(&other.eva);
-        self.aev.union(&other.aev);
-        self.ave.union(&other.ave);
-        self.vea.union(&other.vea);
-        self.vae.union(&other.vae);
+    pub fn union(&mut self, other: Self) {
+        self.eav.union(other.eav);
+        self.eva.union(other.eva);
+        self.aev.union(other.aev);
+        self.ave.union(other.ave);
+        self.vea.union(other.vea);
+        self.vae.union(other.vae);
     }
 
     pub fn new() -> TribleSet {
@@ -124,11 +124,11 @@ mod tests {
         for _i in 0..2000 {
             let lover_a = ufoid();
             let lover_b = ufoid();
-            kb.union(&knights::entity!(lover_a, {
+            kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
                 loves: lover_b
             }));
-            kb.union(&knights::entity!(lover_b, {
+            kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
                 loves: lover_a
             }));

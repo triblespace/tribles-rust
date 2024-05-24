@@ -95,11 +95,16 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
             for depth in at_depth..KEY_LEN {
                 let key_depth = O::key_index(depth);
                 if leaf_key[key_depth] != entry.peek(key_depth) {
+                    let key = head.key().unwrap();
                     let new_branch = Branch2::new(depth);
-                    Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
-                    Branch2::insert_child(new_branch, head.with_start(depth), head.hash());
+                    let new_head = Head::new(HeadTag::Branch2, key, new_branch);
+                    let old_head = std::mem::replace(head, new_head);
 
-                    *head = Head::new(HeadTag::Branch2, head.key().unwrap(), new_branch);
+                    let old_head_hash = old_head.hash();
+
+                    Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
+                    Branch2::insert_child(new_branch, old_head.with_start(depth), old_head_hash);
+
                     return;
                 }
             }

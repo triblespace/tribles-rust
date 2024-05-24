@@ -4,12 +4,12 @@ use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 
-use minibytes::Bytes;
 use futures::{Stream, StreamExt};
+use minibytes::Bytes;
 
 use digest::{typenum::U32, Digest, OutputSizeUser};
-use object_store::{PutPayload, UpdateVersion};
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
+use object_store::{PutPayload, UpdateVersion};
 use url::Url;
 
 use hex::FromHex;
@@ -94,7 +94,8 @@ where
             .put_opts(
                 &path,
                 bytes::Bytes::copy_from_slice(&blob).into(), // This copy could be avoided if bytes::Bytes was open...
-                PutMode::Create.into())
+                PutMode::Create.into(),
+            )
             .await;
         match put_result {
             Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(Hash::new(digest)),

@@ -307,6 +307,11 @@ macro_rules! create_bytetable {
                 let all: &[T; BUCKET_ENTRY_COUNT * $size] = unsafe {std::mem::transmute(self)};
                 all.iter()
             }
+
+            pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+                let all: &mut [T; BUCKET_ENTRY_COUNT * $size] = unsafe {std::mem::transmute(self)};
+                all.iter_mut()
+            }
         }
 
         impl<'a, T> IntoIterator for &'a $name<T>
@@ -316,6 +321,16 @@ macro_rules! create_bytetable {
 
             fn into_iter(self) -> Self::IntoIter {
                 self.iter()
+            }
+        }
+
+        impl<'a, T> IntoIterator for &'a mut $name<T>
+        where T: ByteEntry + Clone + Debug {
+            type Item = &'a mut T;
+            type IntoIter = std::slice::IterMut<'a, T>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.iter_mut()
             }
         }
     };

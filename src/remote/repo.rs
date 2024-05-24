@@ -4,9 +4,9 @@ use std::{
     fmt::{self, Debug},
 };
 
-use minibytes::Bytes;
 use digest::{typenum::U32, Digest, OutputSizeUser};
 use futures::{stream, Stream, StreamExt};
+use minibytes::Bytes;
 
 use crate::{types::Hash, BlobParseError, BlobSet};
 

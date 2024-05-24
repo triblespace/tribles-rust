@@ -369,17 +369,17 @@ mod tests {
         let waromeo = ufoid();
         let mut kb = TribleSet::new();
 
-        kb.union(&knights::entity!(juliet,
+        kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_into().unwrap(),
             loves: romeo
         }));
 
-        kb.union(&knights::entity!(romeo, {
+        kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet
         }));
-        kb.union(&knights::entity!(waromeo, {
+        kb.union(knights::entity!(waromeo, {
             name: "Romeo".try_into().unwrap()
         }));
 

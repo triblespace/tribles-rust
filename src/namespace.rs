@@ -257,17 +257,17 @@ mod tests {
         let romeo = ufoid();
 
         let mut tribles = TribleSet::new();
-        tribles.union(&knights::entity!(juliet, {
+        tribles.union(knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
             loves: romeo,
             title: "Maiden".try_into().unwrap()
         }));
-        tribles.union(&knights::entity!(romeo, {
+        tribles.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet,
             title: "Prince".try_into().unwrap()
         }));
-        tribles.union(&knights::entity!({
+        tribles.union(knights::entity!({
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
         }));
@@ -281,18 +281,18 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb.union(&knights::entity!(juliet,
+        kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_into().unwrap(),
             loves: romeo,
             title: "Maiden".try_into().unwrap()
         }));
-        kb.union(&knights::entity!(romeo, {
+        kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet,
             title: "Prince".try_into().unwrap()
         }));
-        kb.union(&knights::entity!({
+        kb.union(knights::entity!({
             name: "Angelica".try_into().unwrap(),
             title: "Nurse".try_into().unwrap()
         }));
@@ -317,11 +317,11 @@ mod tests {
         (0..10000).for_each(|_| {
             let lover_a = ufoid();
             let lover_b = ufoid();
-            kb.union(&knights::entity!(lover_a, {
+            kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
                 loves: lover_b
             }));
-            kb.union(&knights::entity!(lover_b, {
+            kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
                 loves: lover_a
             }));
@@ -331,16 +331,16 @@ mod tests {
         let romeo = ufoid();
 
         let mut data_kb = TribleSet::new();
-        data_kb.union(&knights::entity!(juliet, {
+        data_kb.union(knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
             loves: romeo
         }));
-        data_kb.union(&knights::entity!(romeo, {
+        data_kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
             loves: juliet
         }));
 
-        kb.union(&data_kb);
+        kb.union(data_kb);
 
         let r: Vec<_> = find!(
             ctx,

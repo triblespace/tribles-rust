@@ -1,13 +1,12 @@
-use minibytes::Bytes;
 use digest::typenum::U32;
 use digest::{Digest, OutputSizeUser};
+use minibytes::Bytes;
 
 use crate::types::Hash;
+use crate::{BlobParseError, Bloblike};
 use crate::{Handle, TribleSet};
-use crate::{BlobParseError, Bloblike, Value, VALUE_LEN};
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::marker::PhantomData;
 
 /// A mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
@@ -68,8 +67,7 @@ where
         hash
     }
 
-    pub fn iter_raw<'a>(&'a self) -> impl Iterator<Item = (&'a Hash<H>, &'a Bytes)> + 'a
-    {
+    pub fn iter_raw<'a>(&'a self) -> impl Iterator<Item = (&'a Hash<H>, &'a Bytes)> + 'a {
         self.blobs.iter()
     }
 
@@ -139,8 +137,8 @@ mod tests {
 
     #[test]
     fn union() {
-        let mut blobs_a:BlobSet<Blake3> = BlobSet::new();
-        let mut blobs_b:BlobSet<Blake3> = BlobSet::new();
+        let mut blobs_a: BlobSet<Blake3> = BlobSet::new();
+        let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
             blobs_a.put(ZCString::from(Name(EN).fake::<String>()));
@@ -148,7 +146,7 @@ mod tests {
         for _i in 0..1000 {
             blobs_b.put(ZCString::from(Name(EN).fake::<String>()));
         }
-        
+
         blobs_a.union(blobs_b);
     }
 
@@ -157,7 +155,7 @@ mod tests {
         let mut kb = TribleSet::new();
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
-            kb.union(&knights::entity!({
+            kb.union(knights::entity!({
                 description: blobs.put(Name(EN).fake::<String>().into())
             }));
         }

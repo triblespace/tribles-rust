@@ -20,11 +20,11 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        kb.union(&knights::entity!({
+        kb.union(knights::entity!({
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_b
         }));
-        kb.union(&knights::entity!({
+        kb.union(knights::entity!({
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
             loves: lover_a
         }));
@@ -35,16 +35,16 @@ fn main() {
     let romeo = ufoid();
     let juliet = ufoid();
 
-    data_kb.union(&knights::entity!(juliet, {
+    data_kb.union(knights::entity!(juliet, {
         name: "Juliet".try_into().unwrap(),
         loves: romeo
     }));
-    data_kb.union(&knights::entity!(romeo, {
+    data_kb.union(knights::entity!(romeo, {
         name: "Romeo".try_into().unwrap(),
         loves: juliet
     }));
 
-    kb.union(&data_kb);
+    kb.union(data_kb);
 
     loop {
         for _r in find!(

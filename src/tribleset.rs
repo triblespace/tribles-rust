@@ -14,12 +14,12 @@ use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    pub eav: PATCH<64, EAVOrder, TribleSegmentation, ()>,
-    pub vea: PATCH<64, VEAOrder, TribleSegmentation, ()>,
-    pub ave: PATCH<64, AVEOrder, TribleSegmentation, ()>,
-    pub vae: PATCH<64, VAEOrder, TribleSegmentation, ()>,
-    pub eva: PATCH<64, EVAOrder, TribleSegmentation, ()>,
-    pub aev: PATCH<64, AEVOrder, TribleSegmentation, ()>,
+    pub eav: PATCH<64, EAVOrder, TribleSegmentation>,
+    pub vea: PATCH<64, VEAOrder, TribleSegmentation>,
+    pub ave: PATCH<64, AVEOrder, TribleSegmentation>,
+    pub vae: PATCH<64, VAEOrder, TribleSegmentation>,
+    pub eva: PATCH<64, EVAOrder, TribleSegmentation>,
+    pub aev: PATCH<64, AEVOrder, TribleSegmentation>,
 }
 
 impl TribleSet {
@@ -52,7 +52,7 @@ impl TribleSet {
     }
 
     pub fn insert_raw(&mut self, data: &[u8; TRIBLE_LEN]) {
-        let key = Entry::new(data, ());
+        let key = Entry::new(data);
         self.eav.insert(&key);
         self.eva.insert(&key);
         self.aev.insert(&key);

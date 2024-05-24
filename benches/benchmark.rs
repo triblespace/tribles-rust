@@ -138,9 +138,9 @@ fn patch_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
-                let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
+                let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in black_box(&samples) {
-                    let entry: Entry<64, ()> = Entry::new(&t.data, ());
+                    let entry: Entry<64> = Entry::new(&t.data);
                     patch.insert(&entry);
                 }
                 patch
@@ -148,18 +148,18 @@ fn patch_benchmark(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
+            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             for t in black_box(&samples) {
-                let entry: Entry<64, ()> = Entry::new(&t.data, ());
+                let entry: Entry<64> = Entry::new(&t.data);
                 patch.insert(&entry);
             }
             b.iter(|| black_box(&patch).into_iter().count());
         });
         group.bench_with_input(BenchmarkId::new("infixes", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
+            let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
             for t in black_box(&samples) {
-                let entry: Entry<64, ()> = Entry::new(&t.data, ());
+                let entry: Entry<64> = Entry::new(&t.data);
                 patch.insert(&entry);
             }
             b.iter(|| {
@@ -178,10 +178,10 @@ fn patch_benchmark(c: &mut Criterion) {
             let patchs: Vec<_> = samples
                 .chunks(total_unioned / i)
                 .map(|samples| {
-                    let mut patch: PATCH<64, IdentityOrder, SingleSegmentation, ()> =
-                        PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new();
+                    let mut patch: PATCH<64, IdentityOrder, SingleSegmentation> =
+                        PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                     for t in samples {
-                        let entry: Entry<64, ()> = Entry::new(&t.data, ());
+                        let entry: Entry<64> = Entry::new(&t.data);
                         patch.insert(&entry);
                     }
                     patch
@@ -189,7 +189,7 @@ fn patch_benchmark(c: &mut Criterion) {
                 .collect();
             b.iter_with_large_drop(|| {
                 black_box(&patchs).iter().fold(
-                    PATCH::<64, IdentityOrder, SingleSegmentation, ()>::new(),
+                    PATCH::<64, IdentityOrder, SingleSegmentation>::new(),
                     |mut a, p| {
                         a.union(p.clone());
                         a

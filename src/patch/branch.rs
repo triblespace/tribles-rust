@@ -12,26 +12,21 @@ macro_rules! create_branch {
             const KEY_LEN: usize,
             O: KeyOrdering<KEY_LEN>,
             S: KeySegmentation<KEY_LEN>,
-            V: Clone,
         > {
             key_ordering: PhantomData<O>,
             key_segments: PhantomData<S>,
 
             rc: atomic::AtomicU32,
             pub end_depth: u32,
-            pub childleaf: *const Leaf<KEY_LEN, V>,
+            pub childleaf: *const Leaf<KEY_LEN>,
             pub leaf_count: u64,
             pub segment_count: u64,
             pub hash: u128,
-            pub child_table: $table<Head<KEY_LEN, O, S, V>>,
+            pub child_table: $table<Head<KEY_LEN, O, S>>,
         }
 
-        impl<
-                const KEY_LEN: usize,
-                O: KeyOrdering<KEY_LEN>,
-                S: KeySegmentation<KEY_LEN>,
-                V: Clone,
-            > $name<KEY_LEN, O, S, V>
+        impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+            $name<KEY_LEN, O, S>
         {
             #[allow(unused)]
             pub(super) fn new(end_depth: usize) -> *mut Self {
@@ -93,7 +88,7 @@ macro_rules! create_branch {
                 }
             }
 
-            pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S, V>) -> *mut Self {
+            pub(super) unsafe fn rc_mut(head: &mut Head<KEY_LEN, O, S>) -> *mut Self {
                 debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
                     let node: *const Self = head.ptr();
@@ -136,7 +131,7 @@ macro_rules! create_branch {
 
             pub unsafe fn each_child<F>(node: *mut Self, mut f: F)
             where
-                F: FnMut(u8, Head<KEY_LEN, O, S, V>),
+                F: FnMut(u8, Head<KEY_LEN, O, S>),
             {
                 if (*node).rc.load(Acquire) == 1 {
                     for child in &mut (*node).child_table {
@@ -155,9 +150,9 @@ macro_rules! create_branch {
 
             pub unsafe fn insert_child(
                 node: *mut Self,
-                child: Head<KEY_LEN, O, S, V>,
+                child: Head<KEY_LEN, O, S>,
                 child_hash: u128,
-            ) -> Head<KEY_LEN, O, S, V> {
+            ) -> Head<KEY_LEN, O, S> {
                 if let Some(_key) = child.key() {
                     let end_depth = (*node).end_depth as usize;
                     (*node).childleaf = if !(*node).childleaf.is_null() {
@@ -175,14 +170,14 @@ macro_rules! create_branch {
             }
 
             pub unsafe fn upsert<E, F>(
-                head: &mut Head<KEY_LEN, O, S, V>,
+                head: &mut Head<KEY_LEN, O, S>,
                 key: u8,
-                inserted: Head<KEY_LEN, O, S, V>,
+                inserted: Head<KEY_LEN, O, S>,
                 update: E,
                 insert: F,
             ) where
-                E: Fn(&mut Head<KEY_LEN, O, S, V>, Head<KEY_LEN, O, S, V>),
-                F: Fn(&mut Head<KEY_LEN, O, S, V>, Head<KEY_LEN, O, S, V>),
+                E: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
+                F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
             {
                 debug_assert!(head.tag() == HeadTag::$name);
                 let inner = Self::rc_mut(head);
@@ -204,12 +199,12 @@ macro_rules! create_branch {
             }
 
             pub unsafe fn peek(node: *const Self, at_depth: usize) -> u8 {
-                Leaf::<KEY_LEN, V>::peek((*node).childleaf, at_depth)
+                Leaf::<KEY_LEN>::peek((*node).childleaf, at_depth)
             }
 
             pub unsafe fn insert(
-                head: &mut Head<KEY_LEN, O, S, V>,
-                entry: &Entry<KEY_LEN, V>,
+                head: &mut Head<KEY_LEN, O, S>,
+                entry: &Entry<KEY_LEN>,
                 start_depth: usize,
             ) {
                 debug_assert!(head.tag() == HeadTag::$name);
@@ -226,7 +221,11 @@ macro_rules! create_branch {
 
                         let old_head_hash = old_head.hash();
                         Branch2::insert_child(new_branch, entry.leaf(depth), entry.hash);
-                        Branch2::insert_child(new_branch, old_head.with_start(depth), old_head_hash);
+                        Branch2::insert_child(
+                            new_branch,
+                            old_head.with_start(depth),
+                            old_head_hash,
+                        );
 
                         return;
                     }
@@ -255,31 +254,6 @@ macro_rules! create_branch {
                     }
                     return;
                 }
-            }
-
-            pub(super) fn get<'a, 'b>(
-                node: *const Self,
-                at_depth: usize,
-                key: &'b [u8; KEY_LEN],
-            ) -> Option<&'a V>
-            where
-                S: 'a,
-                O: 'a,
-            {
-                let node_end_depth = (unsafe { (*node).end_depth } as usize);
-                let leaf_key: &[u8; KEY_LEN] = unsafe { &(*(*node).childleaf).key };
-                for depth in at_depth..node_end_depth {
-                    let key_depth = O::key_index(depth);
-                    if leaf_key[key_depth] != key[key_depth] {
-                        return None;
-                    }
-                }
-                if let Some(child) =
-                    unsafe { (*node).child_table.get(key[O::key_index(node_end_depth)]) }
-                {
-                    return child.get(node_end_depth, key);
-                }
-                return None;
             }
 
             pub(super) unsafe fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
@@ -394,25 +368,21 @@ create_branch!(Branch256, ByteTable256);
 macro_rules! create_grow {
     () => {};
     ($name:ident, $grown_name:ident) => {
-        impl<
-                const KEY_LEN: usize,
-                O: KeyOrdering<KEY_LEN>,
-                S: KeySegmentation<KEY_LEN>,
-                V: Clone,
-            > $name<KEY_LEN, O, S, V>
+        impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+            $name<KEY_LEN, O, S>
         {
-            pub(super) unsafe fn grow(head: &mut Head<KEY_LEN, O, S, V>) {
+            pub(super) unsafe fn grow(head: &mut Head<KEY_LEN, O, S>) {
                 debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
                     let node: *const Self = head.ptr();
-                    let layout = Layout::new::<$grown_name<KEY_LEN, O, S, V>>();
-                    let ptr = alloc(layout) as *mut $grown_name<KEY_LEN, O, S, V>;
+                    let layout = Layout::new::<$grown_name<KEY_LEN, O, S>>();
+                    let ptr = alloc(layout) as *mut $grown_name<KEY_LEN, O, S>;
                     if ptr.is_null() {
                         panic!("Allocation failed!");
                     }
                     std::ptr::write(
                         ptr,
-                        $grown_name::<KEY_LEN, O, S, V> {
+                        $grown_name::<KEY_LEN, O, S> {
                             key_ordering: PhantomData,
                             key_segments: PhantomData,
                             rc: atomic::AtomicU32::new(1),
@@ -444,66 +414,65 @@ pub(super) fn branch_for_size<
     const KEY_LEN: usize,
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
-    V: Clone,
 >(
     n: usize,
     end_depth: usize,
-) -> Head<KEY_LEN, O, S, V> {
+) -> Head<KEY_LEN, O, S> {
     match n {
         1..=2 => unsafe {
             Head::new(
                 HeadTag::Branch2,
                 0,
-                Branch2::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch2::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         3..=4 => unsafe {
             Head::new(
                 HeadTag::Branch4,
                 0,
-                Branch4::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch4::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         5..=8 => unsafe {
             Head::new(
                 HeadTag::Branch8,
                 0,
-                Branch8::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch8::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         9..=16 => unsafe {
             Head::new(
                 HeadTag::Branch16,
                 0,
-                Branch16::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch16::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         17..=32 => unsafe {
             Head::new(
                 HeadTag::Branch32,
                 0,
-                Branch32::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch32::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         33..=64 => unsafe {
             Head::new(
                 HeadTag::Branch64,
                 0,
-                Branch64::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch64::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         65..=128 => unsafe {
             Head::new(
                 HeadTag::Branch128,
                 0,
-                Branch128::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch128::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         129..=256 => unsafe {
             Head::new(
                 HeadTag::Branch256,
                 0,
-                Branch256::<KEY_LEN, O, S, V>::new(end_depth),
+                Branch256::<KEY_LEN, O, S>::new(end_depth),
             )
         },
         _ => panic!("bad child count for branch"),

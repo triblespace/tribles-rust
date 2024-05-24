@@ -10,14 +10,13 @@ use super::*;
 
 #[derive(Debug)]
 #[repr(C)]
-pub(crate) struct Leaf<const KEY_LEN: usize, V: Clone> {
+pub(crate) struct Leaf<const KEY_LEN: usize> {
     pub key: [u8; KEY_LEN],
     rc: atomic::AtomicU32,
-    pub value: V,
 }
 
-impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
-    pub(super) unsafe fn new(key: &[u8; KEY_LEN], value: V) -> *mut Self {
+impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
+    pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> *mut Self {
         unsafe {
             let layout = Layout::new::<Self>();
             let ptr = alloc(layout) as *mut Self;
@@ -29,7 +28,6 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
                 Self {
                     key: *key,
                     rc: atomic::AtomicU32::new(1),
-                    value,
                 },
             );
 
@@ -84,8 +82,8 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
     }
 
     pub(crate) unsafe fn insert<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
-        head: &mut Head<KEY_LEN, O, S, V>,
-        entry: &Entry<KEY_LEN, V>,
+        head: &mut Head<KEY_LEN, O, S>,
+        entry: &Entry<KEY_LEN>,
         at_depth: usize,
     ) {
         debug_assert!(head.tag() == HeadTag::Leaf);
@@ -109,22 +107,6 @@ impl<const KEY_LEN: usize, V: Clone> Leaf<KEY_LEN, V> {
                 }
             }
         }
-    }
-
-    pub(crate) fn get<'a, 'b, O: KeyOrdering<KEY_LEN>>(
-        node: *const Self,
-        at_depth: usize,
-        key: &'b [u8; KEY_LEN],
-    ) -> Option<&'a V> {
-        let leaf_key: &[u8; KEY_LEN] = unsafe { &(*node).key };
-        for depth in at_depth..KEY_LEN {
-            let key_depth = O::key_index(depth);
-            if leaf_key[key_depth] != key[key_depth] {
-                return None;
-            }
-        }
-
-        Some(unsafe { &(*node).value })
     }
 
     pub(crate) unsafe fn infixes<

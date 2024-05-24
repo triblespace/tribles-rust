@@ -5,31 +5,26 @@ use crate::{
 
 use super::{Binding, Constrain, Constraint, Variable, VariableId, VariableSet};
 
-pub struct PatchConstraint<'a, T, V>
-where
-    V: Clone,
-{
+pub struct PatchConstraint<'a, T> {
     variable: Variable<T>,
-    patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>,
+    patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>,
 }
 
-impl<'a, T, V> PatchConstraint<'a, T, V>
+impl<'a, T> PatchConstraint<'a, T>
 where
     T: Eq + PartialEq + Valuelike,
-    V: Clone,
 {
     pub fn new(
         variable: Variable<T>,
-        patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>,
+        patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>,
     ) -> Self {
         PatchConstraint { variable, patch }
     }
 }
 
-impl<'a, T, V> Constraint<'a> for PatchConstraint<'a, T, V>
+impl<'a, T> Constraint<'a> for PatchConstraint<'a, T>
 where
     T: Eq + PartialEq + Valuelike,
-    V: Clone,
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
@@ -55,12 +50,11 @@ where
     }
 }
 
-impl<'a, T, V> Constrain<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation, V>
+impl<'a, T> Constrain<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>
 where
     T: Eq + PartialEq + Valuelike + 'a,
-    V: Clone + 'a,
 {
-    type Constraint = PatchConstraint<'a, T, V>;
+    type Constraint = PatchConstraint<'a, T>;
 
     fn constrain(&'a self, v: Variable<T>) -> Self::Constraint {
         PatchConstraint::new(v, self)

@@ -134,16 +134,6 @@ macro_rules! create_branch {
                 }
             }
 
-            #[inline]
-            pub unsafe fn insert_metadata(
-                head: &mut Head<KEY_LEN, O, S>,
-                child: &Head<KEY_LEN, O, S>,
-                child_hash: u128,
-            ) {
-                debug_assert!(head.tag() == HeadTag::$name);
-
-            }
-
             pub unsafe fn upsert<F>(
                 head: &mut Head<KEY_LEN, O, S>,
                 inserted: Head<KEY_LEN, O, S>,

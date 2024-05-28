@@ -4,6 +4,14 @@ use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use std::alloc::{alloc, dealloc, Layout};
 use std::convert::TryInto;
 
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub(super) struct Metadata {
+    pub leaf_count: u64,
+    pub segment_count: u64,
+    pub hash: u128,
+}
+
 macro_rules! create_branch {
     ($name:ident, $table:tt) => {
         #[derive(Debug)]
@@ -19,9 +27,7 @@ macro_rules! create_branch {
             rc: atomic::AtomicU32,
             pub end_depth: u32,
             pub childleaf: *const Leaf<KEY_LEN>,
-            pub leaf_count: u64,
-            pub segment_count: u64,
-            pub hash: u128,
+            pub metadata: Metadata,
             pub child_table: $table<Head<KEY_LEN, O, S>>,
         }
 
@@ -89,9 +95,7 @@ macro_rules! create_branch {
                                 rc: atomic::AtomicU32::new(1),
                                 end_depth: (*node).end_depth,
                                 childleaf: (*node).childleaf,
-                                leaf_count: (*node).leaf_count,
-                                segment_count: (*node).segment_count,
-                                hash: (*node).hash,
+                                metadata: (*node).metadata,
                                 child_table: (*node).child_table.clone(),
                             },
                         );
@@ -107,7 +111,7 @@ macro_rules! create_branch {
                 {
                     1
                 } else {
-                    (*node).segment_count
+                    (*node).metadata.segment_count
                 }
             }
 
@@ -131,52 +135,6 @@ macro_rules! create_branch {
                             }
                         }
                     }
-                }
-            }
-
-            #[inline]
-            pub unsafe fn insert_metadata(
-                head: &mut Head<KEY_LEN, O, S>,
-                child: &Head<KEY_LEN, O, S>,
-                child_hash: u128,
-            ) {
-                debug_assert!(head.tag() == HeadTag::$name);
-
-            }
-
-            pub unsafe fn upsert<F>(
-                head: &mut Head<KEY_LEN, O, S>,
-                inserted: Head<KEY_LEN, O, S>,
-                inserted_hash: u128,
-                update: F,
-            ) where
-                F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>, u128),
-            {
-                debug_assert!(head.tag() == HeadTag::$name);
-                Self::rc_cow(head);
-                let inner: *mut Self = head.ptr();
-                let inserted = inserted.with_start((*inner).end_depth as usize);
-                let key = inserted.key().unwrap();
-                if let Some(child) = (*inner).child_table.get_mut(key) {
-                    let old_child_hash = child.hash();
-                    let old_child_segment_count = child.count_segment((*inner).end_depth as usize);
-                    let old_child_leaf_count = child.count();
-
-                    update(child, inserted, inserted_hash);
-
-                    (*inner).hash = ((*inner).hash ^ old_child_hash) ^ child.hash();
-                    (*inner).segment_count = ((*inner).segment_count - old_child_segment_count)
-                        + child.count_segment((*inner).end_depth as usize);
-                    (*inner).leaf_count =
-                        ((*inner).leaf_count - old_child_leaf_count) + child.count();
-                } else {
-                    let node: *mut Self = head.ptr();
-                    let end_depth = (*node).end_depth as usize;
-                    (*node).leaf_count += inserted.count();
-                    (*node).segment_count += inserted.count_segment(end_depth);
-                    (*node).hash ^= inserted_hash;
-                    
-                    head.insert_child(inserted);
                 }
             }
 
@@ -270,7 +228,7 @@ macro_rules! create_branch {
                     {
                         return 1;
                     } else {
-                        return (*node).segment_count;
+                        return (*node).metadata.segment_count;
                     }
                 }
                 if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
@@ -313,10 +271,8 @@ macro_rules! create_grow {
                             key_segments: PhantomData,
                             rc: atomic::AtomicU32::new(1),
                             end_depth: (*node).end_depth,
-                            leaf_count: (*node).leaf_count,
-                            segment_count: (*node).segment_count,
                             childleaf: (*node).childleaf,
-                            hash: (*node).hash,
+                            metadata: (*node).metadata,
                             child_table: (*node).child_table.grow(),
                         },
                     );
@@ -363,10 +319,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     rc: atomic::AtomicU32::new(1),
                     end_depth: end_depth as u32,
                     childleaf: child_a.childleaf(),
-                    leaf_count: child_a.count() + child_b.count(),
-                    segment_count: child_a.count_segment(end_depth)
-                        + child_b.count_segment(end_depth),
-                    hash: child_hash_a ^ child_hash_b,
+                    metadata: Metadata {
+                        leaf_count: child_a.count() + child_b.count(),
+                        segment_count: child_a.count_segment(end_depth)
+                            + child_b.count_segment(end_depth),
+                        hash: child_hash_a ^ child_hash_b,
+                    },
                     child_table: ByteTable2::new_with(child_a, child_b),
                 },
             );

@@ -176,35 +176,35 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 HeadTag::Leaf => 1,
                 HeadTag::Branch2 => {
                     let node: *const Branch2<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch4 => {
                     let node: *const Branch4<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch8 => {
                     let node: *const Branch8<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch16 => {
                     let node: *const Branch16<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch32 => {
                     let node: *const Branch32<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch64 => {
                     let node: *const Branch64<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch128 => {
                     let node: *const Branch128<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
                 HeadTag::Branch256 => {
                     let node: *const Branch256<KEY_LEN, O, S> = self.ptr();
-                    (*node).leaf_count
+                    (*node).metadata.leaf_count
                 }
             }
         }
@@ -314,14 +314,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             match self.tag() {
                 HeadTag::Empty => 0,
                 HeadTag::Leaf => Leaf::<KEY_LEN>::hash(self.ptr()),
-                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S>>()).hash,
-                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S>>()).hash,
+                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S>>()).metadata.hash,
+                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S>>()).metadata.hash,
             }
         }
     }
@@ -568,6 +568,57 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
+    pub(crate) fn cow(&mut self) {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("called cow on empty"),
+                HeadTag::Leaf => panic!("called cow on leaf"),
+                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch16 => Branch16::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch32 => Branch32::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch64 => Branch64::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch128 => Branch128::<KEY_LEN, O, S>::rc_cow(self),
+                HeadTag::Branch256 => Branch256::<KEY_LEN, O, S>::rc_cow(self),
+            }
+        }
+    }
+
+    unsafe fn get_metadata(&mut self) -> &mut Metadata {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("called get_metadata on empty"),
+                HeadTag::Leaf => panic!("called get_metadata on leaf"),
+                HeadTag::Branch2 => &mut (*self.ptr::<Branch2<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch4 => &mut (*self.ptr::<Branch4<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch8 => &mut (*self.ptr::<Branch8<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch16 => &mut (*self.ptr::<Branch16<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch32 => &mut (*self.ptr::<Branch32<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch64 => &mut (*self.ptr::<Branch64<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch128 => &mut (*self.ptr::<Branch128<KEY_LEN, O, S>>()).metadata,
+                HeadTag::Branch256 => &mut (*self.ptr::<Branch256<KEY_LEN, O, S>>()).metadata,
+            }
+        }
+    }
+
+    pub(crate) unsafe fn get_child(&mut self, key: u8) -> Option<&mut Self> {
+        unsafe {
+            match self.tag() {
+                HeadTag::Empty => panic!("called get_child on empty"),
+                HeadTag::Leaf => panic!("called get_child on leaf"),
+                HeadTag::Branch2 => (*self.ptr::<Branch2<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch4 => (*self.ptr::<Branch4<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch8 => (*self.ptr::<Branch8<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch16 => (*self.ptr::<Branch16<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch32 => (*self.ptr::<Branch32<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch64 => (*self.ptr::<Branch64<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch128 => (*self.ptr::<Branch128<KEY_LEN, O, S>>()).child_table.get_mut(key),
+                HeadTag::Branch256 => (*self.ptr::<Branch256<KEY_LEN, O, S>>()).child_table.get_mut(key),
+            }
+        }
+    }
+
     pub unsafe fn upsert<F>(
         &mut self,
         inserted: Head<KEY_LEN, O, S>,
@@ -576,35 +627,32 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) where
         F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>, u128),
     {
-        unsafe {
-            match self.tag() {
-                HeadTag::Empty => panic!("upsert on empty"),
-                HeadTag::Leaf => panic!("upsert on leaf"),
-                HeadTag::Branch2 => {
-                    Branch2::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch4 => {
-                    Branch4::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch8 => {
-                    Branch8::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch16 => {
-                    Branch16::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch32 => {
-                    Branch32::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch64 => {
-                    Branch64::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch128 => {
-                    Branch128::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-                HeadTag::Branch256 => {
-                    Branch256::<KEY_LEN, O, S>::upsert(self, inserted, inserted_hash, update)
-                }
-            };
+        self.cow();
+        let end_depth = self.end_depth();
+        let inserted = inserted.with_start(end_depth);
+        let key = inserted.key().unwrap();
+        if let Some(child) = self.get_child(key) {
+            let old_child_hash = child.hash();
+            let old_child_segment_count = child.count_segment(end_depth);
+            let old_child_leaf_count = child.count();
+
+            update(child, inserted, inserted_hash);
+
+            let child_hash = child.hash();
+            let child_segment_count = child.count_segment(end_depth);
+            let child_count = child.count();
+
+            let metadata = self.get_metadata();
+            metadata.hash = (metadata.hash ^ old_child_hash) ^ child_hash;
+            metadata.segment_count = (metadata.segment_count - old_child_segment_count) + child_segment_count;
+            metadata.leaf_count = (metadata.leaf_count - old_child_leaf_count) + child_count;
+        } else {
+            let metadata = self.get_metadata();
+            metadata.leaf_count += inserted.count();
+            metadata.segment_count += inserted.count_segment(end_depth);
+            metadata.hash ^= inserted_hash;
+            
+            self.insert_child(inserted);
         }
     }
 

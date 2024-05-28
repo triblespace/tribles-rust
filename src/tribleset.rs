@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn union_parallel() {
-        let kb = (0..100)
+        let kb = (0..1000000)
             .into_par_iter()
             .flat_map(|_| {
                 let lover_a = ufoid();
@@ -162,7 +162,7 @@ mod tests {
                     a
                 },
             );
-        assert_eq!(kb.len(), 400);
+        assert_eq!(kb.len(), 4000000);
     }
 
     proptest! {

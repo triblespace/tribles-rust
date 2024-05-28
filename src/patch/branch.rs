@@ -28,33 +28,6 @@ macro_rules! create_branch {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            #[allow(unused)]
-            pub(super) fn new(end_depth: usize) -> *mut Self {
-                unsafe {
-                    let layout = Layout::new::<Self>();
-                    let ptr = alloc(layout) as *mut Self;
-                    if ptr.is_null() {
-                        panic!("Allocation failed!");
-                    }
-                    std::ptr::write(
-                        ptr,
-                        Self {
-                            key_ordering: PhantomData,
-                            key_segments: PhantomData,
-                            rc: atomic::AtomicU32::new(1),
-                            end_depth: end_depth as u32,
-                            childleaf: std::ptr::null_mut(),
-                            leaf_count: 0,
-                            segment_count: 0,
-                            hash: 0,
-                            child_table: $table::new(),
-                        },
-                    );
-
-                    ptr
-                }
-            }
-
             pub(super) unsafe fn rc_inc(head: &Head<KEY_LEN, O, S>) -> Head<KEY_LEN, O, S> {
                 debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
@@ -161,25 +134,14 @@ macro_rules! create_branch {
                 }
             }
 
-            pub unsafe fn insert_child(
-                node: *mut Self,
-                child: Head<KEY_LEN, O, S>,
+            #[inline]
+            pub unsafe fn insert_metadata(
+                head: &mut Head<KEY_LEN, O, S>,
+                child: &Head<KEY_LEN, O, S>,
                 child_hash: u128,
-            ) -> Head<KEY_LEN, O, S> {
-                if let Some(_key) = child.key() {
-                    let end_depth = (*node).end_depth as usize;
-                    (*node).childleaf = if !(*node).childleaf.is_null() {
-                        (*node).childleaf
-                    } else {
-                        child.childleaf()
-                    };
-                    (*node).leaf_count += child.count();
-                    (*node).segment_count += child.count_segment(end_depth);
-                    (*node).hash ^= child_hash;
-                    (*node).child_table.insert(child)
-                } else {
-                    Head::empty()
-                }
+            ) {
+                debug_assert!(head.tag() == HeadTag::$name);
+
             }
 
             pub unsafe fn upsert<F>(
@@ -208,7 +170,13 @@ macro_rules! create_branch {
                     (*inner).leaf_count =
                         ((*inner).leaf_count - old_child_leaf_count) + child.count();
                 } else {
-                    head.insert_child(inserted, inserted_hash);
+                    let node: *mut Self = head.ptr();
+                    let end_depth = (*node).end_depth as usize;
+                    (*node).leaf_count += inserted.count();
+                    (*node).segment_count += inserted.count_segment(end_depth);
+                    (*node).hash ^= inserted_hash;
+                    
+                    head.insert_child(inserted);
                 }
             }
 
@@ -329,7 +297,7 @@ macro_rules! create_grow {
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             $name<KEY_LEN, O, S>
         {
-            pub(super) unsafe fn grow(head: &mut Head<KEY_LEN, O, S>) {
+            pub(super) fn grow(head: &mut Head<KEY_LEN, O, S>) {
                 debug_assert!(head.tag() == HeadTag::$name);
                 unsafe {
                     let node: *const Self = head.ptr();
@@ -367,3 +335,43 @@ create_grow!(Branch16, Branch32);
 create_grow!(Branch32, Branch64);
 create_grow!(Branch64, Branch128);
 create_grow!(Branch128, Branch256);
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    Branch2<KEY_LEN, O, S>
+{
+    pub(super) fn new(
+        head_key: u8,
+        end_depth: usize,
+        child_a: Head<KEY_LEN, O, S>,
+        child_hash_a: u128,
+        child_b: Head<KEY_LEN, O, S>,
+        child_hash_b: u128,
+    ) -> Head<KEY_LEN, O, S> {
+        unsafe {
+            debug_assert!(child_a.key() != None);
+            debug_assert!(child_b.key() != None);
+            let layout = Layout::new::<Branch2<KEY_LEN, O, S>>();
+            let ptr = alloc(layout) as *mut Branch2<KEY_LEN, O, S>;
+            if ptr.is_null() {
+                panic!("Allocation failed!");
+            }
+            std::ptr::write(
+                ptr,
+                Branch2 {
+                    key_ordering: PhantomData,
+                    key_segments: PhantomData,
+                    rc: atomic::AtomicU32::new(1),
+                    end_depth: end_depth as u32,
+                    childleaf: child_a.childleaf(),
+                    leaf_count: child_a.count() + child_b.count(),
+                    segment_count: child_a.count_segment(end_depth)
+                        + child_b.count_segment(end_depth),
+                    hash: child_hash_a ^ child_hash_b,
+                    child_table: ByteTable2::new_with(child_a, child_b),
+                },
+            );
+
+            Head::new(HeadTag::Branch2, head_key, ptr)
+        }
+    }
+}

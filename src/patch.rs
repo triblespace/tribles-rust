@@ -244,96 +244,69 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn insert_child(&mut self, child: Self, hash: u128) {
-        unsafe {
-            let mut displaced = match self.tag() {
-                HeadTag::Empty => panic!("insert_child on empty"),
-                HeadTag::Leaf => panic!("insert_child on leaf"),
-                HeadTag::Branch2 => Branch2::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch4 => Branch4::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch8 => Branch8::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash),
-                HeadTag::Branch16 => {
-                    Branch16::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash)
-                }
-                HeadTag::Branch32 => {
-                    Branch32::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash)
-                }
-                HeadTag::Branch64 => {
-                    Branch64::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash)
-                }
-                HeadTag::Branch128 => {
-                    Branch128::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash)
-                }
-                HeadTag::Branch256 => {
-                    Branch256::<KEY_LEN, O, S>::insert_child(self.ptr(), child, hash)
-                }
-            };
+    pub(crate) fn insert_child(&mut self, mut child: Head<KEY_LEN, O, S>) {
+        if child.key() == None {
+            return;
+        }
 
-            if displaced.key() == None {
+        if self.tag() == HeadTag::Branch2 {
+            child = unsafe { (*self.ptr::<Branch2<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
                 return;
             }
-            
-            if self.tag() == HeadTag::Branch2 {
-                Branch2::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch4<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch4 {
-                Branch4::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch8<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch8 {
-                Branch8::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch16<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch16 {
-                Branch16::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch32<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch32 {
-                Branch32::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch64<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch64 {
-                Branch64::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch128<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch128 {
-                Branch128::<KEY_LEN, O, S>::grow(self);
-                let node: *mut Branch256<KEY_LEN, O, S> = self.ptr();
-                displaced = (*node).child_table.insert(displaced);
-                if displaced.key() == None {
-                    return;
-                }
-            }
-            if self.tag() == HeadTag::Branch256 {
-                panic!("failed to insert on Branch256");
-            }
-            panic!("failed to insert on non branch");
+            Branch2::<KEY_LEN, O, S>::grow(self);
         }
+        if self.tag() == HeadTag::Branch4 {
+            child = unsafe { (*self.ptr::<Branch4<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            Branch4::<KEY_LEN, O, S>::grow(self);
+        }
+        if self.tag() == HeadTag::Branch8 {
+            child = unsafe { (*self.ptr::<Branch8<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            Branch8::<KEY_LEN, O, S>::grow(self);
+        }
+        if self.tag() == HeadTag::Branch16 {
+            child = unsafe { (*self.ptr::<Branch16<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            Branch16::<KEY_LEN, O, S>::grow(self);
+        }
+        if self.tag() == HeadTag::Branch32 {
+            child = unsafe { (*self.ptr::<Branch32<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            Branch32::<KEY_LEN, O, S>::grow(self);
+        }
+        if self.tag() == HeadTag::Branch64 {
+            child = unsafe { (*self.ptr::<Branch64<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            Branch64::<KEY_LEN, O, S>::grow(self);
+        }
+        if self.tag() == HeadTag::Branch128 {
+            child = unsafe { (*self.ptr::<Branch128<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            Branch128::<KEY_LEN, O, S>::grow(self);
+        }
+        if self.tag() == HeadTag::Branch256 {
+            child = unsafe { (*self.ptr::<Branch256<KEY_LEN, O, S>>()).child_table.insert(child) };
+            if child.key() == None {
+                return;
+            }
+            panic!("failed to insert on Branch256");
+        }
+        
+        panic!("failed to insert on non branch");
     }
 
     pub(crate) fn hash(&self) -> u128 {
@@ -419,13 +392,19 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             for depth in start_depth..std::cmp::min(head_depth, KEY_LEN) {
                 let i = O::key_index(depth);
                 if head_key[i] != leaf_key[i] {
-                    let new_branch = Branch2::new(depth);
-                    let new_head = Head::new(HeadTag::Branch2, self.key().unwrap(), new_branch);
-                    let old_head = std::mem::replace(self, new_head);
-
+                    let old_head = std::mem::replace(self, Head::empty());
                     let old_head_hash = old_head.hash();
-                    Branch2::insert_child(new_branch, leaf.with_start(depth), leaf_hash);
-                    Branch2::insert_child(new_branch, old_head.with_start(depth), old_head_hash);
+
+                    let new_head = Branch2::new(
+                        old_head.key().unwrap(),
+                        depth,
+                        old_head.with_start(depth),
+                        old_head_hash,
+                        leaf.with_start(depth),
+                        leaf_hash,
+                    );
+
+                    _ = std::mem::replace(self, new_head);
 
                     return;
                 }
@@ -653,12 +632,18 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             for depth in at_depth..std::cmp::min(self_depth, other_depth) {
                 let i = O::key_index(depth);
                 if self_key[i] != other_key[i] {
-                    let new_branch = Branch2::new(depth);
-                    let new_head = Head::new(HeadTag::Branch2, self.key().unwrap(), new_branch);
-                    let old_self = std::mem::replace(self, new_head);
+                    let old_self = std::mem::replace(self, Head::empty());
 
-                    Branch2::insert_child(new_branch, other.with_start(depth), other_hash);
-                    Branch2::insert_child(new_branch, old_self.with_start(depth), self_hash);
+                    let new_head = Branch2::new(
+                        old_self.key().unwrap(),
+                        depth,
+                        old_self.with_start(depth),
+                        self_hash,
+                        other.with_start(depth),
+                        other_hash,
+                    );
+
+                    _ = std::mem::replace(self, new_head);
 
                     return;
                 }

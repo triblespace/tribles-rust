@@ -345,6 +345,14 @@ create_bytetable!(ByteTable64, 32, ByteTable128);
 create_bytetable!(ByteTable128, 64, ByteTable256);
 create_bytetable!(ByteTable256, 128,);
 
+impl<T: ByteEntry + Clone + Debug> ByteTable2<T> {
+    pub fn new_with(a: T, b: T) -> Self {
+        Self {
+            buckets: [ByteBucket { entries: [a, b] }],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -91,17 +91,19 @@ pub unsafe trait ByteEntry {
 /// Represents the hashtable's internal buckets, which allow for up to
 /// `BUCKET_ENTRY_COUNT` elements to share the same colliding hash values.
 /// This is what allows for the table's compression by reshuffling entries.
-#[derive(Clone, Debug)]
-#[repr(transparent)]
-pub struct ByteBucket<T: ByteEntry + Clone + Debug> {
-    pub entries: [T; BUCKET_ENTRY_COUNT],
+pub trait ByteBucket<T: ByteEntry + Clone + Debug> {
+    fn get_slot(&self, byte_key: u8) -> Option<&T>;
+    fn get_mut_slot(&mut self, byte_key: u8) -> Option<&mut T>;
+    fn find_empty_slot(&mut self) -> Option<&mut T>;
+    fn shove_random_slot(&mut self, shoved_entry: T) -> T;
+    fn shove_cheap_slot(&mut self, bucket_index: u8, shoved_entry: T) -> T;
 }
 
-impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
+impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [T] {
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return a non-exclusive reference to it or `None` otherwise.
-    fn get(&self, byte_key: u8) -> Option<&T> {
-        for entry in &self.entries {
+    fn get_slot(&self, byte_key: u8) -> Option<&T> {
+        for entry in self {
             if entry.key() == Some(byte_key) {
                 return Some(entry);
             }
@@ -111,8 +113,8 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return an exclusive reference to it or `None` otherwise.
-    fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-        for entry in &mut self.entries {
+    fn get_mut_slot(&mut self, byte_key: u8) -> Option<&mut T> {
+        for entry in self {
             if entry.key() == Some(byte_key) {
                 return Some(entry);
             }
@@ -122,8 +124,8 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Find an empty slot in the bucket and return an exclusive reference to it
     /// or `None` if the bucket is full.
-    fn find_empty(&mut self) -> Option<&mut T> {
-        for entry in &mut self.entries {
+    fn find_empty_slot(&mut self) -> Option<&mut T> {
+        for entry in self {
             if entry.key().is_none() {
                 return Some(entry);
             }
@@ -133,15 +135,15 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> {
 
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning a random existing entry.
-    fn shove_randomly(&mut self, shoved_entry: T) -> T {
+    fn shove_random_slot(&mut self, shoved_entry: T) -> T {
         let index = unsafe { RAND as usize & (BUCKET_ENTRY_COUNT - 1) };
-        return mem::replace(&mut self.entries[index], shoved_entry);
+        return mem::replace(&mut self[index], shoved_entry);
     }
 
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning an existing entry that was using the non-cheap random hash.
-    fn shove_cheaply(&mut self, bucket_index: u8, shoved_entry: T) -> T {
-        for entry in &mut self.entries {
+    fn shove_cheap_slot(&mut self, bucket_index: u8, shoved_entry: T) -> T {
+        for entry in self {
             let entry_hash: u8 =
                 compress_hash(MAX_BUCKET_COUNT as u8, cheap_hash(entry.key().unwrap()));
             if bucket_index != entry_hash {
@@ -174,20 +176,20 @@ macro_rules! create_grow {
     ($name:ident,) => {};
     ($name:ident, $grown_name:ident) => {
         pub fn grow(&self) -> $grown_name<T> {
-            let buckets_len = self.buckets.len();
+            let buckets_len = self.slots.len() / BUCKET_ENTRY_COUNT;
             let mut grown = $grown_name::new();
-            let grown_buckets_len = grown.buckets.len() as u8;
-            let (lower_portion, upper_portion) = grown.buckets.split_at_mut(buckets_len);
+            let grown_buckets_len = (grown.slots.len() / BUCKET_ENTRY_COUNT) as u8;
+            let (lower_portion, upper_portion) = grown.slots.split_at_mut(self.slots.len());
             for bucket_index in 0..buckets_len {
-                for entry in &self.buckets[bucket_index].entries {
+                for entry in self.bucket(bucket_index) {
                     if let Some(byte_key) = entry.key() {
                         let cheap_index = compress_hash(grown_buckets_len, cheap_hash(byte_key));
                         let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
 
                         if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
-                            *(lower_portion[bucket_index].find_empty().unwrap()) = entry.clone();
+                            _ = std::mem::replace(lower_portion[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT].find_empty_slot().unwrap(), entry.clone());
                         } else {
-                            *(upper_portion[bucket_index].find_empty().unwrap()) = entry.clone();
+                            _ = std::mem::replace(upper_portion[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT].find_empty_slot().unwrap(), entry.clone());
                         }
                     }
                 }
@@ -202,29 +204,37 @@ macro_rules! create_bytetable {
         #[derive(Clone, Debug)]
         #[repr(transparent)]
         pub struct $name<T: ByteEntry + Clone + Debug> {
-            pub buckets: [ByteBucket<T>; $size],
+            pub slots: [T; { $size * BUCKET_ENTRY_COUNT }],
         }
 
         impl<T: ByteEntry + Clone + Debug> $name<T> {
             pub fn new() -> Self {
                 Self {
-                    buckets: unsafe { mem::zeroed() },
+                    slots: unsafe { mem::zeroed() },
                 }
+            }
+
+            pub fn bucket(&self, bucket_index: usize) -> &[T] {
+                &self.slots[bucket_index * BUCKET_ENTRY_COUNT .. (bucket_index + 1) * BUCKET_ENTRY_COUNT]
+            }
+
+            pub fn bucket_mut(&mut self, bucket_index: usize) -> &mut [T] {
+                &mut self.slots[bucket_index * BUCKET_ENTRY_COUNT .. (bucket_index + 1) * BUCKET_ENTRY_COUNT]
             }
 
             pub fn get(&self, byte_key: u8) -> Option<&T> {
                 let cheap_entry =
-                    self.buckets[compress_hash(self.buckets.len() as u8, cheap_hash(byte_key)) as usize].get(byte_key);
+                    self.bucket(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, cheap_hash(byte_key)) as usize).get_slot(byte_key);
                 let rand_entry =
-                    self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get(byte_key);
+                    self.bucket(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, rand_hash(byte_key)) as usize).get_slot(byte_key);
                 cheap_entry.or(rand_entry)
             }
 
             pub fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-                if let Some(_) = self.buckets[compress_hash(self.buckets.len() as u8, cheap_hash(byte_key)) as usize].get_mut(byte_key) {
-                    return self.buckets[compress_hash(self.buckets.len() as u8, cheap_hash(byte_key)) as usize].get_mut(byte_key)
+                if let Some(_) = self.bucket_mut(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, cheap_hash(byte_key)) as usize).get_mut_slot(byte_key) {
+                    return self.bucket_mut(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, cheap_hash(byte_key)) as usize).get_mut_slot(byte_key)
                 }
-                if let Some(entry) = self.buckets[compress_hash(self.buckets.len() as u8, rand_hash(byte_key)) as usize].get_mut(byte_key) {
+                if let Some(entry) = self.bucket_mut(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, rand_hash(byte_key)) as usize).get_mut_slot(byte_key) {
                     return Some(entry);
                 }
                 return None;
@@ -251,7 +261,7 @@ macro_rules! create_bytetable {
                     let mut retries: usize = 0;
                     loop {
                         unsafe {
-                            RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize];
+                            RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize]; //TODO move this to shove_random_slot
                         }
 
                         let hash = if use_cheap_hash {
@@ -261,7 +271,7 @@ macro_rules! create_bytetable {
                         };
                         let bucket_index = compress_hash($size, hash);
 
-                        if let Some(empty_entry) = self.buckets[bucket_index as usize].find_empty() {
+                        if let Some(empty_entry) = self.bucket_mut(bucket_index as usize).find_empty_slot() {
                             return mem::replace(empty_entry, current_entry);
                         }
 
@@ -270,7 +280,7 @@ macro_rules! create_bytetable {
                         }
 
                         if max_grown {
-                            current_entry = self.buckets[bucket_index as usize].shove_cheaply(
+                            current_entry = self.bucket_mut(bucket_index as usize).shove_cheap_slot(
                                 bucket_index,
                                 current_entry,
                             );
@@ -278,7 +288,7 @@ macro_rules! create_bytetable {
                         } else {
                             retries += 1;
                             current_entry =
-                                self.buckets[bucket_index as usize].shove_randomly(current_entry);
+                                self.bucket_mut(bucket_index as usize).shove_random_slot(current_entry);
                             byte_key = current_entry.key().unwrap();
                             use_cheap_hash =
                                 bucket_index != compress_hash($size, cheap_hash(byte_key));
@@ -293,24 +303,20 @@ macro_rules! create_bytetable {
 
             pub fn keys(&self) -> ByteBitset {
                 let mut bitset = ByteBitset::new_empty();
-                for bucket in &self.buckets {
-                    for entry in &bucket.entries {
-                        if let Some(byte_key) = entry.key() {
-                            bitset.set(byte_key);
-                        }
+                for entry in &self.slots {
+                    if let Some(byte_key) = entry.key() {
+                        bitset.set(byte_key);
                     }
                 }
                 return bitset;
             }
 
             pub fn iter(&self) -> std::slice::Iter<T> {
-                let all: &[T; BUCKET_ENTRY_COUNT * $size] = unsafe {std::mem::transmute(self)};
-                all.iter()
+                self.slots.iter()
             }
 
             pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
-                let all: &mut [T; BUCKET_ENTRY_COUNT * $size] = unsafe {std::mem::transmute(self)};
-                all.iter_mut()
+                self.slots.iter_mut()
             }
         }
 
@@ -348,7 +354,7 @@ create_bytetable!(ByteTable256, 128,);
 impl<T: ByteEntry + Clone + Debug> ByteTable2<T> {
     pub fn new_with(a: T, b: T) -> Self {
         Self {
-            buckets: [ByteBucket { entries: [a, b] }],
+            slots: [a, b],
         }
     }
 }

@@ -45,8 +45,8 @@ use std::sync::Once;
 /// The number of slots per bucket.
 const BUCKET_ENTRY_COUNT: usize = 2;
 
-/// The maximum number of buckets per table.
-const MAX_BUCKET_COUNT: usize = 256 / BUCKET_ENTRY_COUNT;
+/// The maximum number of slots per table.
+const MAX_SLOT_COUNT: usize = 256;
 
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
@@ -145,7 +145,7 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [T] {
     fn shove_cheap_slot(&mut self, bucket_index: u8, shoved_entry: T) -> T {
         for entry in self {
             let entry_hash: u8 =
-                compress_hash(MAX_BUCKET_COUNT as u8, cheap_hash(entry.key().unwrap()));
+                compress_hash(MAX_SLOT_COUNT, cheap_hash(entry.key().unwrap()));
             if bucket_index != entry_hash {
                 return mem::replace(entry, shoved_entry);
             }
@@ -167,196 +167,140 @@ fn rand_hash(byte_key: u8) -> u8 {
 }
 
 ///
-fn compress_hash(bucket_count: u8, hash: u8) -> u8 {
+fn compress_hash(slot_count: usize, hash: u8) -> u8 {
+    let bucket_count = (slot_count / BUCKET_ENTRY_COUNT) as u8;
     let mask = bucket_count - 1;
     hash & mask
 }
 
-macro_rules! create_grow {
-    ($name:ident,) => {};
-    ($name:ident, $grown_name:ident) => {
-        pub fn grow(&self) -> $grown_name<T> {
-            let buckets_len = self.slots.len() / BUCKET_ENTRY_COUNT;
-            let mut grown = $grown_name::new();
-            let grown_buckets_len = (grown.slots.len() / BUCKET_ENTRY_COUNT) as u8;
-            let (lower_portion, upper_portion) = grown.slots.split_at_mut(self.slots.len());
-            for bucket_index in 0..buckets_len {
-                for entry in self.bucket(bucket_index) {
-                    if let Some(byte_key) = entry.key() {
-                        let cheap_index = compress_hash(grown_buckets_len, cheap_hash(byte_key));
-                        let rand_index = compress_hash(grown_buckets_len, rand_hash(byte_key));
-
-                        if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
-                            _ = std::mem::replace(lower_portion[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT].find_empty_slot().unwrap(), entry.clone());
-                        } else {
-                            _ = std::mem::replace(upper_portion[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT].find_empty_slot().unwrap(), entry.clone());
-                        }
-                    }
-                }
-            }
-            return grown;
-        }
-    };
+pub trait ByteTable<T: ByteEntry + Clone + Debug> {
+    fn table_bucket(&self, bucket_index: usize) -> &[T];
+    fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [T];
+    fn table_get(&self, byte_key: u8) -> Option<&T>;
+    fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T>;
+    fn table_take(&mut self, byte_key: u8) -> Option<T>;
+    fn table_insert(&mut self, entry: T) -> T;
+    fn table_keys(&self) -> ByteBitset;
+    fn table_grow(&self, grown: &mut Self);
 }
 
-macro_rules! create_bytetable {
-    ($name:ident, $size:expr, $($grown_name:ident)?) => {
-        #[derive(Clone, Debug)]
-        #[repr(transparent)]
-        pub struct $name<T: ByteEntry + Clone + Debug> {
-            pub slots: [T; { $size * BUCKET_ENTRY_COUNT }],
+impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [T] {
+    fn table_bucket(&self, bucket_index: usize) -> &[T] {
+        &self[bucket_index * BUCKET_ENTRY_COUNT .. (bucket_index + 1) * BUCKET_ENTRY_COUNT]
+    }
+
+    fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [T] {
+        &mut self[bucket_index * BUCKET_ENTRY_COUNT .. (bucket_index + 1) * BUCKET_ENTRY_COUNT]
+    }
+
+    fn table_get(&self, byte_key: u8) -> Option<&T> {
+        let cheap_entry =
+            self.table_bucket(compress_hash(self.len(), cheap_hash(byte_key)) as usize).get_slot(byte_key);
+        let rand_entry =
+            self.table_bucket(compress_hash(self.len(), rand_hash(byte_key)) as usize).get_slot(byte_key);
+        cheap_entry.or(rand_entry)
+    }
+
+    fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
+        if let Some(_) = self.table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize).get_mut_slot(byte_key) {
+            return self.table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize).get_mut_slot(byte_key)
         }
-
-        impl<T: ByteEntry + Clone + Debug> $name<T> {
-            pub fn new() -> Self {
-                Self {
-                    slots: unsafe { mem::zeroed() },
-                }
-            }
-
-            pub fn bucket(&self, bucket_index: usize) -> &[T] {
-                &self.slots[bucket_index * BUCKET_ENTRY_COUNT .. (bucket_index + 1) * BUCKET_ENTRY_COUNT]
-            }
-
-            pub fn bucket_mut(&mut self, bucket_index: usize) -> &mut [T] {
-                &mut self.slots[bucket_index * BUCKET_ENTRY_COUNT .. (bucket_index + 1) * BUCKET_ENTRY_COUNT]
-            }
-
-            pub fn get(&self, byte_key: u8) -> Option<&T> {
-                let cheap_entry =
-                    self.bucket(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, cheap_hash(byte_key)) as usize).get_slot(byte_key);
-                let rand_entry =
-                    self.bucket(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, rand_hash(byte_key)) as usize).get_slot(byte_key);
-                cheap_entry.or(rand_entry)
-            }
-
-            pub fn get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-                if let Some(_) = self.bucket_mut(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, cheap_hash(byte_key)) as usize).get_mut_slot(byte_key) {
-                    return self.bucket_mut(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, cheap_hash(byte_key)) as usize).get_mut_slot(byte_key)
-                }
-                if let Some(entry) = self.bucket_mut(compress_hash((self.slots.len() / BUCKET_ENTRY_COUNT) as u8, rand_hash(byte_key)) as usize).get_mut_slot(byte_key) {
-                    return Some(entry);
-                }
-                return None;
-            }
-
-            pub fn take(&mut self, byte_key: u8) -> Option<T> {
-                if let Some(entry) = self.get_mut(byte_key) {
-                    Some(mem::replace(entry, unsafe { mem::zeroed() }))
-                } else {
-                    None
-                }
-            }
-
-            /// An entry with the same key must not exist in the table yet.
-            pub fn insert(&mut self, entry: T) -> T {
-                if let Some(mut byte_key) = entry.key() {
-                    debug_assert!(self.get(byte_key).is_none());
-
-                    let max_grown = $size == MAX_BUCKET_COUNT;
-                    let min_grown = $size == 1;
-
-                    let mut use_cheap_hash = true;
-                    let mut current_entry = entry;
-                    let mut retries: usize = 0;
-                    loop {
-                        unsafe {
-                            RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize]; //TODO move this to shove_random_slot
-                        }
-
-                        let hash = if use_cheap_hash {
-                            cheap_hash(byte_key)
-                        } else {
-                            rand_hash(byte_key)
-                        };
-                        let bucket_index = compress_hash($size, hash);
-
-                        if let Some(empty_entry) = self.bucket_mut(bucket_index as usize).find_empty_slot() {
-                            return mem::replace(empty_entry, current_entry);
-                        }
-
-                        if min_grown || retries == MAX_RETRIES {
-                            return current_entry;
-                        }
-
-                        if max_grown {
-                            current_entry = self.bucket_mut(bucket_index as usize).shove_cheap_slot(
-                                bucket_index,
-                                current_entry,
-                            );
-                            byte_key = current_entry.key().unwrap();
-                        } else {
-                            retries += 1;
-                            current_entry =
-                                self.bucket_mut(bucket_index as usize).shove_random_slot(current_entry);
-                            byte_key = current_entry.key().unwrap();
-                            use_cheap_hash =
-                                bucket_index != compress_hash($size, cheap_hash(byte_key));
-                        }
-                    }
-                } else {
-                    return entry;
-                }
-            }
-
-            create_grow!($name, $($grown_name)?);
-
-            pub fn keys(&self) -> ByteBitset {
-                let mut bitset = ByteBitset::new_empty();
-                for entry in &self.slots {
-                    if let Some(byte_key) = entry.key() {
-                        bitset.set(byte_key);
-                    }
-                }
-                return bitset;
-            }
-
-            pub fn iter(&self) -> std::slice::Iter<T> {
-                self.slots.iter()
-            }
-
-            pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
-                self.slots.iter_mut()
-            }
+        if let Some(entry) = self.table_bucket_mut(compress_hash(self.len(), rand_hash(byte_key)) as usize).get_mut_slot(byte_key) {
+            return Some(entry);
         }
+        return None;
+    }
 
-        impl<'a, T> IntoIterator for &'a $name<T>
-        where T: ByteEntry + Clone + Debug {
-            type Item = &'a T;
-            type IntoIter = std::slice::Iter<'a, T>;
-
-            fn into_iter(self) -> Self::IntoIter {
-                self.iter()
-            }
-        }
-
-        impl<'a, T> IntoIterator for &'a mut $name<T>
-        where T: ByteEntry + Clone + Debug {
-            type Item = &'a mut T;
-            type IntoIter = std::slice::IterMut<'a, T>;
-
-            fn into_iter(self) -> Self::IntoIter {
-                self.iter_mut()
-            }
-        }
-    };
-}
-
-create_bytetable!(ByteTable2, 1, ByteTable4);
-create_bytetable!(ByteTable4, 2, ByteTable8);
-create_bytetable!(ByteTable8, 4, ByteTable16);
-create_bytetable!(ByteTable16, 8, ByteTable32);
-create_bytetable!(ByteTable32, 16, ByteTable64);
-create_bytetable!(ByteTable64, 32, ByteTable128);
-create_bytetable!(ByteTable128, 64, ByteTable256);
-create_bytetable!(ByteTable256, 128,);
-
-impl<T: ByteEntry + Clone + Debug> ByteTable2<T> {
-    pub fn new_with(a: T, b: T) -> Self {
-        Self {
-            slots: [a, b],
+    fn table_take(&mut self, byte_key: u8) -> Option<T> {
+        if let Some(entry) = self.table_get_mut(byte_key) {
+            Some(mem::replace(entry, unsafe { mem::zeroed() }))
+        } else {
+            None
         }
     }
+
+    /// An entry with the same key must not exist in the table yet.
+    fn table_insert(&mut self, entry: T) -> T {
+        if let Some(mut byte_key) = entry.key() {
+            debug_assert!(self.table_get(byte_key).is_none());
+
+            let max_grown = self.len() == MAX_SLOT_COUNT;
+            let min_grown = self.len() == BUCKET_ENTRY_COUNT;
+
+            let mut use_cheap_hash = true;
+            let mut current_entry = entry;
+            let mut retries: usize = 0;
+            loop {
+                unsafe {
+                    RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize]; //TODO move this to shove_random_slot
+                }
+
+                let hash = if use_cheap_hash {
+                    cheap_hash(byte_key)
+                } else {
+                    rand_hash(byte_key)
+                };
+                let bucket_index = compress_hash(self.len(), hash);
+
+                if let Some(empty_entry) = self.table_bucket_mut(bucket_index as usize).find_empty_slot() {
+                    return mem::replace(empty_entry, current_entry);
+                }
+
+                if min_grown || retries == MAX_RETRIES {
+                    return current_entry;
+                }
+
+                if max_grown {
+                    current_entry = self.table_bucket_mut(bucket_index as usize).shove_cheap_slot(
+                        bucket_index,
+                        current_entry,
+                    );
+                    byte_key = current_entry.key().unwrap();
+                } else {
+                    retries += 1;
+                    current_entry =
+                        self.table_bucket_mut(bucket_index as usize).shove_random_slot(current_entry);
+                    byte_key = current_entry.key().unwrap();
+                    use_cheap_hash =
+                        bucket_index != compress_hash(self.len(), cheap_hash(byte_key));
+                }
+            }
+        } else {
+            return entry;
+        }
+    }
+
+    fn table_keys(&self) -> ByteBitset {
+        let mut bitset = ByteBitset::new_empty();
+        for entry in self {
+            if let Some(byte_key) = entry.key() {
+                bitset.set(byte_key);
+            }
+        }
+        return bitset;
+    }
+
+    fn table_grow(&self, grown: &mut Self) {
+    debug_assert!(self.len() * 2 == grown.len());
+    let buckets_len = self.len() / BUCKET_ENTRY_COUNT;
+    let grown_len = grown.len();
+    let (lower_portion, upper_portion) = grown.split_at_mut(self.len());
+    for bucket_index in 0..buckets_len {
+        for entry in self.table_bucket(bucket_index) {
+            if let Some(byte_key) = entry.key() {
+                let cheap_index = compress_hash(grown_len, cheap_hash(byte_key));
+                let rand_index = compress_hash(grown_len, rand_hash(byte_key));
+
+                if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
+                    _ = std::mem::replace(lower_portion[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT].find_empty_slot().unwrap(), entry.clone());
+                } else {
+                    _ = std::mem::replace(upper_portion[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT].find_empty_slot().unwrap(), entry.clone());
+                }
+            }
+        }
+    }
+}
+
 }
 
 #[cfg(test)]
@@ -394,28 +338,26 @@ mod tests {
         assert!(DummyEntry::new(0).key().is_some());
     }
 
-    #[test]
-    fn new_empty_table() {
-        init();
-        let _table: ByteTable4<DummyEntry> = ByteTable4::new();
-    }
-
     proptest! {
         #[test]
         fn empty_table_then_empty_get(n in 0u8..255) {
             init();
-            let mut table: ByteTable4<DummyEntry> = ByteTable4::new();
-            prop_assert!(table.take(n).is_none());
+            let mut table: [DummyEntry; 4] = unsafe {
+                mem::zeroed()
+            };
+            prop_assert!(table.table_take(n).is_none());
         }
 
         #[test]
         fn single_insert_success(n in 0u8..255) {
             init();
-            let mut table: ByteTable4<DummyEntry> = ByteTable4::new();
+            let mut table: [DummyEntry; 4] = unsafe {
+                mem::zeroed()
+            };
             let entry = DummyEntry::new(n);
-            let displaced = table.insert(entry);
+            let displaced = table.table_insert(entry);
             prop_assert!(displaced.key().is_none());
-            prop_assert!(table.take(n).is_some());
+            prop_assert!(table.table_take(n).is_some());
         }
 
         #[test]
@@ -427,37 +369,42 @@ mod tests {
             let mut i = 0;
 
             macro_rules! insert_step {
-                ($table:ident, $grown_table:ident) => {
+                ($table:ident, $grown_table:ident, $grown_type:ty) => {
                     while displaced.key().is_none() && i < entries.len() {
-                        displaced = $table.insert(DummyEntry::new(entries[i]));
+                        displaced = $table.table_insert(DummyEntry::new(entries[i]));
                         if(displaced.key().is_none()) {
                             for j in 0..=i {
-                                prop_assert!($table.get_mut(entries[j]).is_some(),
+                                prop_assert!($table.table_get_mut(entries[j]).is_some(),
                                 "Missing value {} after insert", entries[j]);
                             }
                         }
                         i += 1;
                     }
-                    let mut $grown_table = $table.grow();
-                    displaced = $grown_table.insert(displaced);
+                    let mut $grown_table: $grown_type = unsafe {
+                        std::mem::zeroed()
+                    };
+                    $table.table_grow(&mut $grown_table);
+                    displaced = $grown_table.table_insert(displaced);
 
                     if displaced.key().is_none() {
                         for j in 0..i {
-                            prop_assert!($grown_table.get_mut(entries[j]).is_some(),
+                            prop_assert!($grown_table.table_get_mut(entries[j]).is_some(),
                             "Missing value {} after growth with hash {:?}", entries[j], unsafe { RANDOM_PERMUTATION_HASH });
                         }
                     }
                 };
             }
 
-            let mut table2= ByteTable2::<DummyEntry>::new();
-            insert_step!(table2, table4);
-            insert_step!(table4, table8);
-            insert_step!(table8, table16);
-            insert_step!(table16, table32);
-            insert_step!(table32, table64);
-            insert_step!(table64, table128);
-            insert_step!(table128, table256);
+            let mut table2: [DummyEntry; 2] = unsafe {
+                std::mem::zeroed()
+            };
+            insert_step!(table2, table4, [DummyEntry; 4]);
+            insert_step!(table4, table8, [DummyEntry; 8]);
+            insert_step!(table8, table16, [DummyEntry; 16]);
+            insert_step!(table16, table32, [DummyEntry; 32]);
+            insert_step!(table32, table64, [DummyEntry; 64]);
+            insert_step!(table64, table128, [DummyEntry; 128]);
+            insert_step!(table128, table256, [DummyEntry; 256]);
 
             prop_assert!(displaced.key().is_none());
         }

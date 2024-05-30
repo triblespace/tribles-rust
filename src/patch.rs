@@ -250,56 +250,56 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
 
         if self.tag() == HeadTag::Branch2 {
-            child = unsafe { (*self.ptr::<Branch2<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch2<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch2::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch4 {
-            child = unsafe { (*self.ptr::<Branch4<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch4<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch4::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch8 {
-            child = unsafe { (*self.ptr::<Branch8<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch8<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch8::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch16 {
-            child = unsafe { (*self.ptr::<Branch16<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch16<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch16::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch32 {
-            child = unsafe { (*self.ptr::<Branch32<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch32<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch32::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch64 {
-            child = unsafe { (*self.ptr::<Branch64<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch64<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch64::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch128 {
-            child = unsafe { (*self.ptr::<Branch128<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch128<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
             Branch128::<KEY_LEN, O, S>::grow(self);
         }
         if self.tag() == HeadTag::Branch256 {
-            child = unsafe { (*self.ptr::<Branch256<KEY_LEN, O, S>>()).child_table.insert(child) };
+            child = unsafe { (*self.ptr::<Branch256<KEY_LEN, O, S>>()).child_table.table_insert(child) };
             if child.key() == None {
                 return;
             }
@@ -1062,10 +1062,6 @@ mod tests {
 
     #[test]
     fn branch_size() {
-        assert_eq!(
-            mem::size_of::<ByteTable2<Head<64, IdentityOrder, SingleSegmentation>>>(),
-            16
-        );
         assert_eq!(
             mem::size_of::<Branch2<64, IdentityOrder, SingleSegmentation>>(),
             64

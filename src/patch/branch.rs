@@ -5,7 +5,7 @@ use std::alloc::{alloc, dealloc, Layout};
 use std::convert::TryInto;
 
 macro_rules! create_branch {
-    ($name:ident, $table:tt) => {
+    ($name:ident, $table_size:expr) => {
         #[derive(Debug)]
         #[repr(C)]
         pub(super) struct $name<
@@ -22,7 +22,7 @@ macro_rules! create_branch {
             pub leaf_count: u64,
             pub segment_count: u64,
             pub hash: u128,
-            pub child_table: $table<Head<KEY_LEN, O, S>>,
+            pub child_table: [Head<KEY_LEN, O, S>; $table_size],
         }
 
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
@@ -147,7 +147,7 @@ macro_rules! create_branch {
                 let inner: *mut Self = head.ptr();
                 let inserted = inserted.with_start((*inner).end_depth as usize);
                 let key = inserted.key().unwrap();
-                if let Some(child) = (*inner).child_table.get_mut(key) {
+                if let Some(child) = (*inner).child_table.table_get_mut(key) {
                     let old_child_hash = child.hash();
                     let old_child_segment_count = child.count_segment((*inner).end_depth as usize);
                     let old_child_leaf_count = child.count();
@@ -203,7 +203,7 @@ macro_rules! create_branch {
                 }
                 // The prefix ends in a child of this node.
                 if PREFIX_LEN > node_end_depth {
-                    if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
+                    if let Some(child) = (*node).child_table.table_get(prefix[node_end_depth]) {
                         child.infixes(prefix, node_end_depth, f);
                     }
                     return;
@@ -234,7 +234,7 @@ macro_rules! create_branch {
                 }
 
                 //The prefix ends in a child of this node.
-                if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
+                if let Some(child) = (*node).child_table.table_get(prefix[node_end_depth]) {
                     return child.has_prefix(node_end_depth, prefix);
                 }
                 // This node doesn't have a child matching the prefix.
@@ -263,7 +263,7 @@ macro_rules! create_branch {
                         return (*node).segment_count;
                     }
                 }
-                if let Some(child) = (*node).child_table.get(prefix[node_end_depth]) {
+                if let Some(child) = (*node).child_table.table_get(prefix[node_end_depth]) {
                     return child.segmented_len(node_end_depth, prefix);
                 }
                 return 0;
@@ -272,14 +272,14 @@ macro_rules! create_branch {
     };
 }
 
-create_branch!(Branch2, ByteTable2);
-create_branch!(Branch4, ByteTable4);
-create_branch!(Branch8, ByteTable8);
-create_branch!(Branch16, ByteTable16);
-create_branch!(Branch32, ByteTable32);
-create_branch!(Branch64, ByteTable64);
-create_branch!(Branch128, ByteTable128);
-create_branch!(Branch256, ByteTable256);
+create_branch!(Branch2, 2);
+create_branch!(Branch4, 4);
+create_branch!(Branch8, 8);
+create_branch!(Branch16, 16);
+create_branch!(Branch32, 32);
+create_branch!(Branch64, 64);
+create_branch!(Branch128, 128);
+create_branch!(Branch256, 256);
 
 macro_rules! create_grow {
     () => {};
@@ -307,9 +307,11 @@ macro_rules! create_grow {
                             segment_count: (*node).segment_count,
                             childleaf: (*node).childleaf,
                             hash: (*node).hash,
-                            child_table: (*node).child_table.grow(),
+                            child_table: std::mem::zeroed(),
                         },
                     );
+
+                    (*node).child_table.table_grow(&mut (*ptr).child_table);
 
                     *head = Head::new(HeadTag::$grown_name, head.key().unwrap(), ptr);
                 }
@@ -357,7 +359,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     segment_count: child_a.count_segment(end_depth)
                         + child_b.count_segment(end_depth),
                     hash: child_hash_a ^ child_hash_b,
-                    child_table: ByteTable2::new_with(child_a, child_b),
+                    child_table: [child_a, child_b],
                 },
             );
 

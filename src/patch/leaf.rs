@@ -35,18 +35,18 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
     }
 
-    pub(crate) unsafe fn rc_inc(node: *mut Self) -> *mut Self {
+    pub(crate) unsafe fn rc_inc(leaf: *mut Self) -> *mut Self {
         unsafe {
-            let mut current = (*node).rc.load(Relaxed);
+            let mut current = (*leaf).rc.load(Relaxed);
             loop {
                 if current == u32::MAX {
                     panic!("max refcount exceeded");
                 }
-                match (*node)
+                match (*leaf)
                     .rc
                     .compare_exchange(current, current + 1, Relaxed, Relaxed)
                 {
-                    Ok(_) => return node,
+                    Ok(_) => return leaf,
                     Err(v) => current = v,
                 }
             }
@@ -84,16 +84,14 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
-        head: &Head<KEY_LEN, O, S>,
+        leaf: *mut Self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
-        debug_assert!(head.tag() == HeadTag::Leaf);
-        let node: *const Self = head.ptr();
-        let leaf_key = &(*node).key;
+        let leaf_key = &(*leaf).key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return;
@@ -102,7 +100,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
 
         let end_depth = PREFIX_LEN + INFIX_LEN - 1;
         let infix = unsafe {
-            (*node).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)]
+            (*leaf).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)]
                 .try_into()
                 .expect("invalid infix range")
         };
@@ -110,11 +108,11 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     }
 
     pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
-        node: *const Self,
+        leaf: *const Self,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        let leaf_key: &[u8; KEY_LEN] = &(*node).key;
+        let leaf_key: &[u8; KEY_LEN] = &(*leaf).key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return false;

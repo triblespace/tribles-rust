@@ -22,7 +22,7 @@ macro_rules! create_branch {
             pub leaf_count: u64,
             pub segment_count: u64,
             pub hash: u128,
-            pub child_table: [Head<KEY_LEN, O, S>; $table_size],
+            pub child_table: [Option<Head<KEY_LEN, O, S>>; $table_size],
         }
 
         impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
@@ -42,11 +42,7 @@ macro_rules! create_branch {
                             .compare_exchange(current, current + 1, Relaxed, Relaxed)
                         {
                             Ok(_) => {
-                                return Head::<KEY_LEN, O, S>::new(
-                                    HeadTag::$name,
-                                    head.key().unwrap(),
-                                    node,
-                                )
+                                return Head::<KEY_LEN, O, S>::new(HeadTag::$name, head.key(), node)
                             }
                             Err(v) => current = v,
                         }
@@ -96,7 +92,7 @@ macro_rules! create_branch {
                             },
                         );
 
-                        *head = Head::new(HeadTag::$name, head.key().unwrap(), ptr);
+                        *head = Head::new(HeadTag::$name, head.key(), ptr);
                     }
                 }
             }
@@ -120,13 +116,13 @@ macro_rules! create_branch {
                     let node: *mut Self = head.ptr();
                     if (*node).rc.load(Acquire) == 1 {
                         for child in &mut (*node).child_table {
-                            if let Some(_) = child.key() {
-                                f(std::mem::replace(child, Head::empty()));
+                            if let Some(child) = child.take() {
+                                f(child);
                             }
                         }
                     } else {
                         for child in &(*node).child_table {
-                            if let Some(_) = child.key() {
+                            if let Some(child) = child {
                                 f(child.clone());
                             }
                         }
@@ -146,7 +142,7 @@ macro_rules! create_branch {
                 Self::rc_cow(head);
                 let inner: *mut Self = head.ptr();
                 let inserted = inserted.with_start((*inner).end_depth as usize);
-                let key = inserted.key().unwrap();
+                let key = inserted.key();
                 if let Some(child) = (*inner).child_table.table_get_mut(key) {
                     let old_child_hash = child.hash();
                     let old_child_segment_count = child.count_segment((*inner).end_depth as usize);
@@ -165,7 +161,7 @@ macro_rules! create_branch {
                     (*node).leaf_count += inserted.count();
                     (*node).segment_count += inserted.count_segment(end_depth);
                     (*node).hash ^= inserted_hash;
-                    
+
                     head.insert_child(inserted);
                 }
             }
@@ -211,7 +207,9 @@ macro_rules! create_branch {
 
                 // The prefix ends in this node, but the infix ends in a child.
                 for entry in &(*node).child_table {
-                    entry.infixes(prefix, node_end_depth, f);
+                    if let Some(entry) = entry {
+                        entry.infixes(prefix, node_end_depth, f);
+                    }
                 }
             }
 
@@ -307,13 +305,13 @@ macro_rules! create_grow {
                             segment_count: (*node).segment_count,
                             childleaf: (*node).childleaf,
                             hash: (*node).hash,
-                            child_table: std::mem::zeroed(),
+                            child_table: std::array::from_fn(|_| None),
                         },
                     );
 
                     (*node).child_table.table_grow(&mut (*ptr).child_table);
 
-                    *head = Head::new(HeadTag::$grown_name, head.key().unwrap(), ptr);
+                    *head = Head::new(HeadTag::$grown_name, head.key(), ptr);
                 }
             }
         }
@@ -334,14 +332,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(super) fn new(
         head_key: u8,
         end_depth: usize,
-        child_a: Head<KEY_LEN, O, S>,
-        child_hash_a: u128,
-        child_b: Head<KEY_LEN, O, S>,
-        child_hash_b: u128,
+        child: Head<KEY_LEN, O, S>,
+        child_hash: u128,
     ) -> Head<KEY_LEN, O, S> {
         unsafe {
-            debug_assert!(child_a.key() != None);
-            debug_assert!(child_b.key() != None);
             let layout = Layout::new::<Branch2<KEY_LEN, O, S>>();
             let ptr = alloc(layout) as *mut Branch2<KEY_LEN, O, S>;
             if ptr.is_null() {
@@ -354,12 +348,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     key_segments: PhantomData,
                     rc: atomic::AtomicU32::new(1),
                     end_depth: end_depth as u32,
-                    childleaf: child_a.childleaf(),
-                    leaf_count: child_a.count() + child_b.count(),
-                    segment_count: child_a.count_segment(end_depth)
-                        + child_b.count_segment(end_depth),
-                    hash: child_hash_a ^ child_hash_b,
-                    child_table: [child_a, child_b],
+                    childleaf: child.childleaf(),
+                    leaf_count: child.count(),
+                    segment_count: child.count_segment(end_depth),
+                    hash: child_hash,
+                    child_table: [Some(child), None],
                 },
             );
 

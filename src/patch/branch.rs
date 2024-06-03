@@ -44,7 +44,7 @@ pub(crate) type BranchN<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>;
 
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
-    Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>
+    BranchN<KEY_LEN, O, S>
 {
     pub fn count_segment(branch: *const Self, at_depth: usize) -> u64 {
         unsafe {

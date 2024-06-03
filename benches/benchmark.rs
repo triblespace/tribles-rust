@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
 use sucds::Serializable;
-use tribles::transient::Transient;
+use tribles::column::Column;
 use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
 use tribles::{and, types::SmallString, Id, NS};
 
@@ -741,11 +741,11 @@ fn query_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-fn transient_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("transient");
+fn column_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("column");
 
-    let mut name: Transient<SmallString> = Transient::new();
-    let mut loves: Transient<Id> = Transient::new();
+    let mut name: Column<SmallString> = Column::new();
+    let mut loves: Column<Id> = Column::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
@@ -1114,7 +1114,7 @@ criterion_group!(
     archive_benchmark,
     entities_benchmark,
     query_benchmark,
-    transient_benchmark,
+    column_benchmark,
     hashtribleset_benchmark,
     oxigraph_benchmark
 );

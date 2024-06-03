@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use tribles::query::and;
 use tribles::query::find;
-use tribles::transient::Transient;
+use tribles::column::Column;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
@@ -12,8 +12,8 @@ use tribles::ufoid;
 use tribles::Id;
 
 fn main() {
-    let mut name: Transient<SmallString> = Transient::new();
-    let mut loves: Transient<Id> = Transient::new();
+    let mut name: Column<SmallString> = Column::new();
+    let mut loves: Column<Id> = Column::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();

@@ -1,4 +1,4 @@
-pub mod transientconstraint;
+pub mod columnconstraint;
 
 use std::collections::{HashMap, HashSet};
 
@@ -8,18 +8,18 @@ use std::marker::PhantomData;
 use crate::query::Variable;
 use crate::{Id, Value, Valuelike};
 
-use self::transientconstraint::TransientConstraint;
+use self::columnconstraint::ColumnConstraint;
 
 #[derive(Debug, Clone)]
-pub struct Transient<V: Valuelike> {
+pub struct Column<V: Valuelike> {
     pub ev: HashMap<Id, HashSet<Value>>,
     pub ve: HashMap<Value, HashSet<Id>>,
     pv: PhantomData<V>,
 }
 
-impl<V: Valuelike> Transient<V> {
-    pub fn new() -> Transient<V> {
-        Transient {
+impl<V: Valuelike> Column<V> {
+    pub fn new() -> Self {
+        Self {
             ev: HashMap::new(),
             ve: HashMap::new(),
             pv: PhantomData,
@@ -38,22 +38,22 @@ impl<V: Valuelike> Transient<V> {
         self.ve.entry(value).or_default().remove(e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> TransientConstraint<'a, V> {
-        TransientConstraint::new(e, v, self)
+    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> ColumnConstraint<'a, V> {
+        ColumnConstraint::new(e, v, self)
     }
 }
 
-impl<'a, V> FromIterator<&'a (Id, V)> for Transient<V>
+impl<'a, V> FromIterator<&'a (Id, V)> for Column<V>
 where
     V: Valuelike,
 {
     fn from_iter<I: IntoIterator<Item = &'a (Id, V)>>(iter: I) -> Self {
-        let mut transient = Transient::new();
+        let mut column = Self::new();
 
         for (e, v) in iter {
-            transient.insert(e, v);
+            column.insert(e, v);
         }
-        transient
+        column
     }
 }
 
@@ -65,7 +65,7 @@ mod tests {
     proptest! {
         #[test]
         fn put(entries in prop::collection::vec((crate::id::RandId(), crate::id::RandId()), 1..1024)) {
-            Transient::from_iter(entries.iter());
+            Column::from_iter(entries.iter());
         }
     }
 }

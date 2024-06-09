@@ -182,7 +182,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         head_key: u8,
         end_depth: usize,
         child: Head<KEY_LEN, O, S>,
-        child_hash: u128,
     ) -> Head<KEY_LEN, O, S> {
         unsafe {
             let layout = Layout::new::<Self>();
@@ -200,7 +199,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     childleaf: child.childleaf(),
                     leaf_count: child.count(),
                     segment_count: child.count_segment(end_depth),
-                    hash: child_hash,
+                    hash: child.hash(),
                     child_table: [Some(child), None],
                 },
             );

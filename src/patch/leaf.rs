@@ -12,6 +12,7 @@ use super::*;
 #[repr(C)]
 pub(crate) struct Leaf<const KEY_LEN: usize> {
     pub key: [u8; KEY_LEN],
+    hash: u128,
     rc: atomic::AtomicU32,
 }
 
@@ -23,10 +24,15 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             if ptr.is_null() {
                 panic!("Allocation failed!");
             }
+            let mut hasher = SipHasher24::new_with_key(&SIP_KEY);
+            hasher.write(&key[..]);
+            let hash = hasher.finish128().into();
+
             std::ptr::write(
                 ptr,
                 Self {
                     key: *key,
+                    hash,
                     rc: atomic::AtomicU32::new(1),
                 },
             );
@@ -70,11 +76,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     }
 
     pub(crate) unsafe fn hash(node: *const Self) -> u128 {
-        unsafe {
-            let mut hasher = SipHasher24::new_with_key(&SIP_KEY);
-            hasher.write(&(*node).key[..]);
-            return hasher.finish128().into();
-        }
+        (*node).hash
     }
 
     pub(crate) unsafe fn infixes<

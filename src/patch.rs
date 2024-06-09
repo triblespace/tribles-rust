@@ -341,10 +341,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub unsafe fn upsert<F>(
         &mut self,
         inserted: Head<KEY_LEN, O, S>,
-        inserted_hash: u128,
         update: F,
     ) where
-        F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>, u128),
+        F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
     {
         self.cow();
         match self.body() {
@@ -357,7 +356,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     let old_child_segment_count = child.count_segment((*branch).end_depth as usize);
                     let old_child_leaf_count = child.count();
 
-                    update(child, inserted, inserted_hash);
+                    update(child, inserted);
 
                     (*branch).hash = ((*branch).hash ^ old_child_hash) ^ child.hash();
                     (*branch).segment_count = ((*branch).segment_count - old_child_segment_count)
@@ -368,7 +367,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     let end_depth = (*branch).end_depth as usize;
                     (*branch).leaf_count += inserted.count();
                     (*branch).segment_count += inserted.count_segment(end_depth);
-                    (*branch).hash ^= inserted_hash;
+                    (*branch).hash ^= inserted.hash();
 
                     self.insert_child(inserted);
                 }
@@ -430,7 +429,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn insert_leaf(&mut self, leaf: Self, leaf_hash: u128, start_depth: usize) {
+    pub(crate) fn insert_leaf(&mut self, leaf: Self, start_depth: usize) {
         unsafe {
             let head_depth = self.end_depth();
             let head_key = self.leaf_key();
@@ -444,24 +443,21 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.key(),
                         depth,
                         leaf.with_start(depth),
-                        leaf_hash,
                     );
 
                     let old_head = std::mem::replace(self, new_head);
-                    let old_head_hash = old_head.hash();
 
                     self.upsert(
                         old_head.with_start(depth),
-                        old_head_hash,
-                        |_, _, _| unreachable!(),
+                        |_, _| unreachable!(),
                     );
                     return;
                 }
             }
 
             if end_depth != KEY_LEN {
-                self.upsert(leaf, leaf_hash, |child, inserted, inserted_hash| {
-                    child.insert_leaf(inserted, inserted_hash, head_depth)
+                self.upsert(leaf, |child, inserted| {
+                    child.insert_leaf(inserted, head_depth)
                 });
             }
         }
@@ -546,22 +542,20 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.key(),
                         depth,
                         other.with_start(depth),
-                        other_hash,
                     );
 
                     let old_self = std::mem::replace(self, new_head);
 
                     self.upsert(
                         old_self.with_start(depth),
-                        self_hash,
-                        |_, _, _| unreachable!(),
+                        |_, _| unreachable!(),
                     );
                     return;
                 }
             }
 
             if self_depth < other_depth {
-                self.upsert(other, other_hash, |child, inserted, _| {
+                self.upsert(other, |child, inserted| {
                     child.union(inserted, self_depth)
                 });
                 return;
@@ -570,15 +564,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             if other_depth < self_depth {
                 let new_self = other.with_start(at_depth);
                 let old_self = std::mem::replace(self, new_self);
-                self.upsert(old_self, self_hash, |child, inserted, _| {
+                self.upsert(old_self, |child, inserted| {
                     child.union(inserted, other_depth)
                 });
                 return;
             }
 
             other.take_or_clone_children(|other_child| {
-                let other_hash = other_child.hash();
-                self.upsert(other_child, other_hash, |child, inserted, _| {
+                self.upsert(other_child, |child, inserted| {
                     child.union(inserted, self_depth)
                 });
             });
@@ -734,7 +727,7 @@ where
 
     pub fn insert(&mut self, entry: &Entry<KEY_LEN>) {
         if let Some(root) = &mut self.root {
-            root.insert_leaf(entry.leaf(), entry.hash, 0);
+            root.insert_leaf(entry.leaf(), 0);
         } else {
             self.root.replace(entry.leaf());
         }

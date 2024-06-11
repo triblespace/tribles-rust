@@ -1,6 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hex::ToHex;
-use itertools::Itertools;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -25,10 +23,6 @@ use im::OrdSet;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-
-use peak_alloc::PeakAlloc;
-#[global_allocator]
-static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 
 NS! {
     pub namespace knights {
@@ -77,8 +71,6 @@ fn std_benchmark(c: &mut Criterion) {
             b.iter(|| black_box(&set).iter().count());
         });
     }
-    //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
-    //println!("The max amount that was used {}", peak_mem);
     group.finish();
 }
 
@@ -90,19 +82,14 @@ fn hashtribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = HashTribleSet::new();
                 for t in black_box(&samples) {
                     set.insert(t);
                 }
-                let after_mem = PEAK_ALLOC.current_usage_as_gb();
-                println!("HashTribleset size: {}", after_mem - before_mem);
                 set
             })
         });
     }
-    //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
-    //println!("The max amount that was used {}", peak_mem);
     group.finish();
 }
 
@@ -123,8 +110,6 @@ fn im_benchmark(c: &mut Criterion) {
             b.iter(|| black_box(&set).iter().count());
         });
     }
-    //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
-    //println!("The max amount that was used {}", peak_mem);
     group.finish();
 }
 
@@ -208,13 +193,10 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = TribleSet::new();
                 for t in black_box(&samples) {
                     set.insert(t);
                 }
-                let after_mem = PEAK_ALLOC.current_usage_as_gb();
-                println!("Tribleset size: {}", after_mem - before_mem);
                 set
             })
         });
@@ -422,7 +404,7 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
+                //let before_mem = PEAK_ALLOC.current_usage();
                 let mut kb: TribleSet = TribleSet::new();
                 (0..i).for_each(|_| {
                     let lover_a = ufoid();
@@ -436,11 +418,11 @@ fn entities_benchmark(c: &mut Criterion) {
                         loves: lover_a
                     });
                 });
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!(
-                    "Trible size: {}",
-                    (after_mem - before_mem) / kb.len() as usize
-                );
+                //let after_mem = PEAK_ALLOC.current_usage();
+                //println!(
+                //    "Trible size: {}",
+                //    (after_mem - before_mem) / kb.len() as usize
+                //);
                 kb
             })
         });
@@ -537,6 +519,45 @@ fn entities_benchmark(c: &mut Criterion) {
                         },
                     );
                 kb
+            })
+        });
+    }
+
+    for i in [1000000] {
+        let batch_size = 100000;
+        group.sample_size(10);
+        group.throughput(Throughput::Elements(4 * i));
+        group.bench_function(BenchmarkId::new("union/parallel/batched", 4 * i), |b| {
+            let kbs = (0..i / batch_size)
+                .into_par_iter()
+                .map(|i| {
+                    println!("start batch {}", i);
+                    let batch = (0..batch_size)
+                        .flat_map(|_| {
+                            let lover_a = ufoid();
+                            let lover_b = ufoid();
+
+                            [
+                                knights::entity!(lover_a, {
+                                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                                    loves: lover_b
+                                }),
+                                knights::entity!(lover_b, {
+                                    name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                                    loves: lover_a
+                                }),
+                            ]
+                        })
+                        .fold(TribleSet::new(), |mut kb, set| {
+                            kb.union(set);
+                            kb
+                        });
+                    println!("stop batch {}", i);
+                    batch
+                })
+                .collect::<Vec<_>>();
+            b.iter_with_large_drop(|| {
+                TribleSet::union_all(kbs.clone())
             })
         });
     }
@@ -742,6 +763,7 @@ fn column_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+/*
 fn oxigraph_benchmark(c: &mut Criterion) {
     use oxigraph::model::*;
     use oxigraph::sparql::QueryResults;
@@ -762,7 +784,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("insert dataset", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
+                //let before_mem = PEAK_ALLOC.current_usage();
 
                 let mut dataset = Dataset::default();
                 (0..i).for_each(|_| {
@@ -807,11 +829,11 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                     );
                     dataset.insert(&quad);
                 });
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!(
-                    "Quad size: {}",
-                    (after_mem - before_mem) / dataset.len() as usize
-                );
+                //let after_mem = PEAK_ALLOC.current_usage();
+                //println!(
+                //    "Quad size: {}",
+                //    (after_mem - before_mem) / dataset.len() as usize
+                //);
                 dataset
             })
         });
@@ -822,7 +844,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("insert store", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
+                //let before_mem = PEAK_ALLOC.current_usage();
 
                 let store = Store::new().unwrap();
                 (0..i).for_each(|_| {
@@ -867,8 +889,8 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                     );
                     store.insert(&quad).unwrap();
                 });
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!("Quad size: {}", (after_mem - before_mem) / (4 * i) as usize);
+                //let after_mem = PEAK_ALLOC.current_usage();
+                //println!("Quad size: {}", (after_mem - before_mem) / (4 * i) as usize);
                 store
             })
         });
@@ -1029,18 +1051,19 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     group.finish();
 }
+*/
 
 criterion_group!(
     benches,
-    std_benchmark,
-    im_benchmark,
-    patch_benchmark,
-    tribleset_benchmark,
-    archive_benchmark,
+    //std_benchmark,
+    //im_benchmark,
+    //patch_benchmark,
+    //tribleset_benchmark,
+    //archive_benchmark,
     entities_benchmark,
-    query_benchmark,
-    column_benchmark,
-    hashtribleset_benchmark,
-    oxigraph_benchmark
+    //query_benchmark,
+    //column_benchmark,
+    //hashtribleset_benchmark,
+    //oxigraph_benchmark
 );
 criterion_main!(benches);

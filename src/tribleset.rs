@@ -32,6 +32,33 @@ impl TribleSet {
         self.vae.union(other.vae);
     }
 
+    pub fn union_all(sets: Vec<Self>) -> Self {
+        let mut eavs = Vec::new();
+        let mut evas = Vec::new();
+        let mut aevs = Vec::new();
+        let mut aves = Vec::new();
+        let mut veas = Vec::new();
+        let mut vaes = Vec::new();
+
+        for set in sets {
+            eavs.push(set.eav);
+            evas.push(set.eva);
+            aevs.push(set.aev);
+            aves.push(set.ave);
+            veas.push(set.vea);
+            vaes.push(set.vae);
+        }
+
+        Self {
+            eav: PATCH::union_all(eavs),
+            eva: PATCH::union_all(evas),
+            aev: PATCH::union_all(aevs),
+            ave: PATCH::union_all(aves),
+            vea: PATCH::union_all(veas),
+            vae: PATCH::union_all(vaes),
+        }
+    }
+
     pub fn new() -> TribleSet {
         TribleSet {
             eav: PATCH::new(),
@@ -135,6 +162,35 @@ mod tests {
             }));
         }
         assert_eq!(kb.len(), 8000);
+    }
+
+    #[test]
+    fn union_all() {
+        let subsets: Vec<TribleSet> = (0..2000)
+            .into_iter()
+            .flat_map(|_| {
+                let lover_a = ufoid();
+                let lover_b = ufoid();
+                [
+                    knights::entity!(lover_a, {
+                        name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
+                        loves: lover_b
+                    }),
+                    knights::entity!(lover_b, {
+                        name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
+                        loves: lover_a
+                    }),
+                ]
+            })
+            .collect();
+
+        let fold_kb = subsets.iter().cloned().fold(TribleSet::new(), |mut a, s| {
+            a.union(s);
+            a
+        });
+        let all_kb = TribleSet::union_all(subsets);
+
+        assert_eq!(fold_kb, all_kb);
     }
 
     #[test]

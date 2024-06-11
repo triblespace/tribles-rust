@@ -1,8 +1,8 @@
 use std::convert::TryInto;
 
+use tribles::column::Column;
 use tribles::query::and;
 use tribles::query::find;
-use tribles::column::Column;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;

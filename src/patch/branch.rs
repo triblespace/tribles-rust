@@ -327,3 +327,243 @@ create_grow!(16, 32);
 create_grow!(32, 64);
 create_grow!(64, 128);
 create_grow!(128, 256);
+
+pub(super) fn branch_from<
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+>(
+    end_depth: usize,
+    children: Vec<Head<KEY_LEN, O, S>>,
+) -> Head<KEY_LEN, O, S> {
+    unsafe {
+        let childleaf = children[0].childleaf();
+        let leaf_count = children.iter().map(|c| c.count()).sum();
+        let segment_count = children.iter().map(|c| c.count_segment(end_depth)).sum();
+        let hash = children
+            .iter()
+            .map(|c| c.hash())
+            .reduce(|x, y| x ^ y)
+            .unwrap();
+
+        match children.len() {
+            1..=2 => {
+                let layout = Layout::new::<Branch2<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch2<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch2 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch2, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            3..=4 => unsafe {
+                let layout = Layout::new::<Branch4<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch4<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch4 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch4, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            },
+            5..=8 => {
+                let layout = Layout::new::<Branch8<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch8<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch8 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch8, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            9..=16 => {
+                let layout = Layout::new::<Branch16<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch16<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch16 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch16, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            17..=32 => {
+                let layout = Layout::new::<Branch32<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch32<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch32 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch32, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            33..=64 => {
+                let layout = Layout::new::<Branch64<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch64<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch64 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch64, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            65..=128 => {
+                let layout = Layout::new::<Branch128<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch128<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch128 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch128, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            129..=256 => {
+                let layout = Layout::new::<Branch256<KEY_LEN, O, S>>();
+                let ptr = alloc(layout) as *mut Branch256<KEY_LEN, O, S>;
+                if ptr.is_null() {
+                    panic!("Allocation failed!");
+                }
+                std::ptr::write(
+                    ptr,
+                    Branch256 {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf,
+                        leaf_count,
+                        segment_count,
+                        hash,
+                        child_table: std::array::from_fn(|_| None),
+                    },
+                );
+
+                let mut branch = Head::new(HeadTag::Branch256, 0, ptr);
+                for child in children {
+                    branch.insert_child(child);
+                }
+                branch
+            }
+            _ => panic!("bad child count for branch"),
+        }
+    }
+}

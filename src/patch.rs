@@ -5,6 +5,7 @@ mod branch;
 mod entry;
 mod leaf;
 
+use itertools::Itertools;
 use sptr::Strict;
 
 use branch::*;
@@ -338,17 +339,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub unsafe fn upsert<F>(
-        &mut self,
-        inserted: Head<KEY_LEN, O, S>,
-        update: F,
-    ) where
+    pub fn upsert<F>(&mut self, inserted: Head<KEY_LEN, O, S>, update: F)
+    where
         F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
     {
         self.cow();
         match self.body() {
             Body::Leaf(_) => panic!("upsert on leaf"),
-            Body::Branch(branch) => {
+            Body::Branch(branch) => unsafe {
                 let inserted = inserted.with_start((*branch).end_depth as usize);
                 let key = inserted.key();
                 if let Some(child) = (*branch).child_table.table_get_mut(key) {
@@ -357,7 +355,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     let old_child_leaf_count = child.count();
 
                     update(child, inserted);
-
                     (*branch).hash = ((*branch).hash ^ old_child_hash) ^ child.hash();
                     (*branch).segment_count = ((*branch).segment_count - old_child_segment_count)
                         + child.count_segment((*branch).end_depth as usize);
@@ -368,10 +365,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     (*branch).leaf_count += inserted.count();
                     (*branch).segment_count += inserted.count_segment(end_depth);
                     (*branch).hash ^= inserted.hash();
-
                     self.insert_child(inserted);
                 }
-            }
+            },
         }
     }
 
@@ -447,10 +443,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
                     let old_head = std::mem::replace(self, new_head);
 
-                    self.upsert(
-                        old_head.with_start(depth),
-                        |_, _| unreachable!(),
-                    );
+                    self.upsert(old_head.with_start(depth), |_, _| unreachable!());
                     return;
                 }
             }
@@ -534,57 +527,110 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
         let self_key = self.leaf_key();
         let other_key = other.leaf_key();
-        unsafe {
-            for depth in at_depth..std::cmp::min(self_depth, other_depth) {
-                let i = O::key_index(depth);
-                if self_key[i] != other_key[i] {
-                    let new_head = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::new(
-                        self.key(),
-                        depth,
-                        other.with_start(depth),
-                    );
+        for depth in at_depth..std::cmp::min(self_depth, other_depth) {
+            let i = O::key_index(depth);
+            if self_key[i] != other_key[i] {
+                let new_head = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::new(
+                    self.key(),
+                    depth,
+                    other.with_start(depth),
+                );
 
-                    let old_self = std::mem::replace(self, new_head);
+                let old_self = std::mem::replace(self, new_head);
 
-                    self.upsert(
-                        old_self.with_start(depth),
-                        |_, _| unreachable!(),
-                    );
-                    return;
-                }
-            }
-
-            if self_depth < other_depth {
-                self.upsert(other, |child, inserted| {
-                    child.union(inserted, self_depth)
-                });
+                self.upsert(old_self.with_start(depth), |_, _| unreachable!());
                 return;
             }
-
-            if other_depth < self_depth {
-                let new_self = other.with_start(at_depth);
-                let old_self = std::mem::replace(self, new_self);
-                self.upsert(old_self, |child, inserted| {
-                    child.union(inserted, other_depth)
-                });
-                return;
-            }
-
-            other.take_or_clone_children(|other_child| {
-                self.upsert(other_child, |child, inserted| {
-                    child.union(inserted, self_depth)
-                });
-            });
         }
+
+        if self_depth < other_depth {
+            self.upsert(other, |child, inserted| child.union(inserted, self_depth));
+            return;
+        }
+
+        if other_depth < self_depth {
+            let new_self = other.with_start(at_depth);
+            let old_self = std::mem::replace(self, new_self);
+            self.upsert(old_self, |child, inserted| {
+                child.union(inserted, other_depth)
+            });
+            return;
+        }
+
+        other.take_or_clone_children(|other_child| {
+            self.upsert(other_child, |child, inserted| {
+                child.union(inserted, self_depth)
+            });
+        });
     }
 
-    pub(crate) fn take_or_clone_children<F>(&self, f: F)
+    pub(crate) fn union_all(heads: Vec<Self>, at_depth: usize) -> Self {
+        let mut heads: Vec<Self> = heads.into_iter().unique_by(|head| head.hash()).collect();
+        if heads.len() == 1 {
+            return heads.pop().expect("we know that len == 1").with_start(at_depth);
+        }
+
+        let min_depth = heads
+            .iter()
+            .map(|h| h.end_depth())
+            .min()
+            .expect("union_all is always passed some heads");
+
+        for depth in at_depth..min_depth {
+            let i = O::key_index(depth);
+            if heads
+                .windows(2)
+                .any(|w| w[0].leaf_key()[i] != w[1].leaf_key()[i])
+            {
+                let mut unions = Vec::new();
+
+                heads.sort_by_key(|h| h.leaf_key()[i]);
+                for (_, group) in heads.into_iter().group_by(|h| h.leaf_key()[i]).into_iter() {
+                    let group = group.collect();
+                    let union = Self::union_all(group, depth);
+                    unions.push(union);
+                }
+
+                return branch_from(depth, unions).with_start(at_depth);
+            }
+        }
+
+        let mut flattened = Vec::new();
+
+        for head in heads {
+            if head.end_depth() == min_depth {
+                head.take_or_clone_children(|child| {
+                    flattened.push(child);
+                });
+            } else {
+                flattened.push(head.with_start(min_depth));
+            }
+        }
+
+        let mut heads: Vec<Self> = flattened
+            .into_iter()
+            .unique_by(|head| head.hash())
+            .collect();
+
+        let mut unions = Vec::new();
+        let i = O::key_index(min_depth);
+        heads.sort_by_key(|h| h.leaf_key()[i]);
+        for (_, group) in heads.into_iter().group_by(|h| h.leaf_key()[i]).into_iter() {
+            let group = group.collect();
+            let union = Self::union_all(group, min_depth);
+            unions.push(union);
+        }
+
+        return branch_from(min_depth, unions).with_start(at_depth);
+    }
+
+    pub(crate) fn take_or_clone_children<F>(self, mut f: F)
     where
         F: FnMut(Self),
     {
         unsafe {
             match self.body() {
-                Body::Leaf(_) => panic!("take_or_clone_children on leaf"),
+                Body::Leaf(_) => f(self),
                 Body::Branch(branch) => {
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::take_or_clone_children(
                         branch, f,
@@ -785,6 +831,16 @@ where
                 self.root.replace(other);
             }
         }
+    }
+
+    pub fn union_all(sets: Vec<Self>) -> Self {
+        let mut roots: Vec<Head<KEY_LEN, O, S>> =
+            sets.into_iter().filter_map(|set| set.root).collect();
+        let root = match roots.len() {
+            0 | 1 => roots.pop(),
+            _ => Some(Head::<KEY_LEN, O, S>::union_all(roots, 0)),
+        };
+        Self { root }
     }
 }
 

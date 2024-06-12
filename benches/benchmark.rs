@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hex::ToHex;
-use itertools::Itertools;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+use tribles::fucid::FUCIDgen;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::iter::FromIterator;
@@ -13,7 +13,7 @@ use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, 
 use tribles::{and, types::SmallString, Id, NS};
 
 use tribles::test::hashtribleset::HashTribleSet;
-use tribles::ufoid;
+use tribles::{fucid, ufoid};
 use tribles::{find, trible::*};
 
 use tribles::patch::{Entry, IdentityOrder};
@@ -26,9 +26,9 @@ use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 
-use peak_alloc::PeakAlloc;
-#[global_allocator]
-static PEAK_ALLOC: PeakAlloc = PeakAlloc;
+//use peak_alloc::PeakAlloc;
+//#[global_allocator]
+//static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 
 NS! {
     pub namespace knights {
@@ -43,18 +43,18 @@ fn random_tribles(length: usize) -> Vec<Trible> {
 
     let mut vec = Vec::new();
 
-    let mut e = ufoid();
-    let mut a = ufoid();
+    let mut e = fucid();
+    let mut a = fucid();
 
     for _i in 0..length {
         if rng.gen_bool(0.5) {
-            e = ufoid();
+            e = fucid();
         }
         if rng.gen_bool(0.5) {
-            a = ufoid();
+            a = fucid();
         }
 
-        let v = ufoid();
+        let v = fucid();
         vec.push(Trible::new(e, a, v))
     }
     return vec;
@@ -90,13 +90,13 @@ fn hashtribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage_as_gb();
+                //let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = HashTribleSet::new();
                 for t in black_box(&samples) {
                     set.insert(t);
                 }
-                let after_mem = PEAK_ALLOC.current_usage_as_gb();
-                println!("HashTribleset size: {}", after_mem - before_mem);
+                //let after_mem = PEAK_ALLOC.current_usage_as_gb();
+                //println!("HashTribleset size: {}", after_mem - before_mem);
                 set
             })
         });
@@ -208,13 +208,13 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage_as_gb();
+                //let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = TribleSet::new();
                 for t in black_box(&samples) {
                     set.insert(t);
                 }
-                let after_mem = PEAK_ALLOC.current_usage_as_gb();
-                println!("Tribleset size: {}", after_mem - before_mem);
+                //let after_mem = PEAK_ALLOC.current_usage_as_gb();
+                //println!("Tribleset size: {}", after_mem - before_mem);
                 set
             })
         });
@@ -401,8 +401,8 @@ fn entities_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("entities", 4), |b| {
         b.iter_with_large_drop(|| {
             let mut kb = TribleSet::new();
-            let lover_a = ufoid();
-            let lover_b = ufoid();
+            let lover_a = fucid();
+            let lover_b = fucid();
 
             kb.union(knights::entity!(lover_a, {
                 name: Name(EN).fake::<String>()[..].try_into().unwrap(),
@@ -422,11 +422,11 @@ fn entities_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
+                //let before_mem = PEAK_ALLOC.current_usage();
                 let mut kb: TribleSet = TribleSet::new();
                 (0..i).for_each(|_| {
-                    let lover_a = ufoid();
-                    let lover_b = ufoid();
+                    let lover_a = fucid();
+                    let lover_b = fucid();
                     knights::entity!(&mut kb, lover_a, {
                         name: Name(EN).fake::<String>()[..].try_into().unwrap(),
                         loves: lover_b
@@ -436,11 +436,11 @@ fn entities_benchmark(c: &mut Criterion) {
                         loves: lover_a
                     });
                 });
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!(
-                    "Trible size: {}",
-                    (after_mem - before_mem) / kb.len() as usize
-                );
+                //let after_mem = PEAK_ALLOC.current_usage();
+                //println!(
+                //    "Trible size: {}",
+                //    (after_mem - before_mem) / kb.len() as usize
+                //);
                 kb
             })
         });
@@ -453,8 +453,8 @@ fn entities_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
                     .flat_map(|_| {
-                        let lover_a = ufoid();
-                        let lover_b = ufoid();
+                        let lover_a = fucid();
+                        let lover_b = fucid();
 
                         [
                             knights::entity!(lover_a, {
@@ -482,8 +482,8 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
             let sets: Vec<_> = (0..i)
                 .flat_map(|_| {
-                    let lover_a = ufoid();
-                    let lover_b = ufoid();
+                    let lover_a = fucid();
+                    let lover_b = fucid();
 
                     [
                         knights::entity!(lover_a, {
@@ -515,8 +515,8 @@ fn entities_benchmark(c: &mut Criterion) {
                 let kb = (0..i)
                     .into_par_iter()
                     .flat_map(|_| {
-                        let lover_a = ufoid();
-                        let lover_b = ufoid();
+                        let lover_a = fucid();
+                        let lover_b = fucid();
 
                         [
                             knights::entity!(lover_a, {
@@ -540,6 +540,41 @@ fn entities_benchmark(c: &mut Criterion) {
             })
         });
     }
+
+    let total_unioned = 1000000;
+    for i in [2, 10, 100, 1000] {
+        group.throughput(Throughput::Elements(4 * total_unioned as u64));
+        group.bench_with_input(BenchmarkId::new("union/parallel/chunked", i), &i, |b, &i| {
+            let subsets: Vec<TribleSet> = (0..i)
+            .into_par_iter()
+            .map(|_| {
+                let mut gen = FUCIDgen::new();
+                (0..total_unioned / i).flat_map(|_| {
+                    let lover_a = gen.next();
+                    let lover_b = gen.next();
+    
+                    [
+                        knights::entity!(lover_a, {
+                            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                            loves: lover_b
+                        }),
+                        knights::entity!(lover_b, {
+                            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                            loves: lover_a
+                        }),
+                    ]
+                }).fold(TribleSet::new(), |mut kb, set| {
+                    kb.union(set);
+                    kb
+                })
+            }).collect();
+            b.iter_with_large_drop(|| {
+                subsets.iter().cloned().fold(TribleSet::new(), |mut kb, set| {
+                    kb.union(set);
+                    kb
+                })
+            });
+        });
 
     group.finish();
 }
@@ -762,7 +797,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("insert dataset", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
+                //let before_mem = PEAK_ALLOC.current_usage();
 
                 let mut dataset = Dataset::default();
                 (0..i).for_each(|_| {
@@ -807,11 +842,11 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                     );
                     dataset.insert(&quad);
                 });
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!(
-                    "Quad size: {}",
-                    (after_mem - before_mem) / dataset.len() as usize
-                );
+                //let after_mem = PEAK_ALLOC.current_usage();
+                //println!(
+                //    "Quad size: {}",
+                //    (after_mem - before_mem) / dataset.len() as usize
+                //);
                 dataset
             })
         });
@@ -822,7 +857,7 @@ fn oxigraph_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(4 * i));
         group.bench_function(BenchmarkId::new("insert store", 4 * i), |b| {
             b.iter_with_large_drop(|| {
-                let before_mem = PEAK_ALLOC.current_usage();
+                //let before_mem = PEAK_ALLOC.current_usage();
 
                 let store = Store::new().unwrap();
                 (0..i).for_each(|_| {
@@ -867,8 +902,8 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                     );
                     store.insert(&quad).unwrap();
                 });
-                let after_mem = PEAK_ALLOC.current_usage();
-                println!("Quad size: {}", (after_mem - before_mem) / (4 * i) as usize);
+                //let after_mem = PEAK_ALLOC.current_usage();
+                //println!("Quad size: {}", (after_mem - before_mem) / (4 * i) as usize);
                 store
             })
         });

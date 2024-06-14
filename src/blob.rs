@@ -1,10 +1,9 @@
 use std::fmt::Debug;
-use digest::{consts::U32, Digest, OutputSizeUser};
+use digest::{consts::U32, Digest};
 
 use crate::{types::Hash, Handle};
 
 pub use minibytes::Bytes;
-
 
 /// A type that is convertible to and from a [Blob].
 pub trait Bloblike: Sized {
@@ -12,7 +11,7 @@ pub trait Bloblike: Sized {
     fn read_blob(blob: Bytes) -> Result<Self, BlobParseError>;
     fn as_handle<H>(&self) -> Handle<H, Self>
     where
-        H: Digest + OutputSizeUser<OutputSize = U32>;
+        H: Digest<OutputSize = U32>;
 }
 
 impl<'a> Bloblike for Bytes {
@@ -26,7 +25,7 @@ impl<'a> Bloblike for Bytes {
 
     fn as_handle<H>(&self) -> Handle<H, Self>
     where
-        H: Digest + OutputSizeUser<OutputSize = U32>,
+        H: Digest<OutputSize = U32>,
     {
         let digest = H::digest(self);
         unsafe { Handle::new(Hash::new(digest.into())) }

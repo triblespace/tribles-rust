@@ -1,5 +1,4 @@
-use digest::typenum::U32;
-use digest::{Digest, OutputSizeUser};
+use digest::{ Digest, typenum::U32 };
 use minibytes::Bytes;
 
 use crate::types::Hash;
@@ -24,7 +23,7 @@ impl<H> PartialEq for BlobSet<H> {
 
 impl<H> BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     pub fn union<'a>(&mut self, other: Self) {
         self.blobs.extend(other);
@@ -85,7 +84,7 @@ where
 
 impl<H> FromIterator<(Hash<H>, Bytes)> for BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     fn from_iter<I: IntoIterator<Item = (Hash<H>, Bytes)>>(iter: I) -> Self {
         let mut set = BlobSet::new();
@@ -100,7 +99,7 @@ where
 
 impl<'a, H> IntoIterator for BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Item = (Hash<H>, Bytes);
     type IntoIter = std::collections::hash_map::IntoIter<Hash<H>, Bytes>;
@@ -112,7 +111,7 @@ where
 
 impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Item = (&'a Hash<H>, &'a Bytes);
     type IntoIter = std::collections::hash_map::Iter<'a, Hash<H>, Bytes>;

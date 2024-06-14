@@ -18,6 +18,8 @@ use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 
 use sucds::int_vectors::CompactVector;
 
+use digest::{typenum::U32, Digest};
+
 use crate::TribleSet;
 
 pub use universe::*;
@@ -264,7 +266,7 @@ where
 
     fn as_handle<H>(&self) -> crate::Handle<H, Self>
     where
-        H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32>,
+        H: Digest<OutputSize = U32>,
     {
         todo!()
     }

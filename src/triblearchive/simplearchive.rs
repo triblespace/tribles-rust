@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-
+use digest::{typenum::U32, Digest};
 use minibytes::Bytes;
 
 use crate::{
@@ -56,7 +56,7 @@ impl Bloblike for SimpleArchive {
 
     fn as_handle<H>(&self) -> Handle<H, Self>
     where
-        H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32>,
+        H: Digest<OutputSize = U32>,
     {
         let digest = H::digest(&self.0);
         unsafe { Handle::new(Hash::new(digest.into())) }

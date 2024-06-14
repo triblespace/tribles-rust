@@ -7,9 +7,9 @@ use std::marker::PhantomData;
 use futures::{Stream, StreamExt};
 use minibytes::Bytes;
 
-use digest::{typenum::U32, Digest, OutputSizeUser};
+use digest::{typenum::U32, Digest};
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
-use object_store::{PutPayload, UpdateVersion};
+use object_store::UpdateVersion;
 use url::Url;
 
 use hex::FromHex;
@@ -44,7 +44,7 @@ pub enum ListErr {
 
 impl<H> List<H> for ObjectRepo<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Err = ListErr;
 
@@ -68,7 +68,7 @@ where
 
 impl<H> Pull<H> for ObjectRepo<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Err = object_store::Error;
 
@@ -82,7 +82,7 @@ where
 
 impl<H> Push<H> for ObjectRepo<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Err = object_store::Error;
 
@@ -181,7 +181,7 @@ impl From<TryFromSliceError> for CommitErr {
 
 impl<H> Head<H> for ObjectHead<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type CheckoutErr = CheckoutErr;
     type CommitErr = CommitErr;

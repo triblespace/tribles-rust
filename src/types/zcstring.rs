@@ -1,5 +1,5 @@
 use minibytes::Bytes;
-
+use digest::{Digest, typenum::U32};
 use crate::{BlobParseError, Bloblike, Handle};
 
 use super::Hash;
@@ -34,7 +34,7 @@ impl Bloblike for ZCString {
 
     fn as_handle<H>(&self) -> Handle<H, Self>
     where
-        H: digest::Digest + digest::OutputSizeUser<OutputSize = digest::consts::U32>,
+        H: Digest<OutputSize = U32>,
     {
         let digest = H::digest(self.as_bytes());
         unsafe { Handle::new(Hash::new(digest.into())) }
@@ -43,16 +43,13 @@ impl Bloblike for ZCString {
 
 #[cfg(test)]
 mod tests {
-    use blake2::Blake2b;
-    use digest::typenum::U32;
-
-    use crate::{types::ZCString, Handle};
+    use crate::{types::ZCString, Handle, types::hash::Blake2b};
 
     #[test]
     fn string_handle() {
         let s: ZCString = String::from("hello world!").into();
-        let h: Handle<Blake2b<U32>, ZCString> = Handle::from(&s);
-        let h2: Handle<Blake2b<U32>, ZCString> = Handle::from(&s);
+        let h: Handle<Blake2b, ZCString> = Handle::from(&s);
+        let h2: Handle<Blake2b, ZCString> = Handle::from(&s);
 
         assert!(h == h2);
     }

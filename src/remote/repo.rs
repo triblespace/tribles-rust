@@ -4,7 +4,7 @@ use std::{
     fmt::{self, Debug},
 };
 
-use digest::{typenum::U32, Digest, OutputSizeUser};
+use digest::{typenum::U32, Digest};
 use futures::{stream, Stream, StreamExt};
 use minibytes::Bytes;
 
@@ -50,8 +50,8 @@ pub async fn transfer<'a, BS, BT, HS, HT, S>(
 where
     BS: List<HS> + Pull<HS>,
     BT: Push<HT>,
-    HS: 'static + Digest + OutputSizeUser<OutputSize = U32>,
-    HT: 'static + Digest + OutputSizeUser<OutputSize = U32>,
+    HS: 'static + Digest<OutputSize = U32>,
+    HT: 'static + Digest<OutputSize = U32>,
 {
     let l = source.list();
     let r = l.then(
@@ -102,7 +102,7 @@ pub trait Repo<H>: List<H> + Pull<H> + Push<H> {
 
 impl<H, T> Repo<H> for T
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
     T: List<H> + Pull<H> + Push<H>,
 {
     type ListErr = <Self as List<H>>::Err;
@@ -123,7 +123,7 @@ impl Error for NotFoundErr {}
 
 impl<H> List<H> for BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Err = Infallible;
 
@@ -134,7 +134,7 @@ where
 
 impl<H> Pull<H> for BlobSet<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     type Err = NotFoundErr;
 

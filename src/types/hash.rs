@@ -1,6 +1,6 @@
 use std::{fmt, hash::Hasher, marker::PhantomData};
 
-use digest::{Digest, OutputSizeUser};
+use digest::{Digest, typenum::U32};
 use hex::ToHex;
 use minibytes::Bytes;
 
@@ -22,7 +22,7 @@ impl<H> Hash<H> {
 }
 impl<H> Hash<H>
 where
-    H: Digest + OutputSizeUser<OutputSize = U32>,
+    H: Digest<OutputSize = U32>,
 {
     pub fn digest(blob: &Bytes) -> Self {
         Self::new(H::digest(&blob).into())
@@ -71,7 +71,7 @@ impl<H> Valuelike for Hash<H> {
     }
 }
 
-use blake2::{digest::typenum::U32, Blake2b as Blake2bUnsized};
+use blake2::Blake2b as Blake2bUnsized;
 pub type Blake2b = Blake2bUnsized<U32>;
 
 pub use blake3::Hasher as Blake3;

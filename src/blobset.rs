@@ -53,7 +53,7 @@ where
         T: Bloblike,
     {
         let blob = self.get_raw(handle.hash)?;
-        Some(T::read_blob(blob.clone()))
+        Some(T::from_blob(blob.clone()))
     }
 
     pub fn get_raw(&self, hash: Hash<H>) -> Option<&Bytes> {

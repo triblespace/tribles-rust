@@ -11,7 +11,7 @@ use crate::{
 pub struct SimpleArchive(Bytes);
 
 impl Bloblike for SimpleArchive {
-    fn read_blob(blob: Bytes) -> Result<Self, BlobParseError> {
+    fn from_blob(blob: Bytes) -> Result<Self, BlobParseError> {
         let len: usize = blob.len();
 
         if len % TRIBLE_LEN != 0 {

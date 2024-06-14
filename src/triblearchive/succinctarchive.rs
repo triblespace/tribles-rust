@@ -260,7 +260,7 @@ where
         todo!()
     }
 
-    fn read_blob(_blob: minibytes::Bytes) -> Result<Self, crate::BlobParseError> {
+    fn from_blob(_blob: minibytes::Bytes) -> Result<Self, crate::BlobParseError> {
         todo!()
     }
 

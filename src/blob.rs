@@ -8,7 +8,7 @@ pub use minibytes::Bytes;
 /// A type that is convertible to and from a [Blob].
 pub trait Bloblike: Sized {
     fn into_blob(self) -> Bytes;
-    fn read_blob(blob: Bytes) -> Result<Self, BlobParseError>;
+    fn from_blob(blob: Bytes) -> Result<Self, BlobParseError>;
     fn as_handle<H>(&self) -> Handle<H, Self>
     where
         H: Digest<OutputSize = U32>;
@@ -19,7 +19,7 @@ impl<'a> Bloblike for Bytes {
         self
     }
 
-    fn read_blob(blob: Bytes) -> Result<Self, BlobParseError> {
+    fn from_blob(blob: Bytes) -> Result<Self, BlobParseError> {
         Ok(blob)
     }
 

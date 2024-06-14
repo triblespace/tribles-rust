@@ -26,7 +26,7 @@ impl Bloblike for ZCString {
         self.0
     }
 
-    fn read_blob(blob: Bytes) -> Result<Self, BlobParseError> {
+    fn from_blob(blob: Bytes) -> Result<Self, BlobParseError> {
         std::str::from_utf8(&blob[..])
             .map_err(|_| BlobParseError::new("failed to convert to utf-8 string"))?;
         Ok(ZCString(blob))

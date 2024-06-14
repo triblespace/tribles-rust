@@ -1,9 +1,10 @@
 use std::fmt::Debug;
-
 use digest::{consts::U32, Digest, OutputSizeUser};
-use minibytes::Bytes;
 
 use crate::{types::Hash, Handle};
+
+pub use minibytes::Bytes;
+
 
 /// A type that is convertible to and from a [Blob].
 pub trait Bloblike: Sized {

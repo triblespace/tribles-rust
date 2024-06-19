@@ -1,5 +1,5 @@
 use digest::{ Digest, typenum::U32 };
-use minibytes::Bytes;
+use dynbytes::Bytes;
 
 use crate::types::Hash;
 use crate::{BlobParseError, Bloblike};

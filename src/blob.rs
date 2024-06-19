@@ -3,7 +3,7 @@ use digest::{consts::U32, Digest};
 
 use crate::{types::Hash, Handle};
 
-pub use minibytes::Bytes;
+pub use dynbytes::Bytes;
 
 /// A type that is convertible to and from a [Blob].
 pub trait Bloblike: Sized {

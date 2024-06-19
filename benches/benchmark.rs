@@ -575,6 +575,7 @@ fn entities_benchmark(c: &mut Criterion) {
                 })
             });
         });
+    }
 
     group.finish();
 }
@@ -1078,4 +1079,5 @@ criterion_group!(
     hashtribleset_benchmark,
     oxigraph_benchmark
 );
+
 criterion_main!(benches);

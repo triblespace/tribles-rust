@@ -6,7 +6,7 @@ use std::{
 
 use digest::{typenum::U32, Digest};
 use futures::{stream, Stream, StreamExt};
-use minibytes::Bytes;
+use dynbytes::Bytes;
 
 use crate::{types::Hash, BlobParseError, BlobSet};
 

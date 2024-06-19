@@ -1,4 +1,4 @@
-use minibytes::Bytes;
+use dynbytes::Bytes;
 use digest::{Digest, typenum::U32};
 use crate::{BlobParseError, Bloblike, Handle};
 

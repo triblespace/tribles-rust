@@ -5,7 +5,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use futures::{Stream, StreamExt};
-use minibytes::Bytes;
+use dynbytes::Bytes;
 
 use digest::{typenum::U32, Digest};
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};

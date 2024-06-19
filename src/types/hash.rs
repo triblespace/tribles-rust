@@ -2,7 +2,7 @@ use std::{fmt, hash::Hasher, marker::PhantomData};
 
 use digest::{Digest, typenum::U32};
 use hex::ToHex;
-use dynbytes::Bytes;
+use anybytes::Bytes;
 
 use crate::{Value, ValueParseError, Valuelike};
 

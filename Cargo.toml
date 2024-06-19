@@ -28,7 +28,7 @@ futures = "0.3.30"
 rayon = "1.7"
 signature = "2.2.0"
 anyhow = "1.0"
-dynbytes = "0.1.0"
+anybytes = "0.1.0"
 bytes = "1.6.0"
 bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
 proptest = { version = "1.4.0", optional = true }

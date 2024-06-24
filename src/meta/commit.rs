@@ -12,7 +12,7 @@ use crate::{
         ed25519 as ed,
         ed25519::{RComponent, SComponent},
         hash::Blake3,
-        SmallString,
+        ShortString,
     },
     Handle, Id, TribleSet,
 };
@@ -20,7 +20,7 @@ use crate::{
 NS! {
     pub namespace commit_ns {
         "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: Handle<Blake3, SimpleArchive>;
-        "12290C0BE0E9207E324F24DDE0D89300" as short_message: SmallString;
+        "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
         "ADB4FFAD247C886848161297EFF5A05B" as authored_by: Id;
         "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: ed::RComponent;
         "1ACE03BF70242B289FDF00E4327C3BC6" as ed25519_signature_s: ed::SComponent;

@@ -276,7 +276,7 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::{find, trible::Trible, types::SmallString, ufoid, Id, NS};
+    use crate::{find, trible::Trible, types::ShortString, ufoid, Id, NS};
 
     use super::*;
     use itertools::Itertools;
@@ -287,8 +287,8 @@ mod tests {
     NS! {
         pub namespace knights {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
-            "328147856cc1984f0806dbb824d2b4cb" as name: SmallString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: SmallString;
+            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
         }
     }
 

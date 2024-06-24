@@ -10,7 +10,7 @@ use sucds::bit_vectors::Rank9Sel;
 use sucds::Serializable;
 use tribles::column::Column;
 use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
-use tribles::{and, types::SmallString, Id, NS};
+use tribles::{and, types::ShortString, Id, NS};
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::{fucid, ufoid};
@@ -33,8 +33,8 @@ use fake::Fake;
 NS! {
     pub namespace knights {
         "39E2D06DBCD9CB96DE5BC46F362CFF31" as loves: Id;
-        "7D4F339CC4AE0BBA2765F34BE1D108EF" as name: SmallString;
-        "3E0C58AC884072EA6429BB00A1BA1DA4" as title: SmallString;
+        "7D4F339CC4AE0BBA2765F34BE1D108EF" as name: ShortString;
+        "3E0C58AC884072EA6429BB00A1BA1DA4" as title: ShortString;
     }
 }
 
@@ -705,7 +705,7 @@ fn query_benchmark(c: &mut Criterion) {
 fn column_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("column");
 
-    let mut name: Column<SmallString> = Column::new();
+    let mut name: Column<ShortString> = Column::new();
     let mut loves: Column<Id> = Column::new();
 
     (0..1000000).for_each(|_| {

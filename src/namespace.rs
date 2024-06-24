@@ -119,7 +119,7 @@ pub use hex_literal;
 /// NS! {
 ///     pub namespace namespace_name {
 ///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::Id;
-///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::types::SmallString;
+///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::types::ShortString;
 ///     }
 /// }
 /// ```
@@ -138,7 +138,7 @@ pub use hex_literal;
 ///   pub mod types {
 ///       use super::*;
 ///       pub use tribles::Id as attr_name;
-///       pub use tribles::types::SmallString as attr_name2;
+///       pub use tribles::types::ShortString as attr_name2;
 ///   }
 /// }
 /// ```
@@ -217,15 +217,15 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, types::SmallString, ufoid, Id, TribleSet};
+    use crate::{query::find, types::ShortString, ufoid, Id, TribleSet};
 
     use std::convert::TryInto;
 
     NS! {
         pub namespace knights {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
-            "328147856cc1984f0806dbb824d2b4cb" as name: SmallString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: SmallString;
+            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
         }
     }
 

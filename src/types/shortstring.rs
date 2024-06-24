@@ -10,10 +10,10 @@ pub enum FromStrError {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
-pub struct SmallString(Value);
+pub struct ShortString(Value);
 
-impl SmallString {
-    pub fn new<S: AsRef<str>>(s: S) -> Result<SmallString, FromStrError> {
+impl ShortString {
+    pub fn new<S: AsRef<str>>(s: S) -> Result<ShortString, FromStrError> {
         let str_ref: &str = s.as_ref();
         let bytes = str_ref.as_bytes();
         if bytes.len() > 32 {
@@ -26,24 +26,24 @@ impl SmallString {
         let mut data: [u8; 32] = [0; 32];
         data[..bytes.len()].copy_from_slice(bytes);
 
-        Ok(SmallString(data))
+        Ok(ShortString(data))
     }
 }
 
-impl Valuelike for SmallString {
+impl Valuelike for ShortString {
     fn from_value(bytes: Value) -> Result<Self, ValueParseError> {
         std::str::from_utf8(&bytes[..])
             .map_err(|_| ValueParseError::new(bytes, "failed to convert to utf-8 string"))?;
-        Ok(SmallString(bytes))
+        Ok(ShortString(bytes))
     }
 
-    fn into_value(smallstring: &Self) -> Value {
-        smallstring.0
+    fn into_value(shortstring: &Self) -> Value {
+        shortstring.0
     }
 }
 
-impl From<&SmallString> for String {
-    fn from(s: &SmallString) -> Self {
+impl From<&ShortString> for String {
+    fn from(s: &ShortString) -> Self {
         unsafe {
             String::from_utf8_unchecked(
                 s.0[0..s.0.iter().position(|&b| b == 0).unwrap_or(s.0.len())].into(),
@@ -52,8 +52,8 @@ impl From<&SmallString> for String {
     }
 }
 
-impl<'a> From<&'a SmallString> for &'a str {
-    fn from(s: &'a SmallString) -> Self {
+impl<'a> From<&'a ShortString> for &'a str {
+    fn from(s: &'a ShortString) -> Self {
         unsafe {
             std::str::from_utf8_unchecked(
                 &s.0[0..s.0.iter().position(|&b| b == 0).unwrap_or(s.0.len())],
@@ -62,10 +62,10 @@ impl<'a> From<&'a SmallString> for &'a str {
     }
 }
 
-impl TryFrom<&str> for SmallString {
+impl TryFrom<&str> for ShortString {
     type Error = FromStrError;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        SmallString::new(s)
+        ShortString::new(s)
     }
 }

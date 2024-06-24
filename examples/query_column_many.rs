@@ -7,12 +7,12 @@ use tribles::column::Column;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use tribles::types::SmallString;
+use tribles::types::ShortString;
 use tribles::ufoid;
 use tribles::Id;
 
 fn main() {
-    let mut name: Column<SmallString> = Column::new();
+    let mut name: Column<ShortString> = Column::new();
     let mut loves: Column<Id> = Column::new();
 
     (0..1000000).for_each(|_| {

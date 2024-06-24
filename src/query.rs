@@ -297,14 +297,14 @@ mod tests {
     use std::{collections::HashSet, convert::TryInto};
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{types::SmallString, ufoid, Id, TribleSet, NS};
+    use crate::{types::ShortString, ufoid, Id, TribleSet, NS};
 
     use super::*;
 
     NS! {
         pub namespace knights {
             "8143F46E812E88C4544E7094080EC523" as loves: Id;
-            "D6E0F2A6E5214E1330565B4D4138E55C" as name: SmallString;
+            "D6E0F2A6E5214E1330565B4D4138E55C" as name: ShortString;
         }
     }
 
@@ -313,12 +313,12 @@ mod tests {
         let mut books = HashSet::new();
         let mut movies = HashSet::new();
 
-        books.insert(SmallString::new("LOTR").unwrap());
-        books.insert(SmallString::new("Dragonrider").unwrap());
-        books.insert(SmallString::new("Highlander").unwrap());
+        books.insert(ShortString::new("LOTR").unwrap());
+        books.insert(ShortString::new("Dragonrider").unwrap());
+        books.insert(ShortString::new("Highlander").unwrap());
 
-        movies.insert(SmallString::new("LOTR").unwrap());
-        movies.insert(SmallString::new("Highlander").unwrap());
+        movies.insert(ShortString::new("LOTR").unwrap());
+        movies.insert(ShortString::new("Highlander").unwrap());
 
         let inter: Vec<_> = find!(ctx, (a), and!(books.has(a), movies.has(a))).collect();
 

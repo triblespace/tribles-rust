@@ -3,7 +3,7 @@ use crate::{
     Value, Valuelike, VALUE_LEN,
 };
 
-use super::{Binding, Constrain, Constraint, Variable, VariableId, VariableSet};
+use super::{Binding, ContainsConstraint, Constraint, Variable, VariableId, VariableSet};
 
 pub struct PatchConstraint<'a, T> {
     variable: Variable<T>,
@@ -50,13 +50,13 @@ where
     }
 }
 
-impl<'a, T> Constrain<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>
+impl<'a, T> ContainsConstraint<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>
 where
     T: Eq + PartialEq + Valuelike + 'a,
 {
     type Constraint = PatchConstraint<'a, T>;
 
-    fn constrain(&'a self, v: Variable<T>) -> Self::Constraint {
+    fn has(&'a self, v: Variable<T>) -> Self::Constraint {
         PatchConstraint::new(v, self)
     }
 }

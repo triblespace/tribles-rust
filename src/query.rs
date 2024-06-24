@@ -104,19 +104,10 @@ where
     }
 }
 
-pub trait Constrain<'a, T> {
+pub trait ContainsConstraint<'a, T> {
     type Constraint: Constraint<'a>;
 
-    fn constrain(&'a self, v: Variable<T>) -> Self::Constraint;
-}
-
-impl<T> Variable<T> {
-    pub fn of<'a, C>(self, c: &'a C) -> C::Constraint
-    where
-        C: Constrain<'a, T>,
-    {
-        c.constrain(self)
-    }
+    fn has(&'a self, v: Variable<T>) -> Self::Constraint;
 }
 
 impl<T> Variable<T> {
@@ -329,18 +320,18 @@ mod tests {
         movies.insert(SmallString::new("LOTR").unwrap());
         movies.insert(SmallString::new("Highlander").unwrap());
 
-        let inter: Vec<_> = find!(ctx, (a), and!(a.of(&books), a.of(&movies),)).collect();
+        let inter: Vec<_> = find!(ctx, (a), and!(books.has(a), movies.has(a))).collect();
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<_> = find!(ctx, (a, b), and!(a.of(&books), b.of(&movies))).collect();
+        let cross: Vec<_> = find!(ctx, (a, b), and!(books.has(a), movies.has(b))).collect();
 
         assert_eq!(cross.len(), 6);
 
         let one: Vec<_> = find!(
             ctx,
             (a),
-            and!(a.of(&books), a.is("LOTR".try_into().unwrap()))
+            and!(books.has(a), a.is("LOTR".try_into().unwrap()))
         )
         .collect();
 

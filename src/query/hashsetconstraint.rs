@@ -44,13 +44,13 @@ where
     }
 }
 
-impl<'a, T> Constrain<'a, T> for HashSet<T>
+impl<'a, T> ContainsConstraint<'a, T> for HashSet<T>
 where
     T: Eq + PartialEq + Hash + Valuelike + Debug + 'a,
 {
     type Constraint = SetConstraint<'a, T>;
 
-    fn constrain(&'a self, v: Variable<T>) -> Self::Constraint {
+    fn has(&'a self, v: Variable<T>) -> Self::Constraint {
         SetConstraint::new(v, self)
     }
 }

@@ -39,12 +39,12 @@ where
         self.blobs.len()
     }
 
-    pub fn put<T>(&mut self, value: T) -> Handle<H, T>
+    pub fn insert<T>(&mut self, value: T) -> Handle<H, T>
     where
         T: Bloblike,
     {
         let blob: Bytes = value.into_blob();
-        let hash = self.put_raw(blob);
+        let hash = self.insert_raw(blob);
         unsafe { Handle::new(hash) }
     }
 
@@ -60,7 +60,7 @@ where
         self.blobs.get(&hash)
     }
 
-    pub fn put_raw(&mut self, blob: Bytes) -> Hash<H> {
+    pub fn insert_raw(&mut self, blob: Bytes) -> Hash<H> {
         let hash = Hash::digest(&blob);
         self.blobs.insert(hash, blob);
         hash
@@ -140,10 +140,10 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.put(ZCString::from(Name(EN).fake::<String>()));
+            blobs_a.insert(ZCString::from(Name(EN).fake::<String>()));
         }
         for _i in 0..1000 {
-            blobs_b.put(ZCString::from(Name(EN).fake::<String>()));
+            blobs_b.insert(ZCString::from(Name(EN).fake::<String>()));
         }
 
         blobs_a.union(blobs_b);
@@ -155,7 +155,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(knights::entity!({
-                description: blobs.put(Name(EN).fake::<String>().into())
+                description: blobs.insert(Name(EN).fake::<String>().into())
             }));
         }
         blobs.keep(kb);

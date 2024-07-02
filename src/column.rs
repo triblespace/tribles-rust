@@ -64,7 +64,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn put(entries in prop::collection::vec((crate::id::RandId(), crate::id::RandId()), 1..1024)) {
+        fn insert(entries in prop::collection::vec((crate::id::RandId(), crate::id::RandId()), 1..1024)) {
             Column::from_iter(entries.iter());
         }
     }

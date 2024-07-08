@@ -44,6 +44,18 @@ impl<H> PartialEq for Hash<H> {
 }
 impl<H> Eq for Hash<H> {}
 
+impl<H> PartialOrd for Hash<H> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<H> Ord for Hash<H> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.bytes.cmp(&other.bytes)
+    }
+}
+
 impl<H> std::hash::Hash for Hash<H> {
     fn hash<S: Hasher>(&self, state: &mut S) {
         self.bytes.hash(state);

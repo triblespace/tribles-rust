@@ -30,6 +30,18 @@ impl<H, T> PartialEq for Handle<H, T> {
 
 impl<H, T> Eq for Handle<H, T> {}
 
+impl<H, T> PartialOrd for Handle<H, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<H, T> Ord for Handle<H, T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
 impl<H, T> fmt::Debug for Handle<H, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

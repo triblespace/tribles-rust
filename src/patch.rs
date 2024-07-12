@@ -4,6 +4,7 @@
 mod branch;
 mod entry;
 mod leaf;
+mod bytetable;
 
 use sptr::Strict;
 
@@ -11,8 +12,7 @@ use branch::*;
 pub use entry::Entry;
 use leaf::*;
 
-use crate::bytetable;
-use crate::bytetable::*;
+use bytetable::*;
 use core::hash::Hasher;
 use rand::thread_rng;
 use rand::RngCore;

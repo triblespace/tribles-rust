@@ -171,17 +171,20 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
 
 /// A cheap hash *cough* identity *cough* function that maps every entry to an
 /// almost linear ordering (modulo `BUCKET_ENTRY_COUNT`) when maximally grown.
+#[inline]
 fn cheap_hash(byte_key: u8) -> u8 {
     byte_key
 }
 
 /// A hash function that uses a lookup table to provide a random bijective
 /// byte -> byte mapping.
+#[inline]
 fn rand_hash(byte_key: u8) -> u8 {
     unsafe { RANDOM_PERMUTATION_HASH[byte_key as usize] }
 }
 
-///
+/// Cut off the upper bits so that it fits in the bucket count.
+#[inline]
 fn compress_hash(slot_count: usize, hash: u8) -> u8 {
     let bucket_count = (slot_count / BUCKET_ENTRY_COUNT) as u8;
     let mask = bucket_count - 1;

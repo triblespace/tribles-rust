@@ -3,7 +3,6 @@
 pub mod bitset;
 pub mod blob;
 pub mod blobset;
-pub mod bytetable;
 pub mod column;
 pub mod handle;
 pub mod id;

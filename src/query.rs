@@ -15,6 +15,7 @@ pub mod hashsetconstraint;
 pub mod intersectionconstraint;
 pub mod mask;
 pub mod patchconstraint;
+mod variableset;
 
 use std::fmt;
 use std::iter::FromIterator;
@@ -28,7 +29,7 @@ pub use patchconstraint::*;
 
 use crate::{Id, Value, ValueParseError, Valuelike};
 
-use crate::bitset::ByteBitset;
+pub use variableset::VariableSet;
 
 pub trait TriblePattern {
     type PatternConstraint<'a, V>: Constraint<'a>
@@ -47,7 +48,6 @@ pub trait TriblePattern {
 }
 
 pub type VariableId = u8;
-pub type VariableSet = ByteBitset;
 
 #[derive(Debug)]
 pub struct VariableContext {
@@ -63,6 +63,7 @@ impl VariableContext {
     where
         T: Valuelike,
     {
+        assert!(self.next_index < 128, "currently queries support at most 128 variables");
         let v = Variable::new(self.next_index);
         self.next_index += 1;
         v
@@ -122,7 +123,7 @@ impl<T> Variable<T> {
 #[derive(Clone, Debug)]
 pub struct Binding {
     pub bound: VariableSet,
-    values: [Value; 256],
+    values: [Value; 128],
 }
 
 impl Binding {
@@ -147,8 +148,8 @@ impl Binding {
 impl Default for Binding {
     fn default() -> Self {
         Self {
-            bound: ByteBitset::new_empty(),
-            values: [[0; 32]; 256],
+            bound: VariableSet::new_empty(),
+            values: [[0; 32]; 128],
         }
     }
 }

@@ -3,18 +3,18 @@ use std::fmt;
 /// A fixed size bitset over the possible values of a byte.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct ByteBitset {
-    bits: [u64; 4],
+pub struct VariableSet {
+    bits: u128,
 }
 
-impl ByteBitset {
+impl VariableSet {
     /// Create a new empty set.
     pub const fn new_empty() -> Self {
-        ByteBitset { bits: [0; 4] }
+        VariableSet { bits: 0 }
     }
     /// Create a new set with every value of the domain set.
     pub const fn new_full() -> Self {
-        ByteBitset { bits: [!0; 4] }
+        VariableSet { bits: !0 }
     }
 
     /// Create a new set with a single value from the domain set.
@@ -26,22 +26,19 @@ impl ByteBitset {
 
     /// Check if the set is empty.
     pub fn is_empty(&self) -> bool {
-        (self.bits[0] == 0) && (self.bits[1] == 0) && (self.bits[2] == 0) && (self.bits[3] == 0)
+        self.bits == 0
     }
     /// Count the number of elements in the set.
     pub fn count(&self) -> usize {
-        (self.bits[0].count_ones()
-            + self.bits[1].count_ones()
-            + self.bits[2].count_ones()
-            + self.bits[3].count_ones()) as usize
+        self.bits.count_ones() as usize
     }
     /// Set the given value in the set.
     pub fn set(&mut self, index: u8) {
-        self.bits[(index >> 6) as usize] |= 1 << (index & 0b111111);
+        self.bits |= 1 << index;
     }
     /// Remove the given value from the set.
     pub fn unset(&mut self, index: u8) {
-        self.bits[(index >> 6) as usize] &= !(1 << (index & 0b111111));
+        self.bits &= !(1 << index);
     }
     /// Sets or removes the given element into or from the set
     /// depending on the passed value.
@@ -54,47 +51,29 @@ impl ByteBitset {
     }
     /// Include every value in the domain in the set.
     pub fn set_all(&mut self) {
-        self.bits = [!0; 4];
+        self.bits = !0;
     }
     /// Remove all values from the set.
     pub fn unset_all(&mut self) {
-        self.bits = [0; 4];
+        self.bits = 0;
     }
     /// Check if the given value is in the set.
     pub fn is_set(&self, index: u8) -> bool {
-        0 != (self.bits[(index >> 6) as usize] & (1 << (index & 0b111111)))
+        0 != (self.bits & (1 << index))
     }
     /// Finds the index of the first set bit.
     /// If no bits are set, returns `None`.
     pub fn find_first_set(&self) -> Option<u8> {
-        if self.bits[0] != 0 {
-            return Some(self.bits[0].trailing_zeros() as u8);
-        }
-        if self.bits[1] != 0 {
-            return Some((1 << 6) + (self.bits[1].trailing_zeros() as u8));
-        }
-        if self.bits[2] != 0 {
-            return Some((2 << 6) + (self.bits[2].trailing_zeros() as u8));
-        }
-        if self.bits[3] != 0 {
-            return Some((3 << 6) + (self.bits[3].trailing_zeros() as u8));
+        if self.bits != 0 {
+            return Some(self.bits.trailing_zeros() as u8);
         }
         return None;
     }
     /// Finds the index of the last set bit.
     /// If no bits are set, returns `None`.
     pub fn find_last_set(&self) -> Option<u8> {
-        if self.bits[3] != 0 {
-            return Some((3 << 6) + (63 - (self.bits[3].leading_zeros() as u8)));
-        }
-        if self.bits[2] != 0 {
-            return Some((2 << 6) + (63 - (self.bits[2].leading_zeros() as u8)));
-        }
-        if self.bits[1] != 0 {
-            return Some((1 << 6) + (63 - (self.bits[1].leading_zeros() as u8)));
-        }
-        if self.bits[0] != 0 {
-            return Some(63 - (self.bits[0].leading_zeros() as u8));
+        if self.bits != 0 {
+            return Some(127 - (self.bits.leading_zeros() as u8));
         }
         return None;
     }
@@ -120,67 +99,41 @@ impl ByteBitset {
     }
     /// Checks if the set is a superset of the passed set.
     pub fn is_superset_of(&self, other: &Self) -> bool {
-        ((self.bits[0] & other.bits[0]) ^ other.bits[0]) == 0
-            && ((self.bits[1] & other.bits[1]) ^ other.bits[1]) == 0
-            && ((self.bits[2] & other.bits[2]) ^ other.bits[2]) == 0
-            && ((self.bits[3] & other.bits[3]) ^ other.bits[3]) == 0
+        ((self.bits & other.bits) ^ other.bits) == 0
     }
     /// Checks if the set is a subset of the passed set.
     pub fn is_subset_of(&self, other: &Self) -> bool {
-        ((self.bits[0] & other.bits[0]) ^ self.bits[0]) == 0
-            && ((self.bits[1] & other.bits[1]) ^ self.bits[1]) == 0
-            && ((self.bits[2] & other.bits[2]) ^ self.bits[2]) == 0
-            && ((self.bits[3] & other.bits[3]) ^ self.bits[3]) == 0
+        ((self.bits & other.bits) ^ self.bits) == 0
     }
     /// Compute the set intersection between the two given sets.
     pub fn intersect(self, other: Self) -> Self {
         Self {
-            bits: [
-                self.bits[0] & other.bits[0],
-                self.bits[1] & other.bits[1],
-                self.bits[2] & other.bits[2],
-                self.bits[3] & other.bits[3],
-            ],
+            bits: self.bits & other.bits,
         }
     }
     /// Compute the set union between the two given sets.
     pub fn union(self, other: Self) -> Self {
         Self {
-            bits: [
-                self.bits[0] | other.bits[0],
-                self.bits[1] | other.bits[1],
-                self.bits[2] | other.bits[2],
-                self.bits[3] | other.bits[3],
-            ],
+            bits: self.bits | other.bits,
         }
     }
     /// Compute the set subtraction between the two given sets.
     pub fn subtract(self, other: Self) -> Self {
         Self {
-            bits: [
-                self.bits[0] & !other.bits[0],
-                self.bits[1] & !other.bits[1],
-                self.bits[2] & !other.bits[2],
-                self.bits[3] & !other.bits[3],
-            ],
+            bits: self.bits & !other.bits
         }
     }
     /// Compute the set difference between the two given sets.
     pub fn difference(self, other: Self) -> Self {
         Self {
-            bits: [
-                self.bits[0] ^ other.bits[0],
-                self.bits[1] ^ other.bits[1],
-                self.bits[2] ^ other.bits[2],
-                self.bits[3] ^ other.bits[3],
-            ],
+            bits: self.bits ^ other.bits
         }
     }
     /// Compute a set complement, removing every element that was in the set
     /// and inserting every element from the domain that wasn't in the set.
     pub fn complement(self) -> Self {
         Self {
-            bits: [!self.bits[0], !self.bits[1], !self.bits[2], !self.bits[3]],
+            bits: !self.bits
         }
     }
     /// Remove all elements from the set except the one passed.
@@ -196,27 +149,16 @@ impl ByteBitset {
     /// Similar to keep_single, except that only values in the
     /// specified range are kept. Both range ends are inclusive.
     pub fn keep_range(&mut self, from_index: u8, to_index: u8) {
-        let from_word_index = (from_index >> 6) as usize;
-        let to_word_index = (to_index >> 6) as usize;
-
-        for word_index in 0..from_word_index {
-            self.bits[word_index] = 0;
-        }
-
-        self.bits[from_word_index] &= !0 << (from_index & 0b111111);
-        self.bits[to_word_index] &= !(!1 << (to_index & 0b111111));
-
-        for word_index in (to_word_index + 1)..4 {
-            self.bits[word_index] = 0;
-        }
+        self.bits &= !0 << from_index;
+        self.bits &= !(!1 << to_index);
     }
 }
 
-impl fmt::Debug for ByteBitset {
+impl fmt::Debug for VariableSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ByteBitset: {{")?;
+        write!(f, "VariableSet: {{")?;
         let mut needs_comma = false;
-        for byte in 0u8..255 {
+        for byte in 0u8..128 {
             if self.is_set(byte) {
                 if needs_comma {
                     write!(f, ", ",)?;
@@ -230,9 +172,9 @@ impl fmt::Debug for ByteBitset {
     }
 }
 
-pub struct ByteBitsetIterator(ByteBitset);
+pub struct VariableSetIterator(VariableSet);
 
-impl Iterator for ByteBitsetIterator {
+impl Iterator for VariableSetIterator {
     type Item = u8;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -240,12 +182,12 @@ impl Iterator for ByteBitsetIterator {
     }
 }
 
-impl IntoIterator for ByteBitset {
+impl IntoIterator for VariableSet {
     type Item = u8;
-    type IntoIter = ByteBitsetIterator;
+    type IntoIter = VariableSetIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        ByteBitsetIterator(self)
+        VariableSetIterator(self)
     }
 }
 
@@ -256,104 +198,104 @@ mod tests {
 
     #[test]
     fn new_empty_is_empty() {
-        let set = ByteBitset::new_empty();
+        let set = VariableSet::new_empty();
         assert!(set.is_empty());
     }
     #[test]
     fn new_full_is_not_empty() {
-        let set = ByteBitset::new_full();
+        let set = VariableSet::new_full();
         assert!(!set.is_empty());
     }
     #[test]
     fn after_set_is_not_empty() {
-        let mut set = ByteBitset::new_empty();
+        let mut set = VariableSet::new_empty();
         set.set(5);
         assert!(!set.is_empty());
     }
     #[test]
     fn after_set_unset_is_empty() {
-        let mut set = ByteBitset::new_empty();
+        let mut set = VariableSet::new_empty();
         set.set(5);
         set.unset(5);
         assert!(set.is_empty());
     }
     #[test]
     fn after_set_is_set() {
-        let mut set = ByteBitset::new_empty();
+        let mut set = VariableSet::new_empty();
         set.set(5);
         assert!(set.is_set(5));
     }
     #[test]
     fn after_unset_is_not_set() {
-        let mut set = ByteBitset::new_full();
+        let mut set = VariableSet::new_full();
         set.unset(5);
         assert!(!set.is_set(5));
     }
     #[test]
     fn find_first_set_none() {
-        let set = ByteBitset::new_empty();
+        let set = VariableSet::new_empty();
         assert_eq!(None, set.find_first_set());
     }
     #[test]
     fn find_last_set_none() {
-        let set = ByteBitset::new_empty();
+        let set = VariableSet::new_empty();
         assert_eq!(None, set.find_last_set());
     }
     #[test]
     fn superset_full_of_empty() {
-        let empty = ByteBitset::new_empty();
-        let full = ByteBitset::new_full();
+        let empty = VariableSet::new_empty();
+        let full = VariableSet::new_full();
         assert!(full.is_superset_of(&empty));
     }
     #[test]
     fn superset_not_empty_of_full() {
-        let empty = ByteBitset::new_empty();
-        let full = ByteBitset::new_full();
+        let empty = VariableSet::new_empty();
+        let full = VariableSet::new_full();
         assert!(!empty.is_superset_of(&full));
     }
     #[test]
     fn subset_empty_of_full() {
-        let empty = ByteBitset::new_empty();
-        let full = ByteBitset::new_full();
+        let empty = VariableSet::new_empty();
+        let full = VariableSet::new_full();
         assert!(empty.is_subset_of(&full));
     }
     #[test]
     fn subset_not_full_of_empty() {
-        let empty = ByteBitset::new_empty();
-        let full = ByteBitset::new_full();
+        let empty = VariableSet::new_empty();
+        let full = VariableSet::new_full();
         assert!(!full.is_subset_of(&empty));
     }
     proptest! {
         #[test]
         fn find_first_set(n in 0u8..255) {
-            let mut set = ByteBitset::new_empty();
+            let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.find_first_set());
         }
         #[test]
         fn find_last_set(n in 0u8..255) {
-            let mut set = ByteBitset::new_empty();
+            let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.find_last_set());
         }
         #[test]
         fn drain_ascending_drains(n in 0u8..255) {
-            let mut set = ByteBitset::new_empty();
+            let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.drain_next_ascending());
             prop_assert!(!set.is_set(n));
         }
         #[test]
         fn drain_descending_drains(n in 0u8..255) {
-            let mut set = ByteBitset::new_empty();
+            let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.drain_next_descending());
             prop_assert!(!set.is_set(n));
         }
         #[test]
         fn intersect(n in 0u8..255, m in 0u8..255) {
-            let mut left = ByteBitset::new_empty();
-            let mut right = ByteBitset::new_empty();
+            let mut left = VariableSet::new_empty();
+            let mut right = VariableSet::new_empty();
             left.set(n);
             right.set(m);
 
@@ -362,8 +304,8 @@ mod tests {
         }
         #[test]
         fn union(n in 0u8..255, m in 0u8..255) {
-            let mut left = ByteBitset::new_empty();
-            let mut right = ByteBitset::new_empty();
+            let mut left = VariableSet::new_empty();
+            let mut right = VariableSet::new_empty();
             left.set(n);
             right.set(m);
 
@@ -373,8 +315,8 @@ mod tests {
         }
         #[test]
         fn subtract(n in 0u8..255, m in 0u8..255) {
-            let mut left = ByteBitset::new_empty();
-            let mut right = ByteBitset::new_empty();
+            let mut left = VariableSet::new_empty();
+            let mut right = VariableSet::new_empty();
             left.set(n);
             right.set(m);
 
@@ -383,8 +325,8 @@ mod tests {
         }
         #[test]
         fn difference(n in 0u8..255, m in 0u8..255) {
-            let mut left = ByteBitset::new_empty();
-            let mut right = ByteBitset::new_empty();
+            let mut left = VariableSet::new_empty();
+            let mut right = VariableSet::new_empty();
             left.set(n);
             right.set(m);
 
@@ -394,7 +336,7 @@ mod tests {
         }
         #[test]
         fn complement(n in 0u8..255, m in 0u8..255) {
-            let mut input = ByteBitset::new_empty();
+            let mut input = VariableSet::new_empty();
             input.set(n);
 
             let out = input.complement();
@@ -405,7 +347,7 @@ mod tests {
         }
         #[test]
         fn keep_single(n in 0u8..255, m in 0u8..255) {
-            let mut set = ByteBitset::new_full();
+            let mut set = VariableSet::new_full();
             set.keep_single(n);
             prop_assert!(set.is_set(n));
             if n != m {
@@ -414,7 +356,7 @@ mod tests {
         }
         #[test]
         fn keep_range(from in 0u8..255, to in 0u8..255) {
-            let mut set = ByteBitset::new_full();
+            let mut set = VariableSet::new_full();
             set.keep_range(from, to);
 
             for n in 0u8..255 {

@@ -9,7 +9,7 @@ use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
     TRIBLE_LEN,
 };
-use crate::{Id, Value, Valuelike};
+use crate::{ Id, RawValue };
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -84,8 +84,7 @@ impl FromIterator<Trible> for TribleSet {
 
 impl TriblePattern for TribleSet {
     type PatternConstraint<'a, V>
-     = TribleSetConstraint<'a, V>
-     where V: Valuelike;
+     = TribleSetConstraint<'a, V>;
 
     fn pattern<'a, V>(
         &'a self,
@@ -93,8 +92,6 @@ impl TriblePattern for TribleSet {
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a, V>
-    where
-        V: Valuelike,
     {
         TribleSetConstraint::new(e, a, v, self)
     }
@@ -127,11 +124,11 @@ mod tests {
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
-                loves: lover_b
+                loves: lover_b.into()
             }));
             kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
-                loves: lover_a
+                loves: lover_a.into()
             }));
         }
         assert_eq!(kb.len(), 8000);
@@ -147,11 +144,11 @@ mod tests {
                 [
                     knights::entity!(lover_a, {
                         name: Name(EN).fake::<String>()[..].try_into().unwrap(),
-                        loves: lover_b
+                        loves: lover_b.into()
                     }),
                     knights::entity!(lover_b, {
                         name: Name(EN).fake::<String>()[..].try_into().unwrap(),
-                        loves: lover_a
+                        loves: lover_a.into()
                     }),
                 ]
             })

@@ -267,33 +267,33 @@ mod tests {
     }
     proptest! {
         #[test]
-        fn find_first_set(n in 0u8..255) {
+        fn find_first_set(n in 0u8..128) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.find_first_set());
         }
         #[test]
-        fn find_last_set(n in 0u8..255) {
+        fn find_last_set(n in 0u8..128) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.find_last_set());
         }
         #[test]
-        fn drain_ascending_drains(n in 0u8..255) {
+        fn drain_ascending_drains(n in 0u8..128) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.drain_next_ascending());
             prop_assert!(!set.is_set(n));
         }
         #[test]
-        fn drain_descending_drains(n in 0u8..255) {
+        fn drain_descending_drains(n in 0u8..128) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.drain_next_descending());
             prop_assert!(!set.is_set(n));
         }
         #[test]
-        fn intersect(n in 0u8..255, m in 0u8..255) {
+        fn intersect(n in 0u8..128, m in 0u8..128) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -303,7 +303,7 @@ mod tests {
             prop_assert_eq!(n == m, out.is_set(n));
         }
         #[test]
-        fn union(n in 0u8..255, m in 0u8..255) {
+        fn union(n in 0u8..128, m in 0u8..128) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -314,7 +314,7 @@ mod tests {
             prop_assert!(out.is_set(m));
         }
         #[test]
-        fn subtract(n in 0u8..255, m in 0u8..255) {
+        fn subtract(n in 0u8..128, m in 0u8..128) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -324,7 +324,7 @@ mod tests {
             prop_assert_eq!(n != m, out.is_set(n));
         }
         #[test]
-        fn difference(n in 0u8..255, m in 0u8..255) {
+        fn difference(n in 0u8..128, m in 0u8..128) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -335,7 +335,7 @@ mod tests {
             prop_assert_eq!(n != m, out.is_set(m));
         }
         #[test]
-        fn complement(n in 0u8..255, m in 0u8..255) {
+        fn complement(n in 0u8..128, m in 0u8..128) {
             let mut input = VariableSet::new_empty();
             input.set(n);
 
@@ -346,7 +346,7 @@ mod tests {
             }
         }
         #[test]
-        fn keep_single(n in 0u8..255, m in 0u8..255) {
+        fn keep_single(n in 0u8..128, m in 0u8..128) {
             let mut set = VariableSet::new_full();
             set.keep_single(n);
             prop_assert!(set.is_set(n));
@@ -355,11 +355,11 @@ mod tests {
             }
         }
         #[test]
-        fn keep_range(from in 0u8..255, to in 0u8..255) {
+        fn keep_range(from in 0u8..128, to in 0u8..128) {
             let mut set = VariableSet::new_full();
             set.keep_range(from, to);
 
-            for n in 0u8..255 {
+            for n in 0u8..128 {
                 prop_assert_eq!(from <= n && n <= to, set.is_set(n));
             }
         }

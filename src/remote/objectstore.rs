@@ -14,7 +14,8 @@ use url::Url;
 
 use hex::FromHex;
 
-use crate::{types::Hash, Value};
+use crate::Value;
+use crate::{types::Hash, RawValue};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};
@@ -39,7 +40,7 @@ impl<H> ObjectRepo<H> {
 pub enum ListErr {
     List(object_store::Error),
     NotAFile(&'static str),
-    BadNameHex(<Value as FromHex>::Error),
+    BadNameHex(<RawValue as FromHex>::Error),
 }
 
 impl<H> List<H> for ObjectRepo<H>
@@ -48,7 +49,7 @@ where
 {
     type Err = ListErr;
 
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::Err>> {
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Hash<H>>, Self::Err>> {
         self.store
             .list(Some(&self.prefix))
             .map(|r| match r {
@@ -57,8 +58,8 @@ where
                         .location
                         .filename()
                         .ok_or(ListErr::NotAFile("no filename"))?;
-                    let digest = Value::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
-                    Ok(Hash::new(digest))
+                    let digest = RawValue::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
+                    Ok(Value::new(digest))
                 }
                 Err(e) => Err(ListErr::List(e)),
             })
@@ -72,7 +73,7 @@ where
 {
     type Err = object_store::Error;
 
-    async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::Err> {
+    async fn pull(&self, hash: Value<Hash<H>>) -> Result<Bytes, Self::Err> {
         let path = self.prefix.child(hex::encode(hash.bytes));
         let result = self.store.get(&path).await?;
         let object = result.bytes().await?;
@@ -86,8 +87,8 @@ where
 {
     type Err = object_store::Error;
 
-    async fn push(&self, blob: Bytes) -> Result<Hash<H>, Self::Err> {
-        let digest: Value = H::digest(&blob).into();
+    async fn push(&self, blob: Bytes) -> Result<Value<Hash<H>>, Self::Err> {
+        let digest: RawValue = H::digest(&blob).into();
         let path = self.prefix.child(hex::encode(digest));
         let put_result = self
             .store
@@ -98,7 +99,7 @@ where
             )
             .await;
         match put_result {
-            Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(Hash::new(digest)),
+            Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(Value::new(digest)),
             Err(e) => Err(e),
         }
     }
@@ -186,13 +187,13 @@ where
     type CheckoutErr = CheckoutErr;
     type CommitErr = CommitErr;
 
-    async fn checkout(&self) -> Result<Option<Hash<H>>, Self::CheckoutErr> {
+    async fn checkout(&self) -> Result<Option<Value<Hash<H>>>, Self::CheckoutErr> {
         let result = self.store.get(&self.path).await;
         match result {
             Ok(result) => {
                 let bytes = result.bytes().await?;
                 let value = (&bytes[..]).try_into()?;
-                Ok(Some(Hash::new(value)))
+                Ok(Some(Value::new(value)))
             }
             Err(object_store::Error::NotFound { .. }) => Ok(None),
             Err(e) => Err(e)?,
@@ -201,8 +202,8 @@ where
 
     async fn commit(
         &self,
-        old_hash: Option<Hash<H>>,
-        new_hash: Hash<H>,
+        old_hash: Option<Value<Hash<H>>>,
+        new_hash: Value<Hash<H>>,
     ) -> Result<CommitResult<H>, Self::CommitErr> {
         let new_bytes = bytes::Bytes::copy_from_slice(&new_hash.bytes);
 
@@ -219,7 +220,7 @@ where
                         };
                         let stored_bytes = ok_result.bytes().await?;
                         let stored_value = (&stored_bytes[..]).try_into()?;
-                        let stored_hash = Hash::new(stored_value);
+                        let stored_hash = Value::new(stored_value);
                         if old_hash != stored_hash {
                             return Ok(CommitResult::Conflict(Some(stored_hash)));
                         }
@@ -261,7 +262,7 @@ where
                             Ok(result) => {
                                 let stored_bytes = result.bytes().await?;
                                 let stored_value = (&stored_bytes[..]).try_into()?;
-                                return Ok(CommitResult::Conflict(Some(Hash::new(stored_value))));
+                                return Ok(CommitResult::Conflict(Some(Value::new(stored_value))));
                             }
                             Err(object_store::Error::NotFound { .. }) => {
                                 continue; // Object no longer exists try again

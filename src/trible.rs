@@ -2,11 +2,11 @@ use std::convert::TryInto;
 
 use crate::{
     patch::{KeyOrdering, KeySegmentation},
-    Valuelike,
+    Value,
 };
 use arbitrary::Arbitrary;
 
-use crate::{Id, Value};
+use crate::{RawId, RawValue};
 
 pub const TRIBLE_LEN: usize = 64;
 pub const E_START: usize = 0;
@@ -23,19 +23,16 @@ pub struct Trible {
 }
 
 impl Trible {
-    pub fn new<V>(e: Id, a: Id, v: V) -> Trible
-    where
-        V: Valuelike,
-    {
+    pub fn new<V>(e: RawId, a: RawId, v: Value<V>) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(&a[..]);
-        data[V_START..=V_END].copy_from_slice(&Valuelike::into_value(&v)[..]);
+        data[V_START..=V_END].copy_from_slice(&v.bytes[..]);
 
         Self { data }
     }
 
-    pub fn new_values(e: Value, a: Value, v: Value) -> Result<Trible, &'static str> {
+    pub fn new_values(e: RawValue, a: RawValue, v: RawValue) -> Result<Trible, &'static str> {
         if e[0..16].iter().any(|&x| x != 0) {
             return Err(&"entity value is not a valid id");
         }
@@ -56,7 +53,7 @@ impl Trible {
         Self { data }
     }
 
-    pub fn new_raw_values(e: Value, a: Value, v: Value) -> Trible {
+    pub fn new_raw_values(e: RawValue, a: RawValue, v: RawValue) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[16..32]);
         data[A_START..=A_END].copy_from_slice(&a[16..32]);
@@ -65,22 +62,22 @@ impl Trible {
         Self { data }
     }
 
-    pub fn e(&self) -> Id {
+    pub fn e(&self) -> RawId {
         self.data[E_START..=E_END].try_into().unwrap()
     }
-    pub fn a(&self) -> Id {
+    pub fn a(&self) -> RawId {
         self.data[A_START..=A_END].try_into().unwrap()
     }
-    pub fn v(&self) -> Value {
+    pub fn v(&self) -> RawValue {
         self.data[V_START..=V_END].try_into().unwrap()
     }
 
-    pub fn e_as_value(&self) -> Value {
+    pub fn e_as_value(&self) -> RawValue {
         let mut o = [0u8; 32];
         o[16..=31].copy_from_slice(&self.data[E_START..=E_END]);
         o
     }
-    pub fn a_as_value(&self) -> Value {
+    pub fn a_as_value(&self) -> RawValue {
         let mut o = [0u8; 32];
         o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
         o

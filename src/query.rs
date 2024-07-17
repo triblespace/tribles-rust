@@ -27,14 +27,13 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::{Id, Value, ValueParseError, Valuelike};
+use crate::{Id, RawValue, Value};
 
 pub use variableset::VariableSet;
 
 pub trait TriblePattern {
     type PatternConstraint<'a, V>: Constraint<'a>
     where
-        V: Valuelike,
         Self: 'a;
 
     fn pattern<'a, V>(
@@ -42,9 +41,7 @@ pub trait TriblePattern {
         e: Variable<Id>,
         a: Variable<Id>,
         v: Variable<V>,
-    ) -> Self::PatternConstraint<'a, V>
-    where
-        V: Valuelike;
+    ) -> Self::PatternConstraint<'a, V>;
 }
 
 pub type VariableId = u8;
@@ -60,8 +57,6 @@ impl VariableContext {
     }
 
     pub fn next_variable<T>(&mut self) -> Variable<T>
-    where
-        T: Valuelike,
     {
         assert!(self.next_index < 128, "currently queries support at most 128 variables");
         let v = Variable::new(self.next_index);
@@ -89,10 +84,7 @@ impl<T> Clone for Variable<T> {
     }
 }
 
-impl<T> Variable<T>
-where
-    T: Valuelike,
-{
+impl<T> Variable<T> {
     pub fn new(index: VariableId) -> Self {
         Variable {
             index,
@@ -100,8 +92,8 @@ where
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> Result<T, crate::ValueParseError> {
-        T::from_value(binding.get(self.index).unwrap())
+    pub fn extract(self, binding: &Binding) -> Value<T> {
+        Value::new(binding.get(self.index).unwrap())
     }
 }
 
@@ -112,10 +104,7 @@ pub trait ContainsConstraint<'a, T> {
 }
 
 impl<T> Variable<T> {
-    pub fn is(self, constant: T) -> ConstantConstraint<T>
-    where
-        T: Valuelike,
-    {
+    pub fn is(self, constant: Value<T>) -> ConstantConstraint<T> {
         ConstantConstraint::new(self, constant)
     }
 }
@@ -123,11 +112,11 @@ impl<T> Variable<T> {
 #[derive(Clone, Debug)]
 pub struct Binding {
     pub bound: VariableSet,
-    values: [Value; 128],
+    values: [RawValue; 128],
 }
 
 impl Binding {
-    pub fn set(&mut self, variable: VariableId, value: Value) {
+    pub fn set(&mut self, variable: VariableId, value: RawValue) {
         self.values[variable as usize] = value;
         self.bound.set(variable);
     }
@@ -136,7 +125,7 @@ impl Binding {
         self.bound.unset(variable);
     }
 
-    pub fn get(&self, variable: VariableId) -> Option<Value> {
+    pub fn get(&self, variable: VariableId) -> Option<RawValue> {
         if self.bound.is_set(variable) {
             Some(self.values[variable as usize])
         } else {
@@ -158,15 +147,15 @@ pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn variable(&self, variable: VariableId) -> bool;
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize;
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value>;
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<Value>);
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue>;
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>);
 }
 
 pub struct State {
     variable: VariableId,
-    values: Vec<Value>,
+    values: Vec<RawValue>,
 }
-pub struct Query<C, P: Fn(&Binding) -> Result<R, ValueParseError>, R> {
+pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     postprocessing: P,
     mode: Search,
@@ -175,7 +164,7 @@ pub struct Query<C, P: Fn(&Binding) -> Result<R, ValueParseError>, R> {
     unbound: Vec<VariableId>,
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Query<C, P, R> {
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
     pub fn new(constraint: C, postprocessing: P) -> Self {
         let variables = constraint.variables();
         Query {
@@ -197,11 +186,11 @@ enum Search {
     Done,
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> Iterator
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator
     for Query<C, P, R>
 {
     // we will be counting with usize
-    type Item = Result<R, ValueParseError>;
+    type Item = R;
 
     // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
@@ -267,11 +256,11 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> It
     }
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> Result<R, ValueParseError>, R> fmt::Debug
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug
     for Query<C, P, R>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Query")
+        write!(f, "Query") //TODO
     }
 }
 
@@ -283,7 +272,7 @@ macro_rules! find {
             $(let $Var = $ctx.next_variable();)*
               $crate::query::Query::new($Constraint,
                 move |binding| {
-                    Ok(($($Var.extract(binding)?),+,))
+                    ($($Var.extract(binding)),+,)
             })
         }
     };
@@ -311,15 +300,15 @@ mod tests {
 
     #[test]
     fn and_set() {
-        let mut books = HashSet::new();
-        let mut movies = HashSet::new();
+        let mut books = HashSet::<Value<ShortString>>::new();
+        let mut movies = HashSet::<Value<ShortString>>::new();
 
-        books.insert(ShortString::new("LOTR").unwrap());
-        books.insert(ShortString::new("Dragonrider").unwrap());
-        books.insert(ShortString::new("Highlander").unwrap());
+        books.insert("LOTR".try_into().unwrap());
+        books.insert("Dragonrider".try_into().unwrap());
+        books.insert("Highlander".try_into().unwrap());
 
-        movies.insert(ShortString::new("LOTR").unwrap());
-        movies.insert(ShortString::new("Highlander").unwrap());
+        movies.insert("LOTR".try_into().unwrap());
+        movies.insert("Highlander".try_into().unwrap());
 
         let inter: Vec<_> = find!(ctx, (a), and!(books.has(a), movies.has(a))).collect();
 
@@ -332,7 +321,7 @@ mod tests {
         let one: Vec<_> = find!(
             ctx,
             (a),
-            and!(books.has(a), a.is("LOTR".try_into().unwrap()))
+            and!(books.has(a), a.is("LOTR".try_into().unwrap())) //TODO
         )
         .collect();
 
@@ -364,12 +353,12 @@ mod tests {
         kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_into().unwrap(),
-            loves: romeo
+            loves: romeo.into()
         }));
 
         kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
-            loves: juliet
+            loves: juliet.into()
         }));
         kb.union(knights::entity!(waromeo, {
             name: "Romeo".try_into().unwrap()

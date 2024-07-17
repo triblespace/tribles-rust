@@ -1,27 +1,21 @@
-use std::{collections::HashSet, fmt::Debug, hash::Hash};
+use std::collections::HashSet;
 
 use super::*;
 
 pub struct SetConstraint<'a, T>
-where
-    T: Eq + PartialEq + Hash + Valuelike + Debug,
 {
     variable: Variable<T>,
-    set: &'a HashSet<T>,
+    set: &'a HashSet<Value<T>>,
 }
 
 impl<'a, T> SetConstraint<'a, T>
-where
-    T: Eq + PartialEq + Hash + Valuelike + Debug,
 {
-    pub fn new(variable: Variable<T>, set: &'a HashSet<T>) -> Self {
+    pub fn new(variable: Variable<T>, set: &'a HashSet<Value<T>>) -> Self {
         SetConstraint { variable, set }
     }
 }
 
 impl<'a, T> Constraint<'a> for SetConstraint<'a, T>
-where
-    T: Eq + PartialEq + Hash + Valuelike + Debug,
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
@@ -35,18 +29,17 @@ where
         self.set.len()
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<Value> {
-        self.set.iter().map(|v| Valuelike::into_value(v)).collect()
+    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
+        self.set.iter().map(|v| v.bytes).collect()
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<Value>) {
-        proposals.retain(|v| T::from_value(*v).map_or(false, |v| self.set.contains(&v)));
+    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        proposals.retain(|v| self.set.contains(&Value::new(*v)));
     }
 }
 
-impl<'a, T> ContainsConstraint<'a, T> for HashSet<T>
-where
-    T: Eq + PartialEq + Hash + Valuelike + Debug + 'a,
+impl<'a, T> ContainsConstraint<'a, T> for HashSet<Value<T>>
+where T: 'a
 {
     type Constraint = SetConstraint<'a, T>;
 

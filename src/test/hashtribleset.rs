@@ -4,22 +4,22 @@ use std::collections::{HashMap, HashSet};
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{Id, Value, Valuelike};
+use crate::{Id, RawId, RawValue};
 use std::iter::FromIterator;
 
 use self::hashtriblesetconstraint::HashTribleSetConstraint;
 
 #[derive(Debug, Clone)]
 pub struct HashTribleSet {
-    pub ea: HashMap<Id, HashSet<Id>>,
-    pub ev: HashMap<Id, HashSet<Value>>,
-    pub ae: HashMap<Id, HashSet<Id>>,
-    pub av: HashMap<Id, HashSet<Value>>,
-    pub ve: HashMap<Value, HashSet<Id>>,
-    pub va: HashMap<Value, HashSet<Id>>,
-    pub eav: HashMap<(Id, Id), HashSet<Value>>,
-    pub eva: HashMap<(Id, Value), HashSet<Id>>,
-    pub ave: HashMap<(Id, Value), HashSet<Id>>,
+    pub ea: HashMap<RawId, HashSet<RawId>>,
+    pub ev: HashMap<RawId, HashSet<RawValue>>,
+    pub ae: HashMap<RawId, HashSet<RawId>>,
+    pub av: HashMap<RawId, HashSet<RawValue>>,
+    pub ve: HashMap<RawValue, HashSet<RawId>>,
+    pub va: HashMap<RawValue, HashSet<RawId>>,
+    pub eav: HashMap<(RawId, RawId), HashSet<RawValue>>,
+    pub eva: HashMap<(RawId, RawValue), HashSet<RawId>>,
+    pub ave: HashMap<(RawId, RawValue), HashSet<RawId>>,
     pub all: HashSet<Trible>,
 }
 
@@ -73,8 +73,7 @@ impl FromIterator<Trible> for HashTribleSet {
 
 impl TriblePattern for HashTribleSet {
     type PatternConstraint<'a, V>
-     = HashTribleSetConstraint<'a, V>
-     where V: Valuelike;
+     = HashTribleSetConstraint<'a, V>;
 
     fn pattern<'a, V>(
         &'a self,
@@ -82,8 +81,6 @@ impl TriblePattern for HashTribleSet {
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a, V>
-    where
-        V: Valuelike,
     {
         HashTribleSetConstraint::new(e, a, v, self)
     }

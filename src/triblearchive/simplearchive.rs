@@ -4,8 +4,7 @@ use anybytes::Bytes;
 
 use crate::{
     trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},
-    types::Hash,
-    BlobParseError, Bloblike, Handle, TribleSet,
+    BlobParseError, Bloblike, Handle, TribleSet, Value,
 };
 
 pub struct SimpleArchive(Bytes);
@@ -54,12 +53,12 @@ impl Bloblike for SimpleArchive {
         self.0
     }
 
-    fn as_handle<H>(&self) -> Handle<H, Self>
+    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
     where
         H: Digest<OutputSize = U32>,
     {
         let digest = H::digest(&self.0);
-        unsafe { Handle::new(Hash::new(digest.into())) }
+        Value::new(digest.into())
     }
 }
 

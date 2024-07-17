@@ -23,11 +23,11 @@ fn main() {
         kb.union(knights::entity!(lover_a,
         {
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
-            loves: lover_b
+            loves: lover_b.into()
         }));
         kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
-            loves: lover_a
+            loves: lover_a.into()
         }));
     });
 
@@ -38,11 +38,11 @@ fn main() {
 
     kb.union(knights::entity!(juliet, {
         name: "Juliet".try_into().unwrap(),
-        loves: romeo
+        loves: romeo.into()
     }));
     kb.union(knights::entity!(romeo, {
         name: "Romeo".try_into().unwrap(),
-        loves: juliet
+        loves: juliet.into()
     }));
 
     (0..999).for_each(|_| {
@@ -51,11 +51,11 @@ fn main() {
 
         data_kb.union(knights::entity!(lover_a, {
             name: "Romeo".try_into().unwrap(),
-            loves: lover_b
+            loves: lover_b.into()
         }));
         data_kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_into().unwrap(),
-            loves: lover_a
+            loves: lover_a.into()
         }));
     });
 

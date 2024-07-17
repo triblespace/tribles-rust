@@ -2,17 +2,15 @@ use super::*;
 
 pub struct ConstantConstraint<T> {
     variable: Variable<T>,
-    constant: Value,
+    constant: RawValue,
 }
 
 impl<T> ConstantConstraint<T> {
-    pub fn new(variable: Variable<T>, constant: T) -> Self
-    where
-        T: Valuelike,
+    pub fn new(variable: Variable<T>, constant: Value<T>) -> Self
     {
         ConstantConstraint {
             variable,
-            constant: Valuelike::into_value(&constant),
+            constant: constant.bytes,
         }
     }
 }
@@ -30,11 +28,11 @@ impl<'a, T> Constraint<'a> for ConstantConstraint<T> {
         1
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<Value> {
+    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
         vec![self.constant]
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
         proposals.retain(|v| *v == self.constant);
     }
 }

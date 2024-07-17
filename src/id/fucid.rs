@@ -1,4 +1,4 @@
-use crate::Id;
+use crate::RawId;
 
 use rand::thread_rng;
 use rand::RngCore;
@@ -23,7 +23,7 @@ impl FUCIDgen {
         }
     }
 
-    pub fn next(&mut self) -> Id {
+    pub fn next(&mut self) -> RawId {
         let next_id = self.counter ^ self.salt;
         self.counter += 1;
         next_id.to_be_bytes()
@@ -33,7 +33,7 @@ impl FUCIDgen {
 thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen::new()));
 
 /// Fast Unsafe Compressable IDs
-pub fn fucid() -> Id {
+pub fn fucid() -> RawId {
     GEN_STATE
         .with(|cell| {
             let mut gen = cell.borrow_mut();

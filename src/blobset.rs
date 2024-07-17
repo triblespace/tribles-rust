@@ -2,7 +2,7 @@ use digest::{ Digest, typenum::U32 };
 use anybytes::Bytes;
 
 use crate::types::Hash;
-use crate::{BlobParseError, Bloblike};
+use crate::{BlobParseError, Bloblike, Value};
 use crate::{Handle, TribleSet};
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -10,7 +10,7 @@ use std::iter::FromIterator;
 /// A mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
 pub struct BlobSet<H> {
-    blobs: HashMap<Hash<H>, Bytes>,
+    blobs: HashMap<Value<Hash<H>>, Bytes>,
 }
 
 impl<H> Eq for BlobSet<H> {}
@@ -39,34 +39,34 @@ where
         self.blobs.len()
     }
 
-    pub fn insert<T>(&mut self, value: T) -> Handle<H, T>
+    pub fn insert<T>(&mut self, value: T) -> Value<Handle<H, T>>
     where
         T: Bloblike,
     {
         let blob: Bytes = value.into_blob();
         let hash = self.insert_raw(blob);
-        unsafe { Handle::new(hash) }
+        Value::new(hash.bytes)
     }
 
-    pub fn get<'a, T>(&'a self, handle: Handle<H, T>) -> Option<Result<T, BlobParseError>>
+    pub fn get<'a, T>(&'a self, handle: Value<Handle<H, T>>) -> Option<Result<T, BlobParseError>>
     where
         T: Bloblike,
     {
-        let blob = self.get_raw(handle.hash)?;
+        let blob = self.get_raw(handle.into())?;
         Some(T::from_blob(blob.clone()))
     }
 
-    pub fn get_raw(&self, hash: Hash<H>) -> Option<&Bytes> {
+    pub fn get_raw(&self, hash: Value<Hash<H>>) -> Option<&Bytes> {
         self.blobs.get(&hash)
     }
 
-    pub fn insert_raw(&mut self, blob: Bytes) -> Hash<H> {
+    pub fn insert_raw(&mut self, blob: Bytes) -> Value<Hash<H>> {
         let hash = Hash::digest(&blob);
         self.blobs.insert(hash, blob);
         hash
     }
 
-    pub fn iter_raw<'a>(&'a self) -> impl Iterator<Item = (&'a Hash<H>, &'a Bytes)> + 'a {
+    pub fn iter_raw<'a>(&'a self) -> impl Iterator<Item = (&'a Value<Hash<H>>, &'a Bytes)> + 'a {
         self.blobs.iter()
     }
 
@@ -82,11 +82,11 @@ where
     }
 }
 
-impl<H> FromIterator<(Hash<H>, Bytes)> for BlobSet<H>
+impl<H> FromIterator<(Value<Hash<H>>, Bytes)> for BlobSet<H>
 where
     H: Digest<OutputSize = U32>,
 {
-    fn from_iter<I: IntoIterator<Item = (Hash<H>, Bytes)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (Value<Hash<H>>, Bytes)>>(iter: I) -> Self {
         let mut set = BlobSet::new();
 
         for (hash, blob) in iter {
@@ -101,8 +101,8 @@ impl<'a, H> IntoIterator for BlobSet<H>
 where
     H: Digest<OutputSize = U32>,
 {
-    type Item = (Hash<H>, Bytes);
-    type IntoIter = std::collections::hash_map::IntoIter<Hash<H>, Bytes>;
+    type Item = (Value<Hash<H>>, Bytes);
+    type IntoIter = std::collections::hash_map::IntoIter<Value<Hash<H>>, Bytes>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.blobs.into_iter()
@@ -113,8 +113,8 @@ impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
     H: Digest<OutputSize = U32>,
 {
-    type Item = (&'a Hash<H>, &'a Bytes);
-    type IntoIter = std::collections::hash_map::Iter<'a, Hash<H>, Bytes>;
+    type Item = (&'a Value<Hash<H>>, &'a Bytes);
+    type IntoIter = std::collections::hash_map::Iter<'a, Value<Hash<H>>, Bytes>;
 
     fn into_iter(self) -> Self::IntoIter {
         (&self.blobs).into_iter()

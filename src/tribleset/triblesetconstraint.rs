@@ -6,24 +6,17 @@ use super::*;
 use crate::id_from_value;
 use crate::id_into_value;
 use crate::query::*;
-use crate::Id;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
-pub struct TribleSetConstraint<'a, V>
-where
-    V: Valuelike,
-{
+pub struct TribleSetConstraint<'a, V> {
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
     variable_v: Variable<V>,
     set: &'a TribleSet,
 }
 
-impl<'a, V> TribleSetConstraint<'a, V>
-where
-    V: Valuelike,
-{
+impl<'a, V> TribleSetConstraint<'a, V> {
     pub fn new(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
@@ -39,10 +32,7 @@ where
     }
 }
 
-impl<'a, V> Constraint<'a> for TribleSetConstraint<'a, V>
-where
-    V: Valuelike,
-{
+impl<'a, V> Constraint<'a> for TribleSetConstraint<'a, V> {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
         variables.set(self.variable_e.index);
@@ -62,8 +52,24 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
-        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
+        let e_bound = if let Some(e) = binding.get(self.variable_e.index) {
+            let Some(e) = id_from_value(e) else {
+                return 0;
+            };
+            Some(e)
+        }
+        else {
+            None
+        };
+        let a_bound = if let Some(a) = binding.get(self.variable_a.index) {
+            let Some(a) = id_from_value(a) else {
+                return 0;
+            };
+            Some(a)
+        }
+        else {
+            None
+        };
         let v_bound = binding.get(self.variable_v.index);
 
         (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
@@ -122,13 +128,29 @@ where
         }) as usize
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
-        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
+        let e_bound = if let Some(e) = binding.get(self.variable_e.index) {
+            let Some(e) = id_from_value(e) else {
+                return vec![];
+            };
+            Some(e)
+        }
+        else {
+            None
+        };
+        let a_bound = if let Some(a) = binding.get(self.variable_a.index) {
+            let Some(a) = id_from_value(a) else {
+                return vec![];
+            };
+            Some(a)
+        }
+        else {
+            None
+        };
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
@@ -216,29 +238,60 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        let e_bound = binding.get(self.variable_e.index).map(id_from_value);
-        let a_bound = binding.get(self.variable_a.index).map(id_from_value);
+        let e_bound = if let Some(e) = binding.get(self.variable_e.index) {
+            let Some(e) = id_from_value(e) else {
+                proposals.clear();
+                return;
+            };
+            Some(e)
+        }
+        else {
+            None
+        };
+        let a_bound = if let Some(a) = binding.get(self.variable_a.index) {
+            let Some(a) = id_from_value(a) else {
+                proposals.clear();
+                return;
+            };
+            Some(a)
+        }
+        else {
+            None
+        };
         let v_bound = binding.get(self.variable_v.index);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
-                proposals.retain(|value| self.set.eav.has_prefix(&id_from_value(*value)))
+                proposals.retain(|value| {
+                    let Some(id) = id_from_value(*value) else {
+                        return false;
+                    };
+                    self.set.eav.has_prefix(&id)
+                })
             }
             (None, None, None, false, true, false) => {
-                proposals.retain(|value| self.set.aev.has_prefix(&id_from_value(*value)))
+                proposals.retain(|value| {
+                    let Some(id) = id_from_value(*value) else {
+                        return false;
+                    };
+                    self.set.aev.has_prefix(&id)
+                })
             }
             (None, None, None, false, false, true) => {
                 proposals.retain(|value| self.set.vea.has_prefix(value))
             }
             (Some(e), None, None, false, true, false) => proposals.retain(|value| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.eav.has_prefix(&prefix)
             }),
             (Some(e), None, None, false, false, true) => proposals.retain(|value| {
@@ -248,9 +301,12 @@ where
                 self.set.eva.has_prefix(&prefix)
             }),
             (None, Some(a), None, true, false, false) => proposals.retain(|value| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&a[..]);
-                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.aev.has_prefix(&prefix)
             }),
             (None, Some(a), None, false, false, true) => proposals.retain(|value| {
@@ -260,31 +316,43 @@ where
                 self.set.ave.has_prefix(&prefix)
             }),
             (None, None, Some(v), true, false, false) => proposals.retain(|value| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
                 let mut prefix = [0u8; VALUE_LEN + ID_LEN];
                 prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
-                prefix[VALUE_LEN..VALUE_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                prefix[VALUE_LEN..VALUE_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.vea.has_prefix(&prefix)
             }),
             (None, None, Some(v), false, true, false) => proposals.retain(|value| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
                 let mut prefix = [0u8; VALUE_LEN + ID_LEN];
                 prefix[0..VALUE_LEN].copy_from_slice(&v[..]);
-                prefix[VALUE_LEN..VALUE_LEN + ID_LEN].copy_from_slice(&id_from_value(*value));
+                prefix[VALUE_LEN..VALUE_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.vae.has_prefix(&prefix)
             }),
             (None, Some(a), Some(v), true, false, false) => proposals.retain(|value: &[u8; 32]| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&a);
                 prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
                 prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN]
-                    .copy_from_slice(&id_from_value(*value));
+                    .copy_from_slice(&id);
                 self.set.ave.has_prefix(&prefix)
             }),
             (Some(e), None, Some(v), false, true, false) => proposals.retain(|value: &[u8; 32]| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e);
                 prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
                 prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN]
-                    .copy_from_slice(&id_from_value(*value));
+                    .copy_from_slice(&id);
                 self.set.eva.has_prefix(&prefix)
             }),
             (Some(e), Some(a), None, false, false, true) => proposals.retain(|value: &[u8; 32]| {

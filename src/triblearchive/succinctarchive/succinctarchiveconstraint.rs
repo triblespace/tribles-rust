@@ -7,11 +7,9 @@ use std::ops::Range;
 use super::*;
 use crate::query::*;
 use crate::Id;
-use crate::Valuelike;
 
 pub struct SuccinctArchiveConstraint<'a, V, U, B>
 where
-    V: Valuelike,
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
@@ -23,7 +21,6 @@ where
 
 impl<'a, V, U, B> SuccinctArchiveConstraint<'a, V, U, B>
 where
-    V: Valuelike,
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
@@ -42,7 +39,7 @@ where
     }
 }
 
-fn base_range<U>(universe: &U, a: &EliasFano, value: &Value) -> Range<usize>
+fn base_range<U>(universe: &U, a: &EliasFano, value: &RawValue) -> Range<usize>
 where
     U: Universe,
 {
@@ -59,7 +56,7 @@ fn restrict_range<U, B>(
     universe: &U,
     a: &EliasFano,
     c: &WaveletMatrix<B>,
-    value: &Value,
+    value: &RawValue,
     r: &Range<usize>,
 ) -> Range<usize>
 where
@@ -79,7 +76,6 @@ where
 
 impl<'a, V, U, B> Constraint<'a> for SuccinctArchiveConstraint<'a, V, U, B>
 where
-    V: Valuelike,
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
@@ -166,7 +162,7 @@ where
         }) as usize
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
@@ -287,7 +283,7 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let e_var = self.variable_e.index == variable;
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;

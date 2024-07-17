@@ -1,14 +1,12 @@
 use crate::{
     id_into_value,
     query::{Binding, Constraint, Variable, VariableId, VariableSet},
-    Value, Valuelike,
+    RawValue,
 };
 
 use super::*;
 
 pub struct ColumnConstraint<'a, V>
-where
-    V: Valuelike,
 {
     variable_e: Variable<Id>,
     variable_v: Variable<V>,
@@ -16,8 +14,6 @@ where
 }
 
 impl<'a, V> ColumnConstraint<'a, V>
-where
-    V: Valuelike,
 {
     pub fn new(variable_e: Variable<Id>, variable_v: Variable<V>, column: &'a Column<V>) -> Self {
         ColumnConstraint {
@@ -29,8 +25,6 @@ where
 }
 
 impl<'a, V> Constraint<'a> for ColumnConstraint<'a, V>
-where
-    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
@@ -59,7 +53,7 @@ where
         }
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
 
@@ -85,7 +79,7 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let e_var = self.variable_e.index == variable;
         let v_var = self.variable_v.index == variable;
 

@@ -19,35 +19,35 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
         name.insert(
-            &lover_a,
-            &(Name(EN).fake::<String>()[..].try_into().unwrap()),
+            lover_a,
+            Name(EN).fake::<String>()[..].try_into().unwrap(),
         );
         name.insert(
-            &lover_b,
-            &(Name(EN).fake::<String>()[..].try_into().unwrap()),
+            lover_b,
+            Name(EN).fake::<String>()[..].try_into().unwrap(),
         );
-        loves.insert(&lover_a, &lover_b);
-        loves.insert(&lover_b, &lover_a);
+        loves.insert(lover_a, lover_b.into());
+        loves.insert(lover_b, lover_a.into());
     });
 
     (0..1000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        name.insert(&lover_a, &("Wameo".try_into().unwrap()));
+        name.insert(lover_a, "Wameo".try_into().unwrap());
         name.insert(
-            &lover_b,
-            &(Name(EN).fake::<String>()[..].try_into().unwrap()),
+            lover_b,
+            Name(EN).fake::<String>()[..].try_into().unwrap(),
         );
-        loves.insert(&lover_a, &lover_b);
-        loves.insert(&lover_b, &lover_a);
+        loves.insert(lover_a, lover_b.into());
+        loves.insert(lover_b, lover_a.into());
     });
 
     let romeo = ufoid();
     let juliet = ufoid();
-    name.insert(&romeo, &("Romeo".try_into().unwrap()));
-    name.insert(&juliet, &("Juliet".try_into().unwrap()));
-    loves.insert(&romeo, &juliet);
-    loves.insert(&juliet, &romeo);
+    name.insert(romeo, "Romeo".try_into().unwrap());
+    name.insert(juliet, "Juliet".try_into().unwrap());
+    loves.insert(romeo, juliet.into());
+    loves.insert(juliet, romeo.into());
 
     loop {
         for _r in find!(

@@ -8,6 +8,7 @@ pub mod hash;
 pub mod shortstring;
 pub mod time;
 pub mod zcstring;
+pub mod zc;
 
 pub use hash::Hash;
 pub use shortstring::*;

@@ -6,8 +6,6 @@ use crate::{
 use super::*;
 
 pub struct HashTribleSetConstraint<'a, V>
-where
-    V: Valuelike,
 {
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
@@ -16,8 +14,6 @@ where
 }
 
 impl<'a, V> HashTribleSetConstraint<'a, V>
-where
-    V: Valuelike,
 {
     pub fn new(
         variable_e: Variable<Id>,
@@ -35,8 +31,6 @@ where
 }
 
 impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
-where
-    V: Valuelike,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
@@ -114,7 +108,7 @@ where
         }
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);
         let v_bound = binding.bound.is_set(self.variable_v.index);
@@ -123,7 +117,7 @@ where
         let a_var = self.variable_a.index == variable;
         let v_var = self.variable_v.index == variable;
 
-        fn as_value(id: &Id) -> Value {
+        fn as_value(id: &RawId) -> RawValue {
             let mut o: [u8; 32] = [0u8; 32];
             o[16..=31].copy_from_slice(id);
             o
@@ -140,47 +134,47 @@ where
                     .ea
                     .keys()
                     .map(|e| as_value(e))
-                    .collect::<Vec<Value>>(),
+                    .collect::<Vec<RawValue>>(),
                 (false, false, false, false, true, false) => self
                     .set
                     .ae
                     .keys()
                     .map(|a| as_value(a))
-                    .collect::<Vec<Value>>(),
+                    .collect::<Vec<RawValue>>(),
                 (false, false, false, false, false, true) => {
-                    self.set.ve.keys().copied().collect::<Vec<Value>>()
+                    self.set.ve.keys().copied().collect::<Vec<RawValue>>()
                 }
 
                 (true, false, false, false, true, false) => {
                     self.set.ea.get(&trible.e()).map_or(vec![], |s| {
-                        s.iter().map(|a| as_value(a)).collect::<Vec<Value>>()
+                        s.iter().map(|a| as_value(a)).collect::<Vec<RawValue>>()
                     })
                 }
                 (true, false, false, false, false, true) => self
                     .set
                     .ev
                     .get(&trible.e())
-                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<Value>>()),
+                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<RawValue>>()),
 
                 (false, true, false, true, false, false) => {
                     self.set.ae.get(&trible.a()).map_or(vec![], |s| {
-                        s.iter().map(|e| as_value(e)).collect::<Vec<Value>>()
+                        s.iter().map(|e| as_value(e)).collect::<Vec<RawValue>>()
                     })
                 }
                 (false, true, false, false, false, true) => self
                     .set
                     .av
                     .get(&trible.a())
-                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<Value>>()),
+                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<RawValue>>()),
 
                 (false, false, true, true, false, false) => {
                     self.set.ve.get(&trible.v()).map_or(vec![], |s| {
-                        s.iter().map(|e| as_value(e)).collect::<Vec<Value>>()
+                        s.iter().map(|e| as_value(e)).collect::<Vec<RawValue>>()
                     })
                 }
                 (false, false, true, false, true, false) => {
                     self.set.va.get(&trible.v()).map_or(vec![], |s| {
-                        s.iter().map(|a| as_value(a)).collect::<Vec<Value>>()
+                        s.iter().map(|a| as_value(a)).collect::<Vec<RawValue>>()
                     })
                 }
 
@@ -189,20 +183,20 @@ where
                     .ave
                     .get(&(trible.a(), trible.v()))
                     .map_or(vec![], |s| {
-                        s.iter().map(|e| as_value(e)).collect::<Vec<Value>>()
+                        s.iter().map(|e| as_value(e)).collect::<Vec<RawValue>>()
                     }),
                 (true, false, true, false, true, false) => self
                     .set
                     .eva
                     .get(&(trible.e(), trible.v()))
                     .map_or(vec![], |s| {
-                        s.iter().map(|a| as_value(a)).collect::<Vec<Value>>()
+                        s.iter().map(|a| as_value(a)).collect::<Vec<RawValue>>()
                     }),
                 (true, true, false, false, false, true) => self
                     .set
                     .eav
                     .get(&(trible.e(), trible.a()))
-                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<Value>>()),
+                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<RawValue>>()),
                 _ => panic!(),
             }
         } else {
@@ -210,7 +204,7 @@ where
         }
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let e_bound = binding.bound.is_set(self.variable_e.index);
         let a_bound = binding.bound.is_set(self.variable_a.index);
         let v_bound = binding.bound.is_set(self.variable_v.index);

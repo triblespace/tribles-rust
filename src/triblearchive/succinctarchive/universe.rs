@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::RawValue;
 use crate::VALUE_LEN;
 
 use std::convert::TryInto;
@@ -10,33 +10,33 @@ use sucds::Serializable;
 pub trait Universe {
     fn with<I>(iter: I) -> Self
     where
-        I: Iterator<Item = Value>;
-    fn access(&self, pos: usize) -> Value;
-    fn search(&self, v: &Value) -> Option<usize>;
+        I: Iterator<Item = RawValue>;
+    fn access(&self, pos: usize) -> RawValue;
+    fn search(&self, v: &RawValue) -> Option<usize>;
     fn size_in_bytes(&self) -> usize;
     fn len(&self) -> usize;
 }
 
 #[derive(Debug, Clone)]
 pub struct OrderedUniverse {
-    values: Vec<Value>,
+    values: Vec<RawValue>,
 }
 
 impl Universe for OrderedUniverse {
     fn with<I>(iter: I) -> Self
     where
-        I: Iterator<Item = Value>,
+        I: Iterator<Item = RawValue>,
     {
         Self {
             values: iter.collect(),
         }
     }
 
-    fn access(&self, pos: usize) -> Value {
+    fn access(&self, pos: usize) -> RawValue {
         self.values[pos]
     }
 
-    fn search(&self, v: &Value) -> Option<usize> {
+    fn search(&self, v: &RawValue) -> Option<usize> {
         self.values.binary_search(v).ok()
     }
 
@@ -60,7 +60,7 @@ where
 {
     fn with<I>(iter: I) -> Self
     where
-        I: Iterator<Item = Value>,
+        I: Iterator<Item = RawValue>,
     {
         let mut clms: Vec<Vec<usize>> = vec![Vec::new(), Vec::new(), Vec::new(), Vec::new()];
 
@@ -80,8 +80,8 @@ where
         Self { segments: columns }
     }
 
-    fn access(&self, pos: usize) -> Value {
-        let mut v: Value = [0; 32];
+    fn access(&self, pos: usize) -> RawValue {
+        let mut v: RawValue = [0; 32];
 
         v[0..8].copy_from_slice(&(self.segments[0].access(pos).unwrap().to_be_bytes()));
         v[8..16].copy_from_slice(&(self.segments[1].access(pos).unwrap().to_be_bytes()));
@@ -91,7 +91,7 @@ where
         v
     }
 
-    fn search(&self, v: &Value) -> Option<usize> {
+    fn search(&self, v: &RawValue) -> Option<usize> {
         (0..=self.segments[0].num_vals() - 1)
             .binary_by(|p| self.access(p).cmp(v))
             .ok()

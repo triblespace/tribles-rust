@@ -24,11 +24,11 @@ impl<'a> Constraint<'a> for MaskConstraint<'a> {
         self.constraint.estimate(variable, binding)
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
         self.constraint.propose(variable, binding)
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         self.constraint.confirm(variable, binding, proposals)
     }
 }

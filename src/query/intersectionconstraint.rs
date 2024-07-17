@@ -30,7 +30,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
             .unwrap()
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<Value> {
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
@@ -47,7 +47,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
         proposal
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()

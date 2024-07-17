@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use digest::{consts::U32, Digest};
 
-use crate::{types::Hash, Handle};
+use crate::{Handle, Value};
 
 pub use anybytes::Bytes;
 
@@ -9,7 +9,7 @@ pub use anybytes::Bytes;
 pub trait Bloblike: Sized {
     fn into_blob(self) -> Bytes;
     fn from_blob(blob: Bytes) -> Result<Self, BlobParseError>;
-    fn as_handle<H>(&self) -> Handle<H, Self>
+    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
     where
         H: Digest<OutputSize = U32>;
 }
@@ -23,12 +23,12 @@ impl<'a> Bloblike for Bytes {
         Ok(blob)
     }
 
-    fn as_handle<H>(&self) -> Handle<H, Self>
+    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
     where
         H: Digest<OutputSize = U32>,
     {
         let digest = H::digest(self);
-        unsafe { Handle::new(Hash::new(digest.into())) }
+        Value::new(digest.into())
     }
 }
 

@@ -18,7 +18,7 @@ macro_rules! entity_inner {
         {
             {
                 use $Namespace as ns;
-                $({let v: ns::types::$FieldName = $Value;
+                $({let v: $crate::Value<ns::types::$FieldName> = $Value;
                     $Set.insert(&$crate::trible::Trible::new(
                     id,
                     ns::ids::$FieldName,
@@ -29,7 +29,7 @@ macro_rules! entity_inner {
     ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             use $Namespace as ns;
-            $({ let v: ns::types::$FieldName = $Value;
+            $({ let v: $crate::Value<ns::types::$FieldName> = $Value;
                 $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
                 ns::ids::$FieldName,
@@ -49,8 +49,8 @@ macro_rules! pattern_inner {
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::types::$FieldName> = $ctx.next_variable();
-            let v: ns::types::$FieldName = $Value;
-            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName)));
+            let v: $crate::Value<ns::types::$FieldName> = $Value;
+            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
             $constraints.push(Box::new(v_var.is(v)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
@@ -62,7 +62,7 @@ macro_rules! pattern_inner {
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::types::$FieldName> = $Value;
-            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName)));
+            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
 
@@ -71,7 +71,7 @@ macro_rules! pattern_inner {
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             let e_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
-            $constraints.push({ let e: $crate::Id = $EntityId; Box::new(e_var.is(e))});
+            $constraints.push({ let e: $crate::RawId = $EntityId; Box::new(e_var.is(e.into()))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -132,8 +132,8 @@ pub use hex_literal;
 ///   pub mod ids {
 ///       use super::*;
 ///       use hex_literal::hex;
-///       pub const attr_name: tribles::Id  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
-///       pub const attr_name2: tribles::Id  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
+///       pub const attr_name: tribles::RawId  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
+///       pub const attr_name2: tribles::RawId  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
 ///   }
 ///   pub mod types {
 ///       use super::*;
@@ -154,7 +154,7 @@ macro_rules! NS {
             pub mod ids {
                 #![allow(non_upper_case_globals, unused)]
                 use super::*;
-                $(pub const $FieldName:$crate::Id = $crate::namespace::hex_literal::hex!($FieldId);)*
+                $(pub const $FieldName:$crate::RawId = $crate::namespace::hex_literal::hex!($FieldId);)*
             }
             pub mod types {
                 #![allow(non_camel_case_types, unused)]
@@ -236,12 +236,12 @@ mod tests {
 
         knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
-            loves: romeo,
+            loves: romeo.into(),
             title: "Maiden".try_into().unwrap()
         });
         knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
-            loves: juliet,
+            loves: juliet.into(),
             title: "Prince".try_into().unwrap()
         });
         knights::entity!(
@@ -259,12 +259,12 @@ mod tests {
         let mut tribles = TribleSet::new();
         tribles.union(knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
-            loves: romeo,
+            loves: romeo.into(),
             title: "Maiden".try_into().unwrap()
         }));
         tribles.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
-            loves: juliet,
+            loves: juliet.into(),
             title: "Prince".try_into().unwrap()
         }));
         tribles.union(knights::entity!({
@@ -284,12 +284,12 @@ mod tests {
         kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_into().unwrap(),
-            loves: romeo,
+            loves: romeo.into(),
             title: "Maiden".try_into().unwrap()
         }));
         kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
-            loves: juliet,
+            loves: juliet.into(),
             title: "Prince".try_into().unwrap()
         }));
         kb.union(knights::entity!({
@@ -308,7 +308,7 @@ mod tests {
             }])
         )
         .collect();
-        assert_eq!(vec![Ok((juliet, "Juliet".try_into().unwrap(),))], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_into().unwrap(),)], r);
     }
 
     #[test]
@@ -319,11 +319,11 @@ mod tests {
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
-                loves: lover_b
+                loves: lover_b.into()
             }));
             kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
-                loves: lover_a
+                loves: lover_a.into()
             }));
         });
 
@@ -333,11 +333,11 @@ mod tests {
         let mut data_kb = TribleSet::new();
         data_kb.union(knights::entity!(juliet, {
             name: "Juliet".try_into().unwrap(),
-            loves: romeo
+            loves: romeo.into()
         }));
         data_kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
-            loves: juliet
+            loves: juliet.into()
         }));
 
         kb.union(data_kb);
@@ -354,6 +354,6 @@ mod tests {
         )
         .collect();
 
-        assert_eq!(vec![Ok((juliet, "Juliet".try_into().unwrap(),))], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_into().unwrap(),)], r);
     }
 }

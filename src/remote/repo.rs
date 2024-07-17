@@ -8,7 +8,7 @@ use digest::{typenum::U32, Digest};
 use futures::{stream, Stream, StreamExt};
 use anybytes::Bytes;
 
-use crate::{types::Hash, BlobParseError, BlobSet};
+use crate::{types::Hash, BlobParseError, BlobSet, Value};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {
@@ -43,7 +43,7 @@ pub async fn transfer<'a, BS, BT, HS, HT, S>(
     target: &'a BT,
 ) -> impl Stream<
     Item = Result<
-        (Hash<HS>, Hash<HT>),
+        (Value<Hash<HS>>, Value<Hash<HT>>),
         TransferError<<BS as List<HS>>::Err, <BS as Pull<HS>>::Err, <BT as Push<HT>>::Err>,
     >,
 > + 'a
@@ -55,7 +55,7 @@ where
 {
     let l = source.list();
     let r = l.then(
-        move |source_hash: Result<Hash<HS>, <BS as List<HS>>::Err>| async move {
+        move |source_hash: Result<Value<Hash<HS>>, <BS as List<HS>>::Err>| async move {
             let source_hash = source_hash.map_err(|e| TransferError::List(e))?;
             let blob = source
                 .pull(source_hash)
@@ -80,18 +80,18 @@ pub enum GetError<E> {
 pub trait List<H> {
     type Err;
 
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::Err>>;
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Hash<H>>, Self::Err>>;
 }
 pub trait Pull<H> {
     type Err;
 
-    async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::Err>;
+    async fn pull(&self, hash: Value<Hash<H>>) -> Result<Bytes, Self::Err>;
 }
 
 pub trait Push<H> {
     type Err;
 
-    async fn push(&self, blob: Bytes) -> Result<Hash<H>, Self::Err>;
+    async fn push(&self, blob: Bytes) -> Result<Value<Hash<H>>, Self::Err>;
 }
 
 pub trait Repo<H>: List<H> + Pull<H> + Push<H> {
@@ -127,7 +127,7 @@ where
 {
     type Err = Infallible;
 
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Hash<H>, Self::Err>> {
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Hash<H>>, Self::Err>> {
         stream::iter((&self).into_iter().map(|(&hash, _)| Ok(hash)))
     }
 }
@@ -138,7 +138,7 @@ where
 {
     type Err = NotFoundErr;
 
-    async fn pull(&self, hash: Hash<H>) -> Result<Bytes, Self::Err> {
+    async fn pull(&self, hash: Value<Hash<H>>) -> Result<Bytes, Self::Err> {
         self.get_raw(hash)
             .map_or(Err(NotFoundErr()), |b| Ok(b.clone()))
     }

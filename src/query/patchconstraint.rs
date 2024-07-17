@@ -1,6 +1,6 @@
 use crate::{
     patch::{IdentityOrder, SingleSegmentation, PATCH},
-    Value, Valuelike, VALUE_LEN,
+    RawValue, VALUE_LEN,
 };
 
 use super::{Binding, ContainsConstraint, Constraint, Variable, VariableId, VariableSet};
@@ -11,8 +11,6 @@ pub struct PatchConstraint<'a, T> {
 }
 
 impl<'a, T> PatchConstraint<'a, T>
-where
-    T: Eq + PartialEq + Valuelike,
 {
     pub fn new(
         variable: Variable<T>,
@@ -23,8 +21,6 @@ where
 }
 
 impl<'a, T> Constraint<'a> for PatchConstraint<'a, T>
-where
-    T: Eq + PartialEq + Valuelike,
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
@@ -38,22 +34,19 @@ where
         self.patch.len() as usize
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<Value> {
+    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
         let mut r = vec![];
         self.patch
             .infixes::<0, VALUE_LEN, _>(&[0; 0], &mut |k| r.push(k));
         r
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<Value>) {
+    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
         proposals.retain(|v| self.patch.has_prefix(v));
     }
 }
 
-impl<'a, T> ContainsConstraint<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>
-where
-    T: Eq + PartialEq + Valuelike + 'a,
-{
+impl<'a, T> ContainsConstraint<'a, T> for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation> {
     type Constraint = PatchConstraint<'a, T>;
 
     fn has(&'a self, v: Variable<T>) -> Self::Constraint {

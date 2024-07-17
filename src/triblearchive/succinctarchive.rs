@@ -7,8 +7,8 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{id_into_value, Id, Valuelike};
-use crate::{Bloblike, Value};
+use crate::{id_into_value, Handle, Id, Value};
+use crate::{Bloblike, RawValue};
 
 use itertools::Itertools;
 
@@ -234,8 +234,7 @@ where
 {
     type PatternConstraint<'a, V>
      = SuccinctArchiveConstraint<'a, V, U, B>
-     where V: Valuelike,
-           U: 'a,
+     where U: 'a,
            B: 'a;
 
     fn pattern<'a, V>(
@@ -244,8 +243,6 @@ where
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a, V>
-    where
-        V: Valuelike,
     {
         SuccinctArchiveConstraint::new(e, a, v, self)
     }
@@ -264,7 +261,7 @@ where
         todo!()
     }
 
-    fn as_handle<H>(&self) -> crate::Handle<H, Self>
+    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
     where
         H: Digest<OutputSize = U32>,
     {
@@ -276,7 +273,7 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::{find, trible::Trible, types::ShortString, ufoid, Id, NS};
+    use crate::{find, trible::Trible, types::ShortString, ufoid, NS};
 
     use super::*;
     use itertools::Itertools;
@@ -322,7 +319,7 @@ mod tests {
 
         #[test]
         fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..10000)) {
-            let mut values: Vec<Value> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
+            let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = OrderedUniverse::with(values.iter().copied());
             for i in 0..u.len() {
@@ -339,7 +336,7 @@ mod tests {
 
         #[test]
         fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..10000)) {
-            let mut values: Vec<Value> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
+            let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = CompressedUniverse::<DacsOpt>::with(values.iter().copied());
             for i in 0..u.len() {
@@ -365,12 +362,12 @@ mod tests {
         kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_into().unwrap(),
-            loves: romeo,
+            loves: romeo.into(),
             title: "Maiden".try_into().unwrap()
         }));
         kb.union(knights::entity!(romeo, {
             name: "Romeo".try_into().unwrap(),
-            loves: juliet,
+            loves: juliet.into(),
             title: "Prince".try_into().unwrap()
         }));
         kb.union(knights::entity!({
@@ -391,6 +388,6 @@ mod tests {
             }])
         )
         .collect();
-        assert_eq!(vec![Ok((juliet, "Juliet".try_into().unwrap(),))], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_into().unwrap(),)], r);
     }
 }

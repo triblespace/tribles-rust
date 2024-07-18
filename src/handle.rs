@@ -6,7 +6,7 @@ use crate::Value;
 
 #[repr(transparent)]
 pub struct Handle<H, T> {
-    _digest: H,
+    _digest: PhantomData<H>,
     _type: PhantomData<T>,
 }
 

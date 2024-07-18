@@ -6,6 +6,16 @@ use hex::ToHex;
 pub const VALUE_LEN: usize = 32;
 pub type RawValue = [u8; VALUE_LEN];
 
+// Idea: We could also have a Raw<T> type that could
+// be validated with `T::validate(Raw<T>) -> Value<T>`
+// in order to make sure that Value always has a valid bit pattern for type T.
+// Queries would then for example return `Raw<T>`.
+// But this would also make things more complicated and put a lot of focus
+// on the (hopefully) rare cases where values contain bad/wrong data.
+// Also we might want to make use of the fact that we can ignore malformed cases
+// if we just want to annotate metadata or do statistical analysis for example.
+
+#[repr(transparent)]
 pub struct Value<T>{
     pub bytes: RawValue,
     _type: PhantomData<T>,

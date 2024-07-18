@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
 
@@ -49,6 +49,18 @@ impl<T> Eq for Value<T> {}
 impl<T> Hash for Value<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);
+    }
+}
+
+impl<T> Ord for Value<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.bytes.cmp(&other.bytes)
+    }
+}
+
+impl<T> PartialOrd for Value<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

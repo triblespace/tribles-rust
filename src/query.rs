@@ -287,7 +287,7 @@ mod tests {
     use std::{collections::HashSet, convert::TryInto};
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{types::ShortString, ufoid, Id, TribleSet, NS};
+    use crate::{types::{iu256::I256BE, ShortString}, ufoid, Id, TribleSet, NS};
 
     use super::*;
 
@@ -376,6 +376,19 @@ mod tests {
             }])
         )
         .collect();
+
+        assert_eq!(1, r.len())
+    }
+
+    #[test]
+    fn constant() {
+        let q: Query<IntersectionConstraint<'static>, _, _> = find!(
+            ctx,
+            (string, number),
+            and!(
+                string.is("Hello World!".try_into().unwrap()),
+                number.is(Value::<I256BE>::from(42))));
+        let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())
     }

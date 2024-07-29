@@ -65,7 +65,7 @@ fn main() {
         for _r in find!(
             ctx,
             (juliet, name),
-            knights::pattern!(ctx, kb, [
+            knights::pattern!(ctx, &kb, [
             {name: ("Romeo".try_into().unwrap()),
              loves: juliet},
             {juliet @

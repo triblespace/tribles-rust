@@ -634,7 +634,7 @@ fn query_benchmark(c: &mut Criterion) {
             find!(
                 ctx,
                 (juliet, name),
-                knights::pattern!(ctx, kb, [
+                knights::pattern!(ctx, &kb, [
                 {name: (black_box("Romeo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @
@@ -651,7 +651,7 @@ fn query_benchmark(c: &mut Criterion) {
             find!(
                 ctx,
                 (juliet, name),
-                knights::pattern!(ctx, kb, [
+                knights::pattern!(ctx, &kb, [
                 {name: (black_box("Wameo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @
@@ -672,7 +672,7 @@ fn query_benchmark(c: &mut Criterion) {
             find!(
                 ctx,
                 (juliet, name),
-                knights::pattern!(ctx, kb_archive, [
+                knights::pattern!(ctx, &kb_archive, [
                 {name: (black_box("Romeo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @
@@ -689,7 +689,7 @@ fn query_benchmark(c: &mut Criterion) {
             find!(
                 ctx,
                 (juliet, name),
-                knights::pattern!(ctx, kb_archive, [
+                knights::pattern!(ctx, &kb_archive, [
                 {name: (black_box("Wameo").try_into().unwrap()),
                  loves: juliet},
                 {juliet @

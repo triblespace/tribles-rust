@@ -91,7 +91,7 @@ macro_rules! pattern_inner {
     };
     ($Namespace:path, $ctx:ident, $set:expr, [$($Entity:tt),*]) => {
         {
-            let set = &($set);
+            let set = $set;
             let mut constraints: Vec<Box<dyn $crate::query::Constraint>> = vec!();
             $(pattern_inner!(@entity (constraints, $ctx, set, $Namespace, $Entity));)*
             $crate::query::IntersectionConstraint::new(constraints)
@@ -300,7 +300,7 @@ mod tests {
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
-            knights::pattern!(ctx, kb, [
+            knights::pattern!(ctx, &kb, [
             {name: ("Romeo".try_into().unwrap()),
              loves: juliet},
             {juliet @
@@ -345,7 +345,7 @@ mod tests {
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
-            knights::pattern!(ctx, kb, [
+            knights::pattern!(ctx, &kb, [
             {name: ("Romeo".try_into().unwrap()),
              loves: juliet},
             {juliet @

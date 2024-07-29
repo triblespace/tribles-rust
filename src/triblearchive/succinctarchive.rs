@@ -380,7 +380,7 @@ mod tests {
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
-            knights::pattern!(ctx, archive, [
+            knights::pattern!(ctx, &archive, [
             {name: ("Romeo".try_into().unwrap()),
              loves: juliet},
             {juliet @

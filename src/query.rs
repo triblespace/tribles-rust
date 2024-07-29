@@ -367,7 +367,7 @@ mod tests {
         let r: Vec<_> = find!(
             ctx,
             (romeo, juliet, name),
-            knights::pattern!(ctx, kb, [
+            knights::pattern!(ctx, &kb, [
             {romeo @
                 name: ("Romeo".try_into().unwrap()),
              loves: juliet},

@@ -71,7 +71,7 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
     let (payload, verifying_key, r, s) = find!(
         ctx,
         (payload, key, r, s),
-        commit_ns::pattern!(ctx, tribles, [
+        commit_ns::pattern!(ctx, &tribles, [
         {(commit_id) @
             tribles: payload,
             ed25519_pubkey: key,

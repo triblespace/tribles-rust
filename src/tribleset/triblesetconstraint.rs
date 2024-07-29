@@ -9,19 +9,19 @@ use crate::query::*;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
-pub struct TribleSetConstraint<'a, V> {
+pub struct TribleSetConstraint<V> {
     variable_e: Variable<Id>,
     variable_a: Variable<Id>,
     variable_v: Variable<V>,
-    set: &'a TribleSet,
+    set: TribleSet,
 }
 
-impl<'a, V> TribleSetConstraint<'a, V> {
+impl<V> TribleSetConstraint<V> {
     pub fn new(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
-        set: &'a TribleSet,
+        set: TribleSet,
     ) -> Self {
         TribleSetConstraint {
             variable_e,
@@ -32,7 +32,7 @@ impl<'a, V> TribleSetConstraint<'a, V> {
     }
 }
 
-impl<'a, V> Constraint<'a> for TribleSetConstraint<'a, V> {
+impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
         variables.set(self.variable_e.index);

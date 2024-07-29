@@ -364,7 +364,7 @@ mod tests {
             name: "Romeo".try_into().unwrap()
         }));
 
-        let r: Vec<_> = find!(
+        let q: Query<IntersectionConstraint<'static>, _, _> = find!(
             ctx,
             (romeo, juliet, name),
             knights::pattern!(ctx, &kb, [
@@ -374,8 +374,9 @@ mod tests {
             {juliet @
                 name: name
             }])
-        )
-        .collect();
+        );
+
+        let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())
     }

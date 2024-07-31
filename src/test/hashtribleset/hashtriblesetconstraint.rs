@@ -5,60 +5,60 @@ use crate::{
 
 use super::*;
 
-pub struct HashTribleSetConstraint<'a, V>
+pub struct HashTribleSetConstraint<'a>
 {
-    variable_e: Variable<Id>,
-    variable_a: Variable<Id>,
-    variable_v: Variable<V>,
+    variable_e: VariableId,
+    variable_a: VariableId,
+    variable_v: VariableId,
     set: &'a HashTribleSet,
 }
 
-impl<'a, V> HashTribleSetConstraint<'a, V>
+impl<'a> HashTribleSetConstraint<'a>
 {
-    pub fn new(
+    pub fn new<V>(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
         set: &'a HashTribleSet,
     ) -> Self {
         HashTribleSetConstraint {
-            variable_e,
-            variable_a,
-            variable_v,
+            variable_e: variable_e.index,
+            variable_a: variable_a.index,
+            variable_v: variable_v.index,
             set,
         }
     }
 }
 
-impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
+impl<'a> Constraint<'a> for HashTribleSetConstraint<'a>
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
-        variables.set(self.variable_e.index);
-        variables.set(self.variable_a.index);
-        variables.set(self.variable_v.index);
+        variables.set(self.variable_e);
+        variables.set(self.variable_a);
+        variables.set(self.variable_v);
         variables
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e.index == variable
-            || self.variable_a.index == variable
-            || self.variable_v.index == variable
+        self.variable_e == variable
+            || self.variable_a == variable
+            || self.variable_v == variable
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
+        let e_bound = binding.bound.is_set(self.variable_e);
+        let a_bound = binding.bound.is_set(self.variable_a);
+        let v_bound = binding.bound.is_set(self.variable_v);
 
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
         if let Ok(trible) = Trible::new_values(
-            binding.get(self.variable_e.index).unwrap_or([0; 32]),
-            binding.get(self.variable_a.index).unwrap_or([0; 32]),
-            binding.get(self.variable_v.index).unwrap_or([0; 32]),
+            binding.get(self.variable_e).unwrap_or([0; 32]),
+            binding.get(self.variable_a).unwrap_or([0; 32]),
+            binding.get(self.variable_v).unwrap_or([0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => self.set.ea.len(),
@@ -109,13 +109,13 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
+        let e_bound = binding.bound.is_set(self.variable_e);
+        let a_bound = binding.bound.is_set(self.variable_a);
+        let v_bound = binding.bound.is_set(self.variable_v);
 
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
         fn as_value(id: &RawId) -> RawValue {
             let mut o: [u8; 32] = [0u8; 32];
@@ -124,9 +124,9 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
         }
 
         if let Ok(trible) = Trible::new_values(
-            binding.get(self.variable_e.index).unwrap_or([0; 32]),
-            binding.get(self.variable_a.index).unwrap_or([0; 32]),
-            binding.get(self.variable_v.index).unwrap_or([0; 32]),
+            binding.get(self.variable_e).unwrap_or([0; 32]),
+            binding.get(self.variable_a).unwrap_or([0; 32]),
+            binding.get(self.variable_v).unwrap_or([0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => self
@@ -205,30 +205,30 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let e_bound = binding.bound.is_set(self.variable_e.index);
-        let a_bound = binding.bound.is_set(self.variable_a.index);
-        let v_bound = binding.bound.is_set(self.variable_v.index);
+        let e_bound = binding.bound.is_set(self.variable_e);
+        let a_bound = binding.bound.is_set(self.variable_a);
+        let v_bound = binding.bound.is_set(self.variable_v);
 
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
         match (e_bound || e_var, a_bound || a_var, v_bound || v_var) {
             (false, false, false) => panic!(),
             (true, false, false) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]
@@ -243,17 +243,17 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
             (false, true, false) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]
@@ -268,17 +268,17 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
             (false, false, true) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]
@@ -294,17 +294,17 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
             (true, true, false) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]
@@ -320,17 +320,17 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
             (true, false, true) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]
@@ -346,17 +346,17 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
             (false, true, true) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]
@@ -372,17 +372,17 @@ impl<'a, V> Constraint<'a> for HashTribleSetConstraint<'a, V>
             (true, true, true) => {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
-                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                        binding.get(self.variable_e).unwrap_or(if e_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                        binding.get(self.variable_a).unwrap_or(if a_var {
                             *value
                         } else {
                             [0; 32]
                         }),
-                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                        binding.get(self.variable_v).unwrap_or(if v_var {
                             *value
                         } else {
                             [0; 32]

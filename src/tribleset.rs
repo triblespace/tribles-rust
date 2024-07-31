@@ -83,15 +83,15 @@ impl FromIterator<Trible> for TribleSet {
 }
 
 impl TriblePattern for TribleSet {
-    type PatternConstraint<'a, V>
-     = TribleSetConstraint<V>;
+    type PatternConstraint<'a>
+     = TribleSetConstraint;
 
     fn pattern<'a, V>(
         &'a self,
         e: crate::query::Variable<Id>,
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
-    ) -> Self::PatternConstraint<'a, V>
+    ) -> Self::PatternConstraint<'a>
     {
         TribleSetConstraint::new(e, a, v, self.clone())
     }

@@ -8,32 +8,32 @@ use super::*;
 use crate::query::*;
 use crate::Id;
 
-pub struct SuccinctArchiveConstraint<'a, V, U, B>
+pub struct SuccinctArchiveConstraint<'a, U, B>
 where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
-    variable_e: Variable<Id>,
-    variable_a: Variable<Id>,
-    variable_v: Variable<V>,
+    variable_e: VariableId,
+    variable_a: VariableId,
+    variable_v: VariableId,
     archive: &'a SuccinctArchive<U, B>,
 }
 
-impl<'a, V, U, B> SuccinctArchiveConstraint<'a, V, U, B>
+impl<'a, U, B> SuccinctArchiveConstraint<'a, U, B>
 where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
-    pub fn new(
+    pub fn new<V>(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
         archive: &'a SuccinctArchive<U, B>,
     ) -> Self {
         SuccinctArchiveConstraint {
-            variable_e,
-            variable_a,
-            variable_v,
+            variable_e: variable_e.index,
+            variable_a: variable_a.index,
+            variable_v: variable_v.index,
             archive,
         }
     }
@@ -74,33 +74,33 @@ where
     }
 }
 
-impl<'a, V, U, B> Constraint<'a> for SuccinctArchiveConstraint<'a, V, U, B>
+impl<'a, U, B> Constraint<'a> for SuccinctArchiveConstraint<'a, U, B>
 where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
-        variables.set(self.variable_e.index);
-        variables.set(self.variable_a.index);
-        variables.set(self.variable_v.index);
+        variables.set(self.variable_e);
+        variables.set(self.variable_a);
+        variables.set(self.variable_v);
         variables
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e.index == variable
-            || self.variable_a.index == variable
-            || self.variable_v.index == variable
+        self.variable_e == variable
+            || self.variable_a == variable
+            || self.variable_v == variable
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
-        let e_bound = binding.get(self.variable_e.index);
-        let a_bound = binding.get(self.variable_a.index);
-        let v_bound = binding.get(self.variable_v.index);
+        let e_bound = binding.get(self.variable_e);
+        let a_bound = binding.get(self.variable_a);
+        let v_bound = binding.get(self.variable_v);
 
         //TODO add disting color counting ds to archive and estimate better
         (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
@@ -163,13 +163,13 @@ where
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
-        let e_bound = binding.get(self.variable_e.index);
-        let a_bound = binding.get(self.variable_a.index);
-        let v_bound = binding.get(self.variable_v.index);
+        let e_bound = binding.get(self.variable_e);
+        let a_bound = binding.get(self.variable_a);
+        let v_bound = binding.get(self.variable_v);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => self
@@ -284,13 +284,13 @@ where
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
-        let e_bound = binding.get(self.variable_e.index);
-        let a_bound = binding.get(self.variable_a.index);
-        let v_bound = binding.get(self.variable_v.index);
+        let e_bound = binding.get(self.variable_e);
+        let a_bound = binding.get(self.variable_a);
+        let v_bound = binding.get(self.variable_v);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {

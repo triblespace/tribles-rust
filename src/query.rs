@@ -32,7 +32,7 @@ use crate::{Id, RawValue, Value};
 pub use variableset::VariableSet;
 
 pub trait TriblePattern {
-    type PatternConstraint<'a, V>: Constraint<'a>
+    type PatternConstraint<'a>: Constraint<'a>
     where
         Self: 'a;
 
@@ -41,7 +41,7 @@ pub trait TriblePattern {
         e: Variable<Id>,
         a: Variable<Id>,
         v: Variable<V>,
-    ) -> Self::PatternConstraint<'a, V>;
+    ) -> Self::PatternConstraint<'a>;
 }
 
 pub type VariableId = u8;
@@ -151,6 +151,60 @@ pub trait Constraint<'a> {
     fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>);
 }
 
+impl<'a, T: Constraint<'a> + ?Sized> Constraint<'a> for Box<T> {
+    fn variables(&self) -> VariableSet {
+        let inner: &T = self;
+        inner.variables()
+    }
+
+    fn variable(&self, variable: VariableId) -> bool {
+        let inner: &T = self;
+        inner.variable(variable)
+    }
+
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
+        let inner: &T = self;
+        inner.estimate(variable, binding)
+    }
+
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+        let inner: &T = self;
+        inner.propose(variable, binding)
+    }
+
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>) {
+        let inner: &T = self;
+        inner.confirm(variable, binding, proposal)
+    }
+}
+
+impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
+    fn variables(&self) -> VariableSet {
+        let inner: &T = self;
+        inner.variables()
+    }
+
+    fn variable(&self, variable: VariableId) -> bool {
+        let inner: &T = self;
+        inner.variable(variable)
+    }
+
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
+        let inner: &T = self;
+        inner.estimate(variable, binding)
+    }
+
+    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+        let inner: &T = self;
+        inner.propose(variable, binding)
+    }
+
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>) {
+        let inner: &T = self;
+        inner.confirm(variable, binding, proposal)
+    }
+}
+
 pub struct State {
     variable: VariableId,
     values: Vec<RawValue>,
@@ -189,10 +243,8 @@ enum Search {
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator
     for Query<C, P, R>
 {
-    // we will be counting with usize
     type Item = R;
 
-    // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &self.mode {
@@ -364,7 +416,7 @@ mod tests {
             name: "Romeo".try_into().unwrap()
         }));
 
-        let q: Query<IntersectionConstraint<'static>, _, _> = find!(
+        let q: Query<IntersectionConstraint<_>, _, _> = find!(
             ctx,
             (romeo, juliet, name),
             knights::pattern!(ctx, &kb, [
@@ -383,7 +435,7 @@ mod tests {
 
     #[test]
     fn constant() {
-        let q: Query<IntersectionConstraint<'static>, _, _> = find!(
+        let q: Query<IntersectionConstraint<_>, _, _> = find!(
             ctx,
             (string, number),
             and!(

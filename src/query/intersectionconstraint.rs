@@ -1,16 +1,18 @@
 use super::*;
 
-pub struct IntersectionConstraint<'a> {
-    constraints: Vec<Box<dyn Constraint<'a> + 'a>>,
+pub struct IntersectionConstraint<C> {
+    constraints: Vec<C>,
 }
 
-impl<'a> IntersectionConstraint<'a> {
-    pub fn new(constraints: Vec<Box<dyn Constraint<'a> + 'a>>) -> Self {
+impl<'a, C> IntersectionConstraint<C>
+where C: Constraint<'a> + 'a {
+    pub fn new(constraints: Vec<C>) -> Self {
         IntersectionConstraint { constraints }
     }
 }
 
-impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
+impl<'a, C> Constraint<'a> for IntersectionConstraint<C>
+where C: Constraint<'a> + 'a {
     fn variables(&self) -> VariableSet {
         self.constraints
             .iter()
@@ -65,7 +67,7 @@ impl<'a> Constraint<'a> for IntersectionConstraint<'a> {
 macro_rules! and {
     ($($c:expr),+ $(,)?) => (
         $crate::query::intersectionconstraint::IntersectionConstraint::new(vec![
-            $(Box::new($c)),+
+            $(Box::new($c) as Box<dyn $crate::query::Constraint>),+
         ])
     )
 }

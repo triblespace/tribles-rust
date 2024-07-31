@@ -232,8 +232,8 @@ where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
-    type PatternConstraint<'a, V>
-     = SuccinctArchiveConstraint<'a, V, U, B>
+    type PatternConstraint<'a>
+     = SuccinctArchiveConstraint<'a, U, B>
      where U: 'a,
            B: 'a;
 
@@ -242,7 +242,7 @@ where
         e: crate::query::Variable<Id>,
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
-    ) -> Self::PatternConstraint<'a, V>
+    ) -> Self::PatternConstraint<'a>
     {
         SuccinctArchiveConstraint::new(e, a, v, self)
     }

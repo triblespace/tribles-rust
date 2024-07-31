@@ -72,15 +72,15 @@ impl FromIterator<Trible> for HashTribleSet {
 }
 
 impl TriblePattern for HashTribleSet {
-    type PatternConstraint<'a, V>
-     = HashTribleSetConstraint<'a, V>;
+    type PatternConstraint<'a>
+     = HashTribleSetConstraint<'a>;
 
     fn pattern<'a, V>(
         &'a self,
         e: crate::query::Variable<Id>,
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
-    ) -> Self::PatternConstraint<'a, V>
+    ) -> Self::PatternConstraint<'a>
     {
         HashTribleSetConstraint::new(e, a, v, self)
     }

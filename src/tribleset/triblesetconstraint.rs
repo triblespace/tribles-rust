@@ -9,50 +9,50 @@ use crate::query::*;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
-pub struct TribleSetConstraint<V> {
-    variable_e: Variable<Id>,
-    variable_a: Variable<Id>,
-    variable_v: Variable<V>,
+pub struct TribleSetConstraint {
+    variable_e: VariableId,
+    variable_a: VariableId,
+    variable_v: VariableId,
     set: TribleSet,
 }
 
-impl<V> TribleSetConstraint<V> {
-    pub fn new(
+impl TribleSetConstraint {
+    pub fn new<V>(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
         set: TribleSet,
     ) -> Self {
         TribleSetConstraint {
-            variable_e,
-            variable_a,
-            variable_v,
+            variable_e: variable_e.index,
+            variable_a: variable_a.index,
+            variable_v: variable_v.index,
             set,
         }
     }
 }
 
-impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
+impl<'a> Constraint<'a> for TribleSetConstraint {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
-        variables.set(self.variable_e.index);
-        variables.set(self.variable_a.index);
-        variables.set(self.variable_v.index);
+        variables.set(self.variable_e);
+        variables.set(self.variable_a);
+        variables.set(self.variable_v);
         variables
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e.index == variable
-            || self.variable_a.index == variable
-            || self.variable_v.index == variable
+        self.variable_e == variable
+            || self.variable_a == variable
+            || self.variable_v == variable
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
-        let e_bound = if let Some(e) = binding.get(self.variable_e.index) {
+        let e_bound = if let Some(e) = binding.get(self.variable_e) {
             let Some(e) = id_from_value(e) else {
                 return 0;
             };
@@ -61,7 +61,7 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
         else {
             None
         };
-        let a_bound = if let Some(a) = binding.get(self.variable_a.index) {
+        let a_bound = if let Some(a) = binding.get(self.variable_a) {
             let Some(a) = id_from_value(a) else {
                 return 0;
             };
@@ -70,7 +70,7 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
         else {
             None
         };
-        let v_bound = binding.get(self.variable_v.index);
+        let v_bound = binding.get(self.variable_v);
 
         (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => self.set.eav.segmented_len(&[0; 0]),
@@ -129,11 +129,11 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
-        let e_bound = if let Some(e) = binding.get(self.variable_e.index) {
+        let e_bound = if let Some(e) = binding.get(self.variable_e) {
             let Some(e) = id_from_value(e) else {
                 return vec![];
             };
@@ -142,7 +142,7 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
         else {
             None
         };
-        let a_bound = if let Some(a) = binding.get(self.variable_a.index) {
+        let a_bound = if let Some(a) = binding.get(self.variable_a) {
             let Some(a) = id_from_value(a) else {
                 return vec![];
             };
@@ -151,7 +151,7 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
         else {
             None
         };
-        let v_bound = binding.get(self.variable_v.index);
+        let v_bound = binding.get(self.variable_v);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
@@ -239,11 +239,11 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let e_var = self.variable_e.index == variable;
-        let a_var = self.variable_a.index == variable;
-        let v_var = self.variable_v.index == variable;
+        let e_var = self.variable_e == variable;
+        let a_var = self.variable_a == variable;
+        let v_var = self.variable_v == variable;
 
-        let e_bound = if let Some(e) = binding.get(self.variable_e.index) {
+        let e_bound = if let Some(e) = binding.get(self.variable_e) {
             let Some(e) = id_from_value(e) else {
                 proposals.clear();
                 return;
@@ -253,7 +253,7 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
         else {
             None
         };
-        let a_bound = if let Some(a) = binding.get(self.variable_a.index) {
+        let a_bound = if let Some(a) = binding.get(self.variable_a) {
             let Some(a) = id_from_value(a) else {
                 proposals.clear();
                 return;
@@ -263,7 +263,7 @@ impl<'a, V> Constraint<'a> for TribleSetConstraint<V> {
         else {
             None
         };
-        let v_bound = binding.get(self.variable_v.index);
+        let v_bound = binding.get(self.variable_v);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {

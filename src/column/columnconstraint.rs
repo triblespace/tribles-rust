@@ -6,25 +6,27 @@ use crate::{
 
 use super::*;
 
-pub struct ColumnConstraint<'a, V>
+pub struct ColumnConstraint<'a>
 {
     variable_e: VariableId,
     variable_v: VariableId,
-    column: &'a Column<V>,
+    column_ev: &'a HashMap<RawId, HashSet<RawValue>>,
+    column_ve: &'a HashMap<RawValue, HashSet<RawId>>,
 }
 
-impl<'a, V> ColumnConstraint<'a, V>
+impl<'a> ColumnConstraint<'a>
 {
-    pub fn new(variable_e: Variable<Id>, variable_v: Variable<V>, column: &'a Column<V>) -> Self {
+    pub fn new<V>(variable_e: Variable<Id>, variable_v: Variable<V>, column: &'a Column<V>) -> Self {
         ColumnConstraint {
             variable_e: variable_e.index,
             variable_v: variable_v.index,
-            column,
+            column_ev: &column.ev,
+            column_ve: &column.ve,
         }
     }
 }
 
-impl<'a, V> Constraint<'a> for ColumnConstraint<'a, V>
+impl<'a> Constraint<'a> for ColumnConstraint<'a>
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
@@ -45,10 +47,10 @@ impl<'a, V> Constraint<'a> for ColumnConstraint<'a, V>
         let v_bound = binding.get(self.variable_v);
 
         match (e_bound, v_bound, e_var, v_var) {
-            (None, None, true, false) => self.column.ev.len(),
-            (None, None, false, true) => self.column.ve.len(),
-            (Some(e), None, false, true) => self.column.ev.get(&e[16..32]).map_or(0, |s| s.len()),
-            (None, Some(v), true, false) => self.column.ve.get(&v).map_or(0, |s| s.len()),
+            (None, None, true, false) => self.column_ev.len(),
+            (None, None, false, true) => self.column_ve.len(),
+            (Some(e), None, false, true) => self.column_ev.get(&e[16..32]).map_or(0, |s| s.len()),
+            (None, Some(v), true, false) => self.column_ve.get(&v).map_or(0, |s| s.len()),
             _ => panic!(),
         }
     }
@@ -62,17 +64,15 @@ impl<'a, V> Constraint<'a> for ColumnConstraint<'a, V>
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => {
-                self.column.ev.keys().copied().map(id_into_value).collect()
+                self.column_ev.keys().copied().map(id_into_value).collect()
             }
-            (None, None, false, true) => self.column.ve.keys().copied().collect(),
+            (None, None, false, true) => self.column_ve.keys().copied().collect(),
             (Some(e), None, false, true) => self
-                .column
-                .ev
+                .column_ev
                 .get(&e[16..=31])
                 .map_or(vec![], |s| s.iter().copied().collect()),
             (None, Some(v), true, false) => self
-                .column
-                .ve
+                .column_ve
                 .get(&v)
                 .map_or(vec![], |s| s.iter().copied().map(id_into_value).collect()),
             _ => panic!(),
@@ -88,18 +88,18 @@ impl<'a, V> Constraint<'a> for ColumnConstraint<'a, V>
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => {
-                proposals.retain(|e| self.column.ev.contains_key(&e[16..=31]))
+                proposals.retain(|e| self.column_ev.contains_key(&e[16..=31]))
             }
-            (None, None, false, true) => proposals.retain(|v| self.column.ve.contains_key(v)),
+            (None, None, false, true) => proposals.retain(|v| self.column_ve.contains_key(v)),
             (Some(e), None, false, true) => {
-                if let Some(vs) = self.column.ev.get(&e[16..=31]) {
+                if let Some(vs) = self.column_ev.get(&e[16..=31]) {
                     proposals.retain(|v| vs.contains(v));
                 } else {
                     proposals.clear()
                 }
             }
             (None, Some(v), true, false) => {
-                if let Some(vs) = self.column.ve.get(&v) {
+                if let Some(vs) = self.column_ve.get(&v) {
                     proposals.retain(|e| vs.contains(&e[16..=31]));
                 } else {
                     proposals.clear()

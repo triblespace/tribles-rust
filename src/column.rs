@@ -36,7 +36,7 @@ impl<V> Column<V> {
         self.ve.entry(v.bytes).or_default().remove(&e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> ColumnConstraint<'a, V> {
+    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> ColumnConstraint<'a> {
         ColumnConstraint::new(e, v, self)
     }
 }

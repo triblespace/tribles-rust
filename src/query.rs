@@ -416,7 +416,7 @@ mod tests {
             name: "Romeo".try_into().unwrap()
         }));
 
-        let q: Query<IntersectionConstraint<_>, _, _> = find!(
+        let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find!(
             ctx,
             (romeo, juliet, name),
             knights::pattern!(ctx, &kb, [

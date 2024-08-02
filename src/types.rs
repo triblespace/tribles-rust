@@ -3,6 +3,7 @@
 
 pub mod ed25519;
 pub mod f256;
+pub mod fr256;
 pub mod iu256;
 pub mod hash;
 pub mod shortstring;

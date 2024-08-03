@@ -1,27 +1,27 @@
 use super::*;
 
-pub struct ConstantConstraint<T> {
-    variable: Variable<T>,
+pub struct ConstantConstraint {
+    variable: VariableId,
     constant: RawValue,
 }
 
-impl<T> ConstantConstraint<T> {
-    pub fn new(variable: Variable<T>, constant: Value<T>) -> Self
+impl ConstantConstraint {
+    pub fn new<T>(variable: Variable<T>, constant: Value<T>) -> Self
     {
         ConstantConstraint {
-            variable,
+            variable: variable.index,
             constant: constant.bytes,
         }
     }
 }
 
-impl<'a, T> Constraint<'a> for ConstantConstraint<T> {
+impl<'a> Constraint<'a> for ConstantConstraint {
     fn variables(&self) -> VariableSet {
-        VariableSet::new_singleton(self.variable.index)
+        VariableSet::new_singleton(self.variable)
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable.index == variable
+        self.variable == variable
     }
 
     fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {

@@ -104,7 +104,7 @@ pub trait ContainsConstraint<'a, T> {
 }
 
 impl<T> Variable<T> {
-    pub fn is(self, constant: Value<T>) -> ConstantConstraint<T> {
+    pub fn is(self, constant: Value<T>) -> ConstantConstraint {
         ConstantConstraint::new(self, constant)
     }
 }

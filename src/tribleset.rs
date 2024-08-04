@@ -91,7 +91,7 @@ impl TriblePattern for TribleSet {
         e: crate::query::Variable<Id>,
         a: crate::query::Variable<Id>,
         v: crate::query::Variable<V>,
-    ) -> Self::PatternConstraint<'a>
+    ) -> Self::PatternConstraint<'static>
     {
         TribleSetConstraint::new(e, a, v, self.clone())
     }

@@ -748,8 +748,8 @@ where
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
-        assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
-        assert!(S::segment(PREFIX_LEN) == S::segment(PREFIX_LEN + INFIX_LEN - 1));
+        assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN, "{} + {} > {}", PREFIX_LEN, INFIX_LEN, KEY_LEN);
+        assert!(S::segment(O::key_index(PREFIX_LEN)) == S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1)), "PREFIX_LEN = {}, INFIX_LEN = {}, {} != {}", PREFIX_LEN, INFIX_LEN,  S::segment(O::key_index(PREFIX_LEN)),  S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1)));
         if let Some(root) = &self.root {
             root.infixes(prefix, 0, &mut f);
         }

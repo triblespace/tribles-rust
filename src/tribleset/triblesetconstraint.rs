@@ -366,3 +366,24 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::query::{TriblePattern, Variable};
+    use crate::{RawValue, Value};
+    use crate::{find, trible::Trible, TribleSet};
+
+    #[test]
+    fn constant() {
+        let mut set = TribleSet::new();
+        set.insert(&Trible::new([1;16], [2;16], Value::<RawValue>::new([0; 32])));
+
+        let q = find!(
+            ctx,
+            (e, a, v),
+            set.pattern(e, a, v as Variable<RawValue>));
+        let r: Vec<_> = q.collect();
+
+        assert_eq!(1, r.len())
+    }
+}

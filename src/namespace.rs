@@ -168,7 +168,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::TribleSet::new();
-                        let id = $crate::idgen();
+                        let id = $crate::genid();
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
                     }

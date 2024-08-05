@@ -1,13 +1,14 @@
+pub mod genid;
 pub mod fucid;
 pub mod ufoid;
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-pub use fucid::fucid;
+pub use genid::genid;
 pub use ufoid::ufoid;
+pub use fucid::fucid;
 
-use rand::thread_rng;
 use rand::RngCore;
 
 use crate::RawValue;
@@ -61,14 +62,6 @@ impl From<RawId> for Value<Id> {
     }
 }
 
-pub fn idgen() -> RawId {
-    let mut rng = thread_rng();
-    let mut id = [0; 16];
-    rng.fill_bytes(&mut id[..]);
-
-    id
-}
-
 #[cfg(feature = "proptest")]
 pub struct IdValueTree(RawId);
 
@@ -113,6 +106,6 @@ mod tests {
 
     #[test]
     fn unique() {
-        assert!(idgen() != idgen());
+        assert!(genid() != genid());
     }
 }

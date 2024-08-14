@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::Utf8Error, string::FromUtf8Error};
 
-use crate::Value;
+use crate::{ Value, Schema };
 
 #[derive(Debug, Clone)]
 pub enum FromStrError {
@@ -9,6 +9,8 @@ pub enum FromStrError {
 }
 
 pub struct ShortString;
+
+impl Schema for ShortString {}
 
 impl TryFrom<&Value<ShortString>> for String {
     type Error = FromUtf8Error;

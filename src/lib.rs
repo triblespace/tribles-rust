@@ -22,8 +22,8 @@ pub use blobset::BlobSet;
 pub use handle::*;
 pub use id::*;
 pub use tribleset::TribleSet;
-
 pub use value::*;
+pub use schemas::Schema;
 
 #[cfg(test)]
 mod tests {}

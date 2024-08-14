@@ -3,11 +3,13 @@ use std::marker::PhantomData;
 use digest::{Digest, typenum::U32};
 use anybytes::Bytes;
 
-use crate::Value;
+use crate::{ Value, Schema };
 
 pub struct Hash<H> {
     _hasher: PhantomData<H>,
 }
+
+impl<H> Schema for Hash<H> {}
 
 impl<H> Hash<H>
 where

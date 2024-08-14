@@ -11,9 +11,7 @@ pub use fucid::fucid;
 
 use rand::RngCore;
 
-use crate::RawValue;
-use crate::Value;
-use crate::VALUE_LEN;
+use crate::{RawValue, Schema, Value, VALUE_LEN};
 
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
@@ -33,6 +31,8 @@ pub(crate) fn id_from_value(id: RawValue) -> Option<RawId> {
 }
 
 pub struct Id;
+
+impl Schema for Id {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RndIdParseError {

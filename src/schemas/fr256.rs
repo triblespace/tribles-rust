@@ -1,12 +1,15 @@
 use std::convert::TryInto;
 
-use crate::Value;
+use crate::{ Value, Schema };
 use num_rational::Ratio;
 
 pub struct FR256LE;
 pub struct FR256BE;
 
 pub type FR256 = FR256LE;
+
+impl Schema for FR256LE {}
+impl Schema for FR256BE {}
 
 impl From<Value<FR256BE>> for Ratio<i128> {
     fn from(value: Value<FR256BE>) -> Self {

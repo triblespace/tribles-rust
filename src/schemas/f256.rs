@@ -1,10 +1,15 @@
 use crate::Value;
 use f256::f256;
 
+use crate::Schema;
+
 pub struct F256LE;
 pub struct F256BE;
 
 pub type F256 = F256BE;
+
+impl Schema for F256LE {}
+impl Schema for F256BE {}
 
 impl From<Value<F256BE>> for f256 {
     fn from(value: Value<F256BE>) -> Self {

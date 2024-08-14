@@ -2,20 +2,20 @@ use std::collections::HashSet;
 
 use super::*;
 
-pub struct SetConstraint<'a, T>
+pub struct SetConstraint<'a, T: Schema>
 {
     variable: Variable<T>,
     set: &'a HashSet<Value<T>>,
 }
 
-impl<'a, T> SetConstraint<'a, T>
+impl<'a, T: Schema> SetConstraint<'a, T>
 {
     pub fn new(variable: Variable<T>, set: &'a HashSet<Value<T>>) -> Self {
         SetConstraint { variable, set }
     }
 }
 
-impl<'a, T> Constraint<'a> for SetConstraint<'a, T>
+impl<'a, T: Schema> Constraint<'a> for SetConstraint<'a, T>
 {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
@@ -38,7 +38,7 @@ impl<'a, T> Constraint<'a> for SetConstraint<'a, T>
     }
 }
 
-impl<'a, T> ContainsConstraint<'a, T> for HashSet<Value<T>>
+impl<'a, T: Schema> ContainsConstraint<'a, T> for HashSet<Value<T>>
 where T: 'a
 {
     type Constraint = SetConstraint<'a, T>;

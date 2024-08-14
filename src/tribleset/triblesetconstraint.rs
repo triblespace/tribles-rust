@@ -6,6 +6,7 @@ use super::*;
 use crate::id_from_value;
 use crate::id_into_value;
 use crate::query::*;
+use crate::Schema;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
@@ -17,7 +18,7 @@ pub struct TribleSetConstraint {
 }
 
 impl TribleSetConstraint {
-    pub fn new<V>(
+    pub fn new<V: Schema>(
         variable_e: Variable<Id>,
         variable_a: Variable<Id>,
         variable_v: Variable<V>,
@@ -42,9 +43,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e == variable
-            || self.variable_a == variable
-            || self.variable_v == variable
+        self.variable_e == variable || self.variable_a == variable || self.variable_v == variable
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
@@ -57,8 +56,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 return 0;
             };
             Some(e)
-        }
-        else {
+        } else {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
@@ -66,8 +64,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 return 0;
             };
             Some(a)
-        }
-        else {
+        } else {
             None
         };
         let v_bound = binding.get(self.variable_v);
@@ -138,8 +135,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 return vec![];
             };
             Some(e)
-        }
-        else {
+        } else {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
@@ -147,8 +143,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 return vec![];
             };
             Some(a)
-        }
-        else {
+        } else {
             None
         };
         let v_bound = binding.get(self.variable_v);
@@ -249,8 +244,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 return;
             };
             Some(e)
-        }
-        else {
+        } else {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
@@ -259,29 +253,24 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 return;
             };
             Some(a)
-        }
-        else {
+        } else {
             None
         };
         let v_bound = binding.get(self.variable_v);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => {
-                proposals.retain(|value| {
-                    let Some(id) = id_from_value(*value) else {
-                        return false;
-                    };
-                    self.set.eav.has_prefix(&id)
-                })
-            }
-            (None, None, None, false, true, false) => {
-                proposals.retain(|value| {
-                    let Some(id) = id_from_value(*value) else {
-                        return false;
-                    };
-                    self.set.aev.has_prefix(&id)
-                })
-            }
+            (None, None, None, true, false, false) => proposals.retain(|value| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
+                self.set.eav.has_prefix(&id)
+            }),
+            (None, None, None, false, true, false) => proposals.retain(|value| {
+                let Some(id) = id_from_value(*value) else {
+                    return false;
+                };
+                self.set.aev.has_prefix(&id)
+            }),
             (None, None, None, false, false, true) => {
                 proposals.retain(|value| self.set.vea.has_prefix(value))
             }
@@ -340,8 +329,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&a);
                 prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
-                prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN]
-                    .copy_from_slice(&id);
+                prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.ave.has_prefix(&prefix)
             }),
             (Some(e), None, Some(v), false, true, false) => proposals.retain(|value: &[u8; 32]| {
@@ -351,8 +339,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e);
                 prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
-                prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN]
-                    .copy_from_slice(&id);
+                prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.eva.has_prefix(&prefix)
             }),
             (Some(e), Some(a), None, false, false, true) => proposals.retain(|value: &[u8; 32]| {
@@ -369,19 +356,24 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 
 #[cfg(test)]
 mod tests {
-    use crate::query::{TriblePattern, Variable};
-    use crate::{RawValue, Value};
-    use crate::{find, trible::Trible, TribleSet};
+    use crate::{
+        find,
+        query::{TriblePattern, Variable},
+        schemas::Unknown,
+        trible::Trible,
+        TribleSet, Value,
+    };
 
     #[test]
     fn constant() {
         let mut set = TribleSet::new();
-        set.insert(&Trible::new([1;16], [2;16], Value::<RawValue>::new([0; 32])));
+        set.insert(&Trible::new(
+            [1; 16],
+            [2; 16],
+            Value::<Unknown>::new([0; 32]),
+        ));
 
-        let q = find!(
-            ctx,
-            (e, a, v),
-            set.pattern(e, a, v as Variable<RawValue>));
+        let q = find!(ctx, (e, a, v), set.pattern(e, a, v as Variable<Unknown>));
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())

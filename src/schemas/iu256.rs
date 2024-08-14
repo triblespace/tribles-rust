@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::{ Value, Schema };
 use ethnum;
 
 pub struct U256LE;
@@ -9,6 +9,10 @@ pub struct I256BE;
 pub type I256 = I256BE;
 pub type U256 = U256BE;
 
+impl Schema for U256LE {}
+impl Schema for U256BE {}
+impl Schema for I256LE {}
+impl Schema for I256BE {}
 
 impl From<ethnum::U256> for Value<U256BE> {
     fn from(value: ethnum::U256) -> Self {

@@ -7,7 +7,7 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{id_into_value, Handle, Id, Value};
+use crate::{id_into_value, Handle, Id, Schema, Value};
 use crate::{Bloblike, RawValue};
 
 use itertools::Itertools;
@@ -237,7 +237,7 @@ where
      where U: 'a,
            B: 'a;
 
-    fn pattern<'a, V>(
+    fn pattern<'a, V: Schema>(
         &'a self,
         e: crate::query::Variable<Id>,
         a: crate::query::Variable<Id>,

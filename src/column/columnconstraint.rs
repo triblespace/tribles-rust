@@ -16,7 +16,7 @@ pub struct ColumnConstraint<'a>
 
 impl<'a> ColumnConstraint<'a>
 {
-    pub fn new<V>(variable_e: Variable<Id>, variable_v: Variable<V>, column: &'a Column<V>) -> Self {
+    pub fn new<V: Schema>(variable_e: Variable<Id>, variable_v: Variable<V>, column: &'a Column<V>) -> Self {
         ColumnConstraint {
             variable_e: variable_e.index,
             variable_v: variable_v.index,

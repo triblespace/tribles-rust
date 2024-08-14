@@ -3,6 +3,8 @@ use std::{cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
 
+use crate::Schema;
+
 pub const VALUE_LEN: usize = 32;
 pub type RawValue = [u8; VALUE_LEN];
 
@@ -16,12 +18,12 @@ pub type RawValue = [u8; VALUE_LEN];
 // if we just want to annotate metadata or do statistical analysis for example.
 
 #[repr(transparent)]
-pub struct Value<T>{
+pub struct Value<T: Schema>{
     pub bytes: RawValue,
     _type: PhantomData<T>,
 }
 
-impl<T> Value<T> {
+impl<T: Schema> Value<T> {
     pub fn new(value: RawValue) -> Self {
         Self {
             bytes: value,
@@ -30,41 +32,41 @@ impl<T> Value<T> {
     }
 }
 
-impl<T> Copy for Value<T> {}
+impl<T: Schema> Copy for Value<T> {}
 
-impl<T> Clone for Value<T> {
+impl<T: Schema> Clone for Value<T> {
     fn clone(&self) -> Self {
         Self { bytes: self.bytes.clone(), _type: PhantomData }
     }
 }
 
-impl<T> PartialEq for Value<T> {
+impl<T: Schema> PartialEq for Value<T> {
     fn eq(&self, other: &Self) -> bool {
         self.bytes == other.bytes
     }
 }
 
-impl<T> Eq for Value<T> {}
+impl<T: Schema> Eq for Value<T> {}
 
-impl<T> Hash for Value<T> {
+impl<T: Schema> Hash for Value<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);
     }
 }
 
-impl<T> Ord for Value<T> {
+impl<T: Schema> Ord for Value<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.bytes.cmp(&other.bytes)
     }
 }
 
-impl<T> PartialOrd for Value<T> {
+impl<T: Schema> PartialOrd for Value<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T> Debug for Value<T> {
+impl<T: Schema> Debug for Value<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

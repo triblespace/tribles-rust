@@ -27,7 +27,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::{Id, RawValue, Value};
+use crate::{Id, RawValue, Schema, Value};
 
 pub use variableset::VariableSet;
 
@@ -36,7 +36,7 @@ pub trait TriblePattern {
     where
         Self: 'a;
 
-    fn pattern<'a, V>(
+    fn pattern<'a, V: Schema>(
         &'a self,
         e: Variable<Id>,
         a: Variable<Id>,
@@ -56,7 +56,7 @@ impl VariableContext {
         VariableContext { next_index: 0 }
     }
 
-    pub fn next_variable<T>(&mut self) -> Variable<T>
+    pub fn next_variable<T: Schema>(&mut self) -> Variable<T>
     {
         assert!(self.next_index < 128, "currently queries support at most 128 variables");
         let v = Variable::new(self.next_index);
@@ -71,20 +71,20 @@ impl VariableContext {
 /// Variables also have an associated type which is used to parse the [Value]s
 /// found by the query engine.
 #[derive(Debug)]
-pub struct Variable<T> {
+pub struct Variable<T: Schema> {
     pub index: VariableId,
     typed: PhantomData<T>,
 }
 
-impl<T> Copy for Variable<T> {}
+impl<T: Schema> Copy for Variable<T> {}
 
-impl<T> Clone for Variable<T> {
+impl<T: Schema> Clone for Variable<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> Variable<T> {
+impl<T: Schema> Variable<T> {
     pub fn new(index: VariableId) -> Self {
         Variable {
             index,
@@ -97,13 +97,13 @@ impl<T> Variable<T> {
     }
 }
 
-pub trait ContainsConstraint<'a, T> {
+pub trait ContainsConstraint<'a, T: Schema> {
     type Constraint: Constraint<'a>;
 
     fn has(&'a self, v: Variable<T>) -> Self::Constraint;
 }
 
-impl<T> Variable<T> {
+impl<T: Schema> Variable<T> {
     pub fn is(self, constant: Value<T>) -> ConstantConstraint {
         ConstantConstraint::new(self, constant)
     }

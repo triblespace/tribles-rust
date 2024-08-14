@@ -15,3 +15,8 @@ pub use hash::Hash;
 pub use shortstring::*;
 pub use time::*;
 pub use zcstring::*;
+
+pub trait Schema {}
+
+pub struct Unknown {}
+impl Schema for Unknown {}

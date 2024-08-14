@@ -1,6 +1,6 @@
 //! Namespaces give semantic meaning to the raw binary data stored in
 //! [crate::TribleSet]s and [crate::BlobSet]s and provide a mapping to human readable
-//! names and language types.
+//! names and language schemas.
 //!
 //! Note that the namespace system (and in extend data model) presented here
 //! is just one of potentially many ways to create and query trible and blob data,
@@ -18,7 +18,7 @@ macro_rules! entity_inner {
         {
             {
                 use $Namespace as ns;
-                $({let v: $crate::Value<ns::types::$FieldName> = $Value;
+                $({let v: $crate::Value<ns::schemas::$FieldName> = $Value;
                     $Set.insert(&$crate::trible::Trible::new(
                     id,
                     ns::ids::$FieldName,
@@ -29,7 +29,7 @@ macro_rules! entity_inner {
     ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             use $Namespace as ns;
-            $({ let v: $crate::Value<ns::types::$FieldName> = $Value;
+            $({ let v: $crate::Value<ns::schemas::$FieldName> = $Value;
                 $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
                 ns::ids::$FieldName,
@@ -48,8 +48,8 @@ macro_rules! pattern_inner {
             use $crate::query::TriblePattern;
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
-            let v_var: $crate::query::Variable<ns::types::$FieldName> = $ctx.next_variable();
-            let v: $crate::Value<ns::types::$FieldName> = $Value;
+            let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $ctx.next_variable();
+            let v: $crate::Value<ns::schemas::$FieldName> = $Value;
             $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
             $constraints.push(Box::new(v_var.is(v)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
@@ -61,7 +61,7 @@ macro_rules! pattern_inner {
             use $crate::query::TriblePattern;
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
-            let v_var: $crate::query::Variable<ns::types::$FieldName> = $Value;
+            let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $Value;
             $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
@@ -119,7 +119,7 @@ pub use hex_literal;
 /// NS! {
 ///     pub namespace namespace_name {
 ///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::Id;
-///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::types::ShortString;
+///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::schemas::ShortString;
 ///     }
 /// }
 /// ```
@@ -135,16 +135,16 @@ pub use hex_literal;
 ///       pub const attr_name: tribles::RawId  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
 ///       pub const attr_name2: tribles::RawId  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
 ///   }
-///   pub mod types {
+///   pub mod schemas {
 ///       use super::*;
 ///       pub use tribles::Id as attr_name;
-///       pub use tribles::types::ShortString as attr_name2;
+///       pub use tribles::schemas::ShortString as attr_name2;
 ///   }
 /// }
 /// ```
 ///
-/// this allows you to access attribute ids and types via their human readable names, e.g.
-/// `namespace_name::ids::attrName` and `namespace_name::types::attrName`.
+/// this allows you to access attribute ids and schemas via their human readable names, e.g.
+/// `namespace_name::ids::attrName` and `namespace_name::schemas::attrName`.
 #[macro_export]
 macro_rules! NS {
     ($visibility:vis namespace $mod_name:ident {$($FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
@@ -156,7 +156,7 @@ macro_rules! NS {
                 use super::*;
                 $(pub const $FieldName:$crate::RawId = $crate::namespace::hex_literal::hex!($FieldId);)*
             }
-            pub mod types {
+            pub mod schemas {
                 #![allow(non_camel_case_types, unused)]
                 use super::*;
                 $(pub type $FieldName = $FieldType;)*

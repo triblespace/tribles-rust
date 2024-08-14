@@ -6,7 +6,7 @@ pub struct ConstantConstraint {
 }
 
 impl ConstantConstraint {
-    pub fn new<T>(variable: Variable<T>, constant: Value<T>) -> Self
+    pub fn new<T: Schema>(variable: Variable<T>, constant: Value<T>) -> Self
     {
         ConstantConstraint {
             variable: variable.index,

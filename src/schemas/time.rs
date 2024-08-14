@@ -1,10 +1,12 @@
 use std::convert::TryInto;
 
-use crate::Value;
+use crate::{ Value, Schema };
 
 use hifitime::prelude::*;
 
 pub struct NsTAIInterval;
+
+impl Schema for NsTAIInterval {}
 
 impl From<(Epoch, Epoch)> for Value<NsTAIInterval> {
     fn from(value: (Epoch, Epoch)) -> Self {

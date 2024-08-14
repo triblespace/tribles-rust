@@ -7,7 +7,7 @@ use tribles::column::Column;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use tribles::types::ShortString;
+use tribles::schemas::ShortString;
 use tribles::ufoid;
 use tribles::Id;
 

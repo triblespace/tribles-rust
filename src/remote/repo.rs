@@ -8,7 +8,7 @@ use digest::{typenum::U32, Digest};
 use futures::{stream, Stream, StreamExt};
 use anybytes::Bytes;
 
-use crate::{types::Hash, BlobParseError, BlobSet, Value};
+use crate::{schemas::Hash, BlobParseError, BlobSet, Value};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {

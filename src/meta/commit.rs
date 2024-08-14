@@ -7,7 +7,7 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    namespace::NS, query::find, triblearchive::SimpleArchive, types::{
+    namespace::NS, query::find, triblearchive::SimpleArchive, schemas::{
         ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
         hash::Blake3,
         ShortString,

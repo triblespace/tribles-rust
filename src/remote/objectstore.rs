@@ -15,7 +15,7 @@ use url::Url;
 use hex::FromHex;
 
 use crate::Value;
-use crate::{types::Hash, RawValue};
+use crate::{schemas::Hash, RawValue};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};

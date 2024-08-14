@@ -1,7 +1,7 @@
 use digest::{ Digest, typenum::U32 };
 use anybytes::Bytes;
 
-use crate::types::Hash;
+use crate::schemas::Hash;
 use crate::{BlobParseError, Bloblike, Value};
 use crate::{Handle, TribleSet};
 use std::collections::HashMap;
@@ -123,7 +123,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::hash::Blake3, types::ZCString, Handle, TribleSet, NS};
+    use crate::{schemas::hash::Blake3, schemas::ZCString, Handle, TribleSet, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

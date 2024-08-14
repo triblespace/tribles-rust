@@ -10,7 +10,7 @@ use sucds::bit_vectors::Rank9Sel;
 use sucds::Serializable;
 use tribles::column::Column;
 use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
-use tribles::{and, types::ShortString, Id, NS};
+use tribles::{and, schemas::ShortString, Id, NS};
 
 use tribles::test::hashtribleset::HashTribleSet;
 use tribles::{fucid, ufoid};

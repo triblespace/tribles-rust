@@ -101,7 +101,7 @@ impl TriblePattern for TribleSet {
 mod tests {
     use std::convert::TryInto;
 
-    use crate::{types::ShortString, ufoid, Id, NS};
+    use crate::{schemas::ShortString, ufoid, Id, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

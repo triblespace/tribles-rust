@@ -14,7 +14,7 @@ pub mod test;
 pub mod trible;
 pub mod triblearchive;
 pub mod tribleset;
-pub mod types;
+pub mod schemas;
 pub mod value;
 
 pub use blob::*;

@@ -273,7 +273,7 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::{find, trible::Trible, types::ShortString, ufoid, NS};
+    use crate::{find, trible::Trible, schemas::ShortString, ufoid, NS};
 
     use super::*;
     use itertools::Itertools;

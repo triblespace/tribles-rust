@@ -41,7 +41,7 @@ impl Bloblike for ZCString {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::{hash::Blake2b, ZCString}, Bloblike, Handle, Value};
+    use crate::{schemas::{hash::Blake2b, ZCString}, Bloblike, Handle, Value};
 
     #[test]
     fn string_handle() {

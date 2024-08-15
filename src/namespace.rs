@@ -217,9 +217,7 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, schemas::ShortString, ufoid, Id, TribleSet};
-
-    use std::convert::TryInto;
+    use crate::{query::find, schemas::{ShortString, TryPack}, ufoid, Id, TribleSet};
 
     NS! {
         pub namespace knights {
@@ -235,19 +233,19 @@ mod tests {
         let juliet = ufoid();
 
         knights::entity!(juliet, {
-            name: "Juliet".try_into().unwrap(),
+            name: "Juliet".try_pack().unwrap(),
             loves: romeo.into(),
-            title: "Maiden".try_into().unwrap()
+            title: "Maiden".try_pack().unwrap()
         });
         knights::entity!(romeo, {
-            name: "Romeo".try_into().unwrap(),
+            name: "Romeo".try_pack().unwrap(),
             loves: juliet.into(),
-            title: "Prince".try_into().unwrap()
+            title: "Prince".try_pack().unwrap()
         });
         knights::entity!(
         {
-            name: "Angelica".try_into().unwrap(),
-            title: "Nurse".try_into().unwrap()
+            name: "Angelica".try_pack().unwrap(),
+            title: "Nurse".try_pack().unwrap()
         });
     }
 
@@ -258,18 +256,18 @@ mod tests {
 
         let mut tribles = TribleSet::new();
         tribles.union(knights::entity!(juliet, {
-            name: "Juliet".try_into().unwrap(),
+            name: "Juliet".try_pack().unwrap(),
             loves: romeo.into(),
-            title: "Maiden".try_into().unwrap()
+            title: "Maiden".try_pack().unwrap()
         }));
         tribles.union(knights::entity!(romeo, {
-            name: "Romeo".try_into().unwrap(),
+            name: "Romeo".try_pack().unwrap(),
             loves: juliet.into(),
-            title: "Prince".try_into().unwrap()
+            title: "Prince".try_pack().unwrap()
         }));
         tribles.union(knights::entity!({
-            name: "Angelica".try_into().unwrap(),
-            title: "Nurse".try_into().unwrap()
+            name: "Angelica".try_pack().unwrap(),
+            title: "Nurse".try_pack().unwrap()
         }));
         println!("{:?}", tribles);
     }
@@ -283,32 +281,32 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_into().unwrap(),
+            name: "Juliet".try_pack().unwrap(),
             loves: romeo.into(),
-            title: "Maiden".try_into().unwrap()
+            title: "Maiden".try_pack().unwrap()
         }));
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_into().unwrap(),
+            name: "Romeo".try_pack().unwrap(),
             loves: juliet.into(),
-            title: "Prince".try_into().unwrap()
+            title: "Prince".try_pack().unwrap()
         }));
         kb.union(knights::entity!({
-            name: "Angelica".try_into().unwrap(),
-            title: "Nurse".try_into().unwrap()
+            name: "Angelica".try_pack().unwrap(),
+            title: "Nurse".try_pack().unwrap()
         }));
 
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_into().unwrap()),
+            {name: ("Romeo".try_pack().unwrap()),
              loves: juliet},
             {juliet @
                 name: name
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.into(), "Juliet".try_into().unwrap(),)], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_pack().unwrap(),)], r);
     }
 
     #[test]
@@ -318,11 +316,11 @@ mod tests {
             let lover_a = ufoid();
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
-                name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
+                name: (&Name(EN).fake::<String>()[..]).try_pack().unwrap(),
                 loves: lover_b.into()
             }));
             kb.union(knights::entity!(lover_b, {
-                name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
+                name: (&Name(EN).fake::<String>()[..]).try_pack().unwrap(),
                 loves: lover_a.into()
             }));
         });
@@ -332,11 +330,11 @@ mod tests {
 
         let mut data_kb = TribleSet::new();
         data_kb.union(knights::entity!(juliet, {
-            name: "Juliet".try_into().unwrap(),
+            name: "Juliet".try_pack().unwrap(),
             loves: romeo.into()
         }));
         data_kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_into().unwrap(),
+            name: "Romeo".try_pack().unwrap(),
             loves: juliet.into()
         }));
 
@@ -346,7 +344,7 @@ mod tests {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_into().unwrap()),
+            {name: ("Romeo".try_pack().unwrap()),
              loves: juliet},
             {juliet @
                 name: name
@@ -354,6 +352,6 @@ mod tests {
         )
         .collect();
 
-        assert_eq!(vec![(juliet.into(), "Juliet".try_into().unwrap(),)], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_pack().unwrap(),)], r);
     }
 }

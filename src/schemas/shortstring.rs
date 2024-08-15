@@ -1,6 +1,8 @@
-use std::{convert::TryFrom, str::Utf8Error, string::FromUtf8Error};
+use std::{str::Utf8Error, string::FromUtf8Error};
 
 use crate::{ Value, Schema };
+
+use super::{TryPack, TryUnpack};
 
 #[derive(Debug, Clone)]
 pub enum FromStrError {
@@ -12,31 +14,31 @@ pub struct ShortString;
 
 impl Schema for ShortString {}
 
-impl TryFrom<&Value<ShortString>> for String {
+impl<'a> TryUnpack<'a, ShortString> for String {
     type Error = FromUtf8Error;
     
-    fn try_from(value: &Value<ShortString>) -> Result<Self, Self::Error> {
+    fn try_unpack(v: &Value<ShortString>) -> Result<Self, Self::Error> {
         String::from_utf8(
-            value.bytes[0..value.bytes.iter().position(|&b| b == 0).unwrap_or(value.bytes.len())].into(),
+            v.bytes[0..v.bytes.iter().position(|&b| b == 0).unwrap_or(v.bytes.len())].into(),
         )
     }
 }
 
-impl<'a> TryFrom<&'a Value<ShortString>> for &'a str {
+impl<'a> TryUnpack<'a, ShortString> for &'a str {
     type Error = Utf8Error;
     
-    fn try_from(value: &'a Value<ShortString>) -> Result<Self, Self::Error> {
+    fn try_unpack(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
         std::str::from_utf8(
-            &value.bytes[0..value.bytes.iter().position(|&b| b == 0).unwrap_or(value.bytes.len())],
+            &v.bytes[0..v.bytes.iter().position(|&b| b == 0).unwrap_or(v.bytes.len())],
         )
     }
 }
 
-impl TryFrom<&str> for Value<ShortString> {
+impl TryPack<ShortString> for str {
     type Error = FromStrError;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let bytes = s.as_bytes();
+    
+    fn try_pack(&self) -> Result<Value<ShortString>, Self::Error> {
+        let bytes = self.as_bytes();
         if bytes.len() > 32 {
             return Err(FromStrError::TooLong);
         }

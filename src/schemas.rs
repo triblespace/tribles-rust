@@ -11,12 +11,38 @@ pub mod time;
 pub mod zcstring;
 pub mod zc;
 
+use std::borrow::Borrow;
+
 pub use hash::Hash;
 pub use shortstring::*;
 pub use time::*;
 pub use zcstring::*;
 
-pub trait Schema {}
+use crate::Value;
+
+//use crate::Value;
+
+pub trait Schema: Sized {
+    fn pack<T: Pack<Self>, B: Borrow<T>>(t: B) -> Value<Self> {
+        t.borrow().pack()
+    }
+}
+
+pub trait Pack<S: Schema> {
+    fn pack(&self) -> Value<S>;
+}
+pub trait Unpack<'a, S: Schema> {
+    fn unpack(v: &'a Value<S>) -> Self;
+}
+
+pub trait TryPack<S: Schema> {
+    type Error;
+    fn try_pack(&self) -> Result<Value<S>, Self::Error>;
+}
+pub trait TryUnpack<'a, S: Schema>: Sized {
+    type Error;
+    fn try_unpack(v: &'a Value<S>) -> Result<Self, Self::Error>;
+}
 
 pub struct Unknown {}
 impl Schema for Unknown {}

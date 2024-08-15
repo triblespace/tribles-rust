@@ -1,5 +1,4 @@
-use std::convert::TryInto;
-
+use tribles::schemas::TryPack;
 use tribles::{schemas::ShortString, ufoid, Id, TribleSet, NS};
 
 use fake::faker::name::raw::*;
@@ -22,12 +21,12 @@ fn main() {
 
         kb.union(knights::entity!(lover_a,
         {
-            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
             loves: lover_b.into()
         }));
         /*coz::progress!();
         kb.union(knights::entity!(lover_b, {
-            name: Name(EN).fake::<String>().try_into().unwrap(),
+            name: Name(EN).fake::<String>().try_pack().unwrap(),
             loves: lover_a
         }));
         coz::progress!();

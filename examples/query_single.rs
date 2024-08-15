@@ -1,5 +1,4 @@
-use std::convert::TryInto;
-
+use tribles::schemas::TryPack;
 use tribles::{query::find, schemas::ShortString, ufoid, Id, TribleSet, NS};
 
 use fake::faker::name::raw::*;
@@ -21,11 +20,11 @@ fn main() {
         let lover_b = ufoid();
 
         kb.union(knights::entity!({
-            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
             loves: lover_b.into()
         }));
         kb.union(knights::entity!({
-            name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
             loves: lover_a.into()
         }));
     });
@@ -36,11 +35,11 @@ fn main() {
     let juliet = ufoid();
 
     data_kb.union(knights::entity!(juliet, {
-        name: "Juliet".try_into().unwrap(),
+        name: "Juliet".try_pack().unwrap(),
         loves: romeo.into()
     }));
     data_kb.union(knights::entity!(romeo, {
-        name: "Romeo".try_into().unwrap(),
+        name: "Romeo".try_pack().unwrap(),
         loves: juliet.into()
     }));
 
@@ -51,7 +50,7 @@ fn main() {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_into().unwrap()),
+            {name: ("Romeo".try_pack().unwrap()),
              loves: juliet},
             {juliet @
                 name: name

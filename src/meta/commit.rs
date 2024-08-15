@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use ed25519::Signature;
 use ed25519_dalek::{SignatureError, SigningKey, Verifier, VerifyingKey};
 use itertools::{ExactlyOneError, Itertools};
@@ -7,11 +5,9 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    namespace::NS, query::find, triblearchive::SimpleArchive, schemas::{
-        ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
-        hash::Blake3,
-        ShortString,
-    }, Handle, Id, RawId, TribleSet, Value
+    namespace::NS, query::find, schemas::{
+        ed25519::{self as ed, ED25519RComponent, ED25519SComponent}, hash::Blake3, Pack, ShortString
+    }, triblearchive::SimpleArchive, Handle, Id, RawId, TribleSet, Value
 };
 
 NS! {
@@ -60,7 +56,7 @@ pub fn sign(
     let tribles = commit_ns::entity!(commit_id,
     {
         tribles: handle,
-        ed25519_pubkey: signing_key.verifying_key().into(),
+        ed25519_pubkey: signing_key.verifying_key().pack(),
         ed25519_signature_r: r,
         ed25519_signature_s: s,
     });
@@ -82,8 +78,8 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
     .exactly_one()?;
 
     let hash = payload.bytes;
-    let signature = Signature::from_components(r.into(), s.into());
-    let verifying_key: VerifyingKey = verifying_key.try_into()?;
+    let signature = Signature::from_components(r.unpack(), s.unpack());
+    let verifying_key: VerifyingKey = verifying_key.try_unpack()?;
     verifying_key.verify(&hash, &signature)?;
     Ok(())
 }

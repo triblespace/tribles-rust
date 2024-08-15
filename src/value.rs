@@ -3,7 +3,7 @@ use std::{cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
 
-use crate::Schema;
+use crate::{schemas::{TryUnpack, Unpack}, Schema};
 
 pub const VALUE_LEN: usize = 32;
 pub type RawValue = [u8; VALUE_LEN];
@@ -20,15 +20,25 @@ pub type RawValue = [u8; VALUE_LEN];
 #[repr(transparent)]
 pub struct Value<T: Schema>{
     pub bytes: RawValue,
-    _type: PhantomData<T>,
+    _schema: PhantomData<T>,
 }
 
-impl<T: Schema> Value<T> {
+impl<S: Schema> Value<S> {
     pub fn new(value: RawValue) -> Self {
         Self {
             bytes: value,
-            _type: PhantomData
+            _schema: PhantomData
         }
+    }
+
+    pub fn unpack<'a, T>(&'a self) -> T
+    where T: Unpack<'a, S> {
+        <T as Unpack<'a, S>>::unpack(self)
+    }
+
+    pub fn try_unpack<'a, T>(&'a self) -> Result<T, <T as TryUnpack<S>>::Error>
+    where T: TryUnpack<'a, S> {
+        <T as TryUnpack<'a, S>>::try_unpack(self)
     }
 }
 
@@ -36,7 +46,7 @@ impl<T: Schema> Copy for Value<T> {}
 
 impl<T: Schema> Clone for Value<T> {
     fn clone(&self) -> Self {
-        Self { bytes: self.bytes.clone(), _type: PhantomData }
+        Self { bytes: self.bytes.clone(), _schema: PhantomData }
     }
 }
 

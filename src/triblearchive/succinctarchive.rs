@@ -273,6 +273,7 @@ where
 mod tests {
     use std::convert::TryInto;
 
+    use crate::schemas::TryPack;
     use crate::{find, trible::Trible, schemas::ShortString, ufoid, NS};
 
     use super::*;
@@ -361,18 +362,18 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_into().unwrap(),
+            name: "Juliet".try_pack().unwrap(),
             loves: romeo.into(),
-            title: "Maiden".try_into().unwrap()
+            title: "Maiden".try_pack().unwrap()
         }));
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_into().unwrap(),
+            name: "Romeo".try_pack().unwrap(),
             loves: juliet.into(),
-            title: "Prince".try_into().unwrap()
+            title: "Prince".try_pack().unwrap()
         }));
         kb.union(knights::entity!({
-            name: "Angelica".try_into().unwrap(),
-            title: "Nurse".try_into().unwrap()
+            name: "Angelica".try_pack().unwrap(),
+            title: "Nurse".try_pack().unwrap()
         }));
 
         let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
@@ -381,13 +382,13 @@ mod tests {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &archive, [
-            {name: ("Romeo".try_into().unwrap()),
+            {name: ("Romeo".try_pack().unwrap()),
              loves: juliet},
             {juliet @
                 name: name
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.into(), "Juliet".try_into().unwrap(),)], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_pack().unwrap(),)], r);
     }
 }

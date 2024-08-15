@@ -336,10 +336,10 @@ mod tests {
     //use fake::faker::name::raw::*;
     //use fake::locales::*;
     //use fake::{Dummy, Fake, Faker};
-    use std::{collections::HashSet, convert::TryInto};
+    use std::collections::HashSet;
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{schemas::{iu256::I256BE, ShortString}, ufoid, Id, TribleSet, NS};
+    use crate::{schemas::{iu256::I256BE, ShortString, TryPack}, ufoid, Id, TribleSet, NS};
 
     use super::*;
 
@@ -355,12 +355,12 @@ mod tests {
         let mut books = HashSet::<Value<ShortString>>::new();
         let mut movies = HashSet::<Value<ShortString>>::new();
 
-        books.insert("LOTR".try_into().unwrap());
-        books.insert("Dragonrider".try_into().unwrap());
-        books.insert("Highlander".try_into().unwrap());
+        books.insert("LOTR".try_pack().unwrap());
+        books.insert("Dragonrider".try_pack().unwrap());
+        books.insert("Highlander".try_pack().unwrap());
 
-        movies.insert("LOTR".try_into().unwrap());
-        movies.insert("Highlander".try_into().unwrap());
+        movies.insert("LOTR".try_pack().unwrap());
+        movies.insert("Highlander".try_pack().unwrap());
 
         let inter: Vec<_> = find!(ctx, (a), and!(books.has(a), movies.has(a))).collect();
 
@@ -373,7 +373,7 @@ mod tests {
         let one: Vec<_> = find!(
             ctx,
             (a),
-            and!(books.has(a), a.is("LOTR".try_into().unwrap())) //TODO
+            and!(books.has(a), a.is("LOTR".try_pack().unwrap())) //TODO
         )
         .collect();
 
@@ -404,16 +404,16 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_into().unwrap(),
+            name: "Juliet".try_pack().unwrap(),
             loves: romeo.into()
         }));
 
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_into().unwrap(),
+            name: "Romeo".try_pack().unwrap(),
             loves: juliet.into()
         }));
         kb.union(knights::entity!(waromeo, {
-            name: "Romeo".try_into().unwrap()
+            name: "Romeo".try_pack().unwrap()
         }));
 
         let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find!(
@@ -421,7 +421,7 @@ mod tests {
             (romeo, juliet, name),
             knights::pattern!(ctx, &kb, [
             {romeo @
-                name: ("Romeo".try_into().unwrap()),
+                name: ("Romeo".try_pack().unwrap()),
              loves: juliet},
             {juliet @
                 name: name
@@ -439,8 +439,8 @@ mod tests {
             ctx,
             (string, number),
             and!(
-                string.is("Hello World!".try_into().unwrap()),
-                number.is(Value::<I256BE>::from(42))));
+                string.is("Hello World!".try_pack().unwrap()),
+                number.is(I256BE::pack(42))));
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())

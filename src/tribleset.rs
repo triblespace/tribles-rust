@@ -99,9 +99,8 @@ impl TriblePattern for TribleSet {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
 
-    use crate::{schemas::ShortString, ufoid, Id, NS};
+    use crate::{schemas::{ShortString, TryPack}, ufoid, Id, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -123,11 +122,11 @@ mod tests {
             let lover_a = ufoid();
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
-                name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
+                name: (&Name(EN).fake::<String>()[..]).try_pack().unwrap(),
                 loves: lover_b.into()
             }));
             kb.union(knights::entity!(lover_b, {
-                name: (&Name(EN).fake::<String>()[..]).try_into().unwrap(),
+                name: (&Name(EN).fake::<String>()[..]).try_pack().unwrap(),
                 loves: lover_a.into()
             }));
         }
@@ -143,11 +142,11 @@ mod tests {
                 let lover_b = ufoid();
                 [
                     knights::entity!(lover_a, {
-                        name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                        name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
                         loves: lover_b.into()
                     }),
                     knights::entity!(lover_b, {
-                        name: Name(EN).fake::<String>()[..].try_into().unwrap(),
+                        name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
                         loves: lover_a.into()
                     }),
                 ]

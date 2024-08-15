@@ -1,10 +1,10 @@
-use std::convert::TryFrom;
-
 use ed25519::{ComponentBytes, Signature};
 use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
 
 use crate::{ Value, Schema};
+
+use super::{Pack, TryUnpack, Unpack};
 
 pub struct ED25519RComponent;
 pub struct ED25519SComponent;
@@ -26,40 +26,40 @@ impl ED25519SComponent {
     }
 }
 
-impl From<ComponentBytes> for Value<ED25519RComponent> {
-    fn from(value: ComponentBytes) -> Self {
-        Value::new(value)
+impl Pack<ED25519RComponent> for ComponentBytes {    
+    fn pack(&self) -> Value<ED25519RComponent> {
+        Value::new(*self)
     }
 }
 
-impl From<Value<ED25519RComponent>> for ComponentBytes {
-    fn from(value: Value<ED25519RComponent>) -> Self {
-        value.bytes
+impl Unpack<'_, ED25519RComponent> for ComponentBytes {
+    fn unpack(v: &Value<ED25519RComponent>) -> Self {
+        v.bytes
     }
 }
 
-impl From<ComponentBytes> for Value<ED25519SComponent> {
-    fn from(value: ComponentBytes) -> Self {
-        Value::new(value)
+impl Pack<ED25519SComponent> for ComponentBytes {
+    fn pack(&self) -> Value<ED25519SComponent> {
+        Value::new(*self)
     }
 }
 
-impl From<Value<ED25519SComponent>> for ComponentBytes {
-    fn from(value: Value<ED25519SComponent>) -> Self {
-        value.bytes
+impl Unpack<'_, ED25519SComponent> for ComponentBytes {
+    fn unpack(v: &Value<ED25519SComponent>) -> Self {
+        v.bytes
     }
 }
 
-impl TryFrom<Value<ED25519PublicKey>> for VerifyingKey {    
+impl Pack<ED25519PublicKey> for VerifyingKey {
+    fn pack(&self) -> Value<ED25519PublicKey> {
+        Value::new(self.to_bytes())
+    }
+}
+
+impl TryUnpack<'_, ED25519PublicKey> for VerifyingKey {
     type Error = SignatureError;
-    
-    fn try_from(value: Value<ED25519PublicKey>) -> Result<Self, Self::Error> {
-        VerifyingKey::from_bytes(&value.bytes)
-    }
-}
 
-impl From<VerifyingKey> for Value<ED25519PublicKey> {
-    fn from(value: VerifyingKey) -> Self {
-        Value::new(value.to_bytes())
+    fn try_unpack(v: &Value<ED25519PublicKey>) -> Result<Self, Self::Error> {
+        VerifyingKey::from_bytes(&v.bytes)
     }
 }

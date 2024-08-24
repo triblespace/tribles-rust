@@ -13,7 +13,7 @@ pub struct HashTribleSetConstraint<'a> {
 }
 
 impl<'a> HashTribleSetConstraint<'a> {
-    pub fn new<V: Schema>(
+    pub fn new<V: ValueSchema>(
         variable_e: Variable<GenId>,
         variable_a: Variable<GenId>,
         variable_v: Variable<V>,

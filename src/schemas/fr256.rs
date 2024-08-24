@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::{Schema, Value};
+use crate::{ValueSchema, Value};
 use num_rational::Ratio;
 
 use super::{Pack, Unpack};
@@ -10,8 +10,8 @@ pub struct FR256BE;
 
 pub type FR256 = FR256LE;
 
-impl Schema for FR256LE {}
-impl Schema for FR256BE {}
+impl ValueSchema for FR256LE {}
+impl ValueSchema for FR256BE {}
 
 impl Unpack<'_, FR256BE> for Ratio<i128> {
     fn unpack(v: &Value<FR256BE>) -> Self {

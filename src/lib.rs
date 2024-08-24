@@ -19,7 +19,7 @@ pub mod value;
 pub use blob::*;
 pub use blobset::BlobSet;
 pub use id::*;
-pub use schemas::Schema;
+pub use schemas::ValueSchema;
 pub use tribleset::TribleSet;
 pub use value::*;
 

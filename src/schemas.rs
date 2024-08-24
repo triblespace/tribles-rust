@@ -13,7 +13,7 @@ pub mod time;
 pub mod zc;
 pub mod zcstring;
 
-use std::borrow::Borrow;
+use std::{borrow::Borrow, fmt::Debug};
 
 pub use genid::*;
 pub use handle::*;
@@ -26,27 +26,31 @@ use crate::Value;
 
 //use crate::Value;
 
-pub trait Schema: Sized {
-    fn pack<T: Pack<Self>, B: Borrow<T>>(t: B) -> Value<Self> {
+pub trait ValueSchema: Sized {
+    fn pack<T: Pack<Self>  + ?Sized>(t: &T) -> Value<Self> {
         t.borrow().pack()
+    }
+
+    fn try_pack<T: TryPack<Self> + ?Sized>(t: &T) -> Result<Value<Self>, <T as TryPack<Self>>::Error> {
+        t.borrow().try_pack()
     }
 }
 
-pub trait Pack<S: Schema> {
+pub trait Pack<S: ValueSchema> {
     fn pack(&self) -> Value<S>;
 }
-pub trait Unpack<'a, S: Schema> {
+pub trait Unpack<'a, S: ValueSchema> {
     fn unpack(v: &'a Value<S>) -> Self;
 }
 
-pub trait TryPack<S: Schema> {
+pub trait TryPack<S: ValueSchema> {
     type Error;
     fn try_pack(&self) -> Result<Value<S>, Self::Error>;
 }
-pub trait TryUnpack<'a, S: Schema>: Sized {
+pub trait TryUnpack<'a, S: ValueSchema>: Sized {
     type Error;
     fn try_unpack(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }
 
-pub struct Unknown {}
-impl Schema for Unknown {}
+pub struct UnknownValue {}
+impl ValueSchema for UnknownValue {}

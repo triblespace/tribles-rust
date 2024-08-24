@@ -10,7 +10,7 @@ use crate::trible::Trible;
 use crate::{
     id_into_value,
     schemas::{GenId, Handle},
-    Schema, Value,
+    ValueSchema, Value,
 };
 use crate::{Bloblike, RawValue};
 
@@ -241,7 +241,7 @@ where
      where U: 'a,
            B: 'a;
 
-    fn pattern<'a, V: Schema>(
+    fn pattern<'a, V: ValueSchema>(
         &'a self,
         e: crate::query::Variable<GenId>,
         a: crate::query::Variable<GenId>,

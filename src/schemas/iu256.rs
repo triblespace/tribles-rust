@@ -1,4 +1,4 @@
-use crate::{Schema, Value};
+use crate::{ValueSchema, Value};
 use ethnum;
 
 use super::{Pack, Unpack};
@@ -11,10 +11,10 @@ pub struct I256BE;
 pub type I256 = I256BE;
 pub type U256 = U256BE;
 
-impl Schema for U256LE {}
-impl Schema for U256BE {}
-impl Schema for I256LE {}
-impl Schema for I256BE {}
+impl ValueSchema for U256LE {}
+impl ValueSchema for U256BE {}
+impl ValueSchema for I256LE {}
+impl ValueSchema for I256BE {}
 
 impl Pack<U256BE> for ethnum::U256 {
     fn pack(&self) -> Value<U256BE> {

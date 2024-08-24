@@ -1,11 +1,17 @@
 use digest::{consts::U32, Digest};
-use std::fmt::Debug;
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{schemas::Handle, Value};
 
 pub use anybytes::Bytes;
 
-/// A type that is convertible to and from a [Blob].
+/*
+#[repr(transparent)]
+pub struct Blob<T: BlobSchema> {
+    pub bytes: Bytes,
+    _schema: PhantomData<T>,
+}
+*/
 pub trait Bloblike: Sized {
     fn into_blob(self) -> Bytes;
     fn from_blob(blob: Bytes) -> Result<Self, BlobParseError>;

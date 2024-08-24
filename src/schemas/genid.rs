@@ -12,13 +12,13 @@ use rand::RngCore;
 
 use crate::schemas::TryPack;
 use crate::schemas::TryUnpack;
-use crate::{Schema, Value, VALUE_LEN};
+use crate::{ValueSchema, Value, VALUE_LEN};
 
 use super::Pack;
 
 pub struct GenId;
 
-impl Schema for GenId {}
+impl ValueSchema for GenId {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GenIdParseError {

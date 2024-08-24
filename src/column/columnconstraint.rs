@@ -14,7 +14,7 @@ pub struct ColumnConstraint<'a> {
 }
 
 impl<'a> ColumnConstraint<'a> {
-    pub fn new<V: Schema>(
+    pub fn new<V: ValueSchema>(
         variable_e: Variable<GenId>,
         variable_v: Variable<V>,
         column: &'a Column<V>,

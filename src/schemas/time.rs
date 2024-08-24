@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::{Schema, Value};
+use crate::{ValueSchema, Value};
 
 use hifitime::prelude::*;
 
@@ -8,7 +8,7 @@ use super::{Pack, Unpack};
 
 pub struct NsTAIInterval;
 
-impl Schema for NsTAIInterval {}
+impl ValueSchema for NsTAIInterval {}
 
 impl Pack<NsTAIInterval> for (Epoch, Epoch) {
     fn pack(&self) -> Value<NsTAIInterval> {

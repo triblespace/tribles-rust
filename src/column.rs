@@ -6,7 +6,7 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use crate::query::Variable;
-use crate::{schemas::GenId, RawId, RawValue, Schema, Value};
+use crate::{schemas::GenId, RawId, RawValue, ValueSchema, Value};
 
 use self::columnconstraint::ColumnConstraint;
 
@@ -17,7 +17,7 @@ pub struct Column<V> {
     pv: PhantomData<V>,
 }
 
-impl<V: Schema> Column<V> {
+impl<V: ValueSchema> Column<V> {
     pub fn new() -> Self {
         Self {
             ev: HashMap::new(),
@@ -41,7 +41,7 @@ impl<V: Schema> Column<V> {
     }
 }
 
-impl<'a, V: Schema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
+impl<'a, V: ValueSchema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
     fn from_iter<I: IntoIterator<Item = &'a (RawId, Value<V>)>>(iter: I) -> Self {
         let mut column = Self::new();
 

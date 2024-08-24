@@ -2,7 +2,7 @@ use ed25519::{ComponentBytes, Signature};
 use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
 
-use crate::{Schema, Value};
+use crate::{ValueSchema, Value};
 
 use super::{Pack, TryUnpack, Unpack};
 
@@ -10,9 +10,9 @@ pub struct ED25519RComponent;
 pub struct ED25519SComponent;
 pub struct ED25519PublicKey;
 
-impl Schema for ED25519RComponent {}
-impl Schema for ED25519SComponent {}
-impl Schema for ED25519PublicKey {}
+impl ValueSchema for ED25519RComponent {}
+impl ValueSchema for ED25519SComponent {}
+impl ValueSchema for ED25519PublicKey {}
 
 impl ED25519RComponent {
     pub fn from_signature(s: Signature) -> Value<ED25519RComponent> {

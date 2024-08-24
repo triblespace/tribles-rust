@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use crate::{
     patch::{KeyOrdering, KeySegmentation},
-    Schema, Value,
+    ValueSchema, Value,
 };
 use arbitrary::Arbitrary;
 
@@ -23,7 +23,7 @@ pub struct Trible {
 }
 
 impl Trible {
-    pub fn new<V: Schema>(e: RawId, a: RawId, v: Value<V>) -> Trible {
+    pub fn new<V: ValueSchema>(e: RawId, a: RawId, v: Value<V>) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(&a[..]);

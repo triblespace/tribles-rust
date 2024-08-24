@@ -1,8 +1,8 @@
 use std::{str::Utf8Error, string::FromUtf8Error};
 
-use crate::{Schema, Value};
+use crate::{ValueSchema, Value};
 
-use super::{TryPack, TryUnpack};
+use super::{Pack, TryPack, TryUnpack};
 
 #[derive(Debug, Clone)]
 pub enum FromStrError {
@@ -12,7 +12,7 @@ pub enum FromStrError {
 
 pub struct ShortString;
 
-impl Schema for ShortString {}
+impl ValueSchema for ShortString {}
 
 impl<'a> TryUnpack<'a, ShortString> for String {
     type Error = FromUtf8Error;
@@ -59,5 +59,23 @@ impl TryPack<ShortString> for str {
         data[..bytes.len()].copy_from_slice(bytes);
 
         Ok(Value::new(data))
+    }
+}
+
+
+impl Pack<ShortString> for str {
+    fn pack(&self) -> Value<ShortString> {
+        let bytes = self.as_bytes();
+        if bytes.len() > 32 {
+            panic!();
+        }
+        if bytes.iter().any(|&b| b == 0) {
+            panic!();
+        }
+
+        let mut data: [u8; 32] = [0; 32];
+        data[..bytes.len()].copy_from_slice(bytes);
+
+        Value::new(data)
     }
 }

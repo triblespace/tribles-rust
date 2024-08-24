@@ -1,4 +1,4 @@
-use crate::{schemas::Handle, RawValue, Schema, Value};
+use crate::{schemas::Handle, RawValue, ValueSchema, Value};
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
@@ -12,7 +12,7 @@ pub struct Hash<H> {
     _hasher: PhantomData<H>,
 }
 
-impl<H> Schema for Hash<H> {}
+impl<H> ValueSchema for Hash<H> {}
 
 impl<H> Hash<H>
 where

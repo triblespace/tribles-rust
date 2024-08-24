@@ -9,7 +9,7 @@ use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
     TRIBLE_LEN,
 };
-use crate::{schemas::GenId, RawValue, Schema};
+use crate::{schemas::GenId, RawValue, ValueSchema};
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -85,7 +85,7 @@ impl FromIterator<Trible> for TribleSet {
 impl TriblePattern for TribleSet {
     type PatternConstraint<'a> = TribleSetConstraint;
 
-    fn pattern<'a, V: Schema>(
+    fn pattern<'a, V: ValueSchema>(
         &'a self,
         e: crate::query::Variable<GenId>,
         a: crate::query::Variable<GenId>,

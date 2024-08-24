@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{schemas::GenId, RawId, RawValue, Schema};
+use crate::{schemas::GenId, RawId, RawValue, ValueSchema};
 use std::iter::FromIterator;
 
 use self::hashtriblesetconstraint::HashTribleSetConstraint;
@@ -74,7 +74,7 @@ impl FromIterator<Trible> for HashTribleSet {
 impl TriblePattern for HashTribleSet {
     type PatternConstraint<'a> = HashTribleSetConstraint<'a>;
 
-    fn pattern<'a, V: Schema>(
+    fn pattern<'a, V: ValueSchema>(
         &'a self,
         e: crate::query::Variable<GenId>,
         a: crate::query::Variable<GenId>,

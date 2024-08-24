@@ -1,16 +1,16 @@
 use crate::{
     patch::{IdentityOrder, SingleSegmentation, PATCH},
-    RawValue, Schema, VALUE_LEN,
+    RawValue, ValueSchema, VALUE_LEN,
 };
 
 use super::{Binding, Constraint, ContainsConstraint, Variable, VariableId, VariableSet};
 
-pub struct PatchConstraint<'a, T: Schema> {
+pub struct PatchConstraint<'a, T: ValueSchema> {
     variable: Variable<T>,
     patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>,
 }
 
-impl<'a, T: Schema> PatchConstraint<'a, T> {
+impl<'a, T: ValueSchema> PatchConstraint<'a, T> {
     pub fn new(
         variable: Variable<T>,
         patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>,
@@ -19,7 +19,7 @@ impl<'a, T: Schema> PatchConstraint<'a, T> {
     }
 }
 
-impl<'a, T: Schema> Constraint<'a> for PatchConstraint<'a, T> {
+impl<'a, T: ValueSchema> Constraint<'a> for PatchConstraint<'a, T> {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
     }
@@ -44,7 +44,7 @@ impl<'a, T: Schema> Constraint<'a> for PatchConstraint<'a, T> {
     }
 }
 
-impl<'a, T: Schema> ContainsConstraint<'a, T>
+impl<'a, T: ValueSchema> ContainsConstraint<'a, T>
     for PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>
 {
     type Constraint = PatchConstraint<'a, T>;

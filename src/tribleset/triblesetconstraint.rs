@@ -6,7 +6,7 @@ use super::*;
 use crate::id_from_value;
 use crate::id_into_value;
 use crate::query::*;
-use crate::Schema;
+use crate::ValueSchema;
 use crate::ID_LEN;
 use crate::VALUE_LEN;
 
@@ -18,7 +18,7 @@ pub struct TribleSetConstraint {
 }
 
 impl TribleSetConstraint {
-    pub fn new<V: Schema>(
+    pub fn new<V: ValueSchema>(
         variable_e: Variable<GenId>,
         variable_a: Variable<GenId>,
         variable_v: Variable<V>,
@@ -359,7 +359,7 @@ mod tests {
     use crate::{
         find,
         query::{TriblePattern, Variable},
-        schemas::Unknown,
+        schemas::UnknownValue,
         trible::Trible,
         TribleSet, Value,
     };
@@ -370,10 +370,10 @@ mod tests {
         set.insert(&Trible::new(
             [1; 16],
             [2; 16],
-            Value::<Unknown>::new([0; 32]),
+            Value::<UnknownValue>::new([0; 32]),
         ));
 
-        let q = find!(ctx, (e, a, v), set.pattern(e, a, v as Variable<Unknown>));
+        let q = find!(ctx, (e, a, v), set.pattern(e, a, v as Variable<UnknownValue>));
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())

@@ -24,7 +24,7 @@ where
     U: Universe,
     B: Build + Access + Rank + Select + NumBits,
 {
-    pub fn new<V: Schema>(
+    pub fn new<V: ValueSchema>(
         variable_e: Variable<GenId>,
         variable_a: Variable<GenId>,
         variable_v: Variable<V>,

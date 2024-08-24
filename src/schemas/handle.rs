@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::schemas::Hash;
 
-use crate::{Schema, Value};
+use crate::{ValueSchema, Value};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {
@@ -16,4 +16,4 @@ impl<H, T> From<Value<Handle<H, T>>> for Value<Hash<H>> {
     }
 }
 
-impl<H, T> Schema for Handle<H, T> {}
+impl<H, T> ValueSchema for Handle<H, T> {}

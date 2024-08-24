@@ -27,7 +27,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::{schemas::GenId, RawValue, Schema, Value};
+use crate::{schemas::GenId, RawValue, ValueSchema, Value};
 
 pub use variableset::VariableSet;
 
@@ -36,7 +36,7 @@ pub trait TriblePattern {
     where
         Self: 'a;
 
-    fn pattern<'a, V: Schema>(
+    fn pattern<'a, V: ValueSchema>(
         &'a self,
         e: Variable<GenId>,
         a: Variable<GenId>,
@@ -56,7 +56,7 @@ impl VariableContext {
         VariableContext { next_index: 0 }
     }
 
-    pub fn next_variable<T: Schema>(&mut self) -> Variable<T> {
+    pub fn next_variable<T: ValueSchema>(&mut self) -> Variable<T> {
         assert!(
             self.next_index < 128,
             "currently queries support at most 128 variables"
@@ -73,20 +73,20 @@ impl VariableContext {
 /// Variables also have an associated type which is used to parse the [Value]s
 /// found by the query engine.
 #[derive(Debug)]
-pub struct Variable<T: Schema> {
+pub struct Variable<T: ValueSchema> {
     pub index: VariableId,
     typed: PhantomData<T>,
 }
 
-impl<T: Schema> Copy for Variable<T> {}
+impl<T: ValueSchema> Copy for Variable<T> {}
 
-impl<T: Schema> Clone for Variable<T> {
+impl<T: ValueSchema> Clone for Variable<T> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: Schema> Variable<T> {
+impl<T: ValueSchema> Variable<T> {
     pub fn new(index: VariableId) -> Self {
         Variable {
             index,
@@ -99,13 +99,13 @@ impl<T: Schema> Variable<T> {
     }
 }
 
-pub trait ContainsConstraint<'a, T: Schema> {
+pub trait ContainsConstraint<'a, T: ValueSchema> {
     type Constraint: Constraint<'a>;
 
     fn has(&'a self, v: Variable<T>) -> Self::Constraint;
 }
 
-impl<T: Schema> Variable<T> {
+impl<T: ValueSchema> Variable<T> {
     pub fn is(self, constant: Value<T>) -> ConstantConstraint {
         ConstantConstraint::new(self, constant)
     }
@@ -440,8 +440,8 @@ mod tests {
             ctx,
             (string, number),
             and!(
-                string.is(<str as TryPack<ShortString>>::try_pack("Hello World!").unwrap()),
-                number.is(I256BE::pack(42))
+                string.is(ShortString::try_pack("Hello World!").unwrap()),
+                number.is(I256BE::pack(&42))
             )
         );
         let r: Vec<_> = q.collect();

@@ -14,6 +14,8 @@ use crate::schemas::TryPack;
 use crate::schemas::TryUnpack;
 use crate::{Schema, Value, VALUE_LEN};
 
+use super::Pack;
+
 pub struct GenId;
 
 impl Schema for GenId {}
@@ -38,11 +40,31 @@ impl TryFrom<&Value<GenId>> for RawId {
     }
 }
 
-impl From<RawId> for Value<GenId> {
-    fn from(value: RawId) -> Self {
+impl From<&RawId> for Value<GenId> {
+    fn from(value: &RawId) -> Self {
         let mut data = [0; VALUE_LEN];
         data[16..32].copy_from_slice(&value[..]);
         Value::new(data)
+    }
+}
+
+impl From<RawId> for Value<GenId> {
+    fn from(value: RawId) -> Self {
+        (&value).into()
+    }
+}
+
+impl TryUnpack<'_, GenId> for RawId {
+    type Error = GenIdParseError;
+    
+    fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
+        v.try_into()
+    }
+}
+
+impl Pack<GenId> for RawId {    
+    fn pack(&self) -> Value<GenId> {
+        self.into()
     }
 }
 

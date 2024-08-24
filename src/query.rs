@@ -27,7 +27,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::{Id, RawValue, Schema, Value};
+use crate::{schemas::GenId, RawValue, Schema, Value};
 
 pub use variableset::VariableSet;
 
@@ -38,8 +38,8 @@ pub trait TriblePattern {
 
     fn pattern<'a, V: Schema>(
         &'a self,
-        e: Variable<Id>,
-        a: Variable<Id>,
+        e: Variable<GenId>,
+        a: Variable<GenId>,
         v: Variable<V>,
     ) -> Self::PatternConstraint<'a>;
 }
@@ -339,13 +339,13 @@ mod tests {
     use std::collections::HashSet;
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{schemas::{iu256::I256BE, ShortString, TryPack}, ufoid, Id, TribleSet, NS};
+    use crate::{schemas::{GenId, iu256::I256BE, ShortString, TryPack}, ufoid, TribleSet, NS};
 
     use super::*;
 
     NS! {
         pub namespace knights {
-            "8143F46E812E88C4544E7094080EC523" as loves: Id;
+            "8143F46E812E88C4544E7094080EC523" as loves: GenId;
             "D6E0F2A6E5214E1330565B4D4138E55C" as name: ShortString;
         }
     }

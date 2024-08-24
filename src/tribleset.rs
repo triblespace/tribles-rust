@@ -9,7 +9,7 @@ use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
     TRIBLE_LEN,
 };
-use crate::{ Id, RawValue, Schema };
+use crate::{ schemas::GenId, RawValue, Schema };
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -88,8 +88,8 @@ impl TriblePattern for TribleSet {
 
     fn pattern<'a, V: Schema>(
         &'a self,
-        e: crate::query::Variable<Id>,
-        a: crate::query::Variable<Id>,
+        e: crate::query::Variable<GenId>,
+        a: crate::query::Variable<GenId>,
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'static>
     {
@@ -100,7 +100,7 @@ impl TriblePattern for TribleSet {
 #[cfg(test)]
 mod tests {
 
-    use crate::{schemas::{ShortString, TryPack}, ufoid, Id, NS};
+    use crate::{schemas::{ShortString, TryPack}, ufoid, schemas::GenId, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
@@ -110,7 +110,7 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
         }
     }

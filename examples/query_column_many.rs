@@ -8,11 +8,11 @@ use fake::Fake;
 use tribles::schemas::ShortString;
 use tribles::schemas::TryPack;
 use tribles::ufoid;
-use tribles::Id;
+use tribles::schemas::GenId;
 
 fn main() {
     let mut name: Column<ShortString> = Column::new();
-    let mut loves: Column<Id> = Column::new();
+    let mut loves: Column<GenId> = Column::new();
 
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();

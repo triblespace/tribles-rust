@@ -47,7 +47,7 @@ macro_rules! pattern_inner {
         {
             use $crate::query::TriblePattern;
             use $Namespace as ns;
-            let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
+            let a_var: $crate::query::Variable<$crate::schemas::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $ctx.next_variable();
             let v: $crate::Value<ns::schemas::$FieldName> = $Value;
             $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
@@ -60,7 +60,7 @@ macro_rules! pattern_inner {
         {
             use $crate::query::TriblePattern;
             use $Namespace as ns;
-            let a_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
+            let a_var: $crate::query::Variable<$crate::schemas::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $Value;
             $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
@@ -70,7 +70,7 @@ macro_rules! pattern_inner {
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
-            let e_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
+            let e_var: $crate::query::Variable<$crate::schemas::GenId> = $ctx.next_variable();
             $constraints.push({ let e: $crate::RawId = $EntityId; Box::new(e_var.is(e.into()))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
@@ -78,14 +78,14 @@ macro_rules! pattern_inner {
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
-            let e_var: $crate::query::Variable<$crate::Id> = $EntityId;
+            let e_var: $crate::query::Variable<$crate::schemas::GenId> = $EntityId;
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
 
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),*})) => {
         {
-            let e_var: $crate::query::Variable<$crate::Id> = $ctx.next_variable();
+            let e_var: $crate::query::Variable<$crate::schemas::GenId> = $ctx.next_variable();
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -118,7 +118,7 @@ pub use hex_literal;
 ///
 /// NS! {
 ///     pub namespace namespace_name {
-///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::Id;
+///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::schemas::GenId;
 ///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::schemas::ShortString;
 ///     }
 /// }
@@ -137,7 +137,7 @@ pub use hex_literal;
 ///   }
 ///   pub mod schemas {
 ///       use super::*;
-///       pub use tribles::Id as attr_name;
+///       pub use tribles::schemas::GenId as attr_name;
 ///       pub use tribles::schemas::ShortString as attr_name2;
 ///   }
 /// }
@@ -217,11 +217,11 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, schemas::{ShortString, TryPack}, ufoid, Id, TribleSet};
+    use crate::{query::find, schemas::{ShortString, TryPack, GenId}, ufoid, TribleSet};
 
     NS! {
         pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
         }

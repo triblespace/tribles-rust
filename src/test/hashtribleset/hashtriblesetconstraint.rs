@@ -16,8 +16,8 @@ pub struct HashTribleSetConstraint<'a>
 impl<'a> HashTribleSetConstraint<'a>
 {
     pub fn new<V: Schema>(
-        variable_e: Variable<Id>,
-        variable_a: Variable<Id>,
+        variable_e: Variable<GenId>,
+        variable_a: Variable<GenId>,
         variable_v: Variable<V>,
         set: &'a HashTribleSet,
     ) -> Self {

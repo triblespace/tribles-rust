@@ -5,16 +5,16 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    namespace::NS, query::find, schemas::{
+    namespace::NS, query::find, schemas::{GenId,
         ed25519::{self as ed, ED25519RComponent, ED25519SComponent}, hash::Blake3, Pack, ShortString, Handle
-    }, triblearchive::SimpleArchive, Id, RawId, TribleSet, Value
+    }, triblearchive::SimpleArchive, RawId, TribleSet, Value
 };
 
 NS! {
     pub namespace commit_ns {
         "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: Handle<Blake3, SimpleArchive>;
         "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
-        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: Id;
+        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: GenId;
         "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: ed::ED25519RComponent;
         "1ACE03BF70242B289FDF00E4327C3BC6" as ed25519_signature_s: ed::ED25519SComponent;
         "B57D92D4630F8F1B697DAF49CDFA3757" as ed25519_pubkey: ed::ED25519PublicKey;

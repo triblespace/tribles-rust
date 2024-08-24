@@ -6,7 +6,7 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use crate::query::Variable;
-use crate::{Id, RawId, RawValue, Schema, Value};
+use crate::{schemas::GenId, RawId, RawValue, Schema, Value};
 
 use self::columnconstraint::ColumnConstraint;
 
@@ -36,7 +36,7 @@ impl<V: Schema> Column<V> {
         self.ve.entry(v.bytes).or_default().remove(&e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<Id>, v: Variable<V>) -> ColumnConstraint<'a> {
+    pub fn has<'a>(&'a self, e: Variable<GenId>, v: Variable<V>) -> ColumnConstraint<'a> {
         ColumnConstraint::new(e, v, self)
     }
 }
@@ -56,10 +56,11 @@ impl<'a, V: Schema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    use crate::schemas::genid::RandomGenId;
 
     proptest! {
         #[test]
-        fn insert(entries in prop::collection::vec((crate::id::RandomId(), crate::id::RandomId().prop_map(|id| id.into())), 1..1024)) {
+        fn insert(entries in prop::collection::vec((RandomGenId(), RandomGenId().prop_map(|id| id.into())), 1..1024)) {
             Column::from_iter(entries.iter());
         }
     }

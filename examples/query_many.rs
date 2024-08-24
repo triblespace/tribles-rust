@@ -1,5 +1,5 @@
 use tribles::schemas::TryPack;
-use tribles::{query::find, schemas::ShortString, ufoid, Id, TribleSet, NS};
+use tribles::{query::find, schemas::{ ShortString, GenId}, ufoid, TribleSet, NS};
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
@@ -7,7 +7,7 @@ use fake::Fake;
 
 NS! {
     pub namespace knights {
-        "39E2D06DBCD9CB96DE5BC46F362CFF31" as loves: Id;
+        "39E2D06DBCD9CB96DE5BC46F362CFF31" as loves: GenId;
         "7D4F339CC4AE0BBA2765F34BE1D108EF" as name: ShortString;
         "3E0C58AC884072EA6429BB00A1BA1DA4" as title: ShortString;
     }

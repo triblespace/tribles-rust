@@ -7,7 +7,7 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{id_into_value, schemas::Handle, Id, Schema, Value};
+use crate::{id_into_value, schemas::{Handle, GenId}, Schema, Value};
 use crate::{Bloblike, RawValue};
 
 use itertools::Itertools;
@@ -239,8 +239,8 @@ where
 
     fn pattern<'a, V: Schema>(
         &'a self,
-        e: crate::query::Variable<Id>,
-        a: crate::query::Variable<Id>,
+        e: crate::query::Variable<GenId>,
+        a: crate::query::Variable<GenId>,
         v: crate::query::Variable<V>,
     ) -> Self::PatternConstraint<'a>
     {
@@ -284,7 +284,7 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: Id;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
         }

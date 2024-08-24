@@ -6,7 +6,7 @@ use std::ops::Range;
 
 use super::*;
 use crate::query::*;
-use crate::Id;
+use crate::schemas::GenId;
 
 pub struct SuccinctArchiveConstraint<'a, U, B>
 where
@@ -25,8 +25,8 @@ where
     B: Build + Access + Rank + Select + NumBits,
 {
     pub fn new<V: Schema>(
-        variable_e: Variable<Id>,
-        variable_a: Variable<Id>,
+        variable_e: Variable<GenId>,
+        variable_a: Variable<GenId>,
         variable_v: Variable<V>,
         archive: &'a SuccinctArchive<U, B>,
     ) -> Self {

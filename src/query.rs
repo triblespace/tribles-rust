@@ -439,7 +439,7 @@ mod tests {
             ctx,
             (string, number),
             and!(
-                string.is("Hello World!".try_pack().unwrap()),
+                string.is(<str as TryPack<ShortString>>::try_pack("Hello World!").unwrap()),
                 number.is(I256BE::pack(42))));
         let r: Vec<_> = q.collect();
 

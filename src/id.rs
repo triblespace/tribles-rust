@@ -1,12 +1,12 @@
-pub mod genid;
 pub mod fucid;
+pub mod genid;
 pub mod ufoid;
 
 use std::convert::TryInto;
 
+pub use fucid::fucid;
 pub use genid::genid;
 pub use ufoid::ufoid;
-pub use fucid::fucid;
 
 use crate::{RawValue, VALUE_LEN};
 

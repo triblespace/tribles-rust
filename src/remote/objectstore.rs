@@ -4,12 +4,12 @@ use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 
-use futures::{Stream, StreamExt};
 use anybytes::Bytes;
+use futures::{Stream, StreamExt};
 
 use digest::{typenum::U32, Digest};
-use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
 use object_store::UpdateVersion;
+use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
 use url::Url;
 
 use hex::FromHex;
@@ -58,7 +58,8 @@ where
                         .location
                         .filename()
                         .ok_or(ListErr::NotAFile("no filename"))?;
-                    let digest = RawValue::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
+                    let digest =
+                        RawValue::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
                     Ok(Value::new(digest))
                 }
                 Err(e) => Err(ListErr::List(e)),

@@ -88,9 +88,7 @@ where
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e == variable
-            || self.variable_a == variable
-            || self.variable_v == variable
+        self.variable_e == variable || self.variable_a == variable || self.variable_v == variable
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {

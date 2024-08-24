@@ -1,7 +1,8 @@
 use std::convert::TryInto;
 
 use crate::{
-    patch::{KeyOrdering, KeySegmentation}, Schema, Value
+    patch::{KeyOrdering, KeySegmentation},
+    Schema, Value,
 };
 use arbitrary::Arbitrary;
 

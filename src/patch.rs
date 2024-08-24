@@ -2,9 +2,9 @@
 #![allow(unstable_name_collisions)]
 
 mod branch;
+mod bytetable;
 mod entry;
 mod leaf;
-mod bytetable;
 
 use sptr::Strict;
 
@@ -338,11 +338,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub unsafe fn upsert<F>(
-        &mut self,
-        inserted: Head<KEY_LEN, O, S>,
-        update: F,
-    ) where
+    pub unsafe fn upsert<F>(&mut self, inserted: Head<KEY_LEN, O, S>, update: F)
+    where
         F: Fn(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
     {
         self.cow();
@@ -447,10 +444,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
                     let old_head = std::mem::replace(self, new_head);
 
-                    self.upsert(
-                        old_head.with_start(depth),
-                        |_, _| unreachable!(),
-                    );
+                    self.upsert(old_head.with_start(depth), |_, _| unreachable!());
                     return;
                 }
             }
@@ -546,18 +540,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
                     let old_self = std::mem::replace(self, new_head);
 
-                    self.upsert(
-                        old_self.with_start(depth),
-                        |_, _| unreachable!(),
-                    );
+                    self.upsert(old_self.with_start(depth), |_, _| unreachable!());
                     return;
                 }
             }
 
             if self_depth < other_depth {
-                self.upsert(other, |child, inserted| {
-                    child.union(inserted, self_depth)
-                });
+                self.upsert(other, |child, inserted| child.union(inserted, self_depth));
                 return;
             }
 
@@ -748,8 +737,22 @@ where
     ) where
         F: FnMut([u8; INFIX_LEN]),
     {
-        assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN, "{} + {} > {}", PREFIX_LEN, INFIX_LEN, KEY_LEN);
-        assert!(S::segment(O::key_index(PREFIX_LEN)) == S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1)), "PREFIX_LEN = {}, INFIX_LEN = {}, {} != {}", PREFIX_LEN, INFIX_LEN,  S::segment(O::key_index(PREFIX_LEN)),  S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1)));
+        assert!(
+            PREFIX_LEN + INFIX_LEN <= KEY_LEN,
+            "{} + {} > {}",
+            PREFIX_LEN,
+            INFIX_LEN,
+            KEY_LEN
+        );
+        assert!(
+            S::segment(O::key_index(PREFIX_LEN))
+                == S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1)),
+            "PREFIX_LEN = {}, INFIX_LEN = {}, {} != {}",
+            PREFIX_LEN,
+            INFIX_LEN,
+            S::segment(O::key_index(PREFIX_LEN)),
+            S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1))
+        );
         if let Some(root) = &self.root {
             root.infixes(prefix, 0, &mut f);
         }

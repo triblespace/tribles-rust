@@ -2,7 +2,7 @@ use ed25519::{ComponentBytes, Signature};
 use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
 
-use crate::{ Value, Schema};
+use crate::{Schema, Value};
 
 use super::{Pack, TryUnpack, Unpack};
 
@@ -26,7 +26,7 @@ impl ED25519SComponent {
     }
 }
 
-impl Pack<ED25519RComponent> for ComponentBytes {    
+impl Pack<ED25519RComponent> for ComponentBytes {
     fn pack(&self) -> Value<ED25519RComponent> {
         Value::new(*self)
     }

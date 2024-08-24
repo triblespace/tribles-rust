@@ -16,4 +16,4 @@ impl<H, T> From<Value<Handle<H, T>>> for Value<Hash<H>> {
     }
 }
 
-impl<H, T> Schema for Handle<H, T>{}
+impl<H, T> Schema for Handle<H, T> {}

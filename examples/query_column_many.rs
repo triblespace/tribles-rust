@@ -1,14 +1,14 @@
+use tribles::column::Column;
 use tribles::query::and;
 use tribles::query::find;
-use tribles::column::Column;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
+use tribles::schemas::GenId;
 use tribles::schemas::ShortString;
 use tribles::schemas::TryPack;
 use tribles::ufoid;
-use tribles::schemas::GenId;
 
 fn main() {
     let mut name: Column<ShortString> = Column::new();
@@ -17,14 +17,8 @@ fn main() {
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        name.insert(
-            lover_a,
-            Name(EN).fake::<String>()[..].try_pack().unwrap(),
-        );
-        name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_pack().unwrap(),
-        );
+        name.insert(lover_a, Name(EN).fake::<String>()[..].try_pack().unwrap());
+        name.insert(lover_b, Name(EN).fake::<String>()[..].try_pack().unwrap());
         loves.insert(lover_a, lover_b.into());
         loves.insert(lover_b, lover_a.into());
     });
@@ -33,10 +27,7 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
         name.insert(lover_a, "Wameo".try_pack().unwrap());
-        name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_pack().unwrap(),
-        );
+        name.insert(lover_b, Name(EN).fake::<String>()[..].try_pack().unwrap());
         loves.insert(lover_a, lover_b.into());
         loves.insert(lover_b, lover_a.into());
     });

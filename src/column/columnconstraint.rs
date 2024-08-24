@@ -6,17 +6,19 @@ use crate::{
 
 use super::*;
 
-pub struct ColumnConstraint<'a>
-{
+pub struct ColumnConstraint<'a> {
     variable_e: VariableId,
     variable_v: VariableId,
     column_ev: &'a HashMap<RawId, HashSet<RawValue>>,
     column_ve: &'a HashMap<RawValue, HashSet<RawId>>,
 }
 
-impl<'a> ColumnConstraint<'a>
-{
-    pub fn new<V: Schema>(variable_e: Variable<GenId>, variable_v: Variable<V>, column: &'a Column<V>) -> Self {
+impl<'a> ColumnConstraint<'a> {
+    pub fn new<V: Schema>(
+        variable_e: Variable<GenId>,
+        variable_v: Variable<V>,
+        column: &'a Column<V>,
+    ) -> Self {
         ColumnConstraint {
             variable_e: variable_e.index,
             variable_v: variable_v.index,
@@ -26,8 +28,7 @@ impl<'a> ColumnConstraint<'a>
     }
 }
 
-impl<'a> Constraint<'a> for ColumnConstraint<'a>
-{
+impl<'a> Constraint<'a> for ColumnConstraint<'a> {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
         variables.set(self.variable_e);

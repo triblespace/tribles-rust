@@ -120,21 +120,19 @@ impl VariableSet {
     /// Compute the set subtraction between the two given sets.
     pub fn subtract(self, other: Self) -> Self {
         Self {
-            bits: self.bits & !other.bits
+            bits: self.bits & !other.bits,
         }
     }
     /// Compute the set difference between the two given sets.
     pub fn difference(self, other: Self) -> Self {
         Self {
-            bits: self.bits ^ other.bits
+            bits: self.bits ^ other.bits,
         }
     }
     /// Compute a set complement, removing every element that was in the set
     /// and inserting every element from the domain that wasn't in the set.
     pub fn complement(self) -> Self {
-        Self {
-            bits: !self.bits
-        }
+        Self { bits: !self.bits }
     }
     /// Remove all elements from the set except the one passed.
     /// Equal to an intersection with a set containing only the passed element.

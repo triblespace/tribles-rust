@@ -1,5 +1,8 @@
 use tribles::schemas::TryPack;
-use tribles::{schemas::{ShortString, GenId}, ufoid, TribleSet, NS};
+use tribles::{
+    schemas::{GenId, ShortString},
+    ufoid, TribleSet, NS,
+};
 
 use fake::faker::name::raw::*;
 use fake::locales::*;

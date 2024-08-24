@@ -1,6 +1,6 @@
 use std::{str::Utf8Error, string::FromUtf8Error};
 
-use crate::{ Value, Schema };
+use crate::{Schema, Value};
 
 use super::{TryPack, TryUnpack};
 
@@ -16,27 +16,36 @@ impl Schema for ShortString {}
 
 impl<'a> TryUnpack<'a, ShortString> for String {
     type Error = FromUtf8Error;
-    
+
     fn try_unpack(v: &Value<ShortString>) -> Result<Self, Self::Error> {
         String::from_utf8(
-            v.bytes[0..v.bytes.iter().position(|&b| b == 0).unwrap_or(v.bytes.len())].into(),
+            v.bytes[0..v
+                .bytes
+                .iter()
+                .position(|&b| b == 0)
+                .unwrap_or(v.bytes.len())]
+                .into(),
         )
     }
 }
 
 impl<'a> TryUnpack<'a, ShortString> for &'a str {
     type Error = Utf8Error;
-    
+
     fn try_unpack(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
         std::str::from_utf8(
-            &v.bytes[0..v.bytes.iter().position(|&b| b == 0).unwrap_or(v.bytes.len())],
+            &v.bytes[0..v
+                .bytes
+                .iter()
+                .position(|&b| b == 0)
+                .unwrap_or(v.bytes.len())],
         )
     }
 }
 
 impl TryPack<ShortString> for str {
     type Error = FromStrError;
-    
+
     fn try_pack(&self) -> Result<Value<ShortString>, Self::Error> {
         let bytes = self.as_bytes();
         if bytes.len() > 32 {

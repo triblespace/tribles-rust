@@ -1,12 +1,12 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-pub use crate::genid::genid;
-use hex::FromHexError;
-use hex::FromHex;
-pub use crate::ufoid::ufoid;
 pub use crate::fucid;
+pub use crate::genid::genid;
+pub use crate::ufoid::ufoid;
 use crate::RawId;
+use hex::FromHex;
+use hex::FromHexError;
 
 use rand::RngCore;
 
@@ -23,18 +23,18 @@ impl Schema for GenId {}
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GenIdParseError {
     IsNil,
-    BadFormat
+    BadFormat,
 }
 
-impl TryFrom<&Value<GenId>> for RawId {    
+impl TryFrom<&Value<GenId>> for RawId {
     type Error = GenIdParseError;
-    
+
     fn try_from(value: &Value<GenId>) -> Result<Self, Self::Error> {
         if value.bytes[0..16] != [0; 16] {
-            return Err(GenIdParseError::BadFormat)
+            return Err(GenIdParseError::BadFormat);
         }
         if value.bytes[16..32] == [0; 16] {
-            return Err(GenIdParseError::IsNil)
+            return Err(GenIdParseError::IsNil);
         }
         Ok(value.bytes[16..32].try_into().unwrap())
     }
@@ -56,13 +56,13 @@ impl From<RawId> for Value<GenId> {
 
 impl TryUnpack<'_, GenId> for RawId {
     type Error = GenIdParseError;
-    
+
     fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
         v.try_into()
     }
 }
 
-impl Pack<GenId> for RawId {    
+impl Pack<GenId> for RawId {
     fn pack(&self) -> Value<GenId> {
         self.into()
     }
@@ -70,7 +70,7 @@ impl Pack<GenId> for RawId {
 
 impl TryUnpack<'_, GenId> for String {
     type Error = GenIdParseError;
-    
+
     fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
         let id: RawId = v.try_into()?;
         let mut s = String::new();
@@ -83,7 +83,7 @@ impl TryUnpack<'_, GenId> for String {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PackIdError {
     BadProtocol,
-    BadHex(FromHexError)
+    BadHex(FromHexError),
 }
 
 impl From<FromHexError> for PackIdError {
@@ -94,14 +94,14 @@ impl From<FromHexError> for PackIdError {
 
 impl TryPack<GenId> for str {
     type Error = PackIdError;
-    
+
     fn try_pack(&self) -> Result<Value<GenId>, Self::Error> {
         let protocol = "genid:";
-        if !self.starts_with(protocol){
-            return Err(PackIdError::BadProtocol)
+        if !self.starts_with(protocol) {
+            return Err(PackIdError::BadProtocol);
         }
-       let id = RawId::from_hex(&self[protocol.len()..])?;
-       Ok(id.into())
+        let id = RawId::from_hex(&self[protocol.len()..])?;
+        Ok(id.into())
     }
 }
 

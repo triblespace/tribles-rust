@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
-use digest::{Digest, typenum::U32};
+use crate::{schemas::Handle, RawValue, Schema, Value};
 use anybytes::Bytes;
-use crate::{ schemas::Handle, RawValue, Schema, Value };
+use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
+use std::marker::PhantomData;
 
 trait HashProtocol: Digest<OutputSize = U32> {
     const NAME: &'static str;
@@ -23,18 +23,19 @@ where
     }
 
     pub fn from_hex(hex: &str) -> Result<Value<Self>, FromHexError> {
-
         let digest = RawValue::from_hex(hex)?;
         Ok(Value::new(digest))
     }
 
-    pub fn to_hex(value: &Value::<Self>) -> String {
-        hex::encode_upper(value.bytes)   
+    pub fn to_hex(value: &Value<Self>) -> String {
+        hex::encode_upper(value.bytes)
     }
 }
 
 impl<H> Unpack<'_, Hash<H>> for String
-where H: HashProtocol {
+where
+    H: HashProtocol,
+{
     fn unpack(v: &Value<Hash<H>>) -> Self {
         let mut out = String::new();
         out.push_str(<H as HashProtocol>::NAME);
@@ -47,7 +48,7 @@ where H: HashProtocol {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PackHashError {
     BadProtocol,
-    BadHex(FromHexError)
+    BadHex(FromHexError),
 }
 
 impl From<FromHexError> for PackHashError {
@@ -57,17 +58,18 @@ impl From<FromHexError> for PackHashError {
 }
 
 impl<H> TryPack<Hash<H>> for str
-where H: HashProtocol {
+where
+    H: HashProtocol,
+{
     type Error = PackHashError;
-    
+
     fn try_pack(&self) -> Result<Value<Hash<H>>, Self::Error> {
         let protocol = <H as HashProtocol>::NAME;
-        if !(self.starts_with(protocol) &&
-             &self[protocol.len()..=protocol.len()] == ":"){
-            return Err(PackHashError::BadProtocol)
+        if !(self.starts_with(protocol) && &self[protocol.len()..=protocol.len()] == ":") {
+            return Err(PackHashError::BadProtocol);
         }
-       let digest = RawValue::from_hex(&self[protocol.len() + 1..])?;
-        
+        let digest = RawValue::from_hex(&self[protocol.len() + 1..])?;
+
         Ok(Value::new(digest))
     }
 }
@@ -77,7 +79,6 @@ impl<H, T> From<Value<Hash<H>>> for Value<Handle<H, T>> {
         Value::new(value.bytes)
     }
 }
-
 
 use blake2::Blake2b as Blake2bUnsized;
 pub type Blake2b = Blake2bUnsized<U32>;
@@ -97,7 +98,10 @@ use super::{TryPack, Unpack};
 #[cfg(test)]
 mod tests {
     use super::Blake3;
-    use crate::{schemas::{hash::PackHashError, TryPack}, Value};
+    use crate::{
+        schemas::{hash::PackHashError, TryPack},
+        Value,
+    };
     use rand;
 
     use super::Hash;
@@ -106,26 +110,28 @@ mod tests {
     fn unpack_pack() {
         let v: Value<Hash<Blake3>> = Value::new(rand::random());
         let s: String = v.unpack();
-        let _: Value<Hash<Blake3>>  = s.try_pack().expect("roundtrip should succeed");
+        let _: Value<Hash<Blake3>> = s.try_pack().expect("roundtrip should succeed");
     }
 
     #[test]
     fn pack_known() {
         let s: &str = "blake3:CA98593CB9DC0FA48B2BE01E53D042E22B47862D646F9F19E2889A7961663663";
-        let _: Value<Hash<Blake3>>  = s.try_pack().expect("packing valid constant should succeed");
+        let _: Value<Hash<Blake3>> = s.try_pack().expect("packing valid constant should succeed");
     }
 
     #[test]
     fn pack_fail_protocol() {
         let s: &str = "bad:CA98593CB9DC0FA48B2BE01E53D042E22B47862D646F9F19E2889A7961663663";
-        let err: PackHashError  = <str as TryPack<Hash<Blake3>>>::try_pack(s).expect_err("packing invalid protocol should fail");
+        let err: PackHashError = <str as TryPack<Hash<Blake3>>>::try_pack(s)
+            .expect_err("packing invalid protocol should fail");
         assert_eq!(err, PackHashError::BadProtocol);
     }
 
     #[test]
     fn pack_fail_hex() {
         let s: &str = "blake3:BAD!";
-        let err: PackHashError  = <str as TryPack<Hash<Blake3>>>::try_pack(s).expect_err("packing invalid protocol should fail");
+        let err: PackHashError = <str as TryPack<Hash<Blake3>>>::try_pack(s)
+            .expect_err("packing invalid protocol should fail");
         assert!(matches!(err, PackHashError::BadHex(..)));
     }
 }

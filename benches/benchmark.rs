@@ -2,19 +2,23 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use hex::ToHex;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
-use tribles::fucid::FUCIDgen;
-use tribles::schemas::TryPack;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
 use sucds::Serializable;
 use tribles::column::Column;
+use tribles::fucid::FUCIDgen;
+use tribles::schemas::TryPack;
 use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
-use tribles::{and, schemas::{GenId, ShortString}, NS};
+use tribles::{
+    and,
+    schemas::{GenId, ShortString},
+    NS,
+};
 
 use tribles::test::hashtribleset::HashTribleSet;
-use tribles::{fucid, ufoid};
 use tribles::{find, trible::*};
+use tribles::{fucid, ufoid};
 
 use tribles::patch::{Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
@@ -544,37 +548,47 @@ fn entities_benchmark(c: &mut Criterion) {
     let total_unioned = 1000000;
     for i in [2, 10, 100, 1000] {
         group.throughput(Throughput::Elements(4 * total_unioned as u64));
-        group.bench_with_input(BenchmarkId::new("union/parallel/chunked", i), &i, |b, &i| {
-            let subsets: Vec<TribleSet> = (0..i)
-            .into_par_iter()
-            .map(|_| {
-                let mut gen = FUCIDgen::new();
-                (0..total_unioned / i).flat_map(|_| {
-                    let lover_a = gen.next();
-                    let lover_b = gen.next();
-    
-                    [
-                        knights::entity!(lover_a, {
-                            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
-                            loves: lover_b.into()
-                        }),
-                        knights::entity!(lover_b, {
-                            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
-                            loves: lover_a.into()
-                        }),
-                    ]
-                }).fold(TribleSet::new(), |mut kb, set| {
-                    kb.union(set);
-                    kb
-                })
-            }).collect();
-            b.iter_with_large_drop(|| {
-                subsets.iter().cloned().fold(TribleSet::new(), |mut kb, set| {
-                    kb.union(set);
-                    kb
-                })
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("union/parallel/chunked", i),
+            &i,
+            |b, &i| {
+                let subsets: Vec<TribleSet> = (0..i)
+                    .into_par_iter()
+                    .map(|_| {
+                        let mut gen = FUCIDgen::new();
+                        (0..total_unioned / i)
+                            .flat_map(|_| {
+                                let lover_a = gen.next();
+                                let lover_b = gen.next();
+
+                                [
+                                    knights::entity!(lover_a, {
+                                        name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
+                                        loves: lover_b.into()
+                                    }),
+                                    knights::entity!(lover_b, {
+                                        name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
+                                        loves: lover_a.into()
+                                    }),
+                                ]
+                            })
+                            .fold(TribleSet::new(), |mut kb, set| {
+                                kb.union(set);
+                                kb
+                            })
+                    })
+                    .collect();
+                b.iter_with_large_drop(|| {
+                    subsets
+                        .iter()
+                        .cloned()
+                        .fold(TribleSet::new(), |mut kb, set| {
+                            kb.union(set);
+                            kb
+                        })
+                });
+            },
+        );
     }
 
     group.finish();
@@ -711,14 +725,8 @@ fn column_benchmark(c: &mut Criterion) {
     (0..1000000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
-        name.insert(
-            lover_a,
-            Name(EN).fake::<String>()[..].try_pack().unwrap(),
-        );
-        name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_pack().unwrap(),
-        );
+        name.insert(lover_a, Name(EN).fake::<String>()[..].try_pack().unwrap());
+        name.insert(lover_b, Name(EN).fake::<String>()[..].try_pack().unwrap());
         loves.insert(lover_a, lover_b.into());
         loves.insert(lover_b, lover_a.into());
     });
@@ -727,10 +735,7 @@ fn column_benchmark(c: &mut Criterion) {
         let lover_a = ufoid();
         let lover_b = ufoid();
         name.insert(lover_a, "Wameo".try_pack().unwrap());
-        name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_pack().unwrap(),
-        );
+        name.insert(lover_b, Name(EN).fake::<String>()[..].try_pack().unwrap());
         loves.insert(lover_a, lover_b.into());
         loves.insert(lover_b, lover_a.into());
     });

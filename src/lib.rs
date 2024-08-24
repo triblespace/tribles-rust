@@ -9,19 +9,19 @@ pub mod namespace;
 pub mod patch;
 pub mod query;
 pub mod remote;
+pub mod schemas;
 pub mod test;
 pub mod trible;
 pub mod triblearchive;
 pub mod tribleset;
-pub mod schemas;
 pub mod value;
 
 pub use blob::*;
 pub use blobset::BlobSet;
 pub use id::*;
+pub use schemas::Schema;
 pub use tribleset::TribleSet;
 pub use value::*;
-pub use schemas::Schema;
 
 #[cfg(test)]
 mod tests {}

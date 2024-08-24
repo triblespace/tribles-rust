@@ -1,9 +1,9 @@
-use digest::{ Digest, typenum::U32 };
 use anybytes::Bytes;
+use digest::{typenum::U32, Digest};
 
 use crate::schemas::Hash;
+use crate::{schemas::Handle, TribleSet};
 use crate::{BlobParseError, Bloblike, Value};
-use crate::{TribleSet, schemas::Handle};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
@@ -123,7 +123,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{schemas::{Handle, hash::Blake3, ZCString }, TribleSet, NS};
+    use crate::{
+        schemas::{hash::Blake3, Handle, ZCString},
+        TribleSet, NS,
+    };
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

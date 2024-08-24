@@ -56,9 +56,11 @@ impl VariableContext {
         VariableContext { next_index: 0 }
     }
 
-    pub fn next_variable<T: Schema>(&mut self) -> Variable<T>
-    {
-        assert!(self.next_index < 128, "currently queries support at most 128 variables");
+    pub fn next_variable<T: Schema>(&mut self) -> Variable<T> {
+        assert!(
+            self.next_index < 128,
+            "currently queries support at most 128 variables"
+        );
         let v = Variable::new(self.next_index);
         self.next_index += 1;
         v
@@ -240,9 +242,7 @@ enum Search {
     Done,
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator
-    for Query<C, P, R>
-{
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R> {
     type Item = R;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -308,9 +308,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator
     }
 }
 
-impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug
-    for Query<C, P, R>
-{
+impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Query") //TODO
     }
@@ -339,7 +337,10 @@ mod tests {
     use std::collections::HashSet;
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{schemas::{GenId, iu256::I256BE, ShortString, TryPack}, ufoid, TribleSet, NS};
+    use crate::{
+        schemas::{iu256::I256BE, GenId, ShortString, TryPack},
+        ufoid, TribleSet, NS,
+    };
 
     use super::*;
 
@@ -440,7 +441,9 @@ mod tests {
             (string, number),
             and!(
                 string.is(<str as TryPack<ShortString>>::try_pack("Hello World!").unwrap()),
-                number.is(I256BE::pack(42))));
+                number.is(I256BE::pack(42))
+            )
+        );
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())

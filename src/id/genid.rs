@@ -1,5 +1,5 @@
-use rand::{thread_rng, RngCore};
 use crate::RawId;
+use rand::{thread_rng, RngCore};
 
 pub fn genid() -> RawId {
     let mut rng = thread_rng();

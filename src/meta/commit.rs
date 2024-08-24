@@ -5,9 +5,15 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    namespace::NS, query::find, schemas::{GenId,
-        ed25519::{self as ed, ED25519RComponent, ED25519SComponent}, hash::Blake3, Pack, ShortString, Handle
-    }, triblearchive::SimpleArchive, RawId, TribleSet, Value
+    namespace::NS,
+    query::find,
+    schemas::{
+        ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
+        hash::Blake3,
+        GenId, Handle, Pack, ShortString,
+    },
+    triblearchive::SimpleArchive,
+    RawId, TribleSet, Value,
 };
 
 NS! {
@@ -24,16 +30,18 @@ NS! {
 pub enum ValidationError {
     AmbiguousSignature,
     MissingSignature,
-    FailedValidation
+    FailedValidation,
 }
 
 impl<I> From<ExactlyOneError<I>> for ValidationError
-where I: Iterator {
+where
+    I: Iterator,
+{
     fn from(err: ExactlyOneError<I>) -> Self {
         let (lower_bound, _) = err.size_hint();
         match lower_bound {
             0 => ValidationError::MissingSignature,
-            _ => ValidationError::AmbiguousSignature
+            _ => ValidationError::AmbiguousSignature,
         }
     }
 }

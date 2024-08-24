@@ -17,9 +17,9 @@ impl FUCIDgen {
                 let mut rng = thread_rng();
                 let mut rand_bytes = [0; 16];
                 rng.fill_bytes(&mut rand_bytes[..]);
-        
+
                 u128::from_be_bytes(rand_bytes)
-            }
+            },
         }
     }
 
@@ -34,11 +34,10 @@ thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen::new()
 
 /// Fast Unsafe Compressable IDs
 pub fn fucid() -> RawId {
-    GEN_STATE
-        .with(|cell| {
-            let mut gen = cell.borrow_mut();
-            gen.next()
-        })
+    GEN_STATE.with(|cell| {
+        let mut gen = cell.borrow_mut();
+        gen.next()
+    })
 }
 
 #[cfg(test)]

@@ -7,7 +7,11 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{id_into_value, schemas::{Handle, GenId}, Schema, Value};
+use crate::{
+    id_into_value,
+    schemas::{GenId, Handle},
+    Schema, Value,
+};
 use crate::{Bloblike, RawValue};
 
 use itertools::Itertools;
@@ -242,8 +246,7 @@ where
         e: crate::query::Variable<GenId>,
         a: crate::query::Variable<GenId>,
         v: crate::query::Variable<V>,
-    ) -> Self::PatternConstraint<'a>
-    {
+    ) -> Self::PatternConstraint<'a> {
         SuccinctArchiveConstraint::new(e, a, v, self)
     }
 }
@@ -274,7 +277,7 @@ mod tests {
     use std::convert::TryInto;
 
     use crate::schemas::TryPack;
-    use crate::{find, trible::Trible, schemas::ShortString, ufoid, NS};
+    use crate::{find, schemas::ShortString, trible::Trible, ufoid, NS};
 
     use super::*;
     use itertools::Itertools;

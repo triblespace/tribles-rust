@@ -5,16 +5,14 @@ use crate::{
 
 use super::*;
 
-pub struct HashTribleSetConstraint<'a>
-{
+pub struct HashTribleSetConstraint<'a> {
     variable_e: VariableId,
     variable_a: VariableId,
     variable_v: VariableId,
     set: &'a HashTribleSet,
 }
 
-impl<'a> HashTribleSetConstraint<'a>
-{
+impl<'a> HashTribleSetConstraint<'a> {
     pub fn new<V: Schema>(
         variable_e: Variable<GenId>,
         variable_a: Variable<GenId>,
@@ -30,8 +28,7 @@ impl<'a> HashTribleSetConstraint<'a>
     }
 }
 
-impl<'a> Constraint<'a> for HashTribleSetConstraint<'a>
-{
+impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
         variables.set(self.variable_e);
@@ -41,9 +38,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a>
     }
 
     fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e == variable
-            || self.variable_a == variable
-            || self.variable_v == variable
+        self.variable_e == variable || self.variable_a == variable || self.variable_v == variable
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {

@@ -1,10 +1,11 @@
-use std::convert::TryInto;
-use digest::{typenum::U32, Digest};
 use anybytes::Bytes;
+use digest::{typenum::U32, Digest};
+use std::convert::TryInto;
 
 use crate::{
+    schemas::Handle,
     trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},
-    BlobParseError, Bloblike, schemas::Handle, TribleSet, Value,
+    BlobParseError, Bloblike, TribleSet, Value,
 };
 
 pub struct SimpleArchive(Bytes);

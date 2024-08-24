@@ -4,7 +4,7 @@ use anybytes::{ByteOwner, Bytes};
 use digest::{consts::U32, Digest};
 use zerocopy::FromBytes;
 
-use crate::{BlobParseError, Bloblike, schemas::Handle, Value};
+use crate::{schemas::Handle, BlobParseError, Bloblike, Value};
 
 pub struct ZC<T> {
     bytes: Bytes,
@@ -13,7 +13,10 @@ pub struct ZC<T> {
 
 impl<T> Clone for ZC<T> {
     fn clone(&self) -> Self {
-        Self { bytes: self.bytes.clone(), _type: PhantomData }
+        Self {
+            bytes: self.bytes.clone(),
+            _type: PhantomData,
+        }
     }
 }
 

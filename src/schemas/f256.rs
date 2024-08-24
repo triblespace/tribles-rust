@@ -13,7 +13,7 @@ pub type F256 = F256BE;
 impl Schema for F256LE {}
 impl Schema for F256BE {}
 
-impl Unpack<'_, F256BE> for f256 {    
+impl Unpack<'_, F256BE> for f256 {
     fn unpack(v: &Value<F256BE>) -> Self {
         f256::from_be_bytes(v.bytes)
     }

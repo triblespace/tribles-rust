@@ -55,8 +55,8 @@ impl<'a, V: Schema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
     use crate::schemas::genid::RandomGenId;
+    use proptest::prelude::*;
 
     proptest! {
         #[test]

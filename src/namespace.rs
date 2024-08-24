@@ -217,7 +217,11 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::{query::find, schemas::{ShortString, TryPack, GenId}, ufoid, TribleSet};
+    use crate::{
+        query::find,
+        schemas::{GenId, ShortString, TryPack},
+        ufoid, TribleSet,
+    };
 
     NS! {
         pub namespace knights {

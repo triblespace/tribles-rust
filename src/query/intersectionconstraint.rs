@@ -5,14 +5,18 @@ pub struct IntersectionConstraint<C> {
 }
 
 impl<'a, C> IntersectionConstraint<C>
-where C: Constraint<'a> + 'a {
+where
+    C: Constraint<'a> + 'a,
+{
     pub fn new(constraints: Vec<C>) -> Self {
         IntersectionConstraint { constraints }
     }
 }
 
 impl<'a, C> Constraint<'a> for IntersectionConstraint<C>
-where C: Constraint<'a> + 'a {
+where
+    C: Constraint<'a> + 'a,
+{
     fn variables(&self) -> VariableSet {
         self.constraints
             .iter()

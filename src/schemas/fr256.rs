@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::{ Value, Schema };
+use crate::{Schema, Value};
 use num_rational::Ratio;
 
 use super::{Pack, Unpack};
@@ -13,7 +13,7 @@ pub type FR256 = FR256LE;
 impl Schema for FR256LE {}
 impl Schema for FR256BE {}
 
-impl Unpack<'_, FR256BE> for Ratio<i128> {    
+impl Unpack<'_, FR256BE> for Ratio<i128> {
     fn unpack(v: &Value<FR256BE>) -> Self {
         let n = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
         let d = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
@@ -22,7 +22,7 @@ impl Unpack<'_, FR256BE> for Ratio<i128> {
     }
 }
 
-impl Pack<FR256BE> for Ratio<i128> {    
+impl Pack<FR256BE> for Ratio<i128> {
     fn pack(&self) -> Value<FR256BE> {
         let mut bytes = [0; 32];
         bytes[0..16].copy_from_slice(&self.numer().to_be_bytes());
@@ -41,7 +41,7 @@ impl Unpack<'_, FR256LE> for Ratio<i128> {
     }
 }
 
-impl Pack<FR256LE> for Ratio<i128> {    
+impl Pack<FR256LE> for Ratio<i128> {
     fn pack(&self) -> Value<FR256LE> {
         let mut bytes = [0; 32];
         bytes[0..16].copy_from_slice(&self.numer().to_le_bytes());

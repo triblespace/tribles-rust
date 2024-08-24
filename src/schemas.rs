@@ -1,23 +1,23 @@
 //! This is a collection of Rust types that can be (de)serialized as
 //! [Value]s, and [Blob]s.
 
-pub mod genid;
-pub mod handle;
 pub mod ed25519;
 pub mod f256;
 pub mod fr256;
-pub mod iu256;
+pub mod genid;
+pub mod handle;
 pub mod hash;
+pub mod iu256;
 pub mod shortstring;
 pub mod time;
-pub mod zcstring;
 pub mod zc;
+pub mod zcstring;
 
 use std::borrow::Borrow;
 
-pub use hash::*;
-pub use handle::*;
 pub use genid::*;
+pub use handle::*;
+pub use hash::*;
 pub use shortstring::*;
 pub use time::*;
 pub use zcstring::*;

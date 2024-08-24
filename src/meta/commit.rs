@@ -6,8 +6,8 @@ use ed25519::signature::Signer;
 
 use crate::{
     namespace::NS, query::find, schemas::{
-        ed25519::{self as ed, ED25519RComponent, ED25519SComponent}, hash::Blake3, Pack, ShortString
-    }, triblearchive::SimpleArchive, Handle, Id, RawId, TribleSet, Value
+        ed25519::{self as ed, ED25519RComponent, ED25519SComponent}, hash::Blake3, Pack, ShortString, Handle
+    }, triblearchive::SimpleArchive, Id, RawId, TribleSet, Value
 };
 
 NS! {

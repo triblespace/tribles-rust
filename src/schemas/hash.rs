@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use digest::{Digest, typenum::U32};
 use anybytes::Bytes;
-use crate::{ Handle, RawValue, Schema, Value };
+use crate::{ schemas::Handle, RawValue, Schema, Value };
 use hex::{FromHex, FromHexError};
 
 trait HashProtocol: Digest<OutputSize = U32> {
@@ -61,12 +61,12 @@ where H: HashProtocol {
     type Error = PackHashError;
     
     fn try_pack(&self) -> Result<Value<Hash<H>>, Self::Error> {
-        let method = <H as HashProtocol>::NAME;
-        if !(self.starts_with(method) &&
-             &self[method.len()..=method.len()] == ":"){
+        let protocol = <H as HashProtocol>::NAME;
+        if !(self.starts_with(protocol) &&
+             &self[protocol.len()..=protocol.len()] == ":"){
             return Err(PackHashError::BadProtocol)
         }
-       let digest = RawValue::from_hex(&self[method.len() + 1..])?;
+       let digest = RawValue::from_hex(&self[protocol.len() + 1..])?;
         
         Ok(Value::new(digest))
     }

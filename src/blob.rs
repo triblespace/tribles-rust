@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use digest::{consts::U32, Digest};
 
-use crate::{Handle, Value};
+use crate::{Value, schemas::Handle};
 
 pub use anybytes::Bytes;
 

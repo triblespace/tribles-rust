@@ -7,7 +7,7 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{id_into_value, Handle, Id, Schema, Value};
+use crate::{id_into_value, schemas::Handle, Id, Schema, Value};
 use crate::{Bloblike, RawValue};
 
 use itertools::Itertools;

@@ -1,6 +1,7 @@
 //! This is a collection of Rust types that can be (de)serialized as
 //! [Value]s, and [Blob]s.
 
+pub mod handle;
 pub mod ed25519;
 pub mod f256;
 pub mod fr256;
@@ -14,6 +15,7 @@ pub mod zc;
 use std::borrow::Borrow;
 
 pub use hash::Hash;
+pub use handle::Handle;
 pub use shortstring::*;
 pub use time::*;
 pub use zcstring::*;

@@ -4,7 +4,7 @@ use anybytes::{ByteOwner, Bytes};
 use digest::{consts::U32, Digest};
 use zerocopy::FromBytes;
 
-use crate::{BlobParseError, Bloblike, Handle, Value};
+use crate::{BlobParseError, Bloblike, schemas::Handle, Value};
 
 pub struct ZC<T> {
     bytes: Bytes,

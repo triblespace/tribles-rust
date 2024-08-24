@@ -4,7 +4,7 @@ use anybytes::Bytes;
 
 use crate::{
     trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},
-    BlobParseError, Bloblike, Handle, TribleSet, Value,
+    BlobParseError, Bloblike, schemas::Handle, TribleSet, Value,
 };
 
 pub struct SimpleArchive(Bytes);

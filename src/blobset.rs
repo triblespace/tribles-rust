@@ -3,7 +3,7 @@ use anybytes::Bytes;
 
 use crate::schemas::Hash;
 use crate::{BlobParseError, Bloblike, Value};
-use crate::{Handle, TribleSet};
+use crate::{TribleSet, schemas::Handle};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
@@ -123,7 +123,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{schemas::hash::Blake3, schemas::ZCString, Handle, TribleSet, NS};
+    use crate::{schemas::{Handle, hash::Blake3, ZCString }, TribleSet, NS};
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

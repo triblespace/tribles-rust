@@ -6,11 +6,15 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 pub use genid::genid;
+use hex::FromHex;
+use hex::FromHexError;
 pub use ufoid::ufoid;
 pub use fucid::fucid;
 
 use rand::RngCore;
 
+use crate::schemas::TryPack;
+use crate::schemas::TryUnpack;
 use crate::{RawValue, Schema, Value, VALUE_LEN};
 
 pub const ID_LEN: usize = 16;
@@ -35,20 +39,20 @@ pub struct Id;
 impl Schema for Id {}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum RndIdParseError {
+pub enum GenIdParseError {
     IsNil,
     BadFormat
 }
 
-impl TryFrom<Value<Id>> for RawId {    
-    type Error = RndIdParseError;
+impl TryFrom<&Value<Id>> for RawId {    
+    type Error = GenIdParseError;
     
-    fn try_from(value: Value<Id>) -> Result<Self, Self::Error> {
+    fn try_from(value: &Value<Id>) -> Result<Self, Self::Error> {
         if value.bytes[0..16] != [0; 16] {
-            return Err(RndIdParseError::BadFormat)
+            return Err(GenIdParseError::BadFormat)
         }
         if value.bytes[16..32] == [0; 16] {
-            return Err(RndIdParseError::IsNil)
+            return Err(GenIdParseError::IsNil)
         }
         Ok(value.bytes[16..32].try_into().unwrap())
     }
@@ -59,6 +63,43 @@ impl From<RawId> for Value<Id> {
         let mut data = [0; VALUE_LEN];
         data[16..32].copy_from_slice(&value[..]);
         Value::new(data)
+    }
+}
+
+impl TryUnpack<'_, Id> for String {
+    type Error = GenIdParseError;
+    
+    fn try_unpack(v: &'_ Value<Id>) -> Result<Self, Self::Error> {
+        let id: RawId = v.try_into()?;
+        let mut s = String::new();
+        s.push_str("genid:");
+        s.push_str(&hex::encode(id));
+        Ok(s)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PackIdError {
+    BadProtocol,
+    BadHex(FromHexError)
+}
+
+impl From<FromHexError> for PackIdError {
+    fn from(value: FromHexError) -> Self {
+        PackIdError::BadHex(value)
+    }
+}
+
+impl TryPack<Id> for str {
+    type Error = PackIdError;
+    
+    fn try_pack(&self) -> Result<Value<Id>, Self::Error> {
+        let protocol = "genid:";
+        if !self.starts_with(protocol){
+            return Err(PackIdError::BadProtocol)
+        }
+       let id = RawId::from_hex(&self[protocol.len()..])?;
+       Ok(id.into())
     }
 }
 

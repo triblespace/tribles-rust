@@ -1,6 +1,6 @@
 use anybytes::Bytes;
 use digest::{Digest, typenum::U32};
-use crate::{BlobParseError, Bloblike, Handle, Value};
+use crate::{BlobParseError, Bloblike, schemas::Handle, Value};
 
 pub struct ZCString(Bytes);
 
@@ -41,7 +41,7 @@ impl Bloblike for ZCString {
 
 #[cfg(test)]
 mod tests {
-    use crate::{schemas::{hash::Blake2b, ZCString}, Bloblike, Handle, Value};
+    use crate::{schemas::{hash::Blake2b, ZCString, Handle}, Bloblike, Value};
 
     #[test]
     fn string_handle() {

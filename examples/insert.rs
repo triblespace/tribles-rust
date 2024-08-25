@@ -1,6 +1,6 @@
-use tribles::schemas::TryPack;
+use tribles::valueschemas::TryPackValue;
 use tribles::{
-    schemas::{GenId, ShortString},
+    valueschemas::{GenId, ShortString},
     ufoid, TribleSet, NS,
 };
 

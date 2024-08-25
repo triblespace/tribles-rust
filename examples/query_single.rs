@@ -1,7 +1,7 @@
-use tribles::schemas::TryPack;
+use tribles::valueschemas::TryPackValue;
 use tribles::{
     query::find,
-    schemas::{GenId, ShortString},
+    valueschemas::{GenId, ShortString},
     ufoid, TribleSet, NS,
 };
 

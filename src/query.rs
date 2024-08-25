@@ -27,7 +27,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::{schemas::GenId, RawValue, ValueSchema, Value};
+use crate::{valueschemas::GenId, RawValue, ValueSchema, Value};
 
 pub use variableset::VariableSet;
 
@@ -338,7 +338,7 @@ mod tests {
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
     use crate::{
-        schemas::{iu256::I256BE, GenId, ShortString, TryPack},
+        valueschemas::{iu256::I256BE, GenId, ShortString, TryPackValue},
         ufoid, TribleSet, NS,
     };
 

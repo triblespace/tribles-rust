@@ -10,44 +10,37 @@ pub mod hash;
 pub mod iu256;
 pub mod shortstring;
 pub mod time;
-pub mod zc;
-pub mod zcstring;
-
-use std::{borrow::Borrow, fmt::Debug};
 
 pub use genid::*;
 pub use handle::*;
 pub use hash::*;
 pub use shortstring::*;
 pub use time::*;
-pub use zcstring::*;
 
 use crate::Value;
 
-//use crate::Value;
-
 pub trait ValueSchema: Sized {
-    fn pack<T: Pack<Self>  + ?Sized>(t: &T) -> Value<Self> {
-        t.borrow().pack()
+    fn pack<T: PackValue<Self>  + ?Sized>(t: &T) -> Value<Self> {
+        t.pack()
     }
 
-    fn try_pack<T: TryPack<Self> + ?Sized>(t: &T) -> Result<Value<Self>, <T as TryPack<Self>>::Error> {
-        t.borrow().try_pack()
+    fn try_pack<T: TryPackValue<Self> + ?Sized>(t: &T) -> Result<Value<Self>, <T as TryPackValue<Self>>::Error> {
+        t.try_pack()
     }
 }
 
-pub trait Pack<S: ValueSchema> {
+pub trait PackValue<S: ValueSchema> {
     fn pack(&self) -> Value<S>;
 }
-pub trait Unpack<'a, S: ValueSchema> {
+pub trait UnpackValue<'a, S: ValueSchema> {
     fn unpack(v: &'a Value<S>) -> Self;
 }
 
-pub trait TryPack<S: ValueSchema> {
+pub trait TryPackValue<S: ValueSchema> {
     type Error;
     fn try_pack(&self) -> Result<Value<S>, Self::Error>;
 }
-pub trait TryUnpack<'a, S: ValueSchema>: Sized {
+pub trait TryUnpackValue<'a, S: ValueSchema>: Sized {
     type Error;
     fn try_unpack(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }

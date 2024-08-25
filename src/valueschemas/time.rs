@@ -4,13 +4,13 @@ use crate::{ValueSchema, Value};
 
 use hifitime::prelude::*;
 
-use super::{Pack, Unpack};
+use super::{PackValue, UnpackValue};
 
 pub struct NsTAIInterval;
 
 impl ValueSchema for NsTAIInterval {}
 
-impl Pack<NsTAIInterval> for (Epoch, Epoch) {
+impl PackValue<NsTAIInterval> for (Epoch, Epoch) {
     fn pack(&self) -> Value<NsTAIInterval> {
         let lower = self.0.to_tai_duration().total_nanoseconds();
         let upper = self.1.to_tai_duration().total_nanoseconds();
@@ -22,7 +22,7 @@ impl Pack<NsTAIInterval> for (Epoch, Epoch) {
     }
 }
 
-impl Unpack<'_, NsTAIInterval> for (Epoch, Epoch) {
+impl UnpackValue<'_, NsTAIInterval> for (Epoch, Epoch) {
     fn unpack(v: &Value<NsTAIInterval>) -> Self {
         let lower = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
         let upper = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());

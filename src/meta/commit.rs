@@ -7,10 +7,10 @@ use ed25519::signature::Signer;
 use crate::{
     namespace::NS,
     query::find,
-    schemas::{
+    valueschemas::{
         ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
         hash::Blake3,
-        GenId, Handle, Pack, ShortString,
+        GenId, Handle, PackValue, ShortString,
     },
     triblearchive::SimpleArchive,
     RawId, TribleSet, Value,

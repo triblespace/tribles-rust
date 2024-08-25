@@ -10,11 +10,11 @@ use hex::FromHexError;
 
 use rand::RngCore;
 
-use crate::schemas::TryPack;
-use crate::schemas::TryUnpack;
+use crate::valueschemas::TryPackValue;
+use crate::valueschemas::TryUnpackValue;
 use crate::{ValueSchema, Value, VALUE_LEN};
 
-use super::Pack;
+use super::PackValue;
 
 pub struct GenId;
 
@@ -54,7 +54,7 @@ impl From<RawId> for Value<GenId> {
     }
 }
 
-impl TryUnpack<'_, GenId> for RawId {
+impl TryUnpackValue<'_, GenId> for RawId {
     type Error = GenIdParseError;
 
     fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
@@ -62,13 +62,13 @@ impl TryUnpack<'_, GenId> for RawId {
     }
 }
 
-impl Pack<GenId> for RawId {
+impl PackValue<GenId> for RawId {
     fn pack(&self) -> Value<GenId> {
         self.into()
     }
 }
 
-impl TryUnpack<'_, GenId> for String {
+impl TryUnpackValue<'_, GenId> for String {
     type Error = GenIdParseError;
 
     fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
@@ -92,7 +92,7 @@ impl From<FromHexError> for PackIdError {
     }
 }
 
-impl TryPack<GenId> for str {
+impl TryPackValue<GenId> for str {
     type Error = PackIdError;
 
     fn try_pack(&self) -> Result<Value<GenId>, Self::Error> {

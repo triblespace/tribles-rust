@@ -9,7 +9,7 @@ use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
     TRIBLE_LEN,
 };
-use crate::{schemas::GenId, RawValue, ValueSchema};
+use crate::{valueschemas::GenId, RawValue, ValueSchema};
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -99,8 +99,8 @@ impl TriblePattern for TribleSet {
 mod tests {
 
     use crate::{
-        schemas::GenId,
-        schemas::{ShortString, TryPack},
+        valueschemas::GenId,
+        valueschemas::{ShortString, TryPackValue},
         ufoid, NS,
     };
 

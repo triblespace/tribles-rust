@@ -4,7 +4,7 @@ use std::{cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 use hex::ToHex;
 
 use crate::{
-    schemas::{TryUnpack, Unpack},
+    valueschemas::{TryUnpackValue, UnpackValue},
     ValueSchema,
 };
 
@@ -36,16 +36,16 @@ impl<S: ValueSchema> Value<S> {
 
     pub fn unpack<'a, T>(&'a self) -> T
     where
-        T: Unpack<'a, S>,
+        T: UnpackValue<'a, S>,
     {
-        <T as Unpack<'a, S>>::unpack(self)
+        <T as UnpackValue<'a, S>>::unpack(self)
     }
 
-    pub fn try_unpack<'a, T>(&'a self) -> Result<T, <T as TryUnpack<S>>::Error>
+    pub fn try_unpack<'a, T>(&'a self) -> Result<T, <T as TryUnpackValue<S>>::Error>
     where
-        T: TryUnpack<'a, S>,
+        T: TryUnpackValue<'a, S>,
     {
-        <T as TryUnpack<'a, S>>::try_unpack(self)
+        <T as TryUnpackValue<'a, S>>::try_unpack(self)
     }
 }
 

@@ -1,83 +1,65 @@
 use anybytes::Bytes;
-use digest::{typenum::U32, Digest};
 use std::convert::TryInto;
 
 use crate::{
-    schemas::Handle,
-    trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},
-    BlobParseError, Bloblike, TribleSet, Value,
+    blobschemas::{PackBlob, TryUnpackBlob}, trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN}, Blob, BlobSchema, TribleSet
 };
 
-pub struct SimpleArchive(Bytes);
+pub struct SimpleArchive;
 
-impl Bloblike for SimpleArchive {
-    fn from_blob(blob: Bytes) -> Result<Self, BlobParseError> {
-        let len: usize = blob.len();
+impl BlobSchema for SimpleArchive {}
+
+impl PackBlob<SimpleArchive> for TribleSet {
+    fn pack(&self) -> crate::Blob<SimpleArchive> {
+        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
+        tribles.extend(self.eav.iter_prefix::<64>().map(|p| p.0));
+        let buffer: Vec<u8> = bytemuck::allocation::cast_vec(tribles);
+        let bytes: Bytes = buffer.into();
+        Blob::new(bytes)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnarchiveError {
+    BadArchiveLength,
+    BadTriple,
+    BadCanonicalizationRedundancy,
+    BadCanonicalizationOrdering
+}
+
+impl TryUnpackBlob<'_, SimpleArchive> for TribleSet {
+    type Error = UnarchiveError;
+
+    fn try_unpack(blob: &Blob<SimpleArchive>) -> Result<Self, Self::Error> {
+        let len: usize = blob.bytes.len();
 
         if len % TRIBLE_LEN != 0 {
-            return Err(BlobParseError::new(
-                "simple archive must be multiples of 64bytes long",
-            ));
+            return Err(UnarchiveError::BadArchiveLength);
         }
-
+    
+        let mut tribles = TribleSet::new();
+    
         let mut prev_trible = None;
-        for trible in blob.chunks_exact(TRIBLE_LEN) {
+        for trible in blob.bytes.chunks_exact(TRIBLE_LEN) {
             let t: &[u8; 64] = trible.try_into().unwrap();
             if t[E_START..=E_END] == [0; 16] {
-                return Err(BlobParseError::new(
-                    "validation error: trible contains NULL id in E position",
-                ));
+                return Err(UnarchiveError::BadTriple);
             }
             if t[A_START..=A_END] == [0; 16] {
-                return Err(BlobParseError::new(
-                    "validation error: trible contains NULL id in A position",
-                ));
+                return Err(UnarchiveError::BadTriple);
             }
             if let Some(prev) = prev_trible {
                 if prev == t {
-                    return Err(BlobParseError::new("validation error: redundant trible"));
+                    return Err(UnarchiveError::BadCanonicalizationRedundancy);
                 }
                 if prev > t {
-                    return Err(BlobParseError::new(
-                        "validation error: tribles must be sorted in ascending order",
-                    ));
+                    return Err(UnarchiveError::BadCanonicalizationOrdering);
                 }
-
-                prev_trible = Some(t);
             }
+            prev_trible = Some(t);
+            tribles.insert_raw(t);
         }
-
-        Ok(SimpleArchive(blob))
-    }
-
-    fn into_blob(self) -> Bytes {
-        self.0
-    }
-
-    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
-    where
-        H: Digest<OutputSize = U32>,
-    {
-        let digest = H::digest(&self.0);
-        Value::new(digest.into())
-    }
-}
-
-impl From<&TribleSet> for SimpleArchive {
-    fn from(set: &TribleSet) -> Self {
-        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(set.len());
-        tribles.extend(set.eav.iter_prefix::<64>().map(|p| p.0));
-        let buffer: Vec<u8> = bytemuck::allocation::cast_vec(tribles);
-        SimpleArchive(buffer.into())
-    }
-}
-
-impl From<&SimpleArchive> for TribleSet {
-    fn from(archive: &SimpleArchive) -> Self {
-        let mut tribles = TribleSet::new();
-        for t in archive.0.chunks_exact(TRIBLE_LEN) {
-            tribles.insert_raw(t.try_into().unwrap());
-        }
-        tribles
+    
+        Ok(tribles)
     }
 }

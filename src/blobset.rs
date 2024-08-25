@@ -1,16 +1,16 @@
-use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 
-use crate::schemas::Hash;
-use crate::{schemas::Handle, TribleSet};
-use crate::{BlobParseError, Bloblike, Value};
+use crate::blobschemas::UnknownBlob;
+use crate::valueschemas::Hash;
+use crate::{valueschemas::Handle, TribleSet};
+use crate::{Blob, BlobSchema, Value};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
 /// A mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
 pub struct BlobSet<H> {
-    blobs: HashMap<Value<Hash<H>>, Bytes>,
+    blobs: HashMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>,
 }
 
 impl<H> Eq for BlobSet<H> {}
@@ -39,34 +39,28 @@ where
         self.blobs.len()
     }
 
-    pub fn insert<T>(&mut self, value: T) -> Value<Handle<H, T>>
+    pub fn insert<T>(&mut self, blob: Blob<T>) -> Value<Handle<H, T>>
+    where T: BlobSchema {
+        let handle = blob.as_handle();
+        let unknown_handle: Value<Handle<H, UnknownBlob>> = Value::new(handle.bytes);
+        let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
+        self.blobs.insert(unknown_handle, blob);
+        handle
+    }
+
+    pub fn get<T>(&self, handle: Value<Handle<H, T>>) -> Option<Blob<T>>
     where
-        T: Bloblike,
+        T: BlobSchema,
     {
-        let blob: Bytes = value.into_blob();
-        let hash = self.insert_raw(blob);
-        Value::new(hash.bytes)
+        let hash: Value<Hash<_>> = handle.into();
+        let handle: Value<Handle<H, UnknownBlob>> = hash.into();
+        let Some(blob) = self.blobs.get(&handle) else {
+            return None;
+        };
+        Some(Blob::new(blob.bytes.clone()))
     }
 
-    pub fn get<'a, T>(&'a self, handle: Value<Handle<H, T>>) -> Option<Result<T, BlobParseError>>
-    where
-        T: Bloblike,
-    {
-        let blob = self.get_raw(handle.into())?;
-        Some(T::from_blob(blob.clone()))
-    }
-
-    pub fn get_raw(&self, hash: Value<Hash<H>>) -> Option<&Bytes> {
-        self.blobs.get(&hash)
-    }
-
-    pub fn insert_raw(&mut self, blob: Bytes) -> Value<Hash<H>> {
-        let hash = Hash::digest(&blob);
-        self.blobs.insert(hash, blob);
-        hash
-    }
-
-    pub fn iter_raw<'a>(&'a self) -> impl Iterator<Item = (&'a Value<Hash<H>>, &'a Bytes)> + 'a {
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a Value<Handle<H, UnknownBlob>>, &'a Blob<UnknownBlob>)> + 'a {
         self.blobs.iter()
     }
 
@@ -82,15 +76,15 @@ where
     }
 }
 
-impl<H> FromIterator<(Value<Hash<H>>, Bytes)> for BlobSet<H>
+impl<H> FromIterator<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)> for BlobSet<H>
 where
     H: Digest<OutputSize = U32>,
 {
-    fn from_iter<I: IntoIterator<Item = (Value<Hash<H>>, Bytes)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)>>(iter: I) -> Self {
         let mut set = BlobSet::new();
 
-        for (hash, blob) in iter {
-            set.blobs.insert(hash, blob);
+        for (handle, blob) in iter {
+            set.blobs.insert(handle, blob);
         }
 
         set
@@ -101,8 +95,8 @@ impl<'a, H> IntoIterator for BlobSet<H>
 where
     H: Digest<OutputSize = U32>,
 {
-    type Item = (Value<Hash<H>>, Bytes);
-    type IntoIter = std::collections::hash_map::IntoIter<Value<Hash<H>>, Bytes>;
+    type Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>);
+    type IntoIter = std::collections::hash_map::IntoIter<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.blobs.into_iter()
@@ -113,8 +107,8 @@ impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
     H: Digest<OutputSize = U32>,
 {
-    type Item = (&'a Value<Hash<H>>, &'a Bytes);
-    type IntoIter = std::collections::hash_map::Iter<'a, Value<Hash<H>>, Bytes>;
+    type Item = (&'a Value<Handle<H, UnknownBlob>>, &'a Blob<UnknownBlob>);
+    type IntoIter = std::collections::hash_map::Iter<'a, Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
 
     fn into_iter(self) -> Self::IntoIter {
         (&self.blobs).into_iter()
@@ -124,8 +118,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        schemas::{hash::Blake3, Handle, ZCString},
-        TribleSet, NS,
+        blobschemas::{PackBlob, ZCString}, valueschemas::{hash::Blake3, Handle}, TribleSet, NS
     };
 
     use super::*;
@@ -143,10 +136,10 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.insert(ZCString::from(Name(EN).fake::<String>()));
+            blobs_a.insert(ZCString::from(Name(EN).fake::<String>()).pack());
         }
         for _i in 0..1000 {
-            blobs_b.insert(ZCString::from(Name(EN).fake::<String>()));
+            blobs_b.insert(ZCString::from(Name(EN).fake::<String>()).pack());
         }
 
         blobs_a.union(blobs_b);
@@ -158,7 +151,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(knights::entity!({
-                description: blobs.insert(Name(EN).fake::<String>().into())
+                description: blobs.insert(ZCString::from(Name(EN).fake::<String>()).pack())
             }));
         }
         blobs.keep(kb);

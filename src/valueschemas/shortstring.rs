@@ -2,9 +2,9 @@ use std::{str::Utf8Error, string::FromUtf8Error};
 
 use crate::{ValueSchema, Value};
 
-use super::{Pack, TryPack, TryUnpack};
+use super::{PackValue, TryPackValue, TryUnpackValue};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FromStrError {
     TooLong,
     InteriorNul,
@@ -14,7 +14,7 @@ pub struct ShortString;
 
 impl ValueSchema for ShortString {}
 
-impl<'a> TryUnpack<'a, ShortString> for String {
+impl<'a> TryUnpackValue<'a, ShortString> for String {
     type Error = FromUtf8Error;
 
     fn try_unpack(v: &Value<ShortString>) -> Result<Self, Self::Error> {
@@ -29,7 +29,7 @@ impl<'a> TryUnpack<'a, ShortString> for String {
     }
 }
 
-impl<'a> TryUnpack<'a, ShortString> for &'a str {
+impl<'a> TryUnpackValue<'a, ShortString> for &'a str {
     type Error = Utf8Error;
 
     fn try_unpack(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
@@ -43,7 +43,7 @@ impl<'a> TryUnpack<'a, ShortString> for &'a str {
     }
 }
 
-impl TryPack<ShortString> for str {
+impl TryPackValue<ShortString> for str {
     type Error = FromStrError;
 
     fn try_pack(&self) -> Result<Value<ShortString>, Self::Error> {
@@ -63,7 +63,7 @@ impl TryPack<ShortString> for str {
 }
 
 
-impl Pack<ShortString> for str {
+impl PackValue<ShortString> for str {
     fn pack(&self) -> Value<ShortString> {
         let bytes = self.as_bytes();
         if bytes.len() > 32 {

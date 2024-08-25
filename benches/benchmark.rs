@@ -8,11 +8,11 @@ use sucds::bit_vectors::Rank9Sel;
 use sucds::Serializable;
 use tribles::column::Column;
 use tribles::fucid::FUCIDgen;
-use tribles::schemas::TryPack;
+use tribles::valueschemas::TryPackValue;
 use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
 use tribles::{
     and,
-    schemas::{GenId, ShortString},
+    valueschemas::{GenId, ShortString},
     NS,
 };
 

@@ -1,14 +1,56 @@
 use std::{fmt::Debug, marker::PhantomData, sync::Arc};
 
 use anybytes::{ByteOwner, Bytes};
-use digest::{consts::U32, Digest};
 use zerocopy::FromBytes;
 
-use crate::{schemas::Handle, BlobParseError, Bloblike, Value};
+use crate::Blob;
+
+use super::{BlobSchema, PackBlob, TryUnpackBlob};
 
 pub struct ZC<T> {
     bytes: Bytes,
     _type: PhantomData<T>,
+}
+
+impl<T> BlobSchema for ZC<T> {}
+
+impl<T> PackBlob<ZC<T>> for ZC<T> {
+    fn pack(&self) -> crate::Blob<ZC<T>> {
+        Blob::new(self.bytes.clone())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZCUnpackError {
+    BadLayout
+}
+
+impl<'a, T> TryUnpackBlob<'a, ZC<T>> for ZC<T>
+where T: FromBytes {
+    type Error = ZCUnpackError;
+
+    fn try_unpack(b: &'a Blob<ZC<T>>) -> Result<Self, Self::Error> {
+        if <T as FromBytes>::ref_from(&b.bytes).is_none() {
+            Err(ZCUnpackError::BadLayout)
+        } else {
+            Ok(ZC {
+                bytes: b.bytes.clone(),
+                _type: PhantomData,
+            })
+        }
+    }
+}
+
+impl<'a, T> TryUnpackBlob<'a, ZC<T>> for &'a T
+where T: FromBytes {
+    type Error = ZCUnpackError;
+
+    fn try_unpack(b: &'a Blob<ZC<T>>) -> Result<Self, Self::Error> {
+        match <T as FromBytes>::ref_from(&b.bytes) {
+            Some(r) => Ok(r),
+            None => Err(ZCUnpackError::BadLayout)
+        }
+    }
 }
 
 impl<T> Clone for ZC<T> {
@@ -73,35 +115,5 @@ where
             bytes: Bytes::from_arc(value),
             _type: PhantomData,
         }
-    }
-}
-
-impl<T> Bloblike for ZC<T>
-where
-    T: FromBytes,
-{
-    fn into_blob(self) -> Bytes {
-        self.bytes
-    }
-
-    fn from_blob(blob: Bytes) -> Result<Self, BlobParseError> {
-        if <T as FromBytes>::ref_from(&blob).is_none() {
-            Err(BlobParseError::new(
-                "wrong size or alignment of bytes for type",
-            ))
-        } else {
-            Ok(ZC {
-                bytes: blob,
-                _type: PhantomData,
-            })
-        }
-    }
-
-    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
-    where
-        H: Digest<OutputSize = U32>,
-    {
-        let digest = H::digest(&self.bytes);
-        Value::new(digest.into())
     }
 }

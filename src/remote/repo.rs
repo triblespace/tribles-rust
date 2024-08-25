@@ -4,11 +4,10 @@ use std::{
     fmt::{self, Debug},
 };
 
-use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use futures::{stream, Stream, StreamExt};
 
-use crate::{schemas::Hash, BlobParseError, BlobSet, Value};
+use crate::{blobschemas::UnknownBlob, valueschemas::Handle, Blob, BlobSchema, BlobSet, Value};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {
@@ -43,7 +42,7 @@ pub async fn transfer<'a, BS, BT, HS, HT, S>(
     target: &'a BT,
 ) -> impl Stream<
     Item = Result<
-        (Value<Hash<HS>>, Value<Hash<HT>>),
+        (Value<Handle<HS, UnknownBlob>>, Value<Handle<HT, UnknownBlob>>),
         TransferError<<BS as List<HS>>::Err, <BS as Pull<HS>>::Err, <BT as Push<HT>>::Err>,
     >,
 > + 'a
@@ -55,43 +54,39 @@ where
 {
     let l = source.list();
     let r = l.then(
-        move |source_hash: Result<Value<Hash<HS>>, <BS as List<HS>>::Err>| async move {
-            let source_hash = source_hash.map_err(|e| TransferError::List(e))?;
+        move |source_handle: Result<Value<Handle<HS, UnknownBlob>>, <BS as List<HS>>::Err>| async move {
+            let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
             let blob = source
-                .pull(source_hash)
+                .pull(source_handle)
                 .await
                 .map_err(|e| TransferError::Load(e))?;
-            let target_hash = target
+            let target_handle = target
                 .push(blob)
                 .await
                 .map_err(|e| TransferError::Store(e))?;
-            Ok((source_hash, target_hash))
+            Ok((source_handle, target_handle))
         },
     );
     r
 }
 
-#[derive(Debug)]
-pub enum GetError<E> {
-    Load(E),
-    Parse(BlobParseError),
-}
-
 pub trait List<H> {
     type Err;
 
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Hash<H>>, Self::Err>>;
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>>;
 }
 pub trait Pull<H> {
     type Err;
 
-    async fn pull(&self, hash: Value<Hash<H>>) -> Result<Bytes, Self::Err>;
+    async fn pull<T>(&self, hash: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    where T: BlobSchema;
 }
 
 pub trait Push<H> {
     type Err;
 
-    async fn push(&self, blob: Bytes) -> Result<Value<Hash<H>>, Self::Err>;
+    async fn push<T>(&self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
+    where T: BlobSchema;
 }
 
 pub trait Repo<H>: List<H> + Pull<H> + Push<H> {
@@ -127,7 +122,7 @@ where
 {
     type Err = Infallible;
 
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Hash<H>>, Self::Err>> {
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>> {
         stream::iter((&self).into_iter().map(|(&hash, _)| Ok(hash)))
     }
 }
@@ -138,8 +133,9 @@ where
 {
     type Err = NotFoundErr;
 
-    async fn pull(&self, hash: Value<Hash<H>>) -> Result<Bytes, Self::Err> {
-        self.get_raw(hash)
-            .map_or(Err(NotFoundErr()), |b| Ok(b.clone()))
+    async fn pull<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    where T: BlobSchema {
+        self.get(handle)
+            .ok_or(NotFoundErr())
     }
 }

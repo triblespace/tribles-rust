@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{schemas::GenId, RawId, RawValue, ValueSchema};
+use crate::{valueschemas::GenId, RawId, RawValue, ValueSchema};
 use std::iter::FromIterator;
 
 use self::hashtriblesetconstraint::HashTribleSetConstraint;

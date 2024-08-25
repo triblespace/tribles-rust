@@ -9,10 +9,10 @@ use crate::query::TriblePattern;
 use crate::trible::Trible;
 use crate::{
     id_into_value,
-    schemas::{GenId, Handle},
-    ValueSchema, Value,
+    valueschemas::GenId,
+    ValueSchema,
 };
-use crate::{Bloblike, RawValue};
+use crate::RawValue;
 
 use itertools::Itertools;
 
@@ -22,7 +22,6 @@ use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 
 use sucds::int_vectors::CompactVector;
 
-use digest::{typenum::U32, Digest};
 
 use crate::TribleSet;
 
@@ -251,33 +250,12 @@ where
     }
 }
 
-impl<U, B> Bloblike for SuccinctArchive<U, B>
-where
-    U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
-{
-    fn into_blob(self) -> anybytes::Bytes {
-        todo!()
-    }
-
-    fn from_blob(_blob: anybytes::Bytes) -> Result<Self, crate::BlobParseError> {
-        todo!()
-    }
-
-    fn as_handle<H>(&self) -> Value<Handle<H, Self>>
-    where
-        H: Digest<OutputSize = U32>,
-    {
-        todo!()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::convert::TryInto;
 
-    use crate::schemas::TryPack;
-    use crate::{find, schemas::ShortString, trible::Trible, ufoid, NS};
+    use crate::valueschemas::TryPackValue;
+    use crate::{find, valueschemas::ShortString, trible::Trible, ufoid, NS};
 
     use super::*;
     use itertools::Itertools;

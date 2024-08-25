@@ -6,7 +6,7 @@ use std::ops::Range;
 
 use super::*;
 use crate::query::*;
-use crate::schemas::GenId;
+use crate::valueschemas::GenId;
 
 pub struct SuccinctArchiveConstraint<'a, U, B>
 where

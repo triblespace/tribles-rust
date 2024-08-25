@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::schemas::Hash;
+use crate::valueschemas::Hash;
 
 use crate::{ValueSchema, Value};
 

@@ -14,8 +14,10 @@ use url::Url;
 
 use hex::FromHex;
 
-use crate::Value;
-use crate::{schemas::Hash, RawValue};
+use crate::blobschemas::UnknownBlob;
+use crate::valueschemas::Handle;
+use crate::{Blob, BlobSchema, Value};
+use crate::{valueschemas::Hash, RawValue};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};
@@ -49,7 +51,7 @@ where
 {
     type Err = ListErr;
 
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Hash<H>>, Self::Err>> {
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>> {
         self.store
             .list(Some(&self.prefix))
             .map(|r| match r {
@@ -74,11 +76,13 @@ where
 {
     type Err = object_store::Error;
 
-    async fn pull(&self, hash: Value<Hash<H>>) -> Result<Bytes, Self::Err> {
-        let path = self.prefix.child(hex::encode(hash.bytes));
+    async fn pull<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    where T: BlobSchema {
+        let path = self.prefix.child(hex::encode(handle.bytes));
         let result = self.store.get(&path).await?;
         let object = result.bytes().await?;
-        Ok(object.into())
+        let bytes: Bytes = object.into();
+        Ok(Blob::new(bytes))
     }
 }
 
@@ -88,19 +92,20 @@ where
 {
     type Err = object_store::Error;
 
-    async fn push(&self, blob: Bytes) -> Result<Value<Hash<H>>, Self::Err> {
-        let digest: RawValue = H::digest(&blob).into();
-        let path = self.prefix.child(hex::encode(digest));
+    async fn push<T>(&self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
+    where T: BlobSchema {
+        let handle = blob.as_handle();
+        let path = self.prefix.child(hex::encode(handle.bytes));
         let put_result = self
             .store
             .put_opts(
                 &path,
-                bytes::Bytes::copy_from_slice(&blob).into(), // This copy could be avoided if bytes::Bytes was open...
+                bytes::Bytes::copy_from_slice(&blob.bytes).into(), // This copy could be avoided if bytes::Bytes was open...
                 PutMode::Create.into(),
             )
             .await;
         match put_result {
-            Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(Value::new(digest)),
+            Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(handle),
             Err(e) => Err(e),
         }
     }

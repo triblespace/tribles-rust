@@ -1,4 +1,4 @@
-use crate::{schemas::Handle, RawValue, ValueSchema, Value};
+use crate::{valueschemas::Handle, RawValue, ValueSchema, Value};
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
@@ -32,7 +32,7 @@ where
     }
 }
 
-impl<H> Unpack<'_, Hash<H>> for String
+impl<H> UnpackValue<'_, Hash<H>> for String
 where
     H: HashProtocol,
 {
@@ -57,7 +57,7 @@ impl From<FromHexError> for PackHashError {
     }
 }
 
-impl<H> TryPack<Hash<H>> for str
+impl<H> TryPackValue<Hash<H>> for str
 where
     H: HashProtocol,
 {
@@ -93,13 +93,13 @@ impl HashProtocol for Blake3 {
     const NAME: &'static str = "blake3";
 }
 
-use super::{TryPack, Unpack};
+use super::{TryPackValue, UnpackValue};
 
 #[cfg(test)]
 mod tests {
     use super::Blake3;
     use crate::{
-        schemas::{hash::PackHashError, TryPack},
+        valueschemas::{hash::PackHashError, TryPackValue},
         Value,
     };
     use rand;
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn pack_fail_protocol() {
         let s: &str = "bad:CA98593CB9DC0FA48B2BE01E53D042E22B47862D646F9F19E2889A7961663663";
-        let err: PackHashError = <str as TryPack<Hash<Blake3>>>::try_pack(s)
+        let err: PackHashError = <str as TryPackValue<Hash<Blake3>>>::try_pack(s)
             .expect_err("packing invalid protocol should fail");
         assert_eq!(err, PackHashError::BadProtocol);
     }
@@ -130,7 +130,7 @@ mod tests {
     #[test]
     fn pack_fail_hex() {
         let s: &str = "blake3:BAD!";
-        let err: PackHashError = <str as TryPack<Hash<Blake3>>>::try_pack(s)
+        let err: PackHashError = <str as TryPackValue<Hash<Blake3>>>::try_pack(s)
             .expect_err("packing invalid protocol should fail");
         assert!(matches!(err, PackHashError::BadHex(..)));
     }

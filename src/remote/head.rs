@@ -1,4 +1,4 @@
-use crate::{schemas::Hash, Value};
+use crate::{valueschemas::Hash, Value};
 
 #[derive(Debug)]
 pub enum CommitResult<H> {

@@ -359,7 +359,7 @@ mod tests {
     use crate::{
         find,
         query::{TriblePattern, Variable},
-        schemas::UnknownValue,
+        valueschemas::UnknownValue,
         trible::Trible,
         TribleSet, Value,
     };

@@ -12,7 +12,7 @@ use crate::{
         hash::Blake3,
         GenId, Handle, PackValue, ShortString,
     },
-    triblearchive::SimpleArchive,
+    blobschemas::SimpleArchive,
     RawId, TribleSet, Value,
 };
 

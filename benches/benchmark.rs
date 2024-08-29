@@ -9,7 +9,7 @@ use sucds::Serializable;
 use tribles::column::Column;
 use tribles::fucid::FUCIDgen;
 use tribles::valueschemas::TryPackValue;
-use tribles::triblearchive::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
+use tribles::blobschemas::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
 use tribles::{
     and,
     valueschemas::{GenId, ShortString},

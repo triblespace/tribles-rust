@@ -3,8 +3,12 @@
 
 pub mod zc;
 pub mod zcstring;
+pub mod simplearchive;
+pub mod succinctarchive;
 
 pub use zcstring::*;
+pub use simplearchive::SimpleArchive;
+pub use succinctarchive::SuccinctArchive;
 
 use crate::Blob;
 

@@ -13,7 +13,6 @@ pub mod valueschemas;
 pub mod blobschemas;
 pub mod test;
 pub mod trible;
-pub mod triblearchive;
 pub mod tribleset;
 pub mod value;
 

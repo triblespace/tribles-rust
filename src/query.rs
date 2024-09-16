@@ -12,6 +12,7 @@
 //!
 pub mod constantconstraint;
 pub mod hashsetconstraint;
+pub mod hashmapconstraint;
 pub mod intersectionconstraint;
 pub mod mask;
 pub mod patchconstraint;

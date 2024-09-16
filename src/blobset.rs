@@ -118,15 +118,16 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        blobschemas::{PackBlob, ZCString}, valueschemas::{hash::Blake3, Handle}, TribleSet, NS
+        blobschemas::PackBlob, valueschemas::{hash::Blake3, Handle}, TribleSet, NS
     };
 
     use super::*;
+    use anybytes::PackedStr;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
     NS! {
         pub namespace knights {
-            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, ZCString>;
+            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, PackedStr>;
         }
     }
 
@@ -136,10 +137,10 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.insert(ZCString::from(Name(EN).fake::<String>()).pack());
+            blobs_a.insert(PackedStr::from(Name(EN).fake::<String>()).pack());
         }
         for _i in 0..1000 {
-            blobs_b.insert(ZCString::from(Name(EN).fake::<String>()).pack());
+            blobs_b.insert(PackedStr::from(Name(EN).fake::<String>()).pack());
         }
 
         blobs_a.union(blobs_b);
@@ -151,7 +152,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(knights::entity!({
-                description: blobs.insert(ZCString::from(Name(EN).fake::<String>()).pack())
+                description: blobs.insert(PackedStr::from(Name(EN).fake::<String>()).pack())
             }));
         }
         blobs.keep(kb);

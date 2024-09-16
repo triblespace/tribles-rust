@@ -1,12 +1,10 @@
 //! This is a collection of Rust types that can be (de)serialized as
 //! [Value]s, and [Blob]s.
 
-pub mod zc;
-pub mod zcstring;
+pub mod packed;
 pub mod simplearchive;
 pub mod succinctarchive;
 
-pub use zcstring::*;
 pub use simplearchive::SimpleArchive;
 pub use succinctarchive::SuccinctArchive;
 

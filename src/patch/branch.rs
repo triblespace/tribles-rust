@@ -83,7 +83,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         f: &mut F,
     ) where
-        F: FnMut([u8; INFIX_LEN]),
+        F: FnMut(&[u8; INFIX_LEN]),
     {
         let node_end_depth = (*branch).end_depth as usize;
         let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
@@ -95,15 +95,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
         // The infix ends within the current node.
         if PREFIX_LEN + INFIX_LEN <= node_end_depth {
-            // It has to be `..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)`
-            // because `..O::key_index(PREFIX_LEN + INFIX_LEN)` would not work,
-            // since `key_index` is not monotonic,
-            // so the next segment might be somewhere else.
-            let infix = (*(*branch).childleaf).key
-                [O::key_index(PREFIX_LEN)..=O::key_index(PREFIX_LEN + INFIX_LEN - 1)]
-                .try_into()
-                .expect("invalid infix range");
-            f(infix);
+            let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| (*(*branch).childleaf).key[O::key_index(PREFIX_LEN + i)]);
+            f(&infix);
             return;
         }
         // The prefix ends in a child of this node.

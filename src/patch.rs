@@ -463,7 +463,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         f: &mut F,
     ) where
-        F: FnMut([u8; INFIX_LEN]),
+        F: FnMut(&[u8; INFIX_LEN]),
     {
         unsafe {
             match self.body() {
@@ -735,7 +735,7 @@ where
         prefix: &[u8; PREFIX_LEN],
         mut f: F,
     ) where
-        F: FnMut([u8; INFIX_LEN]),
+        F: FnMut(&[u8; INFIX_LEN]), //TODO can we make this a ref too?
     {
         assert!(
             PREFIX_LEN + INFIX_LEN <= KEY_LEN,
@@ -1137,7 +1137,7 @@ mod tests {
         }
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
-        tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
+        tree.infixes(&[0; 0], &mut |&x: &[u8; 64]| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();
@@ -1194,7 +1194,7 @@ mod tests {
 
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
-        left_tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
+        left_tree.infixes(&[0; 0], &mut |&x: &[u8;64]| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();
@@ -1220,7 +1220,7 @@ mod tests {
 
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
-        left_tree.infixes(&[0; 0], &mut |x| tree_vec.push(x));
+        left_tree.infixes(&[0; 0], &mut |&x: &[u8;64]| tree_vec.push(x));
 
         set_vec.sort();
         tree_vec.sort();

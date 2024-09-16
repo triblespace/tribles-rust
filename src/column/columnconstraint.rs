@@ -51,7 +51,7 @@ impl<'a> Constraint<'a> for ColumnConstraint<'a> {
             (None, None, true, false) => self.column_ev.len(),
             (None, None, false, true) => self.column_ve.len(),
             (Some(e), None, false, true) => self.column_ev.get(&e[16..32]).map_or(0, |s| s.len()),
-            (None, Some(v), true, false) => self.column_ve.get(&v).map_or(0, |s| s.len()),
+            (None, Some(v), true, false) => self.column_ve.get(v).map_or(0, |s| s.len()),
             _ => panic!(),
         }
     }
@@ -65,7 +65,7 @@ impl<'a> Constraint<'a> for ColumnConstraint<'a> {
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => {
-                self.column_ev.keys().copied().map(id_into_value).collect()
+                self.column_ev.keys().map(id_into_value).collect()
             }
             (None, None, false, true) => self.column_ve.keys().copied().collect(),
             (Some(e), None, false, true) => self
@@ -74,8 +74,8 @@ impl<'a> Constraint<'a> for ColumnConstraint<'a> {
                 .map_or(vec![], |s| s.iter().copied().collect()),
             (None, Some(v), true, false) => self
                 .column_ve
-                .get(&v)
-                .map_or(vec![], |s| s.iter().copied().map(id_into_value).collect()),
+                .get(v)
+                .map_or(vec![], |s| s.iter().map(id_into_value).collect()),
             _ => panic!(),
         }
     }
@@ -100,7 +100,7 @@ impl<'a> Constraint<'a> for ColumnConstraint<'a> {
                 }
             }
             (None, Some(v), true, false) => {
-                if let Some(vs) = self.column_ve.get(&v) {
+                if let Some(vs) = self.column_ve.get(v) {
                     proposals.retain(|e| vs.contains(&e[16..=31]));
                 } else {
                     proposals.clear()

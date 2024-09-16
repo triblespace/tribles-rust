@@ -95,7 +95,7 @@ impl<T: ValueSchema> Variable<T> {
     }
 
     pub fn extract(self, binding: &Binding) -> Value<T> {
-        Value::new(binding.get(self.index).unwrap())
+        Value::new(*binding.get(self.index).unwrap())
     }
 }
 
@@ -118,8 +118,8 @@ pub struct Binding {
 }
 
 impl Binding {
-    pub fn set(&mut self, variable: VariableId, value: RawValue) {
-        self.values[variable as usize] = value;
+    pub fn set(&mut self, variable: VariableId, value: &RawValue) {
+        self.values[variable as usize] = *value;
         self.bound.set(variable);
     }
 
@@ -127,9 +127,9 @@ impl Binding {
         self.bound.unset(variable);
     }
 
-    pub fn get(&self, variable: VariableId) -> Option<RawValue> {
+    pub fn get(&self, variable: VariableId) -> Option<&RawValue> { //TODO check if we should make this a ref
         if self.bound.is_set(variable) {
-            Some(self.values[variable as usize])
+            Some(&self.values[variable as usize])
         } else {
             None
         }
@@ -280,7 +280,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                 Search::Horizontal => {
                     if let Some(state) = self.stack.last_mut() {
                         if let Some(assignment) = state.values.pop() {
-                            self.binding.set(state.variable, assignment);
+                            self.binding.set(state.variable, &assignment);
                             self.mode = Search::Vertical;
                         } else {
                             self.mode = Search::Backtrack;

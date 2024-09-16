@@ -52,7 +52,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
-            let Some(e) = id_from_value(e) else {
+            let Some(e) = id_from_value(&e) else {
                 return 0;
             };
             Some(e)
@@ -60,7 +60,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
-            let Some(a) = id_from_value(a) else {
+            let Some(a) = id_from_value(&a) else {
                 return 0;
             };
             Some(a)
@@ -106,13 +106,13 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             (None, Some(a), Some(v), true, false, false) => {
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&a);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(v);
                 self.set.ave.segmented_len(&prefix)
             }
             (Some(e), None, Some(v), false, true, false) => {
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(v);
                 self.set.eva.segmented_len(&prefix)
             }
             (Some(e), Some(a), None, false, false, true) => {
@@ -131,7 +131,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
-            let Some(e) = id_from_value(e) else {
+            let Some(e) = id_from_value(&e) else {
                 return vec![];
             };
             Some(e)
@@ -139,7 +139,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
-            let Some(a) = id_from_value(a) else {
+            let Some(a) = id_from_value(&a) else {
                 return vec![];
             };
             Some(a)
@@ -153,52 +153,52 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 let mut r = vec![];
                 self.set
                     .eav
-                    .infixes(&[0; 0], &mut |e| r.push(id_into_value(e)));
+                    .infixes(&[0; 0], &mut |e: &[u8; 16]| r.push(id_into_value(e)));
                 r
             }
             (None, None, None, false, true, false) => {
                 let mut r = vec![];
                 self.set
                     .aev
-                    .infixes(&[0; 0], &mut |a| r.push(id_into_value(a)));
+                    .infixes(&[0; 0], &mut |a: &[u8; 16]| r.push(id_into_value(a)));
                 r
             }
             (None, None, None, false, false, true) => {
                 let mut r = vec![];
-                self.set.vea.infixes(&[0; 0], &mut |v| r.push(v));
+                self.set.vea.infixes(&[0; 0], &mut |&v: &[u8; 32]| r.push(v));
                 r
             }
 
             (Some(e), None, None, false, true, false) => {
                 let mut r = vec![];
-                self.set.eav.infixes(&e, &mut |a| r.push(id_into_value(a)));
+                self.set.eav.infixes(&e, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
                 r
             }
             (Some(e), None, None, false, false, true) => {
                 let mut r = vec![];
-                self.set.eva.infixes(&e, &mut |v| r.push(v));
+                self.set.eva.infixes(&e, &mut |&v: &[u8; 32]| r.push(v));
                 r
             }
 
             (None, Some(a), None, true, false, false) => {
                 let mut r = vec![];
-                self.set.aev.infixes(&a, &mut |e| r.push(id_into_value(e)));
+                self.set.aev.infixes(&a, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
                 r
             }
             (None, Some(a), None, false, false, true) => {
                 let mut r = vec![];
-                self.set.ave.infixes(&a, &mut |v| r.push(v));
+                self.set.ave.infixes(&a, &mut |&v: &[u8; 32]| r.push(v));
                 r
             }
 
             (None, None, Some(v), true, false, false) => {
                 let mut r = vec![];
-                self.set.vea.infixes(&v, &mut |e| r.push(id_into_value(e)));
+                self.set.vea.infixes(&v, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
                 r
             }
             (None, None, Some(v), false, true, false) => {
                 let mut r = vec![];
-                self.set.vae.infixes(&v, &mut |a| r.push(id_into_value(a)));
+                self.set.vae.infixes(&v, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
                 r
             }
             (None, Some(a), Some(v), true, false, false) => {
@@ -208,7 +208,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 let mut r = vec![];
                 self.set
                     .ave
-                    .infixes(&prefix, &mut |e| r.push(id_into_value(e)));
+                    .infixes(&prefix, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
                 r
             }
             (Some(e), None, Some(v), false, true, false) => {
@@ -218,7 +218,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 let mut r = vec![];
                 self.set
                     .eva
-                    .infixes(&prefix, &mut |a| r.push(id_into_value(a)));
+                    .infixes(&prefix, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
                 r
             }
             (Some(e), Some(a), None, false, false, true) => {
@@ -226,7 +226,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
                 prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);
                 let mut r = vec![];
-                self.set.eav.infixes(&prefix, &mut |v| r.push(v));
+                self.set.eav.infixes(&prefix, &mut |&v: &[u8; 32]| r.push(v));
                 r
             }
             _ => panic!(),
@@ -239,7 +239,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
-            let Some(e) = id_from_value(e) else {
+            let Some(e) = id_from_value(&e) else {
                 proposals.clear();
                 return;
             };
@@ -248,7 +248,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
-            let Some(a) = id_from_value(a) else {
+            let Some(a) = id_from_value(&a) else {
                 proposals.clear();
                 return;
             };
@@ -260,13 +260,13 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => proposals.retain(|value| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 self.set.eav.has_prefix(&id)
             }),
             (None, None, None, false, true, false) => proposals.retain(|value| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 self.set.aev.has_prefix(&id)
@@ -275,7 +275,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 proposals.retain(|value| self.set.vea.has_prefix(value))
             }
             (Some(e), None, None, false, true, false) => proposals.retain(|value| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
@@ -290,7 +290,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 self.set.eva.has_prefix(&prefix)
             }),
             (None, Some(a), None, true, false, false) => proposals.retain(|value| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 let mut prefix = [0u8; ID_LEN + ID_LEN];
@@ -305,7 +305,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 self.set.ave.has_prefix(&prefix)
             }),
             (None, None, Some(v), true, false, false) => proposals.retain(|value| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 let mut prefix = [0u8; VALUE_LEN + ID_LEN];
@@ -314,7 +314,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 self.set.vea.has_prefix(&prefix)
             }),
             (None, None, Some(v), false, true, false) => proposals.retain(|value| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 let mut prefix = [0u8; VALUE_LEN + ID_LEN];
@@ -323,22 +323,22 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 self.set.vae.has_prefix(&prefix)
             }),
             (None, Some(a), Some(v), true, false, false) => proposals.retain(|value: &[u8; 32]| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&a);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(v);
                 prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.ave.has_prefix(&prefix)
             }),
             (Some(e), None, Some(v), false, true, false) => proposals.retain(|value: &[u8; 32]| {
-                let Some(id) = id_from_value(*value) else {
+                let Some(id) = id_from_value(value) else {
                     return false;
                 };
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN + ID_LEN];
                 prefix[0..ID_LEN].copy_from_slice(&e);
-                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(&v);
+                prefix[ID_LEN..ID_LEN + VALUE_LEN].copy_from_slice(v);
                 prefix[ID_LEN + VALUE_LEN..ID_LEN + VALUE_LEN + ID_LEN].copy_from_slice(&id);
                 self.set.eva.has_prefix(&prefix)
             }),

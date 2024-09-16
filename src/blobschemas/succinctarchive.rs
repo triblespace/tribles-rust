@@ -75,8 +75,8 @@ where
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
 
-        let e_iter = set.eav.iter_prefix::<16>().map(|(e, _)| id_into_value(e));
-        let a_iter = set.ave.iter_prefix::<16>().map(|(a, _)| id_into_value(a));
+        let e_iter = set.eav.iter_prefix::<16>().map(|(e, _)| id_into_value(&e));
+        let a_iter = set.ave.iter_prefix::<16>().map(|(a, _)| id_into_value(&a));
         let v_iter = set.vea.iter_prefix::<32>().map(|(v, _)| v);
 
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
@@ -88,7 +88,7 @@ where
         for (e, count) in set
             .eav
             .iter_prefix::<16>()
-            .map(|(e, count)| (id_into_value(e), count as usize))
+            .map(|(e, count)| (id_into_value(&e), count as usize))
             .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
         {
             e_a.extend(iter::repeat(sum).take((e + 1) - last)).unwrap();
@@ -105,7 +105,7 @@ where
         for (a, count) in set
             .aev
             .iter_prefix::<16>()
-            .map(|(a, count)| (id_into_value(a), count as usize))
+            .map(|(a, count)| (id_into_value(&a), count as usize))
             .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
         {
             a_a.extend(iter::repeat(sum).take((a + 1) - last)).unwrap();

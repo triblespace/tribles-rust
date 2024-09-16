@@ -166,7 +166,7 @@ fn patch_benchmark(c: &mut Criterion) {
             }
             b.iter(|| {
                 let mut i = 0;
-                black_box(&patch).infixes(&[0; 0], &mut |_: [u8; 64]| i += 1);
+                black_box(&patch).infixes(&[0; 0], &mut |_: &[u8; 64]| i += 1);
                 i
             });
         });

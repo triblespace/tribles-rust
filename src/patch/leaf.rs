@@ -91,7 +91,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         at_depth: usize,
         f: &mut F,
     ) where
-        F: FnMut([u8; INFIX_LEN]),
+        F: FnMut(&[u8; INFIX_LEN]),
     {
         let leaf_key = &(*leaf).key;
         for depth in at_depth..PREFIX_LEN {
@@ -99,14 +99,9 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 return;
             }
         }
-
-        let end_depth = PREFIX_LEN + INFIX_LEN - 1;
-        let infix = unsafe {
-            (*leaf).key[O::key_index(PREFIX_LEN)..=O::key_index(end_depth)]
-                .try_into()
-                .expect("invalid infix range")
-        };
-        f(infix);
+        
+        let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| (*leaf).key[O::key_index(PREFIX_LEN + i)]);
+        f(&infix);
     }
 
     pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(

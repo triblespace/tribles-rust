@@ -23,7 +23,7 @@ impl<'a, T: ValueSchema> Constraint<'a> for SetConstraint<'a, T> {
     }
 
     fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
-        self.set.len()
+        self.set.capacity()
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {

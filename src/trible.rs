@@ -32,7 +32,7 @@ impl Trible {
         Self { data }
     }
 
-    pub fn new_values(e: RawValue, a: RawValue, v: RawValue) -> Result<Trible, &'static str> {
+    pub fn new_values(e: &RawValue, a: &RawValue, v: &RawValue) -> Result<Trible, &'static str> {
         if e[0..16].iter().any(|&x| x != 0) {
             return Err(&"entity value is not a valid id");
         }

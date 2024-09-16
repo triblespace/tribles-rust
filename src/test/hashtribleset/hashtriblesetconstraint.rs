@@ -51,9 +51,9 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
         let v_var = self.variable_v == variable;
 
         if let Ok(trible) = Trible::new_values(
-            binding.get(self.variable_e).unwrap_or([0; 32]),
-            binding.get(self.variable_a).unwrap_or([0; 32]),
-            binding.get(self.variable_v).unwrap_or([0; 32]),
+            binding.get(self.variable_e).unwrap_or(&[0; 32]),
+            binding.get(self.variable_a).unwrap_or(&[0; 32]),
+            binding.get(self.variable_v).unwrap_or(&[0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => self.set.ea.len(),
@@ -119,9 +119,9 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
         }
 
         if let Ok(trible) = Trible::new_values(
-            binding.get(self.variable_e).unwrap_or([0; 32]),
-            binding.get(self.variable_a).unwrap_or([0; 32]),
-            binding.get(self.variable_v).unwrap_or([0; 32]),
+            binding.get(self.variable_e).unwrap_or(&[0; 32]),
+            binding.get(self.variable_a).unwrap_or(&[0; 32]),
+            binding.get(self.variable_v).unwrap_or(&[0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
                 (false, false, false, true, false, false) => self
@@ -214,19 +214,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.ea.contains_key(&trible.e())
@@ -239,19 +239,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.ae.contains_key(&trible.a())
@@ -264,19 +264,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.ve.contains_key(&trible.v())
@@ -290,19 +290,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.eav.contains_key(&(trible.e(), trible.a()))
@@ -316,19 +316,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.eva.contains_key(&(trible.e(), trible.v()))
@@ -342,19 +342,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.ave.contains_key(&(trible.a(), trible.v()))
@@ -368,19 +368,19 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
                 proposals.retain(|value| {
                     if let Ok(trible) = Trible::new_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_a).unwrap_or(if a_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                         binding.get(self.variable_v).unwrap_or(if v_var {
-                            *value
+                            value
                         } else {
-                            [0; 32]
+                            &[0; 32]
                         }),
                     ) {
                         self.set.all.contains(&trible)

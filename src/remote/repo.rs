@@ -78,15 +78,15 @@ pub trait List<H> {
 pub trait Pull<H> {
     type Err;
 
-    async fn pull<T>(&self, hash: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
-    where T: BlobSchema;
+    fn pull<T>(&self, hash: Value<Handle<H, T>>) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
+    where T: BlobSchema + 'static;
 }
 
 pub trait Push<H> {
     type Err;
 
-    async fn push<T>(&self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
-    where T: BlobSchema;
+    fn push<T>(&self, blob: Blob<T>) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
+    where T: BlobSchema + 'static;
 }
 
 pub trait Repo<H>: List<H> + Pull<H> + Push<H> {

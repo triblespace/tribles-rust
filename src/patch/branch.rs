@@ -2,7 +2,6 @@ use super::*;
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use std::alloc::{alloc, dealloc, Layout};
-use std::convert::TryInto;
 
 #[derive(Debug)]
 #[repr(C)]

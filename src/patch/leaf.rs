@@ -1,10 +1,8 @@
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use std::ptr::addr_of;
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::alloc::*;
-use std::convert::TryInto;
-
-//use crate::trible::Value;
 
 use super::*;
 
@@ -24,7 +22,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
             if ptr.is_null() {
                 panic!("Allocation failed!");
             }
-            let mut hasher = SipHasher24::new_with_key(&SIP_KEY);
+            let mut hasher = SipHasher24::new_with_key(&*addr_of!(SIP_KEY));
             hasher.write(&key[..]);
             let hash = hasher.finish128().into();
 

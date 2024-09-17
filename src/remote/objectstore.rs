@@ -76,13 +76,15 @@ where
 {
     type Err = object_store::Error;
 
-    async fn pull<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    fn pull<T>(&self, handle: Value<Handle<H, T>>) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
     where T: BlobSchema {
-        let path = self.prefix.child(hex::encode(handle.bytes));
-        let result = self.store.get(&path).await?;
-        let object = result.bytes().await?;
-        let bytes: Bytes = object.into();
-        Ok(Blob::new(bytes))
+        async move {
+            let path = self.prefix.child(hex::encode(handle.bytes));
+            let result = self.store.get(&path).await?;
+            let object = result.bytes().await?;
+            let bytes: Bytes = object.into();
+            Ok(Blob::new(bytes))
+        }
     }
 }
 
@@ -92,21 +94,23 @@ where
 {
     type Err = object_store::Error;
 
-    async fn push<T>(&self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
+    fn push<T>(&self, blob: Blob<T>) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
     where T: BlobSchema {
-        let handle = blob.as_handle();
-        let path = self.prefix.child(hex::encode(handle.bytes));
-        let put_result = self
-            .store
-            .put_opts(
-                &path,
-                bytes::Bytes::copy_from_slice(&blob.bytes).into(), // This copy could be avoided if bytes::Bytes was open...
-                PutMode::Create.into(),
-            )
-            .await;
-        match put_result {
-            Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(handle),
-            Err(e) => Err(e),
+        async move {
+            let handle = blob.as_handle();
+            let path = self.prefix.child(hex::encode(handle.bytes));
+            let put_result = self
+                .store
+                .put_opts(
+                    &path,
+                    bytes::Bytes::copy_from_slice(&blob.bytes).into(), // This copy could be avoided if bytes::Bytes was open...
+                    PutMode::Create.into(),
+                )
+                .await;
+            match put_result {
+                Ok(_) | Err(object_store::Error::AlreadyExists { .. }) => Ok(handle),
+                Err(e) => Err(e),
+            }
         }
     }
 }

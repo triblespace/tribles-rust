@@ -30,7 +30,7 @@ compile_error!("compilation is only possible for 64-bit targets");
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
 
-pub fn init() {
+pub fn init_sip_key() {
     INIT.call_once(|| {
         bytetable::init();
 
@@ -710,7 +710,7 @@ where
     S: KeySegmentation<KEY_LEN>,
 {
     pub fn new() -> Self {
-        init();
+        init_sip_key();
         PATCH { root: None }
     }
 

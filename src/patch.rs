@@ -25,7 +25,7 @@ use std::mem::transmute;
 use std::sync::Once;
 
 #[cfg(not(target_pointer_width = "64"))]
-compile_error!("compilation is only possible for 64-bit targets");
+compile_error!("PATCH tagged pointers require 64-bit targets");
 
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();

@@ -5,6 +5,7 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
+    blobschemas::SimpleArchive,
     namespace::NS,
     query::find,
     valueschemas::{
@@ -12,7 +13,6 @@ use crate::{
         hash::Blake3,
         GenId, Handle, PackValue, ShortString,
     },
-    blobschemas::SimpleArchive,
     RawId, TribleSet, Value,
 };
 

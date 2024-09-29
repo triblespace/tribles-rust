@@ -16,8 +16,8 @@ use hex::FromHex;
 
 use crate::blobschemas::UnknownBlob;
 use crate::valueschemas::Handle;
-use crate::{Blob, BlobSchema, Value};
 use crate::{valueschemas::Hash, RawValue};
+use crate::{Blob, BlobSchema, Value};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};
@@ -76,8 +76,13 @@ where
 {
     type Err = object_store::Error;
 
-    fn pull<T>(&self, handle: Value<Handle<H, T>>) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
-    where T: BlobSchema {
+    fn pull<T>(
+        &self,
+        handle: Value<Handle<H, T>>,
+    ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
+    where
+        T: BlobSchema,
+    {
         async move {
             let path = self.prefix.child(hex::encode(handle.bytes));
             let result = self.store.get(&path).await?;
@@ -94,8 +99,13 @@ where
 {
     type Err = object_store::Error;
 
-    fn push<T>(&self, blob: Blob<T>) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
-    where T: BlobSchema {
+    fn push<T>(
+        &self,
+        blob: Blob<T>,
+    ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
+    where
+        T: BlobSchema,
+    {
         async move {
             let handle = blob.as_handle();
             let path = self.prefix.child(hex::encode(handle.bytes));

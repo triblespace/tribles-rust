@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::valueschemas::Hash;
 
-use crate::{ValueSchema, Value};
+use crate::{Value, ValueSchema};
 
 #[repr(transparent)]
 pub struct Handle<H, T> {

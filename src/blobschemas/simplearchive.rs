@@ -2,7 +2,9 @@ use anybytes::Bytes;
 use std::convert::TryInto;
 
 use crate::{
-    blobschemas::{PackBlob, TryUnpackBlob}, trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN}, Blob, BlobSchema, TribleSet
+    blobschemas::{PackBlob, TryUnpackBlob},
+    trible::{A_END, A_START, E_END, E_START, TRIBLE_LEN},
+    Blob, BlobSchema, TribleSet,
 };
 
 pub struct SimpleArchive;
@@ -24,7 +26,7 @@ pub enum UnarchiveError {
     BadArchiveLength,
     BadTriple,
     BadCanonicalizationRedundancy,
-    BadCanonicalizationOrdering
+    BadCanonicalizationOrdering,
 }
 
 impl TryUnpackBlob<'_, SimpleArchive> for TribleSet {
@@ -36,9 +38,9 @@ impl TryUnpackBlob<'_, SimpleArchive> for TribleSet {
         if len % TRIBLE_LEN != 0 {
             return Err(UnarchiveError::BadArchiveLength);
         }
-    
+
         let mut tribles = TribleSet::new();
-    
+
         let mut prev_trible = None;
         for trible in blob.bytes.chunks_exact(TRIBLE_LEN) {
             let t: &[u8; 64] = trible.try_into().unwrap();
@@ -59,7 +61,7 @@ impl TryUnpackBlob<'_, SimpleArchive> for TribleSet {
             prev_trible = Some(t);
             tribles.insert_raw(t);
         }
-    
+
         Ok(tribles)
     }
 }

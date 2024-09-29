@@ -20,11 +20,13 @@ pub use time::*;
 use crate::Value;
 
 pub trait ValueSchema: Sized {
-    fn pack<T: PackValue<Self>  + ?Sized>(t: &T) -> Value<Self> {
+    fn pack<T: PackValue<Self> + ?Sized>(t: &T) -> Value<Self> {
         t.pack()
     }
 
-    fn try_pack<T: TryPackValue<Self> + ?Sized>(t: &T) -> Result<Value<Self>, <T as TryPackValue<Self>>::Error> {
+    fn try_pack<T: TryPackValue<Self> + ?Sized>(
+        t: &T,
+    ) -> Result<Value<Self>, <T as TryPackValue<Self>>::Error> {
         t.try_pack()
     }
 }

@@ -1,8 +1,9 @@
 use tribles::valueschemas::TryPackValue;
 use tribles::{
     query::find,
+    ufoid,
     valueschemas::{GenId, ShortString},
-    ufoid, TribleSet, NS,
+    TribleSet, NS,
 };
 
 use fake::faker::name::raw::*;

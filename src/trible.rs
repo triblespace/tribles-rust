@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use crate::{
     patch::{KeyOrdering, KeySegmentation},
-    ValueSchema, Value,
+    Value, ValueSchema,
 };
 use arbitrary::Arbitrary;
 

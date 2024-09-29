@@ -34,8 +34,7 @@ impl<'a, T: ValueSchema> Constraint<'a> for PatchConstraint<'a, T> {
 
     fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
         let mut r = vec![];
-        self.patch
-            .infixes(&[0; 0], &mut |&k: &[u8; 32]| r.push(k));
+        self.patch.infixes(&[0; 0], &mut |&k: &[u8; 32]| r.push(k));
         r
     }
 

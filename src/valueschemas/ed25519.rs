@@ -2,7 +2,7 @@ use ed25519::{ComponentBytes, Signature};
 use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
 
-use crate::{ValueSchema, Value};
+use crate::{Value, ValueSchema};
 
 use super::{PackValue, TryUnpackValue, UnpackValue};
 

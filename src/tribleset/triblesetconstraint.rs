@@ -165,13 +165,17 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             }
             (None, None, None, false, false, true) => {
                 let mut r = vec![];
-                self.set.vea.infixes(&[0; 0], &mut |&v: &[u8; 32]| r.push(v));
+                self.set
+                    .vea
+                    .infixes(&[0; 0], &mut |&v: &[u8; 32]| r.push(v));
                 r
             }
 
             (Some(e), None, None, false, true, false) => {
                 let mut r = vec![];
-                self.set.eav.infixes(&e, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
+                self.set
+                    .eav
+                    .infixes(&e, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
                 r
             }
             (Some(e), None, None, false, false, true) => {
@@ -182,7 +186,9 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 
             (None, Some(a), None, true, false, false) => {
                 let mut r = vec![];
-                self.set.aev.infixes(&a, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
+                self.set
+                    .aev
+                    .infixes(&a, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
                 r
             }
             (None, Some(a), None, false, false, true) => {
@@ -193,12 +199,16 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 
             (None, None, Some(v), true, false, false) => {
                 let mut r = vec![];
-                self.set.vea.infixes(&v, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
+                self.set
+                    .vea
+                    .infixes(&v, &mut |e: &[u8; 16]| r.push(id_into_value(e)));
                 r
             }
             (None, None, Some(v), false, true, false) => {
                 let mut r = vec![];
-                self.set.vae.infixes(&v, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
+                self.set
+                    .vae
+                    .infixes(&v, &mut |a: &[u8; 16]| r.push(id_into_value(a)));
                 r
             }
             (None, Some(a), Some(v), true, false, false) => {
@@ -226,7 +236,9 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 prefix[0..ID_LEN].copy_from_slice(&e[..]);
                 prefix[ID_LEN..ID_LEN + ID_LEN].copy_from_slice(&a[..]);
                 let mut r = vec![];
-                self.set.eav.infixes(&prefix, &mut |&v: &[u8; 32]| r.push(v));
+                self.set
+                    .eav
+                    .infixes(&prefix, &mut |&v: &[u8; 32]| r.push(v));
                 r
             }
             _ => panic!(),
@@ -359,8 +371,8 @@ mod tests {
     use crate::{
         find,
         query::{TriblePattern, Variable},
-        valueschemas::UnknownValue,
         trible::Trible,
+        valueschemas::UnknownValue,
         TribleSet, Value,
     };
 
@@ -373,7 +385,11 @@ mod tests {
             Value::<UnknownValue>::new([0; 32]),
         ));
 
-        let q = find!(ctx, (e, a, v), set.pattern(e, a, v as Variable<UnknownValue>));
+        let q = find!(
+            ctx,
+            (e, a, v),
+            set.pattern(e, a, v as Variable<UnknownValue>)
+        );
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())

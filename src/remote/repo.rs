@@ -42,7 +42,10 @@ pub async fn transfer<'a, BS, BT, HS, HT, S>(
     target: &'a BT,
 ) -> impl Stream<
     Item = Result<
-        (Value<Handle<HS, UnknownBlob>>, Value<Handle<HT, UnknownBlob>>),
+        (
+            Value<Handle<HS, UnknownBlob>>,
+            Value<Handle<HT, UnknownBlob>>,
+        ),
         TransferError<<BS as List<HS>>::Err, <BS as Pull<HS>>::Err, <BT as Push<HT>>::Err>,
     >,
 > + 'a
@@ -78,15 +81,23 @@ pub trait List<H> {
 pub trait Pull<H> {
     type Err;
 
-    fn pull<T>(&self, hash: Value<Handle<H, T>>) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
-    where T: BlobSchema + 'static;
+    fn pull<T>(
+        &self,
+        hash: Value<Handle<H, T>>,
+    ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
+    where
+        T: BlobSchema + 'static;
 }
 
 pub trait Push<H> {
     type Err;
 
-    fn push<T>(&self, blob: Blob<T>) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
-    where T: BlobSchema + 'static;
+    fn push<T>(
+        &self,
+        blob: Blob<T>,
+    ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
+    where
+        T: BlobSchema + 'static;
 }
 
 pub trait Repo<H>: List<H> + Pull<H> + Push<H> {
@@ -134,8 +145,9 @@ where
     type Err = NotFoundErr;
 
     async fn pull<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
-    where T: BlobSchema {
-        self.get(handle)
-            .ok_or(NotFoundErr())
+    where
+        T: BlobSchema,
+    {
+        self.get(handle).ok_or(NotFoundErr())
     }
 }

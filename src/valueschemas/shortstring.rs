@@ -1,6 +1,6 @@
 use std::{str::Utf8Error, string::FromUtf8Error};
 
-use crate::{ValueSchema, Value};
+use crate::{Value, ValueSchema};
 
 use super::{PackValue, TryPackValue, TryUnpackValue};
 
@@ -61,7 +61,6 @@ impl TryPackValue<ShortString> for str {
         Ok(Value::new(data))
     }
 }
-
 
 impl PackValue<ShortString> for str {
     fn pack(&self) -> Value<ShortString> {

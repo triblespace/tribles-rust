@@ -40,7 +40,9 @@ where
     }
 
     pub fn insert<T>(&mut self, blob: Blob<T>) -> Value<Handle<H, T>>
-    where T: BlobSchema {
+    where
+        T: BlobSchema,
+    {
         let handle = blob.as_handle();
         let unknown_handle: Value<Handle<H, UnknownBlob>> = Value::new(handle.bytes);
         let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
@@ -60,7 +62,9 @@ where
         Some(Blob::new(blob.bytes.clone()))
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a Value<Handle<H, UnknownBlob>>, &'a Blob<UnknownBlob>)> + 'a {
+    pub fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a Value<Handle<H, UnknownBlob>>, &'a Blob<UnknownBlob>)> + 'a {
         self.blobs.iter()
     }
 
@@ -80,7 +84,9 @@ impl<H> FromIterator<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)> for Blo
 where
     H: Digest<OutputSize = U32>,
 {
-    fn from_iter<I: IntoIterator<Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)>>(
+        iter: I,
+    ) -> Self {
         let mut set = BlobSet::new();
 
         for (handle, blob) in iter {
@@ -96,7 +102,8 @@ where
     H: Digest<OutputSize = U32>,
 {
     type Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>);
-    type IntoIter = std::collections::hash_map::IntoIter<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
+    type IntoIter =
+        std::collections::hash_map::IntoIter<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.blobs.into_iter()
@@ -108,7 +115,8 @@ where
     H: Digest<OutputSize = U32>,
 {
     type Item = (&'a Value<Handle<H, UnknownBlob>>, &'a Blob<UnknownBlob>);
-    type IntoIter = std::collections::hash_map::Iter<'a, Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
+    type IntoIter =
+        std::collections::hash_map::Iter<'a, Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
 
     fn into_iter(self) -> Self::IntoIter {
         (&self.blobs).into_iter()
@@ -118,7 +126,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        blobschemas::PackBlob, valueschemas::{hash::Blake3, Handle}, TribleSet, NS
+        blobschemas::PackBlob,
+        valueschemas::{hash::Blake3, Handle},
+        TribleSet, NS,
     };
 
     use super::*;

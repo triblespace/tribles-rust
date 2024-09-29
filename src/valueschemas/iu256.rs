@@ -1,4 +1,4 @@
-use crate::{ValueSchema, Value};
+use crate::{Value, ValueSchema};
 use ethnum;
 
 use super::{PackValue, UnpackValue};

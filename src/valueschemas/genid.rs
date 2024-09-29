@@ -12,7 +12,7 @@ use rand::RngCore;
 
 use crate::valueschemas::TryPackValue;
 use crate::valueschemas::TryUnpackValue;
-use crate::{ValueSchema, Value, VALUE_LEN};
+use crate::{Value, ValueSchema, VALUE_LEN};
 
 use super::PackValue;
 

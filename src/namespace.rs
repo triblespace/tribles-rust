@@ -219,8 +219,9 @@ mod tests {
 
     use crate::{
         query::find,
+        ufoid,
         valueschemas::{GenId, ShortString, TryPackValue},
-        ufoid, TribleSet,
+        TribleSet,
     };
 
     NS! {

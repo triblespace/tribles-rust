@@ -5,11 +5,14 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
+use sucds::int_vectors::{DacsByte, DacsOpt};
 use sucds::Serializable;
+use tribles::blobschemas::succinctarchive::{
+    CompressedUniverse, OrderedUniverse, SuccinctArchive, Universe,
+};
 use tribles::column::Column;
 use tribles::fucid::FUCIDgen;
 use tribles::valueschemas::TryPackValue;
-use tribles::blobschemas::succinctarchive::{OrderedUniverse, SuccinctArchive, Universe};
 use tribles::{
     and,
     valueschemas::{GenId, ShortString},
@@ -17,7 +20,7 @@ use tribles::{
 };
 
 use tribles::test::hashtribleset::HashTribleSet;
-use tribles::{find, trible::*};
+use tribles::{find, genid, trible::*};
 use tribles::{fucid, ufoid};
 
 use tribles::patch::{Entry, IdentityOrder};
@@ -244,8 +247,8 @@ fn archive_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("structured/archive", 4 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
-                let lover_a = ufoid();
-                let lover_b = ufoid();
+                let lover_a = fucid();
+                let lover_b = fucid();
                 knights::entity!(&mut set, lover_a, {
                     name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
                     loves: lover_b.into()
@@ -256,47 +259,40 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
-                println!("Archived trible size:");
+                let archive: SuccinctArchive<CompressedUniverse<DacsByte>, Rank9Sel> = (&set).into();
+                let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
+                let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
+                let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
+                let size_av = archive.v_a.size_in_bytes() as f64 / set.len() as f64;
+                let size_ceav = archive.eav_c.size_in_bytes() as f64 / set.len() as f64;
+                let size_cvea = archive.vea_c.size_in_bytes() as f64 / set.len() as f64;
+                let size_cave = archive.ave_c.size_in_bytes() as f64 / set.len() as f64;
+                let size_cvae = archive.vae_c.size_in_bytes() as f64 / set.len() as f64;
+                let size_ceva = archive.eva_c.size_in_bytes() as f64 / set.len() as f64;
+                let size_caev = archive.aev_c.size_in_bytes() as f64 / set.len() as f64;
+                let size_total = size_domain
+                    + size_ae
+                    + size_aa
+                    + size_av
+                    + size_ceav
+                    + size_cvea
+                    + size_cave
+                    + size_cvae
+                    + size_ceva
+                    + size_caev;
+
                 println!(
-                    "  Domain:{}",
-                    archive.domain.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  A_e:{}",
-                    archive.e_a.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  A_a:{}",
-                    archive.a_a.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  A_v:{}",
-                    archive.v_a.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  C_eav:{}",
-                    archive.eav_c.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  C_vea:{}",
-                    archive.vea_c.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  C_ave:{}",
-                    archive.ave_c.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  C_vae:{}",
-                    archive.vae_c.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  C_eva:{}",
-                    archive.eva_c.size_in_bytes() as f64 / set.len() as f64
-                );
-                println!(
-                    "  C_aev:{}",
-                    archive.aev_c.size_in_bytes() as f64 / set.len() as f64
+                    "Archived trible size: {size_total}\n\
+                       Domain:{size_domain}\n\
+                       A_e:{size_ae}\n\
+                       A_a:{size_aa}\n\
+                       A_v:{size_av}\n\
+                       C_eav:{size_ceav}\n\
+                       C_vea:{size_cvea}\n\
+                       C_ave:{size_cave}\n\
+                       C_vae:{size_cvae}\n\
+                       C_eva:{size_ceva}\n\
+                       C_aev:{size_caev}",
                 );
 
                 archive

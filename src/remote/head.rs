@@ -10,7 +10,9 @@ pub trait Head<H> {
     type CheckoutErr;
     type CommitErr;
 
-    fn checkout(&self) -> impl std::future::Future<Output = Result<Option<Value<Hash<H>>>, Self::CheckoutErr>>;
+    fn checkout(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Option<Value<Hash<H>>>, Self::CheckoutErr>>;
     fn commit(
         &self,
         old: Option<Value<Hash<H>>>,

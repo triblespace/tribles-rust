@@ -99,9 +99,10 @@ impl TriblePattern for TribleSet {
 mod tests {
 
     use crate::{
+        ufoid,
         valueschemas::GenId,
         valueschemas::{ShortString, TryPackValue},
-        ufoid, NS,
+        NS,
     };
 
     use super::*;

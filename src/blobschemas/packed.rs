@@ -1,6 +1,6 @@
 use std::{convert::TryInto, str::Utf8Error};
 
-use anybytes::{ packed::PackError, Packed, PackedSlice, PackedStr };
+use anybytes::{packed::PackError, Packed, PackedSlice, PackedStr};
 use zerocopy::FromBytes;
 
 use crate::Blob;
@@ -16,7 +16,9 @@ impl<T> PackBlob<Packed<T>> for Packed<T> {
 }
 
 impl<'a, T> TryUnpackBlob<'a, Packed<T>> for Packed<T>
-where T: FromBytes {
+where
+    T: FromBytes,
+{
     type Error = PackError;
 
     fn try_unpack(b: &'a Blob<Self>) -> Result<Self, Self::Error> {
@@ -33,7 +35,9 @@ impl<T> PackBlob<PackedSlice<T>> for PackedSlice<T> {
 }
 
 impl<'a, T> TryUnpackBlob<'a, PackedSlice<T>> for PackedSlice<T>
-where T: FromBytes {
+where
+    T: FromBytes,
+{
     type Error = PackError;
 
     fn try_unpack(b: &'a Blob<Self>) -> Result<Self, Self::Error> {
@@ -62,7 +66,9 @@ mod tests {
     use anybytes::PackedStr;
 
     use crate::{
-        blobschemas::PackBlob, valueschemas::{hash::Blake2b, Handle}, Value
+        blobschemas::PackBlob,
+        valueschemas::{hash::Blake2b, Handle},
+        Value,
     };
 
     #[test]

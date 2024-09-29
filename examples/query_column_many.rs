@@ -5,10 +5,10 @@ use tribles::query::find;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
+use tribles::ufoid;
 use tribles::valueschemas::GenId;
 use tribles::valueschemas::ShortString;
 use tribles::valueschemas::TryPackValue;
-use tribles::ufoid;
 
 fn main() {
     let mut name: Column<ShortString> = Column::new();

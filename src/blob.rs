@@ -1,7 +1,15 @@
 use digest::{consts::U32, Digest};
-use std::{fmt::{self, Debug}, hash::Hash, marker::PhantomData};
+use std::{
+    fmt::{self, Debug},
+    hash::Hash,
+    marker::PhantomData,
+};
 
-use crate::{blobschemas::{BlobSchema, TryUnpackBlob, UnpackBlob}, valueschemas::Handle, Value};
+use crate::{
+    blobschemas::{BlobSchema, TryUnpackBlob, UnpackBlob},
+    valueschemas::Handle,
+    Value,
+};
 
 pub use anybytes::Bytes;
 
@@ -67,10 +75,6 @@ impl<T: BlobSchema> Hash for Blob<T> {
 
 impl<T: BlobSchema> Debug for Blob<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Blob<{}>",
-            std::any::type_name::<T>()
-        )
+        write!(f, "Blob<{}>", std::any::type_name::<T>())
     }
 }

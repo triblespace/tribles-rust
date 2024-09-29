@@ -11,11 +11,13 @@ pub use succinctarchive::SuccinctArchive;
 use crate::Blob;
 
 pub trait BlobSchema: Sized {
-    fn pack<T: PackBlob<Self>  + ?Sized>(t: &T) -> Blob<Self> {
+    fn pack<T: PackBlob<Self> + ?Sized>(t: &T) -> Blob<Self> {
         t.pack()
     }
 
-    fn try_pack<T: TryPackBlob<Self> + ?Sized>(t: &T) -> Result<Blob<Self>, <T as TryPackBlob<Self>>::Error> {
+    fn try_pack<T: TryPackBlob<Self> + ?Sized>(
+        t: &T,
+    ) -> Result<Blob<Self>, <T as TryPackBlob<Self>>::Error> {
         t.try_pack()
     }
 }

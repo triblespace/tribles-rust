@@ -1,8 +1,8 @@
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::ptr::addr_of;
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::alloc::*;
+use std::ptr::addr_of;
 
 use super::*;
 
@@ -97,8 +97,9 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 return;
             }
         }
-        
-        let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| (*leaf).key[O::key_index(PREFIX_LEN + i)]);
+
+        let infix: [u8; INFIX_LEN] =
+            core::array::from_fn(|i| (*leaf).key[O::key_index(PREFIX_LEN + i)]);
         f(&infix);
     }
 

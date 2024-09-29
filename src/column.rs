@@ -6,7 +6,7 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use crate::query::Variable;
-use crate::{valueschemas::GenId, RawId, RawValue, ValueSchema, Value};
+use crate::{valueschemas::GenId, RawId, RawValue, Value, ValueSchema};
 
 use self::columnconstraint::ColumnConstraint;
 

@@ -94,7 +94,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
         // The infix ends within the current node.
         if PREFIX_LEN + INFIX_LEN <= node_end_depth {
-            let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| (*(*branch).childleaf).key[O::key_index(PREFIX_LEN + i)]);
+            let infix: [u8; INFIX_LEN] =
+                core::array::from_fn(|i| (*(*branch).childleaf).key[O::key_index(PREFIX_LEN + i)]);
             f(&infix);
             return;
         }

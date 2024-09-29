@@ -7,12 +7,8 @@ use succinctarchiveconstraint::*;
 
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::{
-    id_into_value,
-    valueschemas::GenId,
-    ValueSchema,
-};
 use crate::RawValue;
+use crate::{id_into_value, valueschemas::GenId, ValueSchema};
 
 use itertools::Itertools;
 
@@ -21,7 +17,6 @@ use sucds::char_sequences::WaveletMatrix;
 use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 
 use sucds::int_vectors::CompactVector;
-
 
 use crate::TribleSet;
 
@@ -255,7 +250,7 @@ mod tests {
     use std::convert::TryInto;
 
     use crate::valueschemas::TryPackValue;
-    use crate::{find, valueschemas::ShortString, trible::Trible, ufoid, NS};
+    use crate::{find, trible::Trible, ufoid, valueschemas::ShortString, NS};
 
     use super::*;
     use itertools::Itertools;

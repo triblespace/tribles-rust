@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::{ValueSchema, Value};
+use crate::{Value, ValueSchema};
 
 use hifitime::prelude::*;
 

@@ -11,8 +11,8 @@
 //!
 //!
 pub mod constantconstraint;
-pub mod hashsetconstraint;
 pub mod hashmapconstraint;
+pub mod hashsetconstraint;
 pub mod intersectionconstraint;
 pub mod mask;
 pub mod patchconstraint;
@@ -28,7 +28,7 @@ pub use intersectionconstraint::*;
 pub use mask::*;
 pub use patchconstraint::*;
 
-use crate::{valueschemas::GenId, RawValue, ValueSchema, Value};
+use crate::{valueschemas::GenId, RawValue, Value, ValueSchema};
 
 pub use variableset::VariableSet;
 
@@ -128,7 +128,8 @@ impl Binding {
         self.bound.unset(variable);
     }
 
-    pub fn get(&self, variable: VariableId) -> Option<&RawValue> { //TODO check if we should make this a ref
+    pub fn get(&self, variable: VariableId) -> Option<&RawValue> {
+        //TODO check if we should make this a ref
         if self.bound.is_set(variable) {
             Some(&self.values[variable as usize])
         } else {
@@ -339,8 +340,9 @@ mod tests {
 
     //use crate::tribleset::patchtribleset::PATCHTribleSet;
     use crate::{
+        ufoid,
         valueschemas::{iu256::I256BE, GenId, ShortString, TryPackValue},
-        ufoid, TribleSet, NS,
+        TribleSet, NS,
     };
 
     use super::*;

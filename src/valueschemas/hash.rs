@@ -1,4 +1,4 @@
-use crate::{valueschemas::Handle, RawValue, ValueSchema, Value};
+use crate::{valueschemas::Handle, RawValue, Value, ValueSchema};
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};

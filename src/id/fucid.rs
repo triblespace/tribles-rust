@@ -6,14 +6,12 @@ use std::cell::RefCell;
 
 pub struct FUCIDgen {
     counter: u128,
-    salt: u128,
 }
 
 impl FUCIDgen {
     pub fn new() -> Self {
         Self {
-            counter: 0,
-            salt: {
+            counter: {
                 let mut rng = thread_rng();
                 let mut rand_bytes = [0; 16];
                 rng.fill_bytes(&mut rand_bytes[..]);
@@ -24,7 +22,7 @@ impl FUCIDgen {
     }
 
     pub fn next(&mut self) -> RawId {
-        let next_id = self.counter ^ self.salt;
+        let next_id = self.counter;
         self.counter += 1;
         next_id.to_be_bytes()
     }

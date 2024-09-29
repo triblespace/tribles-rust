@@ -64,9 +64,7 @@ impl<'a> Constraint<'a> for ColumnConstraint<'a> {
         let v_bound = binding.get(self.variable_v);
 
         match (e_bound, v_bound, e_var, v_var) {
-            (None, None, true, false) => {
-                self.column_ev.keys().map(id_into_value).collect()
-            }
+            (None, None, true, false) => self.column_ev.keys().map(id_into_value).collect(),
             (None, None, false, true) => self.column_ve.keys().copied().collect(),
             (Some(e), None, false, true) => self
                 .column_ev

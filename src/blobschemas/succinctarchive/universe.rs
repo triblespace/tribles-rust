@@ -54,7 +54,7 @@ impl Universe for OrderedUniverse {
 
 #[derive(Debug, Clone)]
 pub struct CompressedUniverse<C> {
-    fragments: Vec<[u8; 4]>,
+    fragments: Vec<[u8; 8]>,
     data: C,
 }
 
@@ -70,12 +70,12 @@ where
         universe.sort();
         let universe = universe;
 
-        let mut data: Vec<[u8; 4]> = Vec::new();
-        let mut frequency: HashMap<[u8; 4], u64> = HashMap::new();
+        let mut data: Vec<[u8; 8]> = Vec::new();
+        let mut frequency: HashMap<[u8; 8], u64> = HashMap::new();
 
         for value in universe {
-            for i in 0..8 {
-                let fragment = value[i * 4..i * 4 + 4].try_into().unwrap();
+            for i in 0..4 {
+                let fragment = value[i * 8..i * 8 + 8].try_into().unwrap();
                 *frequency.entry(fragment).or_insert(0) += 1;
                 data.push(fragment);
             }
@@ -85,13 +85,13 @@ where
         fragments.sort_by_key(|fragment| (Reverse(frequency.get(fragment)), *fragment));
         let fragments = fragments;
 
-        let fragment_index: HashMap<[u8; 4], u32> = fragments
+        let fragment_index: HashMap<[u8; 8], u64> = fragments
             .iter()
             .enumerate()
-            .map(|(pos, value)| (*value, pos as u32))
+            .map(|(pos, value)| (*value, pos as u64))
             .collect();
 
-        let data: Vec<u32> = data
+        let data: Vec<u64> = data
             .into_iter()
             .map(|fragment| {
                 *fragment_index
@@ -108,9 +108,9 @@ where
     fn access(&self, pos: usize) -> RawValue {
         let mut v: RawValue = [0; 32];
 
-        for i in 0..8 {
-            v[i * 4..i * 4 + 4]
-                .copy_from_slice(&(self.fragments[self.data.access((pos * 8) + i).unwrap()]));
+        for i in 0..4 {
+            v[i * 8..i * 8 + 8]
+                .copy_from_slice(&(self.fragments[self.data.access((pos * 4) + i).unwrap()]));
         }
 
         v
@@ -123,12 +123,12 @@ where
     }
 
     fn size_in_bytes(&self) -> usize {
-        self.fragments.len() * size_of::<[u8; 4]>() + self.data.size_in_bytes()
+        self.fragments.len() * size_of::<[u8; 8]>() + self.data.size_in_bytes()
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.data.num_vals() / 8
+        self.data.num_vals() / 4
     }
 }
 

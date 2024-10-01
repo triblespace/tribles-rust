@@ -54,7 +54,7 @@ impl Universe for OrderedUniverse {
 
 #[derive(Debug, Clone)]
 pub struct CompressedUniverse<C> {
-    fragments: Vec<[u8; 4]>,
+    fragments: [u8; 256],
     data: C,
 }
 
@@ -68,37 +68,27 @@ where
     {
         let mut universe: Vec<[u8; 32]> = iter.collect();
         universe.sort();
-        let universe = universe;
+        let mut data = universe.into_flattened();
 
-        let mut data: Vec<[u8; 4]> = Vec::new();
-        let mut frequency: HashMap<[u8; 4], u64> = HashMap::new();
 
-        for value in universe {
-            for i in 0..8 {
-                let fragment = value[i * 4..i * 4 + 4].try_into().unwrap();
-                *frequency.entry(fragment).or_insert(0) += 1;
-                data.push(fragment);
-            }
+        let mut frequency: [u64; 256] = [0; 256];
+
+        for &fragment in data.iter() {
+            frequency[fragment as usize] += 1;
         }
 
-        let mut fragments: Vec<_> = frequency.keys().copied().collect();
-        fragments.sort_by_key(|fragment| (Reverse(frequency.get(fragment)), *fragment));
+        let mut fragments: [u8; 256] = core::array::from_fn(|i| i as u8);
+        fragments.sort_by_key(|&fragment| Reverse(frequency[fragment as usize]));
         let fragments = fragments;
 
-        let fragment_index: HashMap<[u8; 4], u32> = fragments
-            .iter()
-            .enumerate()
-            .map(|(pos, value)| (*value, pos as u32))
-            .collect();
+        let mut fragment_index: [u8; 256] = [0; 256];
+        for i in 0..256 {
+            fragment_index[fragments[i] as usize] = i as u8;
+        }
 
-        let data: Vec<u32> = data
-            .into_iter()
-            .map(|fragment| {
-                *fragment_index
-                    .get(&fragment)
-                    .expect("fragment in fragments")
-            })
-            .collect();
+        for byte in data.iter_mut() {
+            *byte = fragment_index[*byte as usize];
+        }
 
         let data = C::build_from_slice(&data).unwrap();
 
@@ -108,9 +98,8 @@ where
     fn access(&self, pos: usize) -> RawValue {
         let mut v: RawValue = [0; 32];
 
-        for i in 0..8 {
-            v[i * 4..i * 4 + 4]
-                .copy_from_slice(&(self.fragments[self.data.access((pos * 8) + i).unwrap()]));
+        for i in 0..32 {
+            v[i] = self.fragments[self.data.access((pos * 32) + i).unwrap()];
         }
 
         v
@@ -123,12 +112,12 @@ where
     }
 
     fn size_in_bytes(&self) -> usize {
-        self.fragments.len() * size_of::<[u8; 4]>() + self.data.size_in_bytes()
+        size_of::<[u8; 256]>() + self.data.size_in_bytes()
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.data.num_vals() / 8
+        self.data.num_vals() / 32
     }
 }
 

@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
-use crate::{Value, ValueSchema};
+use crate::{RawId, Value, ValueSchema};
+use hex_literal::hex;
 use num_rational::Ratio;
 
 use super::{PackValue, UnpackValue};
@@ -10,8 +11,8 @@ pub struct FR256BE;
 
 pub type FR256 = FR256LE;
 
-impl ValueSchema for FR256LE {}
-impl ValueSchema for FR256BE {}
+impl ValueSchema for FR256LE {const ID: RawId = hex!("0A9B43C5C2ECD45B257CDEFC16544358");}
+impl ValueSchema for FR256BE {const ID: RawId = hex!("CA5EAF567171772C1FFD776E9C7C02D1");}
 
 impl UnpackValue<'_, FR256BE> for Ratio<i128> {
     fn unpack(v: &Value<FR256BE>) -> Self {

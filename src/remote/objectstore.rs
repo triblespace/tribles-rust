@@ -7,7 +7,6 @@ use std::marker::PhantomData;
 use anybytes::Bytes;
 use futures::{Stream, StreamExt};
 
-use digest::{typenum::U32, Digest};
 use object_store::UpdateVersion;
 use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
 use url::Url;
@@ -15,9 +14,9 @@ use url::Url;
 use hex::FromHex;
 
 use crate::blobschemas::UnknownBlob;
-use crate::valueschemas::Handle;
+use crate::valueschemas::{Handle, HashProtocol};
 use crate::{valueschemas::Hash, RawValue};
-use crate::{Blob, BlobSchema, Value};
+use crate::{Blob, BlobSchema, Value, ValueSchema};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};
@@ -47,7 +46,7 @@ pub enum ListErr {
 
 impl<H> List<H> for ObjectRepo<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Err = ListErr;
 
@@ -72,7 +71,7 @@ where
 
 impl<H> Pull<H> for ObjectRepo<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Err = object_store::Error;
 
@@ -95,7 +94,7 @@ where
 
 impl<H> Push<H> for ObjectRepo<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Err = object_store::Error;
 
@@ -105,6 +104,7 @@ where
     ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
     where
         T: BlobSchema,
+        Handle<H, T>: ValueSchema
     {
         async move {
             let handle = blob.as_handle();
@@ -202,7 +202,7 @@ impl From<TryFromSliceError> for CommitErr {
 
 impl<H> Head<H> for ObjectHead<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type CheckoutErr = CheckoutErr;
     type CommitErr = CommitErr;

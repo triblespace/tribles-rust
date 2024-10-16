@@ -10,6 +10,8 @@ use hex::FromHexError;
 
 use rand::RngCore;
 
+use hex_literal::hex;
+
 use crate::valueschemas::TryPackValue;
 use crate::valueschemas::TryUnpackValue;
 use crate::{Value, ValueSchema, VALUE_LEN};
@@ -18,7 +20,7 @@ use super::PackValue;
 
 pub struct GenId;
 
-impl ValueSchema for GenId {}
+impl ValueSchema for GenId {const ID: RawId = hex!("B08EE1D45EB081E8C47618178AFE0D81");}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GenIdParseError {

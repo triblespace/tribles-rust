@@ -1,16 +1,19 @@
 //! This is a collection of Rust types that can be (de)serialized as
 //! [Value]s, and [Blob]s.
 
-pub mod packed;
+pub mod longstring;
 pub mod simplearchive;
 pub mod succinctarchive;
 
+use hex_literal::hex;
 pub use simplearchive::SimpleArchive;
 pub use succinctarchive::SuccinctArchive;
 
-use crate::Blob;
+use crate::{Blob, RawId};
 
 pub trait BlobSchema: Sized {
+    const ID: RawId;
+
     fn pack<T: PackBlob<Self> + ?Sized>(t: &T) -> Blob<Self> {
         t.pack()
     }
@@ -40,4 +43,4 @@ pub trait TryUnpackBlob<'a, S: BlobSchema>: Sized {
 }
 
 pub struct UnknownBlob;
-impl BlobSchema for UnknownBlob {}
+impl BlobSchema for UnknownBlob { const ID: RawId = hex!("EAB14005141181B0C10C4B5DD7985F8D");}

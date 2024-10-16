@@ -1,4 +1,3 @@
-use digest::{consts::U32, Digest};
 use std::{
     fmt::{self, Debug},
     hash::Hash,
@@ -7,8 +6,8 @@ use std::{
 
 use crate::{
     blobschemas::{BlobSchema, TryUnpackBlob, UnpackBlob},
-    valueschemas::Handle,
-    Value,
+    valueschemas::{Handle, HashProtocol},
+    Value, ValueSchema,
 };
 
 pub use anybytes::Bytes;
@@ -29,7 +28,8 @@ impl<S: BlobSchema> Blob<S> {
 
     pub fn as_handle<H>(&self) -> Value<Handle<H, S>>
     where
-        H: Digest<OutputSize = U32>,
+        H: HashProtocol,
+        Handle<H, S>: ValueSchema
     {
         let digest = H::digest(&self.bytes);
         Value::new(digest.into())

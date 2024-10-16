@@ -4,10 +4,9 @@ use std::{
     fmt::{self, Debug},
 };
 
-use digest::{typenum::U32, Digest};
 use futures::{stream, Stream, StreamExt};
 
-use crate::{blobschemas::UnknownBlob, valueschemas::Handle, Blob, BlobSchema, BlobSet, Value};
+use crate::{blobschemas::UnknownBlob, valueschemas::{Handle, HashProtocol}, Blob, BlobSchema, BlobSet, Value, ValueSchema};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {
@@ -52,8 +51,8 @@ pub async fn transfer<'a, BS, BT, HS, HT, S>(
 where
     BS: List<HS> + Pull<HS>,
     BT: Push<HT>,
-    HS: 'static + Digest<OutputSize = U32>,
-    HT: 'static + Digest<OutputSize = U32>,
+    HS: 'static + HashProtocol,
+    HT: 'static + HashProtocol,
 {
     let l = source.list();
     let r = l.then(
@@ -73,12 +72,12 @@ where
     r
 }
 
-pub trait List<H> {
+pub trait List<H: HashProtocol> {
     type Err;
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>>;
 }
-pub trait Pull<H> {
+pub trait Pull<H: HashProtocol> {
     type Err;
 
     fn pull<T>(
@@ -97,10 +96,11 @@ pub trait Push<H> {
         blob: Blob<T>,
     ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
     where
-        T: BlobSchema + 'static;
+        T: BlobSchema + 'static,
+        Handle<H, T>: ValueSchema;
 }
 
-pub trait Repo<H>: List<H> + Pull<H> + Push<H> {
+pub trait Repo<H: HashProtocol>: List<H> + Pull<H> + Push<H> {
     type ListErr;
     type PullErr;
     type PushErr;
@@ -108,7 +108,7 @@ pub trait Repo<H>: List<H> + Pull<H> + Push<H> {
 
 impl<H, T> Repo<H> for T
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
     T: List<H> + Pull<H> + Push<H>,
 {
     type ListErr = <Self as List<H>>::Err;
@@ -129,7 +129,7 @@ impl Error for NotFoundErr {}
 
 impl<H> List<H> for BlobSet<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Err = Infallible;
 
@@ -140,7 +140,7 @@ where
 
 impl<H> Pull<H> for BlobSet<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Err = NotFoundErr;
 

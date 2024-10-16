@@ -6,9 +6,11 @@ use hifitime::prelude::*;
 
 use super::{PackValue, UnpackValue};
 
+use hex_literal::hex;
+
 pub struct NsTAIInterval;
 
-impl ValueSchema for NsTAIInterval {}
+impl ValueSchema for NsTAIInterval {const ID: crate::RawId = hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");}
 
 impl PackValue<NsTAIInterval> for (Epoch, Epoch) {
     fn pack(&self) -> Value<NsTAIInterval> {

@@ -1,7 +1,5 @@
-use digest::{typenum::U32, Digest};
-
 use crate::blobschemas::UnknownBlob;
-use crate::valueschemas::Hash;
+use crate::valueschemas::{Hash, HashProtocol};
 use crate::{valueschemas::Handle, TribleSet};
 use crate::{Blob, BlobSchema, Value};
 use std::collections::HashMap;
@@ -9,22 +7,19 @@ use std::iter::FromIterator;
 
 /// A mapping from [Handle]s to [Blob]s.
 #[derive(Debug, Clone)]
-pub struct BlobSet<H> {
+pub struct BlobSet<H: HashProtocol> {
     blobs: HashMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>,
 }
 
-impl<H> Eq for BlobSet<H> {}
+impl<H: HashProtocol> Eq for BlobSet<H> {}
 
-impl<H> PartialEq for BlobSet<H> {
+impl<H: HashProtocol> PartialEq for BlobSet<H> {
     fn eq(&self, other: &Self) -> bool {
         self.blobs == other.blobs
     }
 }
 
-impl<H> BlobSet<H>
-where
-    H: Digest<OutputSize = U32>,
-{
+impl<H: HashProtocol> BlobSet<H> {
     pub fn union<'a>(&mut self, other: Self) {
         self.blobs.extend(other);
     }
@@ -82,7 +77,7 @@ where
 
 impl<H> FromIterator<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)> for BlobSet<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     fn from_iter<I: IntoIterator<Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>)>>(
         iter: I,
@@ -99,7 +94,7 @@ where
 
 impl<'a, H> IntoIterator for BlobSet<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>);
     type IntoIter =
@@ -112,7 +107,7 @@ where
 
 impl<'a, H> IntoIterator for &'a BlobSet<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     type Item = (&'a Value<Handle<H, UnknownBlob>>, &'a Blob<UnknownBlob>);
     type IntoIter =
@@ -126,7 +121,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        blobschemas::PackBlob,
+        blobschemas::{longstring::LongString, PackBlob},
         valueschemas::{hash::Blake3, Handle},
         TribleSet, NS,
     };
@@ -137,7 +132,7 @@ mod tests {
 
     NS! {
         pub namespace knights {
-            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, PackedStr>;
+            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
         }
     }
 

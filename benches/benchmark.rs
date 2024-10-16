@@ -20,7 +20,7 @@ use tribles::{
 };
 
 use tribles::test::hashtribleset::HashTribleSet;
-use tribles::{find, genid, trible::*};
+use tribles::{find, trible::*};
 use tribles::{fucid, ufoid};
 
 use tribles::patch::{Entry, IdentityOrder};
@@ -588,8 +588,8 @@ fn query_benchmark(c: &mut Criterion) {
 
     let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
-        let lover_a = ufoid();
-        let lover_b = ufoid();
+        let lover_a = fucid();
+        let lover_b = fucid();
 
         kb.union(knights::entity!(lover_a, {
             name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
@@ -667,7 +667,7 @@ fn query_benchmark(c: &mut Criterion) {
 
     group.sample_size(10);
 
-    let kb_archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
+    let kb_archive: SuccinctArchive<CompressedUniverse<DacsOpt>, Rank9Sel> = (&kb).into();
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {

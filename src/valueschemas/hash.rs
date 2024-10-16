@@ -1,22 +1,26 @@
-use crate::{valueschemas::Handle, RawValue, Value, ValueSchema};
+use crate::{valueschemas::Handle, BlobSchema, RawId, RawValue, Value, ValueSchema};
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
 use std::marker::PhantomData;
+use hex_literal::hex;
 
-trait HashProtocol: Digest<OutputSize = U32> {
+use super::{TryPackValue, UnpackValue};
+
+pub trait HashProtocol: Digest<OutputSize = U32> {
     const NAME: &'static str;
+    const SCHEMA_ID: RawId;
 }
 
 pub struct Hash<H> {
     _hasher: PhantomData<H>,
 }
 
-impl<H> ValueSchema for Hash<H> {}
+impl<H> ValueSchema for Hash<H> where H: HashProtocol {const ID: RawId = H::SCHEMA_ID;}
 
 impl<H> Hash<H>
 where
-    H: Digest<OutputSize = U32>,
+    H: HashProtocol,
 {
     pub fn digest(blob: &Bytes) -> Value<Self> {
         Value::new(H::digest(&blob).into())
@@ -74,7 +78,7 @@ where
     }
 }
 
-impl<H, T> From<Value<Hash<H>>> for Value<Handle<H, T>> {
+impl<H: HashProtocol, T: BlobSchema> From<Value<Hash<H>>> for Value<Handle<H, T>> {
     fn from(value: Value<Hash<H>>) -> Self {
         Value::new(value.bytes)
     }
@@ -87,13 +91,13 @@ pub use blake3::Hasher as Blake3;
 
 impl HashProtocol for Blake2b {
     const NAME: &'static str = "blake2";
+    const SCHEMA_ID: RawId = hex!("91F880222412A49F012BE999942E6199");
 }
 
 impl HashProtocol for Blake3 {
     const NAME: &'static str = "blake3";
+    const SCHEMA_ID: RawId = hex!("4160218D6C8F620652ECFBD7FDC7BDB3");    
 }
-
-use super::{TryPackValue, UnpackValue};
 
 #[cfg(test)]
 mod tests {

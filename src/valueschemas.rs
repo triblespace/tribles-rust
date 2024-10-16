@@ -17,9 +17,14 @@ pub use hash::*;
 pub use shortstring::*;
 pub use time::*;
 
-use crate::Value;
+use crate::{RawId, Value};
+
+use hex_literal::hex;
+
 
 pub trait ValueSchema: Sized {
+    const ID: RawId;
+
     fn pack<T: PackValue<Self> + ?Sized>(t: &T) -> Value<Self> {
         t.pack()
     }
@@ -48,4 +53,4 @@ pub trait TryUnpackValue<'a, S: ValueSchema>: Sized {
 }
 
 pub struct UnknownValue {}
-impl ValueSchema for UnknownValue {}
+impl ValueSchema for UnknownValue {const ID: RawId = hex!("4EC697E8599AC79D667C722E2C8BEBF4");}

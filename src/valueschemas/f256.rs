@@ -1,5 +1,6 @@
-use crate::Value;
+use crate::{RawId, Value};
 use f256::f256;
+use hex_literal::hex;
 
 use crate::ValueSchema;
 
@@ -10,8 +11,8 @@ pub struct F256BE;
 
 pub type F256 = F256BE;
 
-impl ValueSchema for F256LE {}
-impl ValueSchema for F256BE {}
+impl ValueSchema for F256LE {const ID: RawId = hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2");}
+impl ValueSchema for F256BE {const ID: RawId = hex!("A629176D4656928D96B155038F9F2220");}
 
 impl UnpackValue<'_, F256BE> for f256 {
     fn unpack(v: &Value<F256BE>) -> Self {

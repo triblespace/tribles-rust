@@ -1,12 +1,13 @@
-use crate::{valueschemas::Hash, Value};
+use crate::{valueschemas::{Hash, HashProtocol}, Value};
 
 #[derive(Debug)]
-pub enum CommitResult<H> {
+pub enum CommitResult<H>
+where H: HashProtocol {
     Success(),
     Conflict(Option<Value<Hash<H>>>),
 }
 
-pub trait Head<H> {
+pub trait Head<H: HashProtocol> {
     type CheckoutErr;
     type CommitErr;
 

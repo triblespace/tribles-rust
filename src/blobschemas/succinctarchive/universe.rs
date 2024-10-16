@@ -5,7 +5,6 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use hifitime::Frequencies;
 use indxvec::Search;
 use sucds::int_vectors::{Access as IAccess, Build as IBuild, NumVals};
 use sucds::Serializable;
@@ -136,7 +135,7 @@ where
 mod tests {
     use std::iter::repeat_with;
 
-    use sucds::int_vectors::{DacsByte, DacsOpt};
+    use sucds::int_vectors::DacsOpt;
 
     use crate::{fucid, genid, id_into_value, ufoid};
 

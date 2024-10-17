@@ -1,5 +1,4 @@
-//! This is a collection of Rust types that can be (de)serialized as
-//! [Value]s, and [Blob]s.
+//! This is a collection of Rust types that can be (de)serialized as [Blob]s.
 
 pub mod longstring;
 pub mod simplearchive;

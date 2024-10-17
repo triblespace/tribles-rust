@@ -1,15 +1,36 @@
 //! Queries allow you to retrieve data by describing the patterns you are looking for.
 //!
 //! The query engine provided here has the design goals of extreme simplicity,
-//! low and consistent latency, skew resistence, with no tuning required (or possible).
-//! To achieve this it implements a novel constraint solving algorithm based on the theory
-//! of worst case optimal joins.
+//! low, consistent, and predictable latency, skew resistence, with no tuning required (or possible).
 //!
 //! New constraints can be implemented via the [Constraint] trait,
 //! providing great flexibililty in the way different query operators,
 //! sub-languages, and data-sources can be composed.
 //!
+//! # The Atreides Family of Worstcase Optimal Join Algorithms
+//! 
+//! The heart of the system is a constraint solving approach based on the theory
+//! of worst case optimal joins, specifically a family of novel join algorithms
+//! we dubbed the "Atreides-Family".
 //!
+//! The insigt being that we can use size estimations normally used by the query optimzer
+//! to directly guide the join algorithm to retrieve bounds which normally require
+//! sorted indexes for the random-access case.
+//! 
+//! As this moves a lot of the execution cost on cardinality estimation we also
+//! developed novel datastructures to efficiently maintain these estimates in O(1).
+//! 
+//! We focus on three specific instantiations of the "Atreides-Family",
+//! which differ in the quality of the cardiality estimation provided, i.e.
+//! the clarity that the algorithm has when looking into the future.
+//! 
+//! Given a _partial_ Binding.
+//! 
+//! - *Jessica's Join* - The smallest number of rows matching the variable.
+//! - *Paul's Join* - The smallest number of distinct values from one column matching the variable.
+//! - *Leto's Join* - The true number of values matching the variable (e.g. after intersection).
+//! 
+//! 
 pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;

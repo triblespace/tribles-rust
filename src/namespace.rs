@@ -1,6 +1,6 @@
 //! Namespaces give semantic meaning to the raw binary data stored in
-//! [crate::TribleSet]s and [crate::BlobSet]s and provide a mapping to human readable
-//! names and language schemas.
+//! [crate::TribleSet]s and [crate::BlobSet]s and provide a mapping from human readable
+//! names to attribute ids and schemas.
 //!
 //! Note that the namespace system (and in extend data model) presented here
 //! is just one of potentially many ways to create and query trible and blob data,

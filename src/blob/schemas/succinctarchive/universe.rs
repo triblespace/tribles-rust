@@ -136,7 +136,7 @@ mod tests {
 
     use sucds::int_vectors::DacsOpt;
 
-    use crate::id::{fucid, rngid, ufoid, id_into_value};
+    use crate::id::{fucid, id_into_value, rngid, ufoid};
 
     use super::{CompressedUniverse, OrderedUniverse, Universe};
 

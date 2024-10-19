@@ -1,14 +1,14 @@
-use crate::value::{
-    RawValue, Value, ValueSchema, TryPackValue, UnpackValue,
-    schemas::handle::Handle};
 use crate::blob::BlobSchema;
 use crate::id::RawId;
+use crate::value::{
+    schemas::handle::Handle, RawValue, TryPackValue, UnpackValue, Value, ValueSchema,
+};
 
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
-use std::marker::PhantomData;
 use hex_literal::hex;
+use std::marker::PhantomData;
 
 pub trait HashProtocol: Digest<OutputSize = U32> {
     const NAME: &'static str;
@@ -19,7 +19,12 @@ pub struct Hash<H> {
     _hasher: PhantomData<H>,
 }
 
-impl<H> ValueSchema for Hash<H> where H: HashProtocol {const ID: RawId = H::SCHEMA_ID;}
+impl<H> ValueSchema for Hash<H>
+where
+    H: HashProtocol,
+{
+    const ID: RawId = H::SCHEMA_ID;
+}
 
 impl<H> Hash<H>
 where
@@ -99,13 +104,13 @@ impl HashProtocol for Blake2b {
 
 impl HashProtocol for Blake3 {
     const NAME: &'static str = "blake3";
-    const SCHEMA_ID: RawId = hex!("4160218D6C8F620652ECFBD7FDC7BDB3");    
+    const SCHEMA_ID: RawId = hex!("4160218D6C8F620652ECFBD7FDC7BDB3");
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
     use super::Blake3;
+    use crate::prelude::*;
     use crate::value::schemas::hash::PackHashError;
     use rand;
 

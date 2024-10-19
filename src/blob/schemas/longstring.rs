@@ -31,8 +31,11 @@ mod tests {
     use anybytes::PackedStr;
 
     use crate::{
-        blob::{PackBlob, schemas::longstring::LongString},
-        value::{Value, schemas::{hash::Blake3, handle::Handle}},
+        blob::{schemas::longstring::LongString, PackBlob},
+        value::{
+            schemas::{handle::Handle, hash::Blake3},
+            Value,
+        },
     };
 
     #[test]

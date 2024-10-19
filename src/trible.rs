@@ -1,9 +1,9 @@
 use std::convert::TryInto;
 
 use crate::{
+    id::RawId,
     patch::{KeyOrdering, KeySegmentation},
-    value::{Value, ValueSchema, RawValue},
-    id::RawId
+    value::{RawValue, Value, ValueSchema},
 };
 use arbitrary::Arbitrary;
 

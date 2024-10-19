@@ -1,8 +1,9 @@
 use crate::blob::BlobSchema;
 use crate::id::RawId;
 use crate::value::{
+    schemas::hash::{Hash, HashProtocol},
     Value, ValueSchema,
-    schemas::hash::{Hash, HashProtocol}};
+};
 
 use std::marker::PhantomData;
 
@@ -18,4 +19,6 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
     }
 }
 
-impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {const ID: RawId = H::SCHEMA_ID;}
+impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
+    const ID: RawId = H::SCHEMA_ID;
+}

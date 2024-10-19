@@ -5,12 +5,12 @@ use triblesetconstraint::*;
 use crate::query::TriblePattern;
 
 use crate::patch::{Entry, PATCH};
+use crate::query::Variable;
 use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
     TRIBLE_LEN,
 };
-use crate::value::{ValueSchema, schemas::genid::GenId};
-use crate::query::Variable;
+use crate::value::{schemas::genid::GenId, ValueSchema};
 
 use std::iter::FromIterator;
 

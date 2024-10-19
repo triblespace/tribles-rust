@@ -1,7 +1,10 @@
-use crate::value::schemas::{hash::{Hash, HashProtocol}, handle::Handle};
-use crate::blob::{ Blob, BlobSchema, schemas::UnknownBlob};
-use crate::value::Value;
+use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::tribleset::TribleSet;
+use crate::value::schemas::{
+    handle::Handle,
+    hash::{Hash, HashProtocol},
+};
+use crate::value::Value;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -122,9 +125,10 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        blob::{PackBlob, schemas::longstring::LongString},
-        value::schemas::{hash::Blake3, handle::Handle},
-        tribleset::TribleSet, NS,
+        blob::{schemas::longstring::LongString, PackBlob},
+        tribleset::TribleSet,
+        value::schemas::{handle::Handle, hash::Blake3},
+        NS,
     };
 
     use super::*;

@@ -7,9 +7,10 @@ use std::marker::PhantomData;
 
 use crate::query::Variable;
 use crate::{
-    value::schemas::genid::GenId,
     id::RawId,
-    value::{RawValue, Value, ValueSchema}};
+    value::schemas::genid::GenId,
+    value::{RawValue, Value, ValueSchema},
+};
 
 use self::columnconstraint::ColumnConstraint;
 

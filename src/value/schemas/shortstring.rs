@@ -1,8 +1,8 @@
-use crate::value::{Value, ValueSchema, PackValue, TryPackValue, TryUnpackValue};
 use crate::id::RawId;
+use crate::value::{PackValue, TryPackValue, TryUnpackValue, Value, ValueSchema};
 
-use std::{str::Utf8Error, string::FromUtf8Error};
 use hex_literal::hex;
+use std::{str::Utf8Error, string::FromUtf8Error};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FromStrError {
@@ -12,7 +12,9 @@ pub enum FromStrError {
 
 pub struct ShortString;
 
-impl ValueSchema for ShortString {const ID: RawId = hex!("2D848DB0AF112DB226A6BF1A3640D019");}
+impl ValueSchema for ShortString {
+    const ID: RawId = hex!("2D848DB0AF112DB226A6BF1A3640D019");
+}
 
 impl<'a> TryUnpackValue<'a, ShortString> for String {
     type Error = FromUtf8Error;

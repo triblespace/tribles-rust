@@ -6,19 +6,20 @@ use ed25519::signature::Signer;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
+    id::RawId,
     namespace::NS,
     query::find,
+    tribleset::TribleSet,
     value::{
-        Value,
-        PackValue,
         schemas::{
             ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
+            genid::GenId,
+            handle::Handle,
             hash::Blake3,
-            genid::GenId, handle::Handle, shortstring::ShortString,
-        }
+            shortstring::ShortString,
+        },
+        PackValue, Value,
     },
-    id::RawId,
-    tribleset::TribleSet,
 };
 
 NS! {

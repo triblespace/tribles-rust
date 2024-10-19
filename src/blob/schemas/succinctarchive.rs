@@ -1,12 +1,12 @@
 mod succinctarchiveconstraint;
 mod universe;
 
-use succinctarchiveconstraint::*;
-use crate::tribleset::TribleSet;
+use crate::id::id_into_value;
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::value::{ RawValue, ValueSchema, schemas::genid::GenId};
-use crate::id::id_into_value;
+use crate::tribleset::TribleSet;
+use crate::value::{schemas::genid::GenId, RawValue, ValueSchema};
+use succinctarchiveconstraint::*;
 
 pub use universe::*;
 
@@ -248,11 +248,11 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::value::{TryPackValue, schemas::shortstring::ShortString};
-    use crate::query::find;
-    use crate::trible::Trible;
     use crate::id::ufoid;
     use crate::namespace::NS;
+    use crate::query::find;
+    use crate::trible::Trible;
+    use crate::value::{schemas::shortstring::ShortString, TryPackValue};
 
     use super::*;
     use itertools::Itertools;

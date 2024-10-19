@@ -1,8 +1,13 @@
-use crate::value::{Value, schemas::hash::{Hash, HashProtocol}};
+use crate::value::{
+    schemas::hash::{Hash, HashProtocol},
+    Value,
+};
 
 #[derive(Debug)]
 pub enum CommitResult<H>
-where H: HashProtocol {
+where
+    H: HashProtocol,
+{
     Success(),
     Conflict(Option<Value<Hash<H>>>),
 }

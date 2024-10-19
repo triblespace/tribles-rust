@@ -1,6 +1,6 @@
 use crate::{
     patch::{IdentityOrder, SingleSegmentation, PATCH},
-    value::{RawValue, ValueSchema, VALUE_LEN}
+    value::{RawValue, ValueSchema, VALUE_LEN},
 };
 
 use super::{Binding, Constraint, ContainsConstraint, Variable, VariableId, VariableSet};

@@ -3,7 +3,7 @@ pub mod schemas;
 use crate::{
     id::RawId,
     value::schemas::{handle::Handle, hash::HashProtocol},
-    value::{ Value, ValueSchema}
+    value::{Value, ValueSchema},
 };
 
 use std::{
@@ -31,7 +31,7 @@ impl<S: BlobSchema> Blob<S> {
     pub fn as_handle<H>(&self) -> Value<Handle<H, S>>
     where
         H: HashProtocol,
-        Handle<H, S>: ValueSchema
+        Handle<H, S>: ValueSchema,
     {
         let digest = H::digest(&self.bytes);
         Value::new(digest.into())

@@ -14,8 +14,14 @@ use url::Url;
 use hex::FromHex;
 
 use crate::blob::schemas::UnknownBlob;
-use crate::value::{RawValue, Value, ValueSchema, schemas::{handle::Handle, hash::{Hash, HashProtocol}}};
 use crate::blob::{Blob, BlobSchema};
+use crate::value::{
+    schemas::{
+        handle::Handle,
+        hash::{Hash, HashProtocol},
+    },
+    RawValue, Value, ValueSchema,
+};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};
@@ -103,7 +109,7 @@ where
     ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
     where
         T: BlobSchema,
-        Handle<H, T>: ValueSchema
+        Handle<H, T>: ValueSchema,
     {
         async move {
             let handle = blob.as_handle();

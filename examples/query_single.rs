@@ -49,11 +49,11 @@ fn main() {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-                {name: ("Romeo".try_pack().unwrap()),
-                loves: juliet},
-                {juliet @
-                    name: name
-                }])
+            {name: ("Romeo".try_pack().unwrap()),
+            loves: juliet},
+            {juliet @
+                name: name
+            }])
         ) {
             coz::progress!();
         }

@@ -1,14 +1,16 @@
-use crate::value::{Value, ValueSchema, PackValue, UnpackValue};
 use crate::id::RawId;
+use crate::value::{PackValue, UnpackValue, Value, ValueSchema};
 
 use std::convert::TryInto;
 
-use hifitime::prelude::*;
 use hex_literal::hex;
+use hifitime::prelude::*;
 
 pub struct NsTAIInterval;
 
-impl ValueSchema for NsTAIInterval {const ID: RawId = hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");}
+impl ValueSchema for NsTAIInterval {
+    const ID: RawId = hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");
+}
 
 impl PackValue<NsTAIInterval> for (Epoch, Epoch) {
     fn pack(&self) -> Value<NsTAIInterval> {

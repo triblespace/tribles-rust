@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{Value, ValueSchema, VALUE_LEN, PackValue, TryPackValue, TryUnpackValue };
+use crate::value::{PackValue, TryPackValue, TryUnpackValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -13,7 +13,9 @@ use hex_literal::hex;
 
 pub struct GenId;
 
-impl ValueSchema for GenId {const ID: RawId = hex!("B08EE1D45EB081E8C47618178AFE0D81");}
+impl ValueSchema for GenId {
+    const ID: RawId = hex!("B08EE1D45EB081E8C47618178AFE0D81");
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GenIdParseError {

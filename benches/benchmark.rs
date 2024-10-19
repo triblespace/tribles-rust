@@ -13,10 +13,10 @@ use tribles::blob::schemas::succinctarchive::{
 
 use tribles::prelude::*;
 
-use tribles::test::hashtribleset::HashTribleSet;
+use tribles::id::fucid::FUCIDgen;
 use tribles::patch::{Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
-use tribles::id::fucid::FUCIDgen;
+use tribles::test::hashtribleset::HashTribleSet;
 
 use im::OrdSet;
 
@@ -250,7 +250,8 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let archive: SuccinctArchive<CompressedUniverse<DacsByte>, Rank9Sel> = (&set).into();
+                let archive: SuccinctArchive<CompressedUniverse<DacsByte>, Rank9Sel> =
+                    (&set).into();
                 let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                 let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
                 let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;

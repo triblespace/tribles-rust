@@ -16,4 +16,6 @@ pub mod shortstring;
 pub mod time;
 
 pub struct UnknownValue {}
-impl ValueSchema for UnknownValue {const ID: RawId = hex!("4EC697E8599AC79D667C722E2C8BEBF4");}
+impl ValueSchema for UnknownValue {
+    const ID: RawId = hex!("4EC697E8599AC79D667C722E2C8BEBF4");
+}

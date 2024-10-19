@@ -1,14 +1,8 @@
-use tribles::column::Column;
-use tribles::query::and;
-use tribles::query::find;
+use tribles::prelude::*;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use tribles::ufoid;
-use tribles::valueschemas::GenId;
-use tribles::valueschemas::ShortString;
-use tribles::valueschemas::TryPackValue;
 
 fn main() {
     let mut name: Column<ShortString> = Column::new();

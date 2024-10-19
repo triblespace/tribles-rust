@@ -1,7 +1,7 @@
 use crate::{
-    id_into_value,
+    id::id_into_value,
     query::{Binding, Constraint, Variable, VariableId, VariableSet},
-    RawValue,
+    value::RawValue,
 };
 
 use super::*;

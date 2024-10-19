@@ -1,14 +1,14 @@
 pub mod fucid;
-pub mod genid;
+pub mod rngid;
 pub mod ufoid;
 
 use std::convert::TryInto;
 
 pub use fucid::fucid;
-pub use genid::genid;
+pub use rngid::rngid;
 pub use ufoid::ufoid;
 
-use crate::{RawValue, VALUE_LEN};
+use crate::value::{RawValue, VALUE_LEN};
 
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];

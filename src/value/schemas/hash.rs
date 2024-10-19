@@ -1,11 +1,14 @@
-use crate::{valueschemas::Handle, BlobSchema, RawId, RawValue, Value, ValueSchema};
+use crate::value::{
+    RawValue, Value, ValueSchema, TryPackValue, UnpackValue,
+    schemas::handle::Handle};
+use crate::blob::BlobSchema;
+use crate::id::RawId;
+
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
 use std::marker::PhantomData;
 use hex_literal::hex;
-
-use super::{TryPackValue, UnpackValue};
 
 pub trait HashProtocol: Digest<OutputSize = U32> {
     const NAME: &'static str;
@@ -101,11 +104,9 @@ impl HashProtocol for Blake3 {
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::*;
     use super::Blake3;
-    use crate::{
-        valueschemas::{hash::PackHashError, TryPackValue},
-        Value,
-    };
+    use crate::value::schemas::hash::PackHashError;
     use rand;
 
     use super::Hash;

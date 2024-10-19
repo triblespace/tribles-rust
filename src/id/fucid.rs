@@ -1,4 +1,4 @@
-use crate::RawId;
+use crate::id::RawId;
 
 use rand::thread_rng;
 use rand::RngCore;

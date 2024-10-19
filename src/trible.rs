@@ -2,11 +2,10 @@ use std::convert::TryInto;
 
 use crate::{
     patch::{KeyOrdering, KeySegmentation},
-    Value, ValueSchema,
+    value::{Value, ValueSchema, RawValue},
+    id::RawId
 };
 use arbitrary::Arbitrary;
-
-use crate::{RawId, RawValue};
 
 pub const TRIBLE_LEN: usize = 64;
 pub const E_START: usize = 0;

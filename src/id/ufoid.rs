@@ -1,4 +1,5 @@
-use crate::RawId;
+use crate::id::RawId;
+
 use rand::{thread_rng, RngCore};
 use std::time::{SystemTime, UNIX_EPOCH};
 

@@ -9,7 +9,9 @@ use crate::trible::{
     AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
     TRIBLE_LEN,
 };
-use crate::{valueschemas::GenId, RawValue, ValueSchema};
+use crate::value::{ValueSchema, schemas::genid::GenId};
+use crate::query::Variable;
+
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone)]
@@ -87,9 +89,9 @@ impl TriblePattern for TribleSet {
 
     fn pattern<'a, V: ValueSchema>(
         &'a self,
-        e: crate::query::Variable<GenId>,
-        a: crate::query::Variable<GenId>,
-        v: crate::query::Variable<V>,
+        e: Variable<GenId>,
+        a: Variable<GenId>,
+        v: Variable<V>,
     ) -> Self::PatternConstraint<'static> {
         TribleSetConstraint::new(e, a, v, self.clone())
     }
@@ -97,13 +99,7 @@ impl TriblePattern for TribleSet {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::{
-        ufoid,
-        valueschemas::GenId,
-        valueschemas::{ShortString, TryPackValue},
-        NS,
-    };
+    use crate::prelude::*;
 
     use super::*;
     use fake::{faker::name::raw::Name, locales::EN, Fake};

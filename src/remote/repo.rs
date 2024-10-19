@@ -6,7 +6,10 @@ use std::{
 
 use futures::{stream, Stream, StreamExt};
 
-use crate::{blobschemas::UnknownBlob, valueschemas::{Handle, HashProtocol}, Blob, BlobSchema, BlobSet, Value, ValueSchema};
+use crate::{
+    value::{Value, ValueSchema, schemas::{handle::Handle, hash::HashProtocol}},
+    blob::{Blob, BlobSchema, schemas::UnknownBlob},
+    blobset::BlobSet};
 
 #[derive(Debug)]
 pub enum TransferError<ListErr, LoadErr, StoreErr> {

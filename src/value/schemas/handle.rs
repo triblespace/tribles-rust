@@ -1,10 +1,10 @@
+use crate::blob::BlobSchema;
+use crate::id::RawId;
+use crate::value::{
+    Value, ValueSchema,
+    schemas::hash::{Hash, HashProtocol}};
+
 use std::marker::PhantomData;
-
-use crate::valueschemas::Hash;
-
-use crate::{BlobSchema, RawId, Value, ValueSchema};
-
-use super::HashProtocol;
 
 #[repr(transparent)]
 pub struct Handle<H, T> {

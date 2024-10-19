@@ -1,12 +1,11 @@
+pub mod schemas;
+
+use crate::id::RawId;
+
 use core::fmt;
 use std::{cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
-
-use crate::{
-    valueschemas::{TryUnpackValue, UnpackValue},
-    ValueSchema,
-};
 
 pub const VALUE_LEN: usize = 32;
 pub type RawValue = [u8; VALUE_LEN];
@@ -95,4 +94,34 @@ impl<T: ValueSchema> Debug for Value<T> {
             ToHex::encode_hex::<String>(&self.bytes)
         )
     }
+}
+
+pub trait ValueSchema: Sized {
+    const ID: RawId;
+
+    fn pack<T: PackValue<Self> + ?Sized>(t: &T) -> Value<Self> {
+        t.pack()
+    }
+
+    fn try_pack<T: TryPackValue<Self> + ?Sized>(
+        t: &T,
+    ) -> Result<Value<Self>, <T as TryPackValue<Self>>::Error> {
+        t.try_pack()
+    }
+}
+
+pub trait PackValue<S: ValueSchema> {
+    fn pack(&self) -> Value<S>;
+}
+pub trait UnpackValue<'a, S: ValueSchema> {
+    fn unpack(v: &'a Value<S>) -> Self;
+}
+
+pub trait TryPackValue<S: ValueSchema> {
+    type Error;
+    fn try_pack(&self) -> Result<Value<S>, Self::Error>;
+}
+pub trait TryUnpackValue<'a, S: ValueSchema>: Sized {
+    type Error;
+    fn try_unpack(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }

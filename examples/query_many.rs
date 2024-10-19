@@ -1,10 +1,4 @@
-use tribles::valueschemas::TryPackValue;
-use tribles::{
-    query::find,
-    ufoid,
-    valueschemas::{GenId, ShortString},
-    TribleSet, NS,
-};
+use tribles::prelude::*;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;

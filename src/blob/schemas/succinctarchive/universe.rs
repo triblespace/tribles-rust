@@ -1,5 +1,4 @@
-use crate::RawValue;
-use crate::VALUE_LEN;
+use crate::value::{RawValue, VALUE_LEN};
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
@@ -137,7 +136,7 @@ mod tests {
 
     use sucds::int_vectors::DacsOpt;
 
-    use crate::{fucid, genid, id_into_value, ufoid};
+    use crate::id::{fucid, rngid, ufoid, id_into_value};
 
     use super::{CompressedUniverse, OrderedUniverse, Universe};
 
@@ -148,7 +147,7 @@ mod tests {
         let count_data: Vec<_> = (0..size as u128)
             .map(|id| id_into_value(&id.to_be_bytes()))
             .collect();
-        let genid_data: Vec<_> = repeat_with(|| id_into_value(&genid())).take(size).collect();
+        let genid_data: Vec<_> = repeat_with(|| id_into_value(&rngid())).take(size).collect();
         let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid())).take(size).collect();
         let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid())).take(size).collect();
 
@@ -182,7 +181,7 @@ mod tests {
         let count_data: Vec<_> = (0..size as u128)
             .map(|id| id_into_value(&id.to_be_bytes()))
             .collect();
-        let genid_data: Vec<_> = repeat_with(|| id_into_value(&genid())).take(size).collect();
+        let genid_data: Vec<_> = repeat_with(|| id_into_value(&rngid())).take(size).collect();
         let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid())).take(size).collect();
         let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid())).take(size).collect();
 

@@ -43,13 +43,10 @@ use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-pub use constantconstraint::*;
-pub use hashsetconstraint::*;
-pub use intersectionconstraint::*;
-pub use mask::*;
-pub use patchconstraint::*;
+use constantconstraint::*;
+use mask::*;
 
-use crate::{valueschemas::GenId, RawValue, Value, ValueSchema};
+use crate::value::{RawValue, Value, ValueSchema, schemas::genid::GenId};
 
 pub use variableset::VariableSet;
 
@@ -354,17 +351,9 @@ pub use find;
 
 #[cfg(test)]
 mod tests {
-    //use fake::faker::name::raw::*;
-    //use fake::locales::*;
-    //use fake::{Dummy, Fake, Faker};
-    use std::collections::HashSet;
+    use crate::prelude::*;
 
-    //use crate::tribleset::patchtribleset::PATCHTribleSet;
-    use crate::{
-        ufoid,
-        valueschemas::{iu256::I256BE, GenId, ShortString, TryPackValue},
-        TribleSet, NS,
-    };
+    use std::collections::HashSet;
 
     use super::*;
 

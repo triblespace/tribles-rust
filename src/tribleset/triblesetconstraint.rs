@@ -1,14 +1,12 @@
 use core::panic;
-//use std::convert::TryInto;
-//use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
-use super::*;
-use crate::id_from_value;
-use crate::id_into_value;
-use crate::query::*;
-use crate::ValueSchema;
-use crate::ID_LEN;
-use crate::VALUE_LEN;
+use crate::id::{
+    ID_LEN,
+    id_from_value,
+    id_into_value};
+use crate::query::{Variable, VariableId, VariableSet, Binding, Constraint};
+use crate::value::{VALUE_LEN, RawValue, ValueSchema, schemas::genid::GenId};
+use crate::tribleset::TribleSet;
 
 pub struct TribleSetConstraint {
     variable_e: VariableId,
@@ -372,8 +370,8 @@ mod tests {
         find,
         query::{TriblePattern, Variable},
         trible::Trible,
-        valueschemas::UnknownValue,
-        TribleSet, Value,
+        value::{Value, schemas::UnknownValue},
+        tribleset::TribleSet,
     };
 
     #[test]

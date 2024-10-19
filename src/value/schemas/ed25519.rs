@@ -3,9 +3,8 @@ use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
 use hex_literal::hex;
 
-use crate::{RawId, Value, ValueSchema};
-
-use super::{PackValue, TryUnpackValue, UnpackValue};
+use crate::id::RawId;
+use crate::value::{ Value, ValueSchema, PackValue, TryUnpackValue, UnpackValue};
 
 pub struct ED25519RComponent;
 pub struct ED25519SComponent;

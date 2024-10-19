@@ -1,13 +1,15 @@
+pub mod schemas;
+
+use crate::{
+    id::RawId,
+    value::schemas::{handle::Handle, hash::HashProtocol},
+    value::{ Value, ValueSchema}
+};
+
 use std::{
     fmt::{self, Debug},
     hash::Hash,
     marker::PhantomData,
-};
-
-use crate::{
-    blobschemas::{BlobSchema, TryUnpackBlob, UnpackBlob},
-    valueschemas::{Handle, HashProtocol},
-    Value, ValueSchema,
 };
 
 pub use anybytes::Bytes;
@@ -77,4 +79,35 @@ impl<T: BlobSchema> Debug for Blob<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Blob<{}>", std::any::type_name::<T>())
     }
+}
+
+pub trait BlobSchema: Sized {
+    const ID: RawId;
+
+    fn pack<T: PackBlob<Self> + ?Sized>(t: &T) -> Blob<Self> {
+        t.pack()
+    }
+
+    fn try_pack<T: TryPackBlob<Self> + ?Sized>(
+        t: &T,
+    ) -> Result<Blob<Self>, <T as TryPackBlob<Self>>::Error> {
+        t.try_pack()
+    }
+}
+
+pub trait PackBlob<S: BlobSchema> {
+    fn pack(&self) -> Blob<S>;
+}
+pub trait UnpackBlob<'a, S: BlobSchema> {
+    fn unpack(b: &'a Blob<S>) -> Self;
+}
+
+pub trait TryPackBlob<S: BlobSchema> {
+    type Error;
+    fn try_pack(&self) -> Result<Blob<S>, Self::Error>;
+}
+
+pub trait TryUnpackBlob<'a, S: BlobSchema>: Sized {
+    type Error;
+    fn try_unpack(b: &'a Blob<S>) -> Result<Self, Self::Error>;
 }

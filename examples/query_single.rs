@@ -1,10 +1,4 @@
-use tribles::valueschemas::TryPackValue;
-use tribles::{
-    query::find,
-    ufoid,
-    valueschemas::{GenId, ShortString},
-    TribleSet, NS,
-};
+use tribles::prelude::*;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
@@ -55,11 +49,11 @@ fn main() {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_pack().unwrap()),
-             loves: juliet},
-            {juliet @
-                name: name
-            }])
+                {name: ("Romeo".try_pack().unwrap()),
+                loves: juliet},
+                {juliet @
+                    name: name
+                }])
         ) {
             coz::progress!();
         }

@@ -6,7 +6,10 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use crate::query::Variable;
-use crate::{valueschemas::GenId, RawId, RawValue, Value, ValueSchema};
+use crate::{
+    value::schemas::genid::GenId,
+    id::RawId,
+    value::{RawValue, Value, ValueSchema}};
 
 use self::columnconstraint::ColumnConstraint;
 
@@ -55,7 +58,7 @@ impl<'a, V: ValueSchema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::valueschemas::genid::RandomGenId;
+    use crate::value::schemas::genid::RandomGenId;
     use proptest::prelude::*;
 
     proptest! {

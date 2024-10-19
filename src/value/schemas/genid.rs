@@ -1,22 +1,15 @@
+use crate::id::RawId;
+use crate::value::{Value, ValueSchema, VALUE_LEN, PackValue, TryPackValue, TryUnpackValue };
+
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-pub use crate::fucid;
-pub use crate::genid::genid;
-pub use crate::ufoid::ufoid;
-use crate::RawId;
 use hex::FromHex;
 use hex::FromHexError;
 
 use rand::RngCore;
 
 use hex_literal::hex;
-
-use crate::valueschemas::TryPackValue;
-use crate::valueschemas::TryUnpackValue;
-use crate::{Value, ValueSchema, VALUE_LEN};
-
-use super::PackValue;
 
 pub struct GenId;
 
@@ -147,10 +140,10 @@ impl proptest::strategy::ValueTree for IdValueTree {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::id::rngid;
 
     #[test]
     fn unique() {
-        assert!(genid() != genid());
+        assert!(rngid() != rngid());
     }
 }

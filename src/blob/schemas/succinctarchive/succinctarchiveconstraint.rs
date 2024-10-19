@@ -1,12 +1,10 @@
 use core::panic;
 use std::ops::Not;
 use std::ops::Range;
-//use std::convert::TryInto;
-//use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use super::*;
 use crate::query::*;
-use crate::valueschemas::GenId;
+use crate::value::schemas::genid::GenId;
 
 pub struct SuccinctArchiveConstraint<'a, U, B>
 where

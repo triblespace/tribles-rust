@@ -1,10 +1,12 @@
+use crate::{
+    blob::{Blob, BlobSchema, PackBlob, TryUnpackBlob}, trible::{A_END, A_START, E_END, E_START},
+    id::RawId,
+    tribleset::TribleSet
+};
+
 use anybytes::{Bytes, PackedSlice};
 use hex_literal::hex;
 use std::convert::TryInto;
-
-use crate::{
-    blobschemas::{PackBlob, TryUnpackBlob}, trible::{A_END, A_START, E_END, E_START}, Blob, BlobSchema, RawId, TribleSet
-};
 
 pub struct SimpleArchive;
 
@@ -13,7 +15,7 @@ impl BlobSchema for SimpleArchive {
 }
 
 impl PackBlob<SimpleArchive> for TribleSet {
-    fn pack(&self) -> crate::Blob<SimpleArchive> {
+    fn pack(&self) -> Blob<SimpleArchive> {
         let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
         tribles.extend(self.eav.iter_prefix::<64>().map(|p| p.0));
         let bytes: Bytes = tribles.into();

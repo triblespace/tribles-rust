@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{id_from_value, id_into_value, RawId};
-
-use super::*;
+use crate::id::{id_from_value, id_into_value, RawId};
+use crate::value::{RawValue, schemas::genid::GenId};
+use crate::query::{Variable, VariableId, Constraint, ContainsConstraint, VariableSet, Binding};
 
 pub struct KeysConstraint<'a, T> {
     variable: Variable<GenId>,

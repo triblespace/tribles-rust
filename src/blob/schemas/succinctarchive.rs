@@ -1,14 +1,17 @@
 mod succinctarchiveconstraint;
 mod universe;
 
-use std::convert::TryInto;
-use std::iter;
 use succinctarchiveconstraint::*;
-
+use crate::tribleset::TribleSet;
 use crate::query::TriblePattern;
 use crate::trible::Trible;
-use crate::RawValue;
-use crate::{id_into_value, valueschemas::GenId, ValueSchema};
+use crate::value::{ RawValue, ValueSchema, schemas::genid::GenId};
+use crate::id::id_into_value;
+
+pub use universe::*;
+
+use std::convert::TryInto;
+use std::iter;
 
 use itertools::Itertools;
 
@@ -17,10 +20,6 @@ use sucds::char_sequences::WaveletMatrix;
 use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 
 use sucds::int_vectors::CompactVector;
-
-use crate::TribleSet;
-
-pub use universe::*;
 
 #[derive(Debug, Clone)]
 pub struct SuccinctArchive<U, B> {
@@ -249,8 +248,11 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::valueschemas::TryPackValue;
-    use crate::{find, trible::Trible, ufoid, valueschemas::ShortString, NS};
+    use crate::value::{TryPackValue, schemas::shortstring::ShortString};
+    use crate::query::find;
+    use crate::trible::Trible;
+    use crate::id::ufoid;
+    use crate::namespace::NS;
 
     use super::*;
     use itertools::Itertools;

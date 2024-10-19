@@ -7,25 +7,16 @@ use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
 use sucds::int_vectors::{DacsByte, DacsOpt};
 use sucds::Serializable;
-use tribles::blobschemas::succinctarchive::{
+use tribles::blob::schemas::succinctarchive::{
     CompressedUniverse, OrderedUniverse, SuccinctArchive, Universe,
 };
-use tribles::column::Column;
-use tribles::fucid::FUCIDgen;
-use tribles::valueschemas::TryPackValue;
-use tribles::{
-    and,
-    valueschemas::{GenId, ShortString},
-    NS,
-};
+
+use tribles::prelude::*;
 
 use tribles::test::hashtribleset::HashTribleSet;
-use tribles::{find, trible::*};
-use tribles::{fucid, ufoid};
-
 use tribles::patch::{Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
-use tribles::TribleSet;
+use tribles::id::fucid::FUCIDgen;
 
 use im::OrdSet;
 

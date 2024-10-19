@@ -2,26 +2,15 @@
 
 # About
 
-> The real tragedy would be if people forgot that you can have new ideas about programming models in the first place. - [Bret Victor](https://worrydream.com/dbx/)
+> The real tragedy would be if people forgot that you can have new ideas about programming models in the first place. <br/> - [Bret Victor](https://worrydream.com/dbx/)
 
-The trible.space is our answer to the question "what if we re-invented data storage from first principles".
+The [trible.space](https://trible.space) is our answer to the question "what if we re-invented data storage from first principles".
 It is a knowledge graph standard for blob storage that provides metadata management capabilities similar to file- and version-control-systems
 with the queryability and convenience of an embedded database.
 
-We hope to overcome the shortcomings of previous semantic web/triple-store technologies, through simplicity, easy canonicalization leveraging cryptographic methods, clean distributed semantics and lightweight libraries empowered by individual host-language capabilities.
+We hope to overcome the shortcomings of previous semantic web/triple-store technologies, through simplicity, easy canonicalization and cryptographic identifiers, clean distributed semantics and lightweight libraries empowered by individual host-language capabilities.
 
 By reifying most concepts and operations as first class citizens, we hope to provide a toolkit that can be flexibly combined to serve a variety of knowledge representation, database, and data exchange use cases.
-
-# Getting Started
-
-```rust
-use tribles;
-
-
-
-let set = Tribleset::new();
-
-```
 
 # Differentiators
 
@@ -42,3 +31,38 @@ providing build-in version control.
 # Community
 
 If you have any questions or want to chat about graph databases hop into our [discord](https://discord.gg/v7AezPywZS).
+
+# Getting Started
+
+```rust
+use tribles::prelude::*;
+
+NS! {
+    pub namespace literature {
+        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
+        "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
+        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
+        "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
+        "76AE5012877E09FF0EE0868FE9AA0343" as height: Fraction;
+        "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
+    }
+}
+
+let mut blobs = BlobSet::new();
+let mut set = Tribleset::new();
+
+let author_id = ufoid();
+
+set.union(literature::entity!(author_id, {
+            firstname: "Frank".try_pack().unwrap(),
+            lastname: "Herbert".try_pack().unwrap(),
+        }));
+
+set.union(literature::entity!({
+            name: "Dune".try_pack().unwrap(),
+            author: author_id
+            quote: blobs.insert("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.".pack())
+            quote: blobs.insert("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.".pack())
+        }));
+
+```

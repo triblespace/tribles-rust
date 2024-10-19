@@ -5,15 +5,20 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    blobschemas::SimpleArchive,
+    blob::schemas::simplearchive::SimpleArchive,
     namespace::NS,
     query::find,
-    valueschemas::{
-        ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
-        hash::Blake3,
-        GenId, Handle, PackValue, ShortString,
+    value::{
+        Value,
+        PackValue,
+        schemas::{
+            ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
+            hash::Blake3,
+            genid::GenId, handle::Handle, shortstring::ShortString,
+        }
     },
-    RawId, TribleSet, Value,
+    id::RawId,
+    tribleset::TribleSet,
 };
 
 NS! {

@@ -13,10 +13,9 @@ use url::Url;
 
 use hex::FromHex;
 
-use crate::blobschemas::UnknownBlob;
-use crate::valueschemas::{Handle, HashProtocol};
-use crate::{valueschemas::Hash, RawValue};
-use crate::{Blob, BlobSchema, Value, ValueSchema};
+use crate::blob::schemas::UnknownBlob;
+use crate::value::{RawValue, Value, ValueSchema, schemas::{handle::Handle, hash::{Hash, HashProtocol}}};
+use crate::blob::{Blob, BlobSchema};
 
 use super::head::{CommitResult, Head};
 use super::repo::{List, Pull, Push};

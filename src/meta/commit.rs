@@ -14,8 +14,7 @@ use crate::{
         schemas::{
             ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
             genid::GenId,
-            handle::Handle,
-            hash::Blake3,
+            hash::{Blake3, Handle},
             shortstring::ShortString,
         },
         PackValue, Value,

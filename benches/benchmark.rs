@@ -11,6 +11,7 @@ use tribles::blob::schemas::succinctarchive::{
     CompressedUniverse, OrderedUniverse, SuccinctArchive, Universe,
 };
 
+use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use tribles::id::fucid::FUCIDgen;

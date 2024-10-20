@@ -16,10 +16,7 @@ use hex::FromHex;
 use crate::blob::schemas::UnknownBlob;
 use crate::blob::{Blob, BlobSchema};
 use crate::value::{
-    schemas::{
-        handle::Handle,
-        hash::{Hash, HashProtocol},
-    },
+    schemas::hash::{Handle, Hash, HashProtocol},
     RawValue, Value, ValueSchema,
 };
 

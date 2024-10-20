@@ -2,7 +2,7 @@ pub mod schemas;
 
 use crate::{
     id::RawId,
-    value::schemas::{handle::Handle, hash::HashProtocol},
+    value::schemas::hash::{Handle, HashProtocol},
     value::{Value, ValueSchema},
 };
 

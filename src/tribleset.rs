@@ -99,6 +99,7 @@ impl TriblePattern for TribleSet {
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
     use super::*;

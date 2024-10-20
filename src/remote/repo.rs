@@ -10,7 +10,7 @@ use crate::{
     blob::{schemas::UnknownBlob, Blob, BlobSchema},
     blobset::BlobSet,
     value::{
-        schemas::{handle::Handle, hash::HashProtocol},
+        schemas::hash::{Handle, HashProtocol},
         Value, ValueSchema,
     },
 };

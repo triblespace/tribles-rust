@@ -351,6 +351,9 @@ pub use find;
 
 #[cfg(test)]
 mod tests {
+    use valueschemas::ShortString;
+
+    use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
     use std::collections::HashSet;

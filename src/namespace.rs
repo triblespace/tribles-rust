@@ -118,8 +118,8 @@ pub use hex_literal;
 ///
 /// NS! {
 ///     pub namespace namespace_name {
-///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::value::schemas::GenId;
-///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::value::schemas::ShortString;
+///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::value::schemas::genid::GenId;
+///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::value::schemas::shortstring::ShortString;
 ///     }
 /// }
 /// ```
@@ -132,13 +132,13 @@ pub use hex_literal;
 ///   pub mod ids {
 ///       use super::*;
 ///       use hex_literal::hex;
-///       pub const attr_name: tribles::RawId  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
-///       pub const attr_name2: tribles::RawId  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
+///       pub const attr_name: tribles::id::RawId  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
+///       pub const attr_name2: tribles::id::RawId  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
 ///   }
 ///   pub mod schemas {
 ///       use super::*;
-///       pub use tribles::value::schemas::GenId as attr_name;
-///       pub use tribles::value::schemas::ShortString as attr_name2;
+///       pub use tribles::value::schemas::genid::GenId as attr_name;
+///       pub use tribles::value::schemas::shortstring::ShortString as attr_name2;
 ///   }
 /// }
 /// ```
@@ -217,6 +217,7 @@ pub use NS;
 mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
+    use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
     NS! {

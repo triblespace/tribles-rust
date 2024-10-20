@@ -1,8 +1,6 @@
 use crate::blob::BlobSchema;
 use crate::id::RawId;
-use crate::value::{
-    schemas::handle::Handle, RawValue, TryPackValue, UnpackValue, Value, ValueSchema,
-};
+use crate::value::{RawValue, TryPackValue, UnpackValue, Value, ValueSchema};
 
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
@@ -105,6 +103,22 @@ impl HashProtocol for Blake2b {
 impl HashProtocol for Blake3 {
     const NAME: &'static str = "blake3";
     const SCHEMA_ID: RawId = hex!("4160218D6C8F620652ECFBD7FDC7BDB3");
+}
+
+#[repr(transparent)]
+pub struct Handle<H, T> {
+    digest: Hash<H>,
+    _type: PhantomData<T>,
+}
+
+impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>> {
+    fn from(value: Value<Handle<H, T>>) -> Self {
+        Value::new(value.bytes)
+    }
+}
+
+impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
+    const ID: RawId = H::SCHEMA_ID;
 }
 
 #[cfg(test)]

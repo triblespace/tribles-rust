@@ -33,7 +33,7 @@ mod tests {
     use crate::{
         blob::{schemas::longstring::LongString, PackBlob},
         value::{
-            schemas::{handle::Handle, hash::Blake3},
+            schemas::hash::{Blake3, Handle},
             Value,
         },
     };

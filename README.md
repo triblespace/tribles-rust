@@ -32,10 +32,12 @@ providing build-in version control.
 
 If you have any questions or want to chat about graph databases hop into our [discord](https://discord.gg/v7AezPywZS).
 
-# Getting Started
+# Example
 
 ```rust
 use tribles::prelude::*;
+use tribles::prelude::valueschemas::*;
+use tribles::prelude::blobschemas::*;
 
 NS! {
     pub namespace literature {
@@ -43,26 +45,28 @@ NS! {
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
         "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
-        "76AE5012877E09FF0EE0868FE9AA0343" as height: Fraction;
+        "76AE5012877E09FF0EE0868FE9AA0343" as height: FR256;
         "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
     }
 }
 
-let mut blobs = BlobSet::new();
-let mut set = Tribleset::new();
+fn main() -> std::io::Result<()> {
+    let mut blobs = BlobSet::new();
+    let mut set = TribleSet::new();
 
-let author_id = ufoid();
+    let author_id = ufoid();
 
-set.union(literature::entity!(author_id, {
-            firstname: "Frank".try_pack().unwrap(),
-            lastname: "Herbert".try_pack().unwrap(),
-        }));
+    set.union(literature::entity!(author_id, {
+                firstname: "Frank".try_pack().unwrap(),
+                lastname: "Herbert".try_pack().unwrap(),
+            }));
 
-set.union(literature::entity!({
-            name: "Dune".try_pack().unwrap(),
-            author: author_id
-            quote: blobs.insert("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.".pack())
-            quote: blobs.insert("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.".pack())
-        }));
-
+    set.union(literature::entity!({
+                name: "Dune".try_pack().unwrap(),
+                author: author_id,
+                quote: blobs.insert("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.".pack()),
+                quote: blobs.insert("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.".pack())
+            }));
+    Ok(())
+}
 ```

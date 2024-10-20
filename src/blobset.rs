@@ -1,9 +1,6 @@
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::tribleset::TribleSet;
-use crate::value::schemas::{
-    handle::Handle,
-    hash::{Hash, HashProtocol},
-};
+use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
 use crate::value::Value;
 
 use std::collections::HashMap;
@@ -127,7 +124,7 @@ mod tests {
     use crate::{
         blob::{schemas::longstring::LongString, PackBlob},
         tribleset::TribleSet,
-        value::schemas::{handle::Handle, hash::Blake3},
+        value::schemas::hash::{Blake3, Handle},
         NS,
     };
 

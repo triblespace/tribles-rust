@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{PackValue, UnpackValue, Value, ValueSchema};
+use crate::value::{ToValue, FromValue, Value, ValueSchema};
 
 use std::convert::TryInto;
 
@@ -18,8 +18,8 @@ impl ValueSchema for FR256BE {
     const ID: RawId = hex!("CA5EAF567171772C1FFD776E9C7C02D1");
 }
 
-impl UnpackValue<'_, FR256BE> for Ratio<i128> {
-    fn unpack(v: &Value<FR256BE>) -> Self {
+impl FromValue<'_, FR256BE> for Ratio<i128> {
+    fn from_value(v: &Value<FR256BE>) -> Self {
         let n = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
         let d = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
 
@@ -27,8 +27,8 @@ impl UnpackValue<'_, FR256BE> for Ratio<i128> {
     }
 }
 
-impl PackValue<FR256BE> for Ratio<i128> {
-    fn pack(&self) -> Value<FR256BE> {
+impl ToValue<FR256BE> for Ratio<i128> {
+    fn to_value(self) -> Value<FR256BE> {
         let mut bytes = [0; 32];
         bytes[0..16].copy_from_slice(&self.numer().to_be_bytes());
         bytes[16..32].copy_from_slice(&self.denom().to_be_bytes());
@@ -37,8 +37,8 @@ impl PackValue<FR256BE> for Ratio<i128> {
     }
 }
 
-impl UnpackValue<'_, FR256LE> for Ratio<i128> {
-    fn unpack(v: &Value<FR256LE>) -> Self {
+impl FromValue<'_, FR256LE> for Ratio<i128> {
+    fn from_value(v: &Value<FR256LE>) -> Self {
         let n = i128::from_le_bytes(v.bytes[0..16].try_into().unwrap());
         let d = i128::from_le_bytes(v.bytes[16..32].try_into().unwrap());
 
@@ -46,8 +46,8 @@ impl UnpackValue<'_, FR256LE> for Ratio<i128> {
     }
 }
 
-impl PackValue<FR256LE> for Ratio<i128> {
-    fn pack(&self) -> Value<FR256LE> {
+impl ToValue<FR256LE> for Ratio<i128> {
+    fn to_value(self) -> Value<FR256LE> {
         let mut bytes = [0; 32];
         bytes[0..16].copy_from_slice(&self.numer().to_le_bytes());
         bytes[16..32].copy_from_slice(&self.denom().to_le_bytes());

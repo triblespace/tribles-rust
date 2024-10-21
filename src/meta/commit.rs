@@ -17,7 +17,7 @@ use crate::{
             hash::{Blake3, Handle},
             shortstring::ShortString,
         },
-        PackValue, Value,
+        ToValue, Value,
     },
 };
 
@@ -69,7 +69,7 @@ pub fn sign(
     let tribles = commit_ns::entity!(commit_id,
     {
         tribles: handle,
-        ed25519_pubkey: signing_key.verifying_key().pack(),
+        ed25519_pubkey: signing_key.verifying_key().to_value(),
         ed25519_signature_r: r,
         ed25519_signature_s: s,
     });
@@ -91,8 +91,8 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
     .exactly_one()?;
 
     let hash = payload.bytes;
-    let signature = Signature::from_components(r.unpack(), s.unpack());
-    let verifying_key: VerifyingKey = verifying_key.try_unpack()?;
+    let signature = Signature::from_components(r.from_value(), s.from_value());
+    let verifying_key: VerifyingKey = verifying_key.try_from_value()?;
     verifying_key.verify(&hash, &signature)?;
     Ok(())
 }

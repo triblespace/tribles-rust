@@ -252,7 +252,7 @@ mod tests {
     use crate::namespace::NS;
     use crate::query::find;
     use crate::trible::Trible;
-    use crate::value::{schemas::shortstring::ShortString, TryPackValue};
+    use crate::value::{schemas::shortstring::ShortString, TryToValue};
 
     use super::*;
     use itertools::Itertools;
@@ -340,18 +340,18 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_pack().unwrap(),
+            name: "Juliet".try_to_value().unwrap(),
             loves: romeo.into(),
-            title: "Maiden".try_pack().unwrap()
+            title: "Maiden".try_to_value().unwrap()
         }));
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_pack().unwrap(),
+            name: "Romeo".try_to_value().unwrap(),
             loves: juliet.into(),
-            title: "Prince".try_pack().unwrap()
+            title: "Prince".try_to_value().unwrap()
         }));
         kb.union(knights::entity!({
-            name: "Angelica".try_pack().unwrap(),
-            title: "Nurse".try_pack().unwrap()
+            name: "Angelica".try_to_value().unwrap(),
+            title: "Nurse".try_to_value().unwrap()
         }));
 
         let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
@@ -360,13 +360,13 @@ mod tests {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &archive, [
-            {name: ("Romeo".try_pack().unwrap()),
+            {name: ("Romeo".try_to_value().unwrap()),
              loves: juliet},
             {juliet @
                 name: name
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.into(), "Juliet".try_pack().unwrap(),)], r);
+        assert_eq!(vec![(juliet.into(), "Juliet".try_to_value().unwrap(),)], r);
     }
 }

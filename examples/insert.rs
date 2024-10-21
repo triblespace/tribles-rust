@@ -21,12 +21,12 @@ fn main() {
 
         kb.union(knights::entity!(lover_a,
         {
-            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
             loves: lover_b.into()
         }));
         /*coz::progress!();
         kb.union(knights::entity!(lover_b, {
-            name: Name(EN).fake::<String>().try_pack().unwrap(),
+            name: Name(EN).fake::<String>().try_to_value().unwrap(),
             loves: lover_a
         }));
         coz::progress!();

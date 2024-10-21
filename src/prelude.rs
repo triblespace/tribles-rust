@@ -2,7 +2,7 @@ pub mod blobschemas;
 pub mod valueschemas;
 
 pub use crate::blob::BlobSchema;
-pub use crate::blob::{Blob, PackBlob, TryPackBlob, TryUnpackBlob, UnpackBlob};
+pub use crate::blob::{Blob, ToBlob, TryToBlob, TryFromBlob, FromBlob};
 pub use crate::blobset::BlobSet;
 pub use crate::column::Column;
 pub use crate::id::{fucid, rngid, ufoid};
@@ -13,4 +13,4 @@ pub use crate::query::{
 };
 pub use crate::trible::Trible;
 pub use crate::tribleset::TribleSet;
-pub use crate::value::{PackValue, TryPackValue, TryUnpackValue, UnpackValue, Value, ValueSchema};
+pub use crate::value::{ToValue, TryToValue, TryFromValue, FromValue, Value, ValueSchema};

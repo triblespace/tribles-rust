@@ -1,4 +1,4 @@
-use crate::blob::{Blob, BlobSchema, PackBlob, TryUnpackBlob};
+use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
 use crate::id::RawId;
 
 use std::{convert::TryInto, str::Utf8Error};
@@ -12,17 +12,29 @@ impl BlobSchema for LongString {
     const ID: RawId = hex!("8B173C65B7DB601A11E8A190BD774A79");
 }
 
-impl TryUnpackBlob<'_, LongString> for PackedStr {
+impl TryFromBlob<'_, LongString> for PackedStr {
     type Error = Utf8Error;
 
-    fn try_unpack(b: &Blob<LongString>) -> Result<Self, Self::Error> {
+    fn try_from_blob(b: &Blob<LongString>) -> Result<Self, Self::Error> {
         (&b.bytes).try_into()
     }
 }
 
-impl PackBlob<LongString> for PackedStr {
-    fn pack(&self) -> Blob<LongString> {
+impl ToBlob<LongString> for &PackedStr {
+    fn to_blob(self) -> Blob<LongString> {
         Blob::new(self.bytes())
+    }
+}
+
+impl ToBlob<LongString> for &'static str {
+    fn to_blob(self) -> Blob<LongString> {
+        Blob::new(self.into())
+    }
+}
+
+impl ToBlob<LongString> for String {
+    fn to_blob(self) -> Blob<LongString> {
+        Blob::new(self.into())
     }
 }
 
@@ -31,7 +43,7 @@ mod tests {
     use anybytes::PackedStr;
 
     use crate::{
-        blob::{schemas::longstring::LongString, PackBlob},
+        blob::{schemas::longstring::LongString, ToBlob},
         value::{
             schemas::hash::{Blake3, Handle},
             Value,
@@ -41,8 +53,8 @@ mod tests {
     #[test]
     fn string_handle() {
         let s: PackedStr = String::from("hello world!").into();
-        let h: Value<Handle<Blake3, LongString>> = s.pack().as_handle();
-        let h2: Value<Handle<Blake3, LongString>> = s.pack().as_handle();
+        let h: Value<Handle<Blake3, LongString>> = s.to_blob().as_handle();
+        let h2: Value<Handle<Blake3, LongString>> = s.to_blob().as_handle();
 
         assert!(h == h2);
     }

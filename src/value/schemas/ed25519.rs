@@ -4,7 +4,7 @@ pub use ed25519_dalek::VerifyingKey;
 use hex_literal::hex;
 
 use crate::id::RawId;
-use crate::value::{PackValue, TryUnpackValue, UnpackValue, Value, ValueSchema};
+use crate::value::{ToValue, TryFromValue, FromValue, Value, ValueSchema};
 
 pub struct ED25519RComponent;
 pub struct ED25519SComponent;
@@ -32,40 +32,40 @@ impl ED25519SComponent {
     }
 }
 
-impl PackValue<ED25519RComponent> for ComponentBytes {
-    fn pack(&self) -> Value<ED25519RComponent> {
-        Value::new(*self)
+impl ToValue<ED25519RComponent> for ComponentBytes {
+    fn to_value(self) -> Value<ED25519RComponent> {
+        Value::new(self)
     }
 }
 
-impl UnpackValue<'_, ED25519RComponent> for ComponentBytes {
-    fn unpack(v: &Value<ED25519RComponent>) -> Self {
+impl FromValue<'_, ED25519RComponent> for ComponentBytes {
+    fn from_value(v: &Value<ED25519RComponent>) -> Self {
         v.bytes
     }
 }
 
-impl PackValue<ED25519SComponent> for ComponentBytes {
-    fn pack(&self) -> Value<ED25519SComponent> {
-        Value::new(*self)
+impl ToValue<ED25519SComponent> for ComponentBytes {
+    fn to_value(self) -> Value<ED25519SComponent> {
+        Value::new(self)
     }
 }
 
-impl UnpackValue<'_, ED25519SComponent> for ComponentBytes {
-    fn unpack(v: &Value<ED25519SComponent>) -> Self {
+impl FromValue<'_, ED25519SComponent> for ComponentBytes {
+    fn from_value(v: &Value<ED25519SComponent>) -> Self {
         v.bytes
     }
 }
 
-impl PackValue<ED25519PublicKey> for VerifyingKey {
-    fn pack(&self) -> Value<ED25519PublicKey> {
+impl ToValue<ED25519PublicKey> for VerifyingKey {
+    fn to_value(self) -> Value<ED25519PublicKey> {
         Value::new(self.to_bytes())
     }
 }
 
-impl TryUnpackValue<'_, ED25519PublicKey> for VerifyingKey {
+impl TryFromValue<'_, ED25519PublicKey> for VerifyingKey {
     type Error = SignatureError;
 
-    fn try_unpack(v: &Value<ED25519PublicKey>) -> Result<Self, Self::Error> {
+    fn try_from_value(v: &Value<ED25519PublicKey>) -> Result<Self, Self::Error> {
         VerifyingKey::from_bytes(&v.bytes)
     }
 }

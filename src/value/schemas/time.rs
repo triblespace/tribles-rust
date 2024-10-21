@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{PackValue, UnpackValue, Value, ValueSchema};
+use crate::value::{ToValue, FromValue, Value, ValueSchema};
 
 use std::convert::TryInto;
 
@@ -12,8 +12,8 @@ impl ValueSchema for NsTAIInterval {
     const ID: RawId = hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");
 }
 
-impl PackValue<NsTAIInterval> for (Epoch, Epoch) {
-    fn pack(&self) -> Value<NsTAIInterval> {
+impl ToValue<NsTAIInterval> for (Epoch, Epoch) {
+    fn to_value(self) -> Value<NsTAIInterval> {
         let lower = self.0.to_tai_duration().total_nanoseconds();
         let upper = self.1.to_tai_duration().total_nanoseconds();
 
@@ -24,8 +24,8 @@ impl PackValue<NsTAIInterval> for (Epoch, Epoch) {
     }
 }
 
-impl UnpackValue<'_, NsTAIInterval> for (Epoch, Epoch) {
-    fn unpack(v: &Value<NsTAIInterval>) -> Self {
+impl FromValue<'_, NsTAIInterval> for (Epoch, Epoch) {
+    fn from_value(v: &Value<NsTAIInterval>) -> Self {
         let lower = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
         let upper = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
         let lower = Epoch::from_tai_duration(Duration::from_total_nanoseconds(lower));
@@ -43,8 +43,8 @@ mod tests {
     fn hifitime_conversion() {
         let now = Epoch::now().unwrap();
         let time_in: (Epoch, Epoch) = (now, now);
-        let interval: Value<NsTAIInterval> = time_in.pack();
-        let time_out: (Epoch, Epoch) = interval.unpack();
+        let interval: Value<NsTAIInterval> = time_in.to_value();
+        let time_out: (Epoch, Epoch) = interval.from_value();
 
         assert_eq!(time_in, time_out);
     }

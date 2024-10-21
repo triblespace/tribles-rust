@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{PackValue, UnpackValue, Value, ValueSchema};
+use crate::value::{ToValue, FromValue, Value, ValueSchema};
 
 use f256::f256;
 use hex_literal::hex;
@@ -16,26 +16,26 @@ impl ValueSchema for F256BE {
     const ID: RawId = hex!("A629176D4656928D96B155038F9F2220");
 }
 
-impl UnpackValue<'_, F256BE> for f256 {
-    fn unpack(v: &Value<F256BE>) -> Self {
+impl FromValue<'_, F256BE> for f256 {
+    fn from_value(v: &Value<F256BE>) -> Self {
         f256::from_be_bytes(v.bytes)
     }
 }
 
-impl PackValue<F256BE> for f256 {
-    fn pack(&self) -> Value<F256BE> {
+impl ToValue<F256BE> for f256 {
+    fn to_value(self) -> Value<F256BE> {
         Value::new(self.to_be_bytes())
     }
 }
 
-impl UnpackValue<'_, F256LE> for f256 {
-    fn unpack(v: &Value<F256LE>) -> Self {
+impl FromValue<'_, F256LE> for f256 {
+    fn from_value(v: &Value<F256LE>) -> Self {
         f256::from_le_bytes(v.bytes)
     }
 }
 
-impl PackValue<F256LE> for f256 {
-    fn pack(&self) -> Value<F256LE> {
+impl ToValue<F256LE> for f256 {
+    fn to_value(self) -> Value<F256LE> {
         Value::new(self.to_le_bytes())
     }
 }

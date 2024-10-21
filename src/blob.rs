@@ -37,18 +37,18 @@ impl<S: BlobSchema> Blob<S> {
         Value::new(digest.into())
     }
 
-    pub fn unpack<'a, T>(&'a self) -> T
+    pub fn from_blob<'a, T>(&'a self) -> T
     where
-        T: UnpackBlob<'a, S>,
+        T: FromBlob<'a, S>,
     {
-        <T as UnpackBlob<'a, S>>::unpack(self)
+        <T as FromBlob<'a, S>>::from_blob(self)
     }
 
-    pub fn try_unpack<'a, T>(&'a self) -> Result<T, <T as TryUnpackBlob<S>>::Error>
+    pub fn try_from_blob<'a, T>(&'a self) -> Result<T, <T as TryFromBlob<S>>::Error>
     where
-        T: TryUnpackBlob<'a, S>,
+        T: TryFromBlob<'a, S>,
     {
-        <T as TryUnpackBlob<'a, S>>::try_unpack(self)
+        <T as TryFromBlob<'a, S>>::try_from_blob(self)
     }
 }
 
@@ -84,30 +84,30 @@ impl<T: BlobSchema> Debug for Blob<T> {
 pub trait BlobSchema: Sized {
     const ID: RawId;
 
-    fn pack<T: PackBlob<Self> + ?Sized>(t: &T) -> Blob<Self> {
-        t.pack()
+    fn to_blob<T: ToBlob<Self>>(t: T) -> Blob<Self> {
+        t.to_blob()
     }
 
-    fn try_pack<T: TryPackBlob<Self> + ?Sized>(
-        t: &T,
-    ) -> Result<Blob<Self>, <T as TryPackBlob<Self>>::Error> {
-        t.try_pack()
+    fn try_to_blob<T: TryToBlob<Self>>(
+        t: T,
+    ) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {
+        t.try_to_blob()
     }
 }
 
-pub trait PackBlob<S: BlobSchema> {
-    fn pack(&self) -> Blob<S>;
+pub trait ToBlob<S: BlobSchema> {
+    fn to_blob(self) -> Blob<S>;
 }
-pub trait UnpackBlob<'a, S: BlobSchema> {
-    fn unpack(b: &'a Blob<S>) -> Self;
-}
-
-pub trait TryPackBlob<S: BlobSchema> {
-    type Error;
-    fn try_pack(&self) -> Result<Blob<S>, Self::Error>;
+pub trait FromBlob<'a, S: BlobSchema> {
+    fn from_blob(b: &'a Blob<S>) -> Self;
 }
 
-pub trait TryUnpackBlob<'a, S: BlobSchema>: Sized {
+pub trait TryToBlob<S: BlobSchema> {
     type Error;
-    fn try_unpack(b: &'a Blob<S>) -> Result<Self, Self::Error>;
+    fn try_to_blob(&self) -> Result<Blob<S>, Self::Error>;
+}
+
+pub trait TryFromBlob<'a, S: BlobSchema>: Sized {
+    type Error;
+    fn try_from_blob(b: &'a Blob<S>) -> Result<Self, Self::Error>;
 }

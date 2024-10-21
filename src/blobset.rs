@@ -122,7 +122,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        blob::{schemas::longstring::LongString, PackBlob},
+        blob::{schemas::longstring::LongString, ToBlob},
         tribleset::TribleSet,
         value::schemas::hash::{Blake3, Handle},
         NS,
@@ -144,10 +144,10 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.insert(PackedStr::from(Name(EN).fake::<String>()).pack());
+            blobs_a.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob());
         }
         for _i in 0..1000 {
-            blobs_b.insert(PackedStr::from(Name(EN).fake::<String>()).pack());
+            blobs_b.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob());
         }
 
         blobs_a.union(blobs_b);
@@ -159,7 +159,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(knights::entity!({
-                description: blobs.insert(PackedStr::from(Name(EN).fake::<String>()).pack())
+                description: blobs.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob())
             }));
         }
         blobs.keep(kb);

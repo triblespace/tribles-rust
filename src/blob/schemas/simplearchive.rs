@@ -1,5 +1,5 @@
 use crate::{
-    blob::{Blob, BlobSchema, PackBlob, TryUnpackBlob},
+    blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
     id::RawId,
     trible::{A_END, A_START, E_END, E_START},
     tribleset::TribleSet,
@@ -15,8 +15,8 @@ impl BlobSchema for SimpleArchive {
     const ID: RawId = hex!("8F4A27C8581DADCBA1ADA8BA228069B6");
 }
 
-impl PackBlob<SimpleArchive> for TribleSet {
-    fn pack(&self) -> Blob<SimpleArchive> {
+impl ToBlob<SimpleArchive> for &TribleSet {
+    fn to_blob(self) -> Blob<SimpleArchive> {
         let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
         tribles.extend(self.eav.iter_prefix::<64>().map(|p| p.0));
         let bytes: Bytes = tribles.into();
@@ -32,10 +32,10 @@ pub enum UnarchiveError {
     BadCanonicalizationOrdering,
 }
 
-impl TryUnpackBlob<'_, SimpleArchive> for TribleSet {
+impl TryFromBlob<'_, SimpleArchive> for TribleSet {
     type Error = UnarchiveError;
 
-    fn try_unpack(blob: &Blob<SimpleArchive>) -> Result<Self, Self::Error> {
+    fn try_from_blob(blob: &Blob<SimpleArchive>) -> Result<Self, Self::Error> {
         let mut tribles = TribleSet::new();
 
         let mut prev_trible = None;

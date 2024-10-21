@@ -20,11 +20,11 @@ fn main() {
         let lover_b = ufoid();
 
         kb.union(knights::entity!({
-            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
             loves: lover_b.into()
         }));
         kb.union(knights::entity!({
-            name: Name(EN).fake::<String>()[..].try_pack().unwrap(),
+            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
             loves: lover_a.into()
         }));
     });
@@ -35,11 +35,11 @@ fn main() {
     let juliet = ufoid();
 
     data_kb.union(knights::entity!(juliet, {
-        name: "Juliet".try_pack().unwrap(),
+        name: "Juliet".try_to_value().unwrap(),
         loves: romeo.into()
     }));
     data_kb.union(knights::entity!(romeo, {
-        name: "Romeo".try_pack().unwrap(),
+        name: "Romeo".try_to_value().unwrap(),
         loves: juliet.into()
     }));
 
@@ -50,7 +50,7 @@ fn main() {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_pack().unwrap()),
+            {name: ("Romeo".try_to_value().unwrap()),
             loves: juliet},
             {juliet @
                 name: name

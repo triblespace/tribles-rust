@@ -33,18 +33,18 @@ impl<S: ValueSchema> Value<S> {
         }
     }
 
-    pub fn unpack<'a, T>(&'a self) -> T
+    pub fn from_value<'a, T>(&'a self) -> T
     where
-        T: UnpackValue<'a, S>,
+        T: FromValue<'a, S>,
     {
-        <T as UnpackValue<'a, S>>::unpack(self)
+        <T as FromValue<'a, S>>::from_value(self)
     }
 
-    pub fn try_unpack<'a, T>(&'a self) -> Result<T, <T as TryUnpackValue<S>>::Error>
+    pub fn try_from_value<'a, T>(&'a self) -> Result<T, <T as TryFromValue<S>>::Error>
     where
-        T: TryUnpackValue<'a, S>,
+        T: TryFromValue<'a, S>,
     {
-        <T as TryUnpackValue<'a, S>>::try_unpack(self)
+        <T as TryFromValue<'a, S>>::try_from_value(self)
     }
 }
 
@@ -99,29 +99,29 @@ impl<T: ValueSchema> Debug for Value<T> {
 pub trait ValueSchema: Sized {
     const ID: RawId;
 
-    fn pack<T: PackValue<Self> + ?Sized>(t: &T) -> Value<Self> {
-        t.pack()
+    fn to_value<T: ToValue<Self>>(t: T) -> Value<Self> {
+        t.to_value()
     }
 
-    fn try_pack<T: TryPackValue<Self> + ?Sized>(
-        t: &T,
-    ) -> Result<Value<Self>, <T as TryPackValue<Self>>::Error> {
-        t.try_pack()
+    fn try_to_value<T: TryToValue<Self>>(
+        t: T,
+    ) -> Result<Value<Self>, <T as TryToValue<Self>>::Error> {
+        t.try_to_value()
     }
 }
 
-pub trait PackValue<S: ValueSchema> {
-    fn pack(&self) -> Value<S>;
+pub trait ToValue<S: ValueSchema> {
+    fn to_value(self) -> Value<S>;
 }
-pub trait UnpackValue<'a, S: ValueSchema> {
-    fn unpack(v: &'a Value<S>) -> Self;
+pub trait FromValue<'a, S: ValueSchema> {
+    fn from_value(v: &'a Value<S>) -> Self;
 }
 
-pub trait TryPackValue<S: ValueSchema> {
+pub trait TryToValue<S: ValueSchema> {
     type Error;
-    fn try_pack(&self) -> Result<Value<S>, Self::Error>;
+    fn try_to_value(self) -> Result<Value<S>, Self::Error>;
 }
-pub trait TryUnpackValue<'a, S: ValueSchema>: Sized {
+pub trait TryFromValue<'a, S: ValueSchema>: Sized {
     type Error;
-    fn try_unpack(v: &'a Value<S>) -> Result<Self, Self::Error>;
+    fn try_from_value(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }

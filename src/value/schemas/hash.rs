@@ -1,6 +1,6 @@
 use crate::blob::BlobSchema;
 use crate::id::RawId;
-use crate::value::{RawValue, TryPackValue, UnpackValue, Value, ValueSchema};
+use crate::value::{RawValue, TryToValue, FromValue, Value, ValueSchema};
 
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
@@ -42,11 +42,11 @@ where
     }
 }
 
-impl<H> UnpackValue<'_, Hash<H>> for String
+impl<H> FromValue<'_, Hash<H>> for String
 where
     H: HashProtocol,
 {
-    fn unpack(v: &Value<Hash<H>>) -> Self {
+    fn from_value(v: &Value<Hash<H>>) -> Self {
         let mut out = String::new();
         out.push_str(<H as HashProtocol>::NAME);
         out.push(':');
@@ -56,27 +56,27 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PackHashError {
+pub enum HashError {
     BadProtocol,
     BadHex(FromHexError),
 }
 
-impl From<FromHexError> for PackHashError {
+impl From<FromHexError> for HashError {
     fn from(value: FromHexError) -> Self {
-        PackHashError::BadHex(value)
+        HashError::BadHex(value)
     }
 }
 
-impl<H> TryPackValue<Hash<H>> for str
+impl<H> TryToValue<Hash<H>> for &str
 where
     H: HashProtocol,
 {
-    type Error = PackHashError;
+    type Error = HashError;
 
-    fn try_pack(&self) -> Result<Value<Hash<H>>, Self::Error> {
+    fn try_to_value(self) -> Result<Value<Hash<H>>, Self::Error> {
         let protocol = <H as HashProtocol>::NAME;
         if !(self.starts_with(protocol) && &self[protocol.len()..=protocol.len()] == ":") {
-            return Err(PackHashError::BadProtocol);
+            return Err(HashError::BadProtocol);
         }
         let digest = RawValue::from_hex(&self[protocol.len() + 1..])?;
 
@@ -125,37 +125,37 @@ impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
 mod tests {
     use super::Blake3;
     use crate::prelude::*;
-    use crate::value::schemas::hash::PackHashError;
+    use crate::value::schemas::hash::HashError;
     use rand;
 
     use super::Hash;
 
     #[test]
-    fn unpack_pack() {
+    fn value_roundtrip() {
         let v: Value<Hash<Blake3>> = Value::new(rand::random());
-        let s: String = v.unpack();
-        let _: Value<Hash<Blake3>> = s.try_pack().expect("roundtrip should succeed");
+        let s: String = v.from_value();
+        let _: Value<Hash<Blake3>> = s.try_to_value().expect("roundtrip should succeed");
     }
 
     #[test]
-    fn pack_known() {
+    fn value_from_known() {
         let s: &str = "blake3:CA98593CB9DC0FA48B2BE01E53D042E22B47862D646F9F19E2889A7961663663";
-        let _: Value<Hash<Blake3>> = s.try_pack().expect("packing valid constant should succeed");
+        let _: Value<Hash<Blake3>> = s.try_to_value().expect("packing valid constant should succeed");
     }
 
     #[test]
-    fn pack_fail_protocol() {
+    fn to_value_fail_protocol() {
         let s: &str = "bad:CA98593CB9DC0FA48B2BE01E53D042E22B47862D646F9F19E2889A7961663663";
-        let err: PackHashError = <str as TryPackValue<Hash<Blake3>>>::try_pack(s)
+        let err: HashError = <&str as TryToValue<Hash<Blake3>>>::try_to_value(s)
             .expect_err("packing invalid protocol should fail");
-        assert_eq!(err, PackHashError::BadProtocol);
+        assert_eq!(err, HashError::BadProtocol);
     }
 
     #[test]
-    fn pack_fail_hex() {
+    fn to_value_fail_hex() {
         let s: &str = "blake3:BAD!";
-        let err: PackHashError = <str as TryPackValue<Hash<Blake3>>>::try_pack(s)
+        let err: HashError = <&str as TryToValue<Hash<Blake3>>>::try_to_value(s)
             .expect_err("packing invalid protocol should fail");
-        assert!(matches!(err, PackHashError::BadHex(..)));
+        assert!(matches!(err, HashError::BadHex(..)));
     }
 }

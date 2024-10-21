@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{PackValue, TryPackValue, TryUnpackValue, Value, ValueSchema};
+use crate::value::{ToValue, TryToValue, TryFromValue, Value, ValueSchema};
 
 use hex_literal::hex;
 use std::{str::Utf8Error, string::FromUtf8Error};
@@ -16,10 +16,10 @@ impl ValueSchema for ShortString {
     const ID: RawId = hex!("2D848DB0AF112DB226A6BF1A3640D019");
 }
 
-impl<'a> TryUnpackValue<'a, ShortString> for String {
+impl<'a> TryFromValue<'a, ShortString> for String {
     type Error = FromUtf8Error;
 
-    fn try_unpack(v: &Value<ShortString>) -> Result<Self, Self::Error> {
+    fn try_from_value(v: &Value<ShortString>) -> Result<Self, Self::Error> {
         String::from_utf8(
             v.bytes[0..v
                 .bytes
@@ -31,10 +31,10 @@ impl<'a> TryUnpackValue<'a, ShortString> for String {
     }
 }
 
-impl<'a> TryUnpackValue<'a, ShortString> for &'a str {
+impl<'a> TryFromValue<'a, ShortString> for &'a str {
     type Error = Utf8Error;
 
-    fn try_unpack(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
+    fn try_from_value(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
         std::str::from_utf8(
             &v.bytes[0..v
                 .bytes
@@ -45,10 +45,10 @@ impl<'a> TryUnpackValue<'a, ShortString> for &'a str {
     }
 }
 
-impl TryPackValue<ShortString> for str {
+impl TryToValue<ShortString> for &str {
     type Error = FromStrError;
 
-    fn try_pack(&self) -> Result<Value<ShortString>, Self::Error> {
+    fn try_to_value(self) -> Result<Value<ShortString>, Self::Error> {
         let bytes = self.as_bytes();
         if bytes.len() > 32 {
             return Err(FromStrError::TooLong);
@@ -64,8 +64,8 @@ impl TryPackValue<ShortString> for str {
     }
 }
 
-impl PackValue<ShortString> for str {
-    fn pack(&self) -> Value<ShortString> {
+impl ToValue<ShortString> for &str {
+    fn to_value(self) -> Value<ShortString> {
         let bytes = self.as_bytes();
         if bytes.len() > 32 {
             panic!();

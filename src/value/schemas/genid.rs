@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{PackValue, TryPackValue, TryUnpackValue, Value, ValueSchema, VALUE_LEN};
+use crate::value::{ToValue, TryToValue, TryFromValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -51,24 +51,24 @@ impl From<RawId> for Value<GenId> {
     }
 }
 
-impl TryUnpackValue<'_, GenId> for RawId {
+impl TryFromValue<'_, GenId> for RawId {
     type Error = GenIdParseError;
 
-    fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
+    fn try_from_value(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
         v.try_into()
     }
 }
 
-impl PackValue<GenId> for RawId {
-    fn pack(&self) -> Value<GenId> {
+impl ToValue<GenId> for RawId {
+    fn to_value(self) -> Value<GenId> {
         self.into()
     }
 }
 
-impl TryUnpackValue<'_, GenId> for String {
+impl TryFromValue<'_, GenId> for String {
     type Error = GenIdParseError;
 
-    fn try_unpack(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
+    fn try_from_value(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
         let id: RawId = v.try_into()?;
         let mut s = String::new();
         s.push_str("genid:");
@@ -89,10 +89,10 @@ impl From<FromHexError> for PackIdError {
     }
 }
 
-impl TryPackValue<GenId> for str {
+impl TryToValue<GenId> for &str {
     type Error = PackIdError;
 
-    fn try_pack(&self) -> Result<Value<GenId>, Self::Error> {
+    fn try_to_value(self) -> Result<Value<GenId>, Self::Error> {
         let protocol = "genid:";
         if !self.starts_with(protocol) {
             return Err(PackIdError::BadProtocol);

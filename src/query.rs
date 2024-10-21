@@ -372,12 +372,12 @@ mod tests {
         let mut books = HashSet::<Value<ShortString>>::new();
         let mut movies = HashSet::<Value<ShortString>>::new();
 
-        books.insert("LOTR".try_pack().unwrap());
-        books.insert("Dragonrider".try_pack().unwrap());
-        books.insert("Highlander".try_pack().unwrap());
+        books.insert("LOTR".try_to_value().unwrap());
+        books.insert("Dragonrider".try_to_value().unwrap());
+        books.insert("Highlander".try_to_value().unwrap());
 
-        movies.insert("LOTR".try_pack().unwrap());
-        movies.insert("Highlander".try_pack().unwrap());
+        movies.insert("LOTR".try_to_value().unwrap());
+        movies.insert("Highlander".try_to_value().unwrap());
 
         let inter: Vec<_> = find!(ctx, (a), and!(books.has(a), movies.has(a))).collect();
 
@@ -390,7 +390,7 @@ mod tests {
         let one: Vec<_> = find!(
             ctx,
             (a),
-            and!(books.has(a), a.is("LOTR".try_pack().unwrap())) //TODO
+            and!(books.has(a), a.is("LOTR".try_to_value().unwrap())) //TODO
         )
         .collect();
 
@@ -421,16 +421,16 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_pack().unwrap(),
+            name: "Juliet".try_to_value().unwrap(),
             loves: romeo.into()
         }));
 
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_pack().unwrap(),
+            name: "Romeo".try_to_value().unwrap(),
             loves: juliet.into()
         }));
         kb.union(knights::entity!(waromeo, {
-            name: "Romeo".try_pack().unwrap()
+            name: "Romeo".try_to_value().unwrap()
         }));
 
         let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find!(
@@ -438,7 +438,7 @@ mod tests {
             (romeo, juliet, name),
             knights::pattern!(ctx, &kb, [
             {romeo @
-                name: ("Romeo".try_pack().unwrap()),
+                name: ("Romeo".try_to_value().unwrap()),
              loves: juliet},
             {juliet @
                 name: name
@@ -456,8 +456,8 @@ mod tests {
             ctx,
             (string, number),
             and!(
-                string.is(ShortString::try_pack("Hello World!").unwrap()),
-                number.is(I256BE::pack(&42))
+                string.is(ShortString::try_to_value("Hello World!").unwrap()),
+                number.is(I256BE::to_value(42))
             )
         );
         let r: Vec<_> = q.collect();

@@ -1,4 +1,4 @@
-use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
+use crate::blob::{Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob};
 use crate::id::RawId;
 
 use std::{convert::TryInto, str::Utf8Error};
@@ -17,6 +17,20 @@ impl TryFromBlob<'_, LongString> for PackedStr {
 
     fn try_from_blob(b: &Blob<LongString>) -> Result<Self, Self::Error> {
         (&b.bytes).try_into()
+    }
+}
+
+impl<'a> TryFromBlob<'a, LongString> for &'a str {
+    type Error = Utf8Error;
+
+    fn try_from_blob(b: &'a Blob<LongString>) -> Result<Self, Self::Error> {
+        std::str::from_utf8(&b.bytes[..])
+    }
+}
+
+impl<'a> FromBlob<'a, LongString> for &'a str {
+    fn from_blob(b: &'a Blob<LongString>) -> Self {
+        std::str::from_utf8(&b.bytes[..]).unwrap()
     }
 }
 

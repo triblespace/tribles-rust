@@ -1,4 +1,4 @@
-use crate::blob::ToBlob;
+use crate::blob::{FromBlob, ToBlob};
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::tribleset::TribleSet;
 use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
@@ -49,16 +49,18 @@ impl<H: HashProtocol> BlobSet<H> {
         handle
     }
 
-    pub fn get<T>(&self, handle: Value<Handle<H, T>>) -> Option<Blob<T>>
+    pub fn get<'a, T, S>(&'a self, handle: Value<Handle<H, S>>) -> Option<T>
     where
-        T: BlobSchema,
+        S: BlobSchema + 'a,
+        T: FromBlob<'a, S>
     {
         let hash: Value<Hash<_>> = handle.into();
         let handle: Value<Handle<H, UnknownBlob>> = hash.into();
         let Some(blob) = self.blobs.get(&handle) else {
             return None;
         };
-        Some(Blob::new(blob.bytes.clone()))
+        
+        Some(FromBlob::from_blob(blob.transmute()))
     }
 
     pub fn iter<'a>(

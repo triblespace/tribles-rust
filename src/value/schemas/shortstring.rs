@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{ToValue, TryToValue, TryFromValue, Value, ValueSchema};
+use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
 
 use hex_literal::hex;
 use std::{str::Utf8Error, string::FromUtf8Error};
@@ -45,6 +45,12 @@ impl<'a> TryFromValue<'a, ShortString> for &'a str {
     }
 }
 
+impl<'a> FromValue<'a, ShortString> for &'a str {
+    fn from_value(v: &'a Value<ShortString>) -> Self {
+        v.try_from_value().unwrap()
+    }
+}
+
 impl TryToValue<ShortString> for &str {
     type Error = FromStrError;
 
@@ -66,17 +72,6 @@ impl TryToValue<ShortString> for &str {
 
 impl ToValue<ShortString> for &str {
     fn to_value(self) -> Value<ShortString> {
-        let bytes = self.as_bytes();
-        if bytes.len() > 32 {
-            panic!();
-        }
-        if bytes.iter().any(|&b| b == 0) {
-            panic!();
-        }
-
-        let mut data: [u8; 32] = [0; 32];
-        data[..bytes.len()].copy_from_slice(bytes);
-
-        Value::new(data)
+        self.try_to_value().unwrap()
     }
 }

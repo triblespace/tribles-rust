@@ -8,7 +8,7 @@ The [trible.space](https://trible.space) is our answer to the question "what if 
 It is a knowledge graph standard for blob storage that provides metadata management capabilities similar to file- and version-control-systems
 with the queryability and convenience of an embedded database.
 
-We hope to overcome the shortcomings of previous semantic web/triple-store technologies, through simplicity, easy canonicalization and cryptographic identifiers, clean distributed semantics and lightweight libraries empowered by individual host-language capabilities.
+We hope to overcome the shortcomings of previous semantic web/triple-store technologies, through simplicity, easy canonicalization and cryptographic identifiers, clean distributed semantics and lightweight libraries empowered by idiomatic host-language capabilities.
 
 By reifying most concepts and operations as first class citizens, we hope to provide a toolkit that can be flexibly combined to serve a variety of knowledge representation, database, and data exchange use cases.
 
@@ -75,20 +75,24 @@ fn main() -> std::io::Result<()> {
                 has gone there will be nothing. Only I will remain.")
             }));
 
-    for (_, f, l) in find!(ctx,
-    (author, first, last),
+    let title = "Dune";
+    for (_, f, l, q) in find!(ctx,
+    (author, first, last, quote),
             literature::pattern!(ctx, &set, [
             { author @
                 firstname: first,
                 lastname: last
             },
             {
-                title: ("Dune"),
-                author: author
+                title: (title),
+                author: author,
+                quote: quote
             }])) {
-        println!("The author of Dune is {} {}.",
-            f.try_from_value::<&str>().unwrap(),
-            l.try_from_value::<&str>().unwrap())
+        let f: &str = f.from_value();
+        let l: &str = l.from_value();
+        let q: &str = blobs.get(q).unwrap();
+
+        println!("'{q}'\n - from {title} by {f} {l}.")
     }
     Ok(())
 }

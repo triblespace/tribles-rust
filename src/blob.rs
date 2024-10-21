@@ -15,9 +15,9 @@ use std::{
 pub use anybytes::Bytes;
 
 #[repr(transparent)]
-pub struct Blob<T: BlobSchema> {
+pub struct Blob<S: BlobSchema> {
     pub bytes: Bytes,
-    _schema: PhantomData<T>,
+    _schema: PhantomData<S>,
 }
 
 impl<S: BlobSchema> Blob<S> {
@@ -26,6 +26,10 @@ impl<S: BlobSchema> Blob<S> {
             bytes,
             _schema: PhantomData,
         }
+    }
+
+    pub fn transmute<T: BlobSchema>(&self) -> &Blob<T>{
+        unsafe { std::mem::transmute(self) }
     }
 
     pub fn as_handle<H>(&self) -> Value<Handle<H, S>>
@@ -115,5 +119,11 @@ pub trait TryFromBlob<'a, S: BlobSchema>: Sized {
 impl<S: BlobSchema> ToBlob<S> for Blob<S> {
     fn to_blob(self) -> Blob<S> {
         self
+    }
+}
+
+impl<'a, S: BlobSchema> FromBlob<'a, S> for Blob<S> {
+    fn from_blob(b: &'a Blob<S>) -> Self {
+        b.clone()
     }
 }

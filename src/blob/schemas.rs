@@ -1,4 +1,4 @@
-//! This is a collection of Rust types that can be (de)serialized as [Blob]s.
+//! This is a collection of Rust types that can be (de)serialized as [crate::prelude::Blob]s.
 
 pub mod longstring;
 pub mod simplearchive;

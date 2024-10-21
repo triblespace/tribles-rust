@@ -74,6 +74,22 @@ fn main() -> std::io::Result<()> {
                 will turn the inner eye to see its path. Where the fear \
                 has gone there will be nothing. Only I will remain.")
             }));
+
+    for (_, f, l) in find!(ctx,
+    (author, first, last),
+            literature::pattern!(ctx, &set, [
+            { author @
+                firstname: first,
+                lastname: last
+            },
+            {
+                title: ("Dune"),
+                author: author
+            }])) {
+        println!("The author of Dune is {} {}.",
+            f.try_from_value::<&str>().unwrap(),
+            l.try_from_value::<&str>().unwrap())
+    }
     Ok(())
 }
 ```

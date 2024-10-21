@@ -22,11 +22,11 @@ fn main() {
         kb.union(knights::entity!(lover_a,
         {
             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-            loves: lover_b.into()
+            loves: lover_b.to_value()
         }));
         kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-            loves: lover_a.into()
+            loves: lover_a.to_value()
         }));
     });
 
@@ -36,12 +36,12 @@ fn main() {
     let juliet = ufoid();
 
     kb.union(knights::entity!(juliet, {
-        name: "Juliet".try_to_value().unwrap(),
-        loves: romeo.into()
+        name: "Juliet".to_value(),
+        loves: romeo.to_value()
     }));
     kb.union(knights::entity!(romeo, {
-        name: "Romeo".try_to_value().unwrap(),
-        loves: juliet.into()
+        name: "Romeo".to_value(),
+        loves: juliet.to_value()
     }));
 
     (0..999).for_each(|_| {
@@ -49,12 +49,12 @@ fn main() {
         let lover_b = ufoid();
 
         data_kb.union(knights::entity!(lover_a, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: lover_b.into()
+            name: "Romeo".to_value(),
+            loves: lover_b.to_value()
         }));
         data_kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-            loves: lover_a.into()
+            loves: lover_a.to_value()
         }));
     });
 
@@ -65,7 +65,7 @@ fn main() {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_to_value().unwrap()),
+            {name: ("Romeo".to_value()),
              loves: juliet},
             {juliet @
                 name: name

@@ -1,4 +1,4 @@
-use crate::id::RawId;
+use crate::id::{FreshId, RawId};
 use crate::value::{ToValue, TryToValue, TryFromValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryFrom;
@@ -37,20 +37,6 @@ impl TryFrom<&Value<GenId>> for RawId {
     }
 }
 
-impl From<&RawId> for Value<GenId> {
-    fn from(value: &RawId) -> Self {
-        let mut data = [0; VALUE_LEN];
-        data[16..32].copy_from_slice(&value[..]);
-        Value::new(data)
-    }
-}
-
-impl From<RawId> for Value<GenId> {
-    fn from(value: RawId) -> Self {
-        (&value).into()
-    }
-}
-
 impl TryFromValue<'_, GenId> for RawId {
     type Error = GenIdParseError;
 
@@ -61,7 +47,16 @@ impl TryFromValue<'_, GenId> for RawId {
 
 impl ToValue<GenId> for RawId {
     fn to_value(self) -> Value<GenId> {
-        self.into()
+        let mut data = [0; VALUE_LEN];
+        data[16..32].copy_from_slice(&self[..]);
+        Value::new(data)
+    }
+}
+
+impl ToValue<GenId> for FreshId {
+    fn to_value(self) -> Value<GenId> {
+        let id: RawId = self.into();
+        id.to_value()
     }
 }
 
@@ -98,7 +93,7 @@ impl TryToValue<GenId> for &str {
             return Err(PackIdError::BadProtocol);
         }
         let id = RawId::from_hex(&self[protocol.len()..])?;
-        Ok(id.into())
+        Ok(id.to_value())
     }
 }
 

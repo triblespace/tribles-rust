@@ -6,7 +6,7 @@ use ed25519::signature::Signer;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
-    id::RawId,
+    id::{FreshId, RawId},
     namespace::NS,
     query::find,
     tribleset::TribleSet,
@@ -60,7 +60,7 @@ impl From<SignatureError> for ValidationError {
 pub fn sign(
     signing_key: SigningKey,
     handle: Value<Handle<Blake3, SimpleArchive>>,
-    commit_id: RawId,
+    commit_id: FreshId,
 ) -> Result<TribleSet, ValidationError> {
     let hash = handle.bytes;
     let signature = signing_key.sign(&hash);

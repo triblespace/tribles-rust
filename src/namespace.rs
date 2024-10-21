@@ -50,7 +50,7 @@ macro_rules! pattern_inner {
             let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $ctx.next_variable();
             let v: $crate::value::Value<ns::schemas::$FieldName> = $Value;
-            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
+            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.to_value())));
             $constraints.push(Box::new(v_var.is(v)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
@@ -62,7 +62,7 @@ macro_rules! pattern_inner {
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $Value;
-            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.into())));
+            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.to_value())));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
 
@@ -71,7 +71,7 @@ macro_rules! pattern_inner {
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            $constraints.push({ let e: $crate::id::RawId = $EntityId; Box::new(e_var.is(e.into()))});
+            $constraints.push({ let e: $crate::id::RawId = $EntityId; Box::new(e_var.is(e.to_value()))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -168,7 +168,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::tribleset::TribleSet::new();
-                        let id = $crate::id::rngid();
+                        let id: $crate::id::RawId = $crate::id::rngid().raw;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
                     }
@@ -177,7 +177,8 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::tribleset::TribleSet::new();
-                        let id = $entity_id;
+                        let id: $crate::id::FreshId = $entity_id;
+                        let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
                     }
@@ -186,7 +187,8 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let set: &mut TribleSet= $set;
-                        let id = $entity_id;
+                        let id: $crate::id::FreshId = $entity_id;
+                        let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, set, id, $entity);
                     }
                 };
@@ -234,19 +236,19 @@ mod tests {
         let juliet = ufoid();
 
         knights::entity!(juliet, {
-            name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.into(),
-            title: "Maiden".try_to_value().unwrap()
+            name: "Juliet".to_value(),
+            loves: romeo.to_value(),
+            title: "Maiden".to_value()
         });
         knights::entity!(romeo, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.into(),
-            title: "Prince".try_to_value().unwrap()
+            name: "Romeo".to_value(),
+            loves: juliet.to_value(),
+            title: "Prince".to_value()
         });
         knights::entity!(
         {
-            name: "Angelica".try_to_value().unwrap(),
-            title: "Nurse".try_to_value().unwrap()
+            name: "Angelica".to_value(),
+            title: "Nurse".to_value()
         });
     }
 
@@ -257,18 +259,18 @@ mod tests {
 
         let mut tribles = TribleSet::new();
         tribles.union(knights::entity!(juliet, {
-            name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.into(),
-            title: "Maiden".try_to_value().unwrap()
+            name: "Juliet".to_value(),
+            loves: romeo.to_value(),
+            title: "Maiden".to_value()
         }));
         tribles.union(knights::entity!(romeo, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.into(),
-            title: "Prince".try_to_value().unwrap()
+            name: "Romeo".to_value(),
+            loves: juliet.to_value(),
+            title: "Prince".to_value()
         }));
         tribles.union(knights::entity!({
-            name: "Angelica".try_to_value().unwrap(),
-            title: "Nurse".try_to_value().unwrap()
+            name: "Angelica".to_value(),
+            title: "Nurse".to_value()
         }));
         println!("{:?}", tribles);
     }
@@ -282,32 +284,32 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.into(),
-            title: "Maiden".try_to_value().unwrap()
+            name: "Juliet".to_value(),
+            loves: romeo.to_value(),
+            title: "Maiden".to_value()
         }));
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.into(),
-            title: "Prince".try_to_value().unwrap()
+            name: "Romeo".to_value(),
+            loves: juliet.to_value(),
+            title: "Prince".to_value()
         }));
         kb.union(knights::entity!({
-            name: "Angelica".try_to_value().unwrap(),
-            title: "Nurse".try_to_value().unwrap()
+            name: "Angelica".to_value(),
+            title: "Nurse".to_value()
         }));
 
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_to_value().unwrap()),
+            {name: ("Romeo".to_value()),
              loves: juliet},
             {juliet @
                 name: name
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.into(), "Juliet".try_to_value().unwrap(),)], r);
+        assert_eq!(vec![(juliet.to_value(), "Juliet".to_value(),)], r);
     }
 
     #[test]
@@ -318,11 +320,11 @@ mod tests {
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
-                loves: lover_b.into()
+                loves: lover_b.to_value()
             }));
             kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
-                loves: lover_a.into()
+                loves: lover_a.to_value()
             }));
         });
 
@@ -331,12 +333,12 @@ mod tests {
 
         let mut data_kb = TribleSet::new();
         data_kb.union(knights::entity!(juliet, {
-            name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.into()
+            name: "Juliet".to_value(),
+            loves: romeo.to_value()
         }));
         data_kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.into()
+            name: "Romeo".to_value(),
+            loves: juliet.to_value()
         }));
 
         kb.union(data_kb);
@@ -345,7 +347,7 @@ mod tests {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".try_to_value().unwrap()),
+            {name: ("Romeo".to_value()),
              loves: juliet},
             {juliet @
                 name: name
@@ -353,6 +355,6 @@ mod tests {
         )
         .collect();
 
-        assert_eq!(vec![(juliet.into(), "Juliet".try_to_value().unwrap(),)], r);
+        assert_eq!(vec![(juliet.to_value(), "Juliet".to_value(),)], r);
     }
 }

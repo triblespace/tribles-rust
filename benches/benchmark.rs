@@ -54,7 +54,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
         }
 
         let v = fucid();
-        vec.push(Trible::new(e, a, v.into()))
+        vec.push(Trible::new(e.raw, a.raw, v.to_value()))
     }
     return vec;
 }
@@ -243,11 +243,11 @@ fn archive_benchmark(c: &mut Criterion) {
                 let lover_b = fucid();
                 knights::entity!(&mut set, lover_a, {
                     name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                    loves: lover_b.into()
+                    loves: lover_b.to_value()
                 });
                 knights::entity!(&mut set, lover_b, {
                     name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                    loves: lover_a.into()
+                    loves: lover_a.to_value()
                 });
             });
             b.iter_with_large_drop(|| {
@@ -302,11 +302,11 @@ fn archive_benchmark(c: &mut Criterion) {
                 let lover_b = ufoid();
                 knights::entity!(&mut set, lover_a, {
                     name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                    loves: lover_b.into()
+                    loves: lover_b.to_value()
                 });
                 knights::entity!(&mut set, lover_b, {
                     name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                    loves: lover_a.into()
+                    loves: lover_a.to_value()
                 });
             });
             let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
@@ -392,11 +392,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
             kb.union(knights::entity!(lover_a, {
                 name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                loves: lover_b.into()
+                loves: lover_b.to_value()
             }));
             kb.union(knights::entity!(lover_b, {
                 name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                loves: lover_a.into()
+                loves: lover_a.to_value()
             }));
 
             kb
@@ -415,11 +415,11 @@ fn entities_benchmark(c: &mut Criterion) {
                     let lover_b = fucid();
                     knights::entity!(&mut kb, lover_a, {
                         name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                        loves: lover_b.into()
+                        loves: lover_b.to_value()
                     });
                     knights::entity!(&mut kb, lover_b, {
                         name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                        loves: lover_a.into()
+                        loves: lover_a.to_value()
                     });
                 });
                 //let after_mem = PEAK_ALLOC.current_usage();
@@ -445,11 +445,11 @@ fn entities_benchmark(c: &mut Criterion) {
                         [
                             knights::entity!(lover_a, {
                                 name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                                loves: lover_b.into()
+                                loves: lover_b.to_value()
                             }),
                             knights::entity!(lover_b, {
                                 name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                                loves: lover_a.into()
+                                loves: lover_a.to_value()
                             }),
                         ]
                     })
@@ -474,11 +474,11 @@ fn entities_benchmark(c: &mut Criterion) {
                     [
                         knights::entity!(lover_a, {
                             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                            loves: lover_b.into()
+                            loves: lover_b.to_value()
                         }),
                         knights::entity!(lover_b, {
                             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                            loves: lover_a.into()
+                            loves: lover_a.to_value()
                         }),
                     ]
                 })
@@ -507,11 +507,11 @@ fn entities_benchmark(c: &mut Criterion) {
                         [
                             knights::entity!(lover_a, {
                                 name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                                loves: lover_b.into()
+                                loves: lover_b.to_value()
                             }),
                             knights::entity!(lover_b, {
                                 name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                                loves: lover_a.into()
+                                loves: lover_a.to_value()
                             }),
                         ]
                     })
@@ -546,11 +546,11 @@ fn entities_benchmark(c: &mut Criterion) {
                                 [
                                     knights::entity!(lover_a, {
                                         name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                                        loves: lover_b.into()
+                                        loves: lover_b.to_value()
                                     }),
                                     knights::entity!(lover_b, {
                                         name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                                        loves: lover_a.into()
+                                        loves: lover_a.to_value()
                                     }),
                                 ]
                             })
@@ -586,11 +586,11 @@ fn query_benchmark(c: &mut Criterion) {
 
         kb.union(knights::entity!(lover_a, {
             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-            loves: lover_b.into()
+            loves: lover_b.to_value()
         }));
         kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-            loves: lover_a.into()
+            loves: lover_a.to_value()
         }));
     });
 
@@ -601,11 +601,11 @@ fn query_benchmark(c: &mut Criterion) {
 
     kb.union(knights::entity!(juliet, {
         name: "Juliet".try_to_value().unwrap(),
-        loves: romeo.into()
+        loves: romeo.to_value()
     }));
     kb.union(knights::entity!(romeo, {
         name: "Romeo".try_to_value().unwrap(),
-        loves: juliet.into()
+        loves: juliet.to_value()
     }));
 
     (0..1000).for_each(|_| {
@@ -614,11 +614,11 @@ fn query_benchmark(c: &mut Criterion) {
 
         data_kb.union(knights::entity!(lover_a, {
             name: "Wameo".try_to_value().unwrap(),
-            loves: lover_b.into()
+            loves: lover_b.to_value()
         }));
         data_kb.union(knights::entity!(lover_b, {
             name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-            loves: lover_a.into()
+            loves: lover_a.to_value()
         }));
     });
 
@@ -705,29 +705,29 @@ fn column_benchmark(c: &mut Criterion) {
     let mut loves: Column<GenId> = Column::new();
 
     (0..1000000).for_each(|_| {
-        let lover_a = ufoid();
-        let lover_b = ufoid();
+        let lover_a = ufoid().raw;
+        let lover_b = ufoid().raw;
         name.insert(lover_a, Name(EN).fake::<String>()[..].try_to_value().unwrap());
         name.insert(lover_b, Name(EN).fake::<String>()[..].try_to_value().unwrap());
-        loves.insert(lover_a, lover_b.into());
-        loves.insert(lover_b, lover_a.into());
+        loves.insert(lover_a, lover_b.to_value());
+        loves.insert(lover_b, lover_a.to_value());
     });
 
     (0..1000).for_each(|_| {
-        let lover_a = ufoid();
-        let lover_b = ufoid();
+        let lover_a = ufoid().raw;
+        let lover_b = ufoid().raw;
         name.insert(lover_a, "Wameo".try_to_value().unwrap());
         name.insert(lover_b, Name(EN).fake::<String>()[..].try_to_value().unwrap());
-        loves.insert(lover_a, lover_b.into());
-        loves.insert(lover_b, lover_a.into());
+        loves.insert(lover_a, lover_b.to_value());
+        loves.insert(lover_b, lover_a.to_value());
     });
 
-    let romeo = ufoid();
-    let juliet = ufoid();
+    let romeo = ufoid().raw;
+    let juliet = ufoid().raw;
     name.insert(romeo, "Romeo".try_to_value().unwrap());
     name.insert(juliet, "Juliet".try_to_value().unwrap());
-    loves.insert(romeo, juliet.into());
-    loves.insert(juliet, romeo.into());
+    loves.insert(romeo, juliet.to_value());
+    loves.insert(juliet, romeo.to_value());
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("query", 1), |b| {
@@ -790,10 +790,10 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                 let mut dataset = Dataset::default();
                 (0..i).for_each(|_| {
                     let lover_a =
-                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
                             .unwrap();
                     let lover_b =
-                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
                             .unwrap();
 
                     let quad = Quad::new(
@@ -850,10 +850,10 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                 let store = Store::new().unwrap();
                 (0..i).for_each(|_| {
                     let lover_a =
-                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
                             .unwrap();
                     let lover_b =
-                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
                             .unwrap();
 
                     let quad = Quad::new(
@@ -905,9 +905,9 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     (0..1000000).for_each(|_| {
         let lover_a =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
         let lover_b: NamedNode =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
 
         let quad = Quad::new(
             lover_a.clone(),
@@ -945,9 +945,9 @@ fn oxigraph_benchmark(c: &mut Criterion) {
     });
 
     let juliet =
-        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
     let romeo: NamedNode =
-        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
 
     let quad = Quad::new(
         romeo.clone(),
@@ -985,9 +985,9 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     (0..1000).for_each(|_| {
         let lover_a =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
         let lover_b: NamedNode =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
+            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
 
         let quad = Quad::new(
             lover_a.clone(),

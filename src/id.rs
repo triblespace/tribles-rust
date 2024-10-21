@@ -13,6 +13,27 @@ use crate::value::{RawValue, VALUE_LEN};
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct FreshId {
+    pub raw: RawId,
+    _private: ()
+}
+
+impl FreshId {
+    pub unsafe fn new(id: RawId) -> Self {
+        FreshId {raw: id, _private: ()}
+    }
+}
+
+unsafe impl Send for FreshId {}
+
+impl From<FreshId> for RawId {
+    fn from(value: FreshId) -> Self {
+        value.raw
+    }
+}
+
 pub(crate) fn id_into_value(id: &RawId) -> RawValue {
     let mut data = [0; VALUE_LEN];
     data[16..32].copy_from_slice(id);

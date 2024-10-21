@@ -422,12 +422,12 @@ mod tests {
         kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.into()
+            loves: romeo.to_value()
         }));
 
         kb.union(knights::entity!(romeo, {
             name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.into()
+            loves: juliet.to_value()
         }));
         kb.union(knights::entity!(waromeo, {
             name: "Romeo".try_to_value().unwrap()

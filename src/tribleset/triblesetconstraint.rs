@@ -364,19 +364,15 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 #[cfg(test)]
 mod tests {
     use crate::{
-        find,
-        query::{TriblePattern, Variable},
-        trible::Trible,
-        tribleset::TribleSet,
-        value::{schemas::UnknownValue, Value},
+        find, id::rngid, query::{TriblePattern, Variable}, trible::Trible, tribleset::TribleSet, value::{schemas::UnknownValue, Value}
     };
 
     #[test]
     fn constant() {
         let mut set = TribleSet::new();
         set.insert(&Trible::new(
-            [1; 16],
-            [2; 16],
+            rngid().raw,
+            rngid().raw,
             Value::<UnknownValue>::new([0; 32]),
         ));
 

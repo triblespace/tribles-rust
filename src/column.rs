@@ -59,12 +59,12 @@ impl<'a, V: ValueSchema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::value::schemas::genid::RandomGenId;
+    use crate::value::{schemas::genid::RandomGenId, ToValue};
     use proptest::prelude::*;
 
     proptest! {
         #[test]
-        fn insert(entries in prop::collection::vec((RandomGenId(), RandomGenId().prop_map(|id| id.into())), 1..1024)) {
+        fn insert(entries in prop::collection::vec((RandomGenId(), RandomGenId().prop_map(|id| id.to_value())), 1..1024)) {
             Column::from_iter(entries.iter());
         }
     }

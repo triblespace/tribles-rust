@@ -252,6 +252,7 @@ mod tests {
     use crate::namespace::NS;
     use crate::query::find;
     use crate::trible::Trible;
+    use crate::value::ToValue;
     use crate::value::{schemas::shortstring::ShortString, TryToValue};
 
     use super::*;
@@ -341,12 +342,12 @@ mod tests {
         kb.union(knights::entity!(juliet,
         {
             name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.into(),
+            loves: romeo.to_value(),
             title: "Maiden".try_to_value().unwrap()
         }));
         kb.union(knights::entity!(romeo, {
             name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.into(),
+            loves: juliet.to_value(),
             title: "Prince".try_to_value().unwrap()
         }));
         kb.union(knights::entity!({
@@ -367,6 +368,6 @@ mod tests {
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.into(), "Juliet".try_to_value().unwrap(),)], r);
+        assert_eq!(vec![(juliet.to_value(), "Juliet".try_to_value().unwrap(),)], r);
     }
 }

@@ -20,9 +20,9 @@ impl TryFromBlob<'_, LongString> for PackedStr {
     }
 }
 
-impl ToBlob<LongString> for &PackedStr {
+impl ToBlob<LongString> for PackedStr {
     fn to_blob(self) -> Blob<LongString> {
-        Blob::new(self.bytes())
+        Blob::new(self.unwrap())
     }
 }
 
@@ -53,8 +53,8 @@ mod tests {
     #[test]
     fn string_handle() {
         let s: PackedStr = String::from("hello world!").into();
-        let h: Value<Handle<Blake3, LongString>> = s.to_blob().as_handle();
-        let h2: Value<Handle<Blake3, LongString>> = s.to_blob().as_handle();
+        let h: Value<Handle<Blake3, LongString>> = s.clone().to_blob().as_handle();
+        let h2: Value<Handle<Blake3, LongString>> = s.clone().to_blob().as_handle();
 
         assert!(h == h2);
     }

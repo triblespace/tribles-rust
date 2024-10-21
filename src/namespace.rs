@@ -18,7 +18,7 @@ macro_rules! entity_inner {
         {
             {
                 use $Namespace as ns;
-                $({let v: $crate::Value<ns::schemas::$FieldName> = $Value;
+                $({let v: $crate::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
                     $Set.insert(&$crate::trible::Trible::new(
                     id,
                     ns::ids::$FieldName,
@@ -29,7 +29,7 @@ macro_rules! entity_inner {
     ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             use $Namespace as ns;
-            $({ let v: $crate::value::Value<ns::schemas::$FieldName> = $Value;
+            $({ let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
                 $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
                 ns::ids::$FieldName,
@@ -49,7 +49,7 @@ macro_rules! pattern_inner {
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $ctx.next_variable();
-            let v: $crate::value::Value<ns::schemas::$FieldName> = $Value;
+            let v: $crate::value::Value<ns::schemas::$FieldName> = $Value.to_value();
             $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.to_value())));
             $constraints.push(Box::new(v_var.is(v)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
@@ -236,19 +236,19 @@ mod tests {
         let juliet = ufoid();
 
         knights::entity!(juliet, {
-            name: "Juliet".to_value(),
-            loves: romeo.to_value(),
-            title: "Maiden".to_value()
+            name: "Juliet",
+            loves: romeo,
+            title: "Maiden"
         });
         knights::entity!(romeo, {
-            name: "Romeo".to_value(),
-            loves: juliet.to_value(),
-            title: "Prince".to_value()
+            name: "Romeo",
+            loves: juliet,
+            title: "Prince"
         });
         knights::entity!(
         {
-            name: "Angelica".to_value(),
-            title: "Nurse".to_value()
+            name: "Angelica",
+            title: "Nurse"
         });
     }
 
@@ -259,18 +259,18 @@ mod tests {
 
         let mut tribles = TribleSet::new();
         tribles.union(knights::entity!(juliet, {
-            name: "Juliet".to_value(),
-            loves: romeo.to_value(),
-            title: "Maiden".to_value()
+            name: "Juliet",
+            loves: romeo,
+            title: "Maiden"
         }));
         tribles.union(knights::entity!(romeo, {
-            name: "Romeo".to_value(),
-            loves: juliet.to_value(),
-            title: "Prince".to_value()
+            name: "Romeo",
+            loves: juliet,
+            title: "Prince"
         }));
         tribles.union(knights::entity!({
-            name: "Angelica".to_value(),
-            title: "Nurse".to_value()
+            name: "Angelica",
+            title: "Nurse"
         }));
         println!("{:?}", tribles);
     }
@@ -284,25 +284,25 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".to_value(),
-            loves: romeo.to_value(),
-            title: "Maiden".to_value()
+            name: "Juliet",
+            loves: romeo,
+            title: "Maiden"
         }));
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".to_value(),
-            loves: juliet.to_value(),
-            title: "Prince".to_value()
+            name: "Romeo",
+            loves: juliet,
+            title: "Prince"
         }));
         kb.union(knights::entity!({
-            name: "Angelica".to_value(),
-            title: "Nurse".to_value()
+            name: "Angelica",
+            title: "Nurse"
         }));
 
         let r: Vec<_> = find!(
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".to_value()),
+            {name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name
@@ -320,11 +320,11 @@ mod tests {
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
-                loves: lover_b.to_value()
+                loves: lover_b
             }));
             kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
-                loves: lover_a.to_value()
+                loves: lover_a
             }));
         });
 
@@ -333,12 +333,12 @@ mod tests {
 
         let mut data_kb = TribleSet::new();
         data_kb.union(knights::entity!(juliet, {
-            name: "Juliet".to_value(),
-            loves: romeo.to_value()
+            name: "Juliet",
+            loves: romeo
         }));
         data_kb.union(knights::entity!(romeo, {
-            name: "Romeo".to_value(),
-            loves: juliet.to_value()
+            name: "Romeo",
+            loves: juliet
         }));
 
         kb.union(data_kb);
@@ -347,7 +347,7 @@ mod tests {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &kb, [
-            {name: ("Romeo".to_value()),
+            {name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name

@@ -125,3 +125,9 @@ pub trait TryFromValue<'a, S: ValueSchema>: Sized {
     type Error;
     fn try_from_value(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }
+
+impl<S: ValueSchema> ToValue<S> for Value<S> {
+    fn to_value(self) -> Value<S> {
+        self
+    }
+}

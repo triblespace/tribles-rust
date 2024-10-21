@@ -69,7 +69,7 @@ pub fn sign(
     let tribles = commit_ns::entity!(commit_id,
     {
         tribles: handle,
-        ed25519_pubkey: signing_key.verifying_key().to_value(),
+        ed25519_pubkey: signing_key.verifying_key(),
         ed25519_signature_r: r,
         ed25519_signature_s: s,
     });

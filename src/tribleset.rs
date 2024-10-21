@@ -123,11 +123,11 @@ mod tests {
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
                 name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
-                loves: lover_b.to_value()
+                loves: lover_b
             }));
             kb.union(knights::entity!(lover_b, {
                 name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
-                loves: lover_a.to_value()
+                loves: lover_a
             }));
         }
         assert_eq!(kb.len(), 8000);
@@ -143,11 +143,11 @@ mod tests {
                 [
                     knights::entity!(lover_a, {
                         name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                        loves: lover_b.to_value()
+                        loves: lover_b
                     }),
                     knights::entity!(lover_b, {
                         name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
-                        loves: lover_a.to_value()
+                        loves: lover_a
                     }),
                 ]
             })

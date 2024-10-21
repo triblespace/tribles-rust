@@ -421,16 +421,16 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.to_value()
+            name: "Juliet",
+            loves: romeo
         }));
 
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.to_value()
+            name: "Romeo",
+            loves: juliet
         }));
         kb.union(knights::entity!(waromeo, {
-            name: "Romeo".try_to_value().unwrap()
+            name: "Romeo"
         }));
 
         let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find!(
@@ -438,7 +438,7 @@ mod tests {
             (romeo, juliet, name),
             knights::pattern!(ctx, &kb, [
             {romeo @
-                name: ("Romeo".try_to_value().unwrap()),
+                name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name

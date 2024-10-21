@@ -111,3 +111,9 @@ pub trait TryFromBlob<'a, S: BlobSchema>: Sized {
     type Error;
     fn try_from_blob(b: &'a Blob<S>) -> Result<Self, Self::Error>;
 }
+
+impl<S: BlobSchema> ToBlob<S> for Blob<S> {
+    fn to_blob(self) -> Blob<S> {
+        self
+    }
+}

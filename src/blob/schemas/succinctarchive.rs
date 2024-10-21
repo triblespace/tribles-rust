@@ -341,18 +341,18 @@ mod tests {
 
         kb.union(knights::entity!(juliet,
         {
-            name: "Juliet".try_to_value().unwrap(),
-            loves: romeo.to_value(),
-            title: "Maiden".try_to_value().unwrap()
+            name: "Juliet",
+            loves: romeo,
+            title: "Maiden"
         }));
         kb.union(knights::entity!(romeo, {
-            name: "Romeo".try_to_value().unwrap(),
-            loves: juliet.to_value(),
-            title: "Prince".try_to_value().unwrap()
+            name: "Romeo",
+            loves: juliet,
+            title: "Prince"
         }));
         kb.union(knights::entity!({
-            name: "Angelica".try_to_value().unwrap(),
-            title: "Nurse".try_to_value().unwrap()
+            name: "Angelica",
+            title: "Nurse"
         }));
 
         let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
@@ -361,7 +361,7 @@ mod tests {
             ctx,
             (juliet, name),
             knights::pattern!(ctx, &archive, [
-            {name: ("Romeo".try_to_value().unwrap()),
+            {name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name

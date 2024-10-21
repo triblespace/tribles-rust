@@ -1,3 +1,4 @@
+use crate::blob::ToBlob;
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::tribleset::TribleSet;
 use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
@@ -35,10 +36,12 @@ impl<H: HashProtocol> BlobSet<H> {
         self.blobs.len()
     }
 
-    pub fn insert<T>(&mut self, blob: Blob<T>) -> Value<Handle<H, T>>
+    pub fn insert<T, S>(&mut self, item: T) -> Value<Handle<H, S>>
     where
-        T: BlobSchema,
+        S: BlobSchema,
+        T: ToBlob<S>
     {
+        let blob: Blob<S> = ToBlob::to_blob(item);
         let handle = blob.as_handle();
         let unknown_handle: Value<Handle<H, UnknownBlob>> = Value::new(handle.bytes);
         let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
@@ -144,10 +147,10 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob());
+            blobs_a.insert(PackedStr::from(Name(EN).fake::<String>()));
         }
         for _i in 0..1000 {
-            blobs_b.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob());
+            blobs_b.insert(PackedStr::from(Name(EN).fake::<String>()));
         }
 
         blobs_a.union(blobs_b);

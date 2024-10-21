@@ -364,7 +364,12 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 #[cfg(test)]
 mod tests {
     use crate::{
-        find, id::rngid, query::{TriblePattern, Variable}, trible::Trible, tribleset::TribleSet, value::{schemas::UnknownValue, Value}
+        find,
+        id::rngid,
+        query::{TriblePattern, Variable},
+        trible::Trible,
+        tribleset::TribleSet,
+        value::{schemas::UnknownValue, Value},
     };
 
     #[test]

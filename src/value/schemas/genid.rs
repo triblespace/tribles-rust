@@ -1,5 +1,5 @@
 use crate::id::{FreshId, RawId};
-use crate::value::{ToValue, TryToValue, TryFromValue, Value, ValueSchema, VALUE_LEN};
+use crate::value::{ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryFrom;
 use std::convert::TryInto;

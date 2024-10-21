@@ -1,5 +1,5 @@
-use crate::blob::{FromBlob, ToBlob};
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
+use crate::blob::{FromBlob, ToBlob};
 use crate::tribleset::TribleSet;
 use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
 use crate::value::Value;
@@ -39,7 +39,7 @@ impl<H: HashProtocol> BlobSet<H> {
     pub fn insert<T, S>(&mut self, item: T) -> Value<Handle<H, S>>
     where
         S: BlobSchema,
-        T: ToBlob<S>
+        T: ToBlob<S>,
     {
         let blob: Blob<S> = ToBlob::to_blob(item);
         let handle = blob.as_handle();
@@ -52,14 +52,14 @@ impl<H: HashProtocol> BlobSet<H> {
     pub fn get<'a, T, S>(&'a self, handle: Value<Handle<H, S>>) -> Option<T>
     where
         S: BlobSchema + 'a,
-        T: FromBlob<'a, S>
+        T: FromBlob<'a, S>,
     {
         let hash: Value<Hash<_>> = handle.into();
         let handle: Value<Handle<H, UnknownBlob>> = hash.into();
         let Some(blob) = self.blobs.get(&handle) else {
             return None;
         };
-        
+
         Some(FromBlob::from_blob(blob.transmute()))
     }
 

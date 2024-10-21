@@ -368,6 +368,9 @@ mod tests {
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.to_value(), "Juliet".try_to_value().unwrap(),)], r);
+        assert_eq!(
+            vec![(juliet.to_value(), "Juliet".try_to_value().unwrap(),)],
+            r
+        );
     }
 }

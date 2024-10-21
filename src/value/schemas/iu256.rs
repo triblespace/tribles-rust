@@ -1,5 +1,5 @@
 use crate::id::RawId;
-use crate::value::{ToValue, FromValue, Value, ValueSchema};
+use crate::value::{FromValue, ToValue, Value, ValueSchema};
 
 use ethnum;
 use hex_literal::hex;

@@ -19,14 +19,14 @@ impl FUCIDgen {
 
                 u128::from_be_bytes(rand_bytes)
             },
-            counter: 0
+            counter: 0,
         }
     }
 
     pub fn new_salted(salt: [u8; 16]) -> Self {
         Self {
             salt: u128::from_be_bytes(salt),
-            counter: 0
+            counter: 0,
         }
     }
 

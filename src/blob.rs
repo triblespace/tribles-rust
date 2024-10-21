@@ -28,7 +28,7 @@ impl<S: BlobSchema> Blob<S> {
         }
     }
 
-    pub fn transmute<T: BlobSchema>(&self) -> &Blob<T>{
+    pub fn transmute<T: BlobSchema>(&self) -> &Blob<T> {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -92,9 +92,7 @@ pub trait BlobSchema: Sized {
         t.to_blob()
     }
 
-    fn try_to_blob<T: TryToBlob<Self>>(
-        t: T,
-    ) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {
+    fn try_to_blob<T: TryToBlob<Self>>(t: T) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {
         t.try_to_blob()
     }
 }

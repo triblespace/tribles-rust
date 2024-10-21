@@ -4,7 +4,7 @@ pub use ed25519_dalek::VerifyingKey;
 use hex_literal::hex;
 
 use crate::id::RawId;
-use crate::value::{ToValue, TryFromValue, FromValue, Value, ValueSchema};
+use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
 
 pub struct ED25519RComponent;
 pub struct ED25519SComponent;

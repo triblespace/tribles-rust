@@ -1,6 +1,6 @@
 use crate::blob::BlobSchema;
 use crate::id::RawId;
-use crate::value::{RawValue, TryToValue, FromValue, Value, ValueSchema};
+use crate::value::{FromValue, RawValue, TryToValue, Value, ValueSchema};
 
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
@@ -140,7 +140,9 @@ mod tests {
     #[test]
     fn value_from_known() {
         let s: &str = "blake3:CA98593CB9DC0FA48B2BE01E53D042E22B47862D646F9F19E2889A7961663663";
-        let _: Value<Hash<Blake3>> = s.try_to_value().expect("packing valid constant should succeed");
+        let _: Value<Hash<Blake3>> = s
+            .try_to_value()
+            .expect("packing valid constant should succeed");
     }
 
     #[test]

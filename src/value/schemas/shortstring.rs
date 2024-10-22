@@ -2,7 +2,7 @@ use crate::id::RawId;
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
 
 use hex_literal::hex;
-use std::{str::Utf8Error, string::FromUtf8Error};
+use std::str::Utf8Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FromStrError {
@@ -14,21 +14,6 @@ pub struct ShortString;
 
 impl ValueSchema for ShortString {
     const ID: RawId = hex!("2D848DB0AF112DB226A6BF1A3640D019");
-}
-
-impl<'a> TryFromValue<'a, ShortString> for String {
-    type Error = FromUtf8Error;
-
-    fn try_from_value(v: &Value<ShortString>) -> Result<Self, Self::Error> {
-        String::from_utf8(
-            v.bytes[0..v
-                .bytes
-                .iter()
-                .position(|&b| b == 0)
-                .unwrap_or(v.bytes.len())]
-                .into(),
-        )
-    }
 }
 
 impl<'a> TryFromValue<'a, ShortString> for &'a str {
@@ -45,7 +30,23 @@ impl<'a> TryFromValue<'a, ShortString> for &'a str {
     }
 }
 
+
+impl<'a> TryFromValue<'a, ShortString> for String {
+    type Error = Utf8Error;
+
+    fn try_from_value(v: &Value<ShortString>) -> Result<Self, Self::Error> {
+        let s: &str = v.try_from_value()?;
+        Ok(s.to_string())
+    }
+}
+
 impl<'a> FromValue<'a, ShortString> for &'a str {
+    fn from_value(v: &'a Value<ShortString>) -> Self {
+        v.try_from_value().unwrap()
+    }
+}
+
+impl<'a> FromValue<'a, ShortString> for String {
     fn from_value(v: &'a Value<ShortString>) -> Self {
         v.try_from_value().unwrap()
     }

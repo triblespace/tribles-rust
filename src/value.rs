@@ -33,6 +33,10 @@ impl<S: ValueSchema> Value<S> {
         }
     }
 
+    pub fn transmute_raw(value: &RawValue) -> &Self {
+        unsafe { std::mem::transmute(value) }
+    }
+
     pub fn from_value<'a, T>(&'a self) -> T
     where
         T: FromValue<'a, S>,
@@ -129,5 +133,17 @@ pub trait TryFromValue<'a, S: ValueSchema>: Sized {
 impl<S: ValueSchema> ToValue<S> for Value<S> {
     fn to_value(self) -> Value<S> {
         self
+    }
+}
+
+impl<'a, S: ValueSchema> FromValue<'a, S> for Value<S> {
+    fn from_value(v: &'a Value<S>) -> Self {
+        *v
+    }
+}
+
+impl<'a, S: ValueSchema> FromValue<'a, S> for () {
+    fn from_value(_v: &'a Value<S>) -> Self {
+        ()
     }
 }

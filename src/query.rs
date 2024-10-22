@@ -113,8 +113,8 @@ impl<T: ValueSchema> Variable<T> {
         }
     }
 
-    pub fn extract(self, binding: &Binding) -> Value<T> {
-        Value::new(*binding.get(self.index).unwrap())
+    pub fn extract(self, binding: &Binding) -> &Value<T> {
+        Value::transmute_raw(binding.get(self.index).unwrap())
     }
 }
 
@@ -336,13 +336,14 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 
 #[macro_export]
 macro_rules! find {
-    ($ctx:ident, ($($Var:ident),+), $Constraint:expr) => {
+    ($ctx:ident, ($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
         {
             let mut $ctx = $crate::query::VariableContext::new();
             $(let $Var = $ctx.next_variable();)*
               $crate::query::Query::new($Constraint,
                 move |binding| {
-                    ($($Var.extract(binding)),+,)
+                    $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)+
+                    ($($Var),+,)
             })
         }
     };
@@ -379,17 +380,17 @@ mod tests {
         movies.insert("LOTR".try_to_value().unwrap());
         movies.insert("Highlander".try_to_value().unwrap());
 
-        let inter: Vec<_> = find!(ctx, (a), and!(books.has(a), movies.has(a))).collect();
+        let inter: Vec<_> = find!(ctx, (a: Value<_>), and!(books.has(a), movies.has(a))).collect();
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<_> = find!(ctx, (a, b), and!(books.has(a), movies.has(b))).collect();
+        let cross: Vec<_> = find!(ctx, (a: Value<_>, b: Value<_>), and!(books.has(a), movies.has(b))).collect();
 
         assert_eq!(cross.len(), 6);
 
         let one: Vec<_> = find!(
             ctx,
-            (a),
+            (a: Value<_>),
             and!(books.has(a), a.is("LOTR".try_to_value().unwrap())) //TODO
         )
         .collect();
@@ -435,7 +436,7 @@ mod tests {
 
         let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find!(
             ctx,
-            (romeo, juliet, name),
+            (romeo: Value<_>, juliet: Value<_>, name: Value<_>),
             knights::pattern!(ctx, &kb, [
             {romeo @
                 name: ("Romeo"),
@@ -454,7 +455,7 @@ mod tests {
     fn constant() {
         let q: Query<IntersectionConstraint<_>, _, _> = find!(
             ctx,
-            (string, number),
+            (string: Value<_>, number: Value<_>),
             and!(
                 string.is(ShortString::try_to_value("Hello World!").unwrap()),
                 number.is(I256BE::to_value(42))

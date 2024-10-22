@@ -79,7 +79,7 @@ pub fn sign(
 pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationError> {
     let (payload, verifying_key, r, s) = find!(
         ctx,
-        (payload, key, r, s),
+        (payload: Value<_>, key: Value<_>, r, s),
         commit_ns::pattern!(ctx, &tribles, [
         {(commit_id) @
             tribles: payload,
@@ -91,7 +91,7 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
     .exactly_one()?;
 
     let hash = payload.bytes;
-    let signature = Signature::from_components(r.from_value(), s.from_value());
+    let signature = Signature::from_components(r, s);
     let verifying_key: VerifyingKey = verifying_key.try_from_value()?;
     verifying_key.verify(&hash, &signature)?;
     Ok(())

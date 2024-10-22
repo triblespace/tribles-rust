@@ -383,7 +383,7 @@ mod tests {
 
         let q = find!(
             ctx,
-            (e, a, v),
+            (e: Value<_>, a: Value<_>, v: Value<_>),
             set.pattern(e, a, v as Variable<UnknownValue>)
         );
         let r: Vec<_> = q.collect();

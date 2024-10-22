@@ -629,7 +629,7 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
                 ctx,
-                (juliet, name),
+                (juliet: Value<_>, name: Value<_>),
                 knights::pattern!(ctx, &kb, [
                 {name: (black_box("Romeo")),
                  loves: juliet},
@@ -646,7 +646,7 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
                 ctx,
-                (juliet, name),
+                (juliet: Value<_>, name: Value<_>),
                 knights::pattern!(ctx, &kb, [
                 {name: (black_box("Wameo")),
                  loves: juliet},
@@ -667,7 +667,7 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
                 ctx,
-                (juliet, name),
+                (juliet: Value<_>, name: Value<_>),
                 knights::pattern!(ctx, &kb_archive, [
                 {name: (black_box("Romeo")),
                  loves: juliet},
@@ -684,7 +684,7 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
                 ctx,
-                (juliet, name),
+                (juliet: Value<_>, name: Value<_>),
                 knights::pattern!(ctx, &kb_archive, [
                 {name: (black_box("Wameo")),
                  loves: juliet},
@@ -743,7 +743,7 @@ fn column_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
                 ctx,
-                (juliet, romeo, romeo_name, juliet_name),
+                (juliet: Value<_>, romeo: Value<_>, romeo_name: Value<_>, juliet_name: Value<_>),
                 and!(
                     romeo_name.is(black_box("Romeo").try_to_value().unwrap()),
                     name.has(romeo, romeo_name),
@@ -760,7 +760,7 @@ fn column_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
                 ctx,
-                (juliet, romeo, romeo_name, juliet_name),
+                (juliet: Value<_>, romeo: Value<_>, romeo_name: Value<_>, juliet_name: Value<_>),
                 and!(
                     romeo_name.is(black_box("Wameo").try_to_value().unwrap()),
                     name.has(romeo, romeo_name),

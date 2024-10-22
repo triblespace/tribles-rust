@@ -46,7 +46,7 @@ fn main() {
     loop {
         for _r in find!(
             ctx,
-            (juliet, romeo, romeo_name, juliet_name),
+            (juliet: Value<_>, romeo: Value<_>, romeo_name: Value<_>, juliet_name: Value<_>),
             and!(
                 romeo_name.is("Wameo".try_to_value().unwrap()),
                 name.has(romeo, romeo_name),

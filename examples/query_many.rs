@@ -63,7 +63,7 @@ fn main() {
     loop {
         for _r in find!(
             ctx,
-            (juliet, name),
+            (juliet: Value<_>, name: String),
             knights::pattern!(ctx, &kb, [
             {name: ("Romeo"),
              loves: juliet},

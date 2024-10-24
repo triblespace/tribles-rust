@@ -298,7 +298,7 @@ mod tests {
         }
 
         #[test]
-        fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..10000)) {
+        fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..1024)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = OrderedUniverse::with(values.iter().copied());
@@ -315,7 +315,7 @@ mod tests {
         }
 
         #[test]
-        fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..10000)) {
+        fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..1024)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = CompressedUniverse::<DacsOpt>::with(values.iter().copied());

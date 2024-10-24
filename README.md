@@ -78,7 +78,7 @@ fn main() -> std::io::Result<()> {
 
     let title = "Dune";
     for (_, f, l, q) in find!(ctx,
-    (author: (), first: String, last: String, quote),
+    (author: (), first: String, last: Value<_>, quote),
             literature::pattern!(ctx, &set, [
             { author @
                 firstname: first,
@@ -91,7 +91,7 @@ fn main() -> std::io::Result<()> {
             }])) {
         let q: &str = blobs.get(q).unwrap();
 
-        println!("'{q}'\n - from {title} by {f} {l}.")
+        println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
     }
     Ok(())
 }

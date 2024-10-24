@@ -6,18 +6,18 @@ use crate::{
 
 use super::*;
 
-pub struct ColumnConstraint<'a> {
+pub struct ColumnConstraint<'a, S: ValueSchema> {
     variable_e: VariableId,
     variable_v: VariableId,
-    column_ev: &'a HashMap<RawId, HashSet<RawValue>>,
-    column_ve: &'a HashMap<RawValue, HashSet<RawId>>,
+    column_ev: &'a HashMap<RawId, HashSet<Value<S>>>,
+    column_ve: &'a HashMap<Value<S>, HashSet<RawId>>,
 }
 
-impl<'a> ColumnConstraint<'a> {
-    pub fn new<V: ValueSchema>(
+impl<'a, S: ValueSchema> ColumnConstraint<'a, S> {
+    pub fn new(
         variable_e: Variable<GenId>,
-        variable_v: Variable<V>,
-        column: &'a Column<V>,
+        variable_v: Variable<S>,
+        column: &'a Column<S>,
     ) -> Self {
         ColumnConstraint {
             variable_e: variable_e.index,
@@ -28,7 +28,7 @@ impl<'a> ColumnConstraint<'a> {
     }
 }
 
-impl<'a> Constraint<'a> for ColumnConstraint<'a> {
+impl<'a, S: ValueSchema> Constraint<'a> for ColumnConstraint<'a, S> {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();
         variables.set(self.variable_e);
@@ -65,11 +65,11 @@ impl<'a> Constraint<'a> for ColumnConstraint<'a> {
 
         match (e_bound, v_bound, e_var, v_var) {
             (None, None, true, false) => self.column_ev.keys().map(id_into_value).collect(),
-            (None, None, false, true) => self.column_ve.keys().copied().collect(),
+            (None, None, false, true) => self.column_ve.keys().map(|v| v.bytes).collect(),
             (Some(e), None, false, true) => self
                 .column_ev
                 .get(&e[16..=31])
-                .map_or(vec![], |s| s.iter().copied().collect()),
+                .map_or(vec![], |s| s.iter().map(|v| v.bytes).collect()),
             (None, Some(v), true, false) => self
                 .column_ve
                 .get(v)

@@ -3,22 +3,20 @@ pub mod columnconstraint;
 use std::collections::{HashMap, HashSet};
 
 use std::iter::FromIterator;
-use std::marker::PhantomData;
 
 use crate::query::Variable;
 use crate::{
     id::RawId,
     value::schemas::genid::GenId,
-    value::{RawValue, Value, ValueSchema},
+    value::{Value, ValueSchema},
 };
 
 use self::columnconstraint::ColumnConstraint;
 
 #[derive(Debug, Clone)]
-pub struct Column<V> {
-    pub ev: HashMap<RawId, HashSet<RawValue>>,
-    pub ve: HashMap<RawValue, HashSet<RawId>>,
-    pv: PhantomData<V>,
+pub struct Column<S: ValueSchema> {
+    pub ev: HashMap<RawId, HashSet<Value<S>>>,
+    pub ve: HashMap<Value<S>, HashSet<RawId>>,
 }
 
 impl<V: ValueSchema> Column<V> {
@@ -26,21 +24,20 @@ impl<V: ValueSchema> Column<V> {
         Self {
             ev: HashMap::new(),
             ve: HashMap::new(),
-            pv: PhantomData,
         }
     }
 
     pub fn insert(&mut self, e: RawId, v: Value<V>) {
-        self.ev.entry(e).or_default().insert(v.bytes);
-        self.ve.entry(v.bytes).or_default().insert(e);
+        self.ev.entry(e).or_default().insert(v);
+        self.ve.entry(v).or_default().insert(e);
     }
 
     pub fn remove(&mut self, e: RawId, v: Value<V>) {
-        self.ev.entry(e).or_default().remove(&v.bytes);
-        self.ve.entry(v.bytes).or_default().remove(&e);
+        self.ev.entry(e).or_default().remove(&v);
+        self.ve.entry(v).or_default().remove(&e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<GenId>, v: Variable<V>) -> ColumnConstraint<'a> {
+    pub fn has<'a>(&'a self, e: Variable<GenId>, v: Variable<V>) -> ColumnConstraint<'a, V> {
         ColumnConstraint::new(e, v, self)
     }
 }

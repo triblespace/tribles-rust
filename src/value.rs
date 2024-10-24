@@ -3,7 +3,7 @@ pub mod schemas;
 use crate::id::RawId;
 
 use core::fmt;
-use std::{cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
 
@@ -86,6 +86,12 @@ impl<T: ValueSchema> Ord for Value<T> {
 impl<T: ValueSchema> PartialOrd for Value<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl<S: ValueSchema> Borrow<RawValue> for Value<S> {
+    fn borrow(&self) -> &RawValue {
+        &self.bytes
     }
 }
 

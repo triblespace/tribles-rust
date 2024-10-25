@@ -30,7 +30,6 @@ impl<'a> TryFromValue<'a, ShortString> for &'a str {
     }
 }
 
-
 impl<'a> TryFromValue<'a, ShortString> for String {
     type Error = Utf8Error;
 

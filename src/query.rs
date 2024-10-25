@@ -384,7 +384,8 @@ mod tests {
 
         assert_eq!(inter.len(), 2);
 
-        let cross: Vec<_> = find!(ctx, (a: Value<_>, b: Value<_>), and!(books.has(a), movies.has(b))).collect();
+        let cross: Vec<_> =
+            find!(ctx, (a: Value<_>, b: Value<_>), and!(books.has(a), movies.has(b))).collect();
 
         assert_eq!(cross.len(), 6);
 

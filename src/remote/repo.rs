@@ -107,22 +107,6 @@ pub trait Push<H> {
         Handle<H, T>: ValueSchema;
 }
 
-pub trait Repo<H: HashProtocol>: List<H> + Pull<H> + Push<H> {
-    type ListErr;
-    type PullErr;
-    type PushErr;
-}
-
-impl<H, T> Repo<H> for T
-where
-    H: HashProtocol,
-    T: List<H> + Pull<H> + Push<H>,
-{
-    type ListErr = <Self as List<H>>::Err;
-    type PullErr = <Self as Pull<H>>::Err;
-    type PushErr = <Self as Push<H>>::Err;
-}
-
 #[derive(Debug)]
 pub struct NotFoundErr();
 

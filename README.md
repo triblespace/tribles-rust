@@ -28,7 +28,7 @@ By reifying most concepts and operations as first class citizens, we hope to pro
 providing build-in version control.
 - Delta-Queries between arbitrary datasets.
 - Compile-time typed queries and dataset construction.
-- Low overall complexity.
+- Low overall complexity. If you feel that stuff is obvious, maybe a bit boring, and that you could have come up with it yourself, then we achieved our goal.
 
 # Community
 

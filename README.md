@@ -1,4 +1,5 @@
 ![Crates.io Version](https://img.shields.io/crates/v/tribles)
+![docs.rs](https://img.shields.io/docsrs/tribles)
 ![Discord Shield](https://discordapp.com/api/guilds/795317845181464651/widget.png?style=shield)
 
 # About

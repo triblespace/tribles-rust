@@ -7,6 +7,25 @@
 //! providing great flexibililty in the way different query operators,
 //! sub-languages, and data-sources can be composed.
 //!
+//! # Queries as Schemas
+//!
+//! You might already have noticed that trible.space does not have any concept
+//! of an ontology or schema specification beyond the association of attributes
+//! with [ValueSchema] and [crate::prelude::BlobSchema]. This is deliberate, as one of our
+//! lessons learned from the semantic web was that it is too loose in the typing
+//! of individual values, but too strict and computationally infeasible in the
+//! description of larger structures. Any system that deals with real-world data
+//! grounded in reality will need to robustly handle cases of missing,
+//! duplicate, or additonal fields, which is fundamentally in conflict with
+//! strong constraints like classes.
+//!
+//! Our approach is to be sympathetic to the edge case and has the system deal
+//! only with the data that it declares capable of handling. It just so happens
+//! to be that these "application specific schema declarations" are exactly the
+//! shapes and constraints described by the queries, with data not conforming to
+//! these queries/schemas simply being ignored by definition (as a query only
+//! returns the data conforming to it's constraints).[^1]
+//!
 //! # The Atreides Family of Worstcase Optimal Join Algorithms
 //!
 //! The heart of the system is a constraint solving approach based on the theory
@@ -30,6 +49,11 @@
 //! - *Paul's Join* - The smallest number of distinct values from one column matching the variable.
 //! - *Leto's Join* - The true number of values matching the variable (e.g. after intersection).
 //!
+//! [^1]: In RDF terminology:
+//! We challenge the classical A-Box & T-Box dichotomy. Replacing the T-Box with
+//! a "Q-Box", which instead of being prescriptive and closed, is descriptive
+//! and open. This Q-Box naturally evolves with new and changing requirements,
+//! contexts, and applications.
 //!
 pub mod constantconstraint;
 pub mod hashmapconstraint;

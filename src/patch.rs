@@ -1,4 +1,11 @@
-// Persistent Adaptive Trie with Cuckoos and Hashes
+//! # Persistent Adaptive Trie with Cuckoo-compression and Hash-maintenance
+//!
+//! The PATCH is a novel adaptive trie, that uses cuckoo hashing
+//! as a node compression technique to store between 2 and 256
+//! children wide nodes with a single node type.
+//! It further uses efficient hash maintenance to provide fast
+//! set operations over these tries.
+//!
 #![allow(unstable_name_collisions)]
 
 mod branch;

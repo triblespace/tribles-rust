@@ -2,7 +2,7 @@ use rand::thread_rng;
 use rand::RngCore;
 use std::cell::RefCell;
 
-use super::FreshId;
+use super::OwnedId;
 
 pub struct FUCIDgen {
     salt: u128,
@@ -30,17 +30,17 @@ impl FUCIDgen {
         }
     }
 
-    pub fn next(&mut self) -> FreshId {
+    pub fn next(&mut self) -> OwnedId {
         let next_id = self.counter ^ self.salt;
         self.counter += 1;
-        unsafe { FreshId::new(next_id.to_be_bytes()) }
+        unsafe { OwnedId::new(next_id.to_be_bytes()) }
     }
 }
 
 thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen::new()));
 
 /// Fast Unsafe Compressable IDs
-pub fn fucid() -> FreshId {
+pub fn fucid() -> OwnedId {
     GEN_STATE.with(|cell| {
         let mut gen = cell.borrow_mut();
         gen.next()

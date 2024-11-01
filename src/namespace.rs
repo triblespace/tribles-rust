@@ -177,7 +177,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::tribleset::TribleSet::new();
-                        let id: $crate::id::FreshId = $entity_id;
+                        let id: $crate::id::OwnedId = $entity_id;
                         let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
@@ -187,7 +187,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let set: &mut TribleSet= $set;
-                        let id: $crate::id::FreshId = $entity_id;
+                        let id: $crate::id::OwnedId = $entity_id;
                         let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, set, id, $entity);
                     }
@@ -319,11 +319,11 @@ mod tests {
             let lover_a = ufoid();
             let lover_b = ufoid();
             kb.union(knights::entity!(lover_a, {
-                name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
+                name: &Name(EN).fake::<String>()[..],
                 loves: lover_b
             }));
             kb.union(knights::entity!(lover_b, {
-                name: (&Name(EN).fake::<String>()[..]).try_to_value().unwrap(),
+                name: &Name(EN).fake::<String>()[..],
                 loves: lover_a
             }));
         });

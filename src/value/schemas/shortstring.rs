@@ -70,8 +70,23 @@ impl TryToValue<ShortString> for &str {
     }
 }
 
+impl TryToValue<ShortString> for String {
+    type Error = FromStrError;
+
+    fn try_to_value(self) -> Result<Value<ShortString>, Self::Error> {
+        (&self[..]).try_to_value()
+    }
+}
+
 impl ToValue<ShortString> for &str {
     fn to_value(self) -> Value<ShortString> {
         self.try_to_value().unwrap()
     }
 }
+
+impl ToValue<ShortString> for String {
+    fn to_value(self) -> Value<ShortString> {
+        self.try_to_value().unwrap()
+    }
+}
+

@@ -8,7 +8,7 @@ use hex::{FromHex, FromHexError};
 use hex_literal::hex;
 use std::marker::PhantomData;
 
-pub trait HashProtocol: Digest<OutputSize = U32> {
+pub trait HashProtocol: Digest<OutputSize = U32> + 'static {
     const NAME: &'static str;
     const SCHEMA_ID: RawId;
 }
@@ -84,6 +84,17 @@ where
     }
 }
 
+impl<H> TryToValue<Hash<H>> for String
+where
+    H: HashProtocol,
+{
+    type Error = HashError;
+
+    fn try_to_value(self) -> Result<Value<Hash<H>>, Self::Error> {
+        (&self[..]).try_to_value()
+    }
+}
+
 impl<H: HashProtocol, T: BlobSchema> From<Value<Hash<H>>> for Value<Handle<H, T>> {
     fn from(value: Value<Hash<H>>) -> Self {
         Value::new(value.bytes)
@@ -106,7 +117,7 @@ impl HashProtocol for Blake3 {
 }
 
 #[repr(transparent)]
-pub struct Handle<H, T> {
+pub struct Handle<H, T: BlobSchema> {
     digest: Hash<H>,
     _type: PhantomData<T>,
 }

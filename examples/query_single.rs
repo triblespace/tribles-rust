@@ -20,11 +20,11 @@ fn main() {
         let lover_b = ufoid();
 
         kb.union(knights::entity!({
-            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            name: Name(EN).fake::<String>(),
             loves: lover_b
         }));
         kb.union(knights::entity!({
-            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            name: Name(EN).fake::<String>(),
             loves: lover_a
         }));
     });

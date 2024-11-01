@@ -20,11 +20,11 @@
 //! strong constraints like classes.
 //!
 //! Our approach is to be sympathetic to the edge case and has the system deal
-//! only with the data that it declares capable of handling. It just so happens
-//! to be that these "application specific schema declarations" are exactly the
-//! shapes and constraints described by the queries, with data not conforming to
-//! these queries/schemas simply being ignored by definition (as a query only
-//! returns the data conforming to it's constraints).[^1]
+//! only with the data that it declares capable of handling. These "application
+//! specific schema declarations" are exactly the shapes and constraints
+//! described by our queries[^1], with data not conforming to these
+//! queries/schemas simply being ignored by definition (as a query only returns
+//! the data conforming to it's constraints).[^2]
 //!
 //! # The Atreides Family of Worstcase Optimal Join Algorithms
 //!
@@ -49,7 +49,9 @@
 //! - *Paul's Join* - The smallest number of distinct values from one column matching the variable.
 //! - *Leto's Join* - The true number of values matching the variable (e.g. after intersection).
 //!
-//! [^1]: In RDF terminology:
+//! [^1]: Note that this query-schema isomorphism isn't nessecarily true in all
+//! databases or query languages, e.g. it does not hold for SQL.
+//! [^2]: In RDF terminology:
 //! We challenge the classical A-Box & T-Box dichotomy. Replacing the T-Box with
 //! a "Q-Box", which instead of being prescriptive and closed, is descriptive
 //! and open. This Q-Box naturally evolves with new and changing requirements,
@@ -394,15 +396,15 @@ mod tests {
 
     #[test]
     fn and_set() {
-        let mut books = HashSet::<Value<ShortString>>::new();
+        let mut books = HashSet::<&str>::new();
         let mut movies = HashSet::<Value<ShortString>>::new();
 
-        books.insert("LOTR".try_to_value().unwrap());
-        books.insert("Dragonrider".try_to_value().unwrap());
-        books.insert("Highlander".try_to_value().unwrap());
+        books.insert("LOTR");
+        books.insert("Dragonrider");
+        books.insert("Highlander");
 
-        movies.insert("LOTR".try_to_value().unwrap());
-        movies.insert("Highlander".try_to_value().unwrap());
+        movies.insert("LOTR".to_value());
+        movies.insert("Highlander".to_value());
 
         let inter: Vec<_> = find!(ctx, (a: Value<_>), and!(books.has(a), movies.has(a))).collect();
 
@@ -482,7 +484,7 @@ mod tests {
             ctx,
             (string: Value<_>, number: Value<_>),
             and!(
-                string.is(ShortString::try_to_value("Hello World!").unwrap()),
+                string.is(ShortString::to_value("Hello World!")),
                 number.is(I256BE::to_value(42))
             )
         );

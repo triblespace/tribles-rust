@@ -1,4 +1,4 @@
-use crate::id::{FreshId, RawId};
+use crate::id::{OwnedId, RawId};
 use crate::value::{ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryFrom;
@@ -53,9 +53,9 @@ impl ToValue<GenId> for RawId {
     }
 }
 
-impl ToValue<GenId> for FreshId {
+impl ToValue<GenId> for OwnedId {
     fn to_value(self) -> Value<GenId> {
-        let id: RawId = self.into();
+        let id: RawId = self.raw;
         id.to_value()
     }
 }

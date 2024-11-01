@@ -1,4 +1,4 @@
-//! [RawId]/[FreshId] are 128bit high-entropy persistent identifiers.
+//! [RawId]/[OwnedId] are 128bit high-entropy persistent identifiers.
 //!
 //! # General Remarks on Identifiers
 //! We found it useful to split identifiers into three categories:
@@ -32,14 +32,14 @@
 //! The abbreviations that a paper uses for its citations and bibliography
 //! are then an example of a human readable name scoped to that paper.
 //!
-//! # Consistency, Directed Edges and Fresh IDs
+//! # Consistency, Directed Edges and Owned IDs
 //!
 //! While a simple grow set already constitutes a CRDT,
 //! it is also limited in expressiveness.
 //! To provide richer semantics while guaranteeing conflict-free
-//! mergeability we allow (or at least strongly suggest) only "fresh"
+//! mergeability we allow (or at least strongly suggest) only "owned"
 //! IDs to be used in the `entity` position of newly generated triples.
-//! As fresh IDs are [send] but not [sync] owning a set of them essentially
+//! As owned IDs are [send] but not [sync] owning a set of them essentially
 //! constitutes a single writer transaction domain, allowing for some non-monotonic
 //! operations like `if-does-not-exist`, over the set of contained entities.
 //! Note that this does not enable operations that would break CALM, e.g. `delete`.
@@ -112,7 +112,7 @@ pub mod fucid;
 pub mod rngid;
 pub mod ufoid;
 
-use std::convert::TryInto;
+use std::{collections::HashSet, convert::TryInto, cell::Cell};
 
 pub use fucid::fucid;
 pub use rngid::rngid;
@@ -120,32 +120,36 @@ pub use ufoid::ufoid;
 
 use crate::value::{RawValue, VALUE_LEN};
 
+thread_local!(static OWNED_IDS: Cell<HashSet<RawId>> = Cell::new(HashSet::new()));
+
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct FreshId {
+pub struct OwnedId {
     pub raw: RawId,
     _private: (),
 }
 
-impl FreshId {
+impl OwnedId {
     pub unsafe fn new(id: RawId) -> Self {
-        FreshId {
+        OwnedId {
             raw: id,
             _private: (),
         }
     }
 }
 
-unsafe impl Send for FreshId {}
+unsafe impl Send for OwnedId {}
 
-impl From<FreshId> for RawId {
-    fn from(value: FreshId) -> Self {
+impl From<OwnedId> for RawId {
+    fn from(value: OwnedId) -> Self {
         value.raw
     }
 }
+
+
 
 pub(crate) fn id_into_value(id: &RawId) -> RawValue {
     let mut data = [0; VALUE_LEN];

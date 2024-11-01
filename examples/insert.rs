@@ -21,7 +21,7 @@ fn main() {
 
         kb.union(knights::entity!(lover_a,
         {
-            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            name: Name(EN).fake::<String>(),
             loves: lover_b
         }));
         /*coz::progress!();

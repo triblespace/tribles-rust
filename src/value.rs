@@ -106,7 +106,7 @@ impl<T: ValueSchema> Debug for Value<T> {
     }
 }
 
-pub trait ValueSchema: Sized {
+pub trait ValueSchema: Sized + 'static {
     const ID: RawId;
 
     fn to_value<T: ToValue<Self>>(t: T) -> Value<Self> {
@@ -135,6 +135,39 @@ pub trait TryFromValue<'a, S: ValueSchema>: Sized {
     type Error;
     fn try_from_value(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }
+
+impl<S: ValueSchema, T> ToValue<S> for &T
+where T: ToValue<S> + Copy {
+    fn to_value(self) -> Value<S> {
+        (*self).to_value()
+    }
+}
+
+impl<'a, S: ValueSchema, T> FromValue<'a, S> for &T
+where T: ToValue<S> {
+    fn from_value(v: &'a Value<S>) -> Self {
+        v.from_value()
+    }
+}
+
+impl<S: ValueSchema, T> TryToValue<S> for &T
+where T: TryToValue<S> + Copy {
+    type Error = T::Error;
+    
+    fn try_to_value(self) -> Result<Value<S>, Self::Error> {
+        (*self).try_to_value()
+    }
+}
+
+impl<'a, S: ValueSchema, T> TryFromValue<'a, S> for &T
+where T: TryFromValue<'a, S> {
+    type Error = T::Error;
+    
+    fn try_from_value(v: &'a Value<S>) -> Result<Self, Self::Error> {
+        v.try_from_value()
+    }
+}
+
 
 impl<S: ValueSchema> ToValue<S> for Value<S> {
     fn to_value(self) -> Value<S> {

@@ -1,19 +1,23 @@
 use std::collections::HashSet;
 
+use crate::value::{FromValue, ToValue};
+
 use super::*;
 
-pub struct SetConstraint<'a, T: ValueSchema> {
-    variable: Variable<T>,
-    set: &'a HashSet<Value<T>>,
+pub struct SetConstraint<'a, S: ValueSchema, T> {
+    variable: Variable<S>,
+    set: &'a HashSet<T>,
 }
 
-impl<'a, T: ValueSchema> SetConstraint<'a, T> {
-    pub fn new(variable: Variable<T>, set: &'a HashSet<Value<T>>) -> Self {
+impl<'a, S: ValueSchema, T> SetConstraint<'a, S, T> {
+    pub fn new(variable: Variable<S>, set: &'a HashSet<T>) -> Self {
         SetConstraint { variable, set }
     }
 }
 
-impl<'a, T: ValueSchema> Constraint<'a> for SetConstraint<'a, T> {
+impl<'a, S: ValueSchema, T> Constraint<'a> for SetConstraint<'a, S, T>
+where T: 'a + std::cmp::Eq + std::hash::Hash,
+      for<'b> &'b T: ToValue<S> + FromValue<'b, S> {
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
     }
@@ -27,21 +31,22 @@ impl<'a, T: ValueSchema> Constraint<'a> for SetConstraint<'a, T> {
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
-        self.set.iter().map(|v| v.bytes).collect()
+        self.set.iter().map(|v| ToValue::to_value(v).bytes).collect()
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| self.set.contains(&Value::new(*v)));
+        proposals.retain(|v| self.set.contains(FromValue::from_value(Value::<S>::transmute_raw(v))));
     }
 }
 
-impl<'a, T: ValueSchema> ContainsConstraint<'a, T> for HashSet<Value<T>>
+impl<'a, S: ValueSchema, T> ContainsConstraint<'a, S> for HashSet<T>
 where
-    T: 'a,
+    T: 'a + std::cmp::Eq + std::hash::Hash,
+    for<'b> &'b T: ToValue<S> + FromValue<'b, S> 
 {
-    type Constraint = SetConstraint<'a, T>;
+    type Constraint = SetConstraint<'a, S, T>;
 
-    fn has(&'a self, v: Variable<T>) -> Self::Constraint {
+    fn has(&'a self, v: Variable<S>) -> Self::Constraint {
         SetConstraint::new(v, self)
     }
 }

@@ -1,10 +1,10 @@
 use rand::{thread_rng, RngCore};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::FreshId;
+use super::OwnedId;
 
 // Universal Forgettable Ordered IDs
-pub fn ufoid() -> FreshId {
+pub fn ufoid() -> OwnedId {
     let mut rng = thread_rng();
     let now_in_sys = SystemTime::now();
     let now_since_epoch = now_in_sys
@@ -16,7 +16,7 @@ pub fn ufoid() -> FreshId {
     id[0..4].copy_from_slice(&(now_in_ms as u32).to_be_bytes());
     rng.fill_bytes(&mut id[4..16]);
 
-    unsafe { FreshId::new(id) }
+    unsafe { OwnedId::new(id) }
 }
 
 #[cfg(test)]

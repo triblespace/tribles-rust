@@ -1,11 +1,11 @@
 use rand::{thread_rng, RngCore};
 
-use super::FreshId;
+use super::OwnedId;
 
-pub fn rngid() -> FreshId {
+pub fn rngid() -> OwnedId {
     let mut rng = thread_rng();
     let mut id = [0; 16];
     rng.fill_bytes(&mut id[..]);
 
-    unsafe { FreshId::new(id) }
+    unsafe { OwnedId::new(id) }
 }

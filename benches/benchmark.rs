@@ -242,11 +242,11 @@ fn archive_benchmark(c: &mut Criterion) {
                 let lover_a = fucid();
                 let lover_b = fucid();
                 knights::entity!(&mut set, lover_a, {
-                    name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                    name: Name(EN).fake::<String>(),
                     loves: lover_b
                 });
                 knights::entity!(&mut set, lover_b, {
-                    name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                    name: Name(EN).fake::<String>(),
                     loves: lover_a
                 });
             });
@@ -301,11 +301,11 @@ fn archive_benchmark(c: &mut Criterion) {
                 let lover_a = ufoid();
                 let lover_b = ufoid();
                 knights::entity!(&mut set, lover_a, {
-                    name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                    name: Name(EN).fake::<String>(),
                     loves: lover_b
                 });
                 knights::entity!(&mut set, lover_b, {
-                    name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                    name: Name(EN).fake::<String>(),
                     loves: lover_a
                 });
             });
@@ -391,11 +391,11 @@ fn entities_benchmark(c: &mut Criterion) {
             let lover_b = fucid();
 
             kb.union(knights::entity!(lover_a, {
-                name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                name: Name(EN).fake::<String>(),
                 loves: lover_b
             }));
             kb.union(knights::entity!(lover_b, {
-                name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                name: Name(EN).fake::<String>(),
                 loves: lover_a
             }));
 
@@ -414,11 +414,11 @@ fn entities_benchmark(c: &mut Criterion) {
                     let lover_a = fucid();
                     let lover_b = fucid();
                     knights::entity!(&mut kb, lover_a, {
-                        name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                        name: Name(EN).fake::<String>(),
                         loves: lover_b
                     });
                     knights::entity!(&mut kb, lover_b, {
-                        name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                        name: Name(EN).fake::<String>(),
                         loves: lover_a
                     });
                 });
@@ -444,11 +444,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                         [
                             knights::entity!(lover_a, {
-                                name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                                name: Name(EN).fake::<String>(),
                                 loves: lover_b
                             }),
                             knights::entity!(lover_b, {
-                                name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                                name: Name(EN).fake::<String>(),
                                 loves: lover_a
                             }),
                         ]
@@ -473,11 +473,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                     [
                         knights::entity!(lover_a, {
-                            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                            name: Name(EN).fake::<String>(),
                             loves: lover_b
                         }),
                         knights::entity!(lover_b, {
-                            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                            name: Name(EN).fake::<String>(),
                             loves: lover_a
                         }),
                     ]
@@ -506,11 +506,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                         [
                             knights::entity!(lover_a, {
-                                name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                                name: Name(EN).fake::<String>(),
                                 loves: lover_b
                             }),
                             knights::entity!(lover_b, {
-                                name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                                name: Name(EN).fake::<String>(),
                                 loves: lover_a
                             }),
                         ]
@@ -545,11 +545,11 @@ fn entities_benchmark(c: &mut Criterion) {
 
                                 [
                                     knights::entity!(lover_a, {
-                                        name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                                        name: Name(EN).fake::<String>(),
                                         loves: lover_b
                                     }),
                                     knights::entity!(lover_b, {
-                                        name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+                                        name: Name(EN).fake::<String>(),
                                         loves: lover_a
                                     }),
                                 ]
@@ -585,11 +585,11 @@ fn query_benchmark(c: &mut Criterion) {
         let lover_b = fucid();
 
         kb.union(knights::entity!(lover_a, {
-            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            name: Name(EN).fake::<String>(),
             loves: lover_b
         }));
         kb.union(knights::entity!(lover_b, {
-            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            name: Name(EN).fake::<String>(),
             loves: lover_a
         }));
     });
@@ -617,7 +617,7 @@ fn query_benchmark(c: &mut Criterion) {
             loves: lover_b
         }));
         data_kb.union(knights::entity!(lover_b, {
-            name: Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            name: Name(EN).fake::<String>(),
             loves: lover_a
         }));
     });

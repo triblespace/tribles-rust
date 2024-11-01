@@ -85,7 +85,7 @@ impl<T: BlobSchema> Debug for Blob<T> {
     }
 }
 
-pub trait BlobSchema: Sized {
+pub trait BlobSchema: Sized + 'static {
     const ID: RawId;
 
     fn to_blob<T: ToBlob<Self>>(t: T) -> Blob<Self> {

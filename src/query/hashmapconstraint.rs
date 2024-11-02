@@ -1,21 +1,23 @@
 use std::collections::HashMap;
 
-use crate::id::{id_from_value, id_into_value, RawId};
 use crate::query::{Binding, Constraint, ContainsConstraint, Variable, VariableId, VariableSet};
-use crate::value::{schemas::genid::GenId, RawValue};
+use crate::value::{FromValue, ToValue, Value, ValueSchema};
+use crate::value::RawValue;
 
-pub struct KeysConstraint<'a, T> {
-    variable: Variable<GenId>,
-    map: &'a HashMap<RawId, T>,
+pub struct KeysConstraint<'a, S: ValueSchema, K, V> {
+    variable: Variable<S>,
+    map: &'a HashMap<K, V>,
 }
 
-impl<'a, T> KeysConstraint<'a, T> {
-    pub fn new(variable: Variable<GenId>, map: &'a HashMap<RawId, T>) -> Self {
+impl<'a, S: ValueSchema, K, V> KeysConstraint<'a, S, K, V> {
+    pub fn new(variable: Variable<S>, map: &'a HashMap<K, V>) -> Self {
         KeysConstraint { variable, map }
     }
 }
 
-impl<'a, T> Constraint<'a> for KeysConstraint<'a, T> {
+impl<'a, S: ValueSchema, K, V> Constraint<'a> for KeysConstraint<'a, S, K, V>
+where K: 'a + std::cmp::Eq + std::hash::Hash,
+      for<'b> &'b K: ToValue<S> + FromValue<'b, S>{
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
     }
@@ -29,27 +31,23 @@ impl<'a, T> Constraint<'a> for KeysConstraint<'a, T> {
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
-        self.map.keys().map(|id| id_into_value(id)).collect()
+        self.map.keys().map(|k| ToValue::to_value(k).bytes).collect()
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| {
-            if let Some(id) = id_from_value(v) {
-                self.map.contains_key(&id)
-            } else {
-                false
-            }
-        });
+        proposals.retain(|v| self.map.contains_key(FromValue::from_value(Value::<S>::transmute_raw(v))));
     }
 }
 
-impl<'a, T> ContainsConstraint<'a, GenId> for HashMap<RawId, T>
+impl<'a, S: ValueSchema, K, V> ContainsConstraint<'a, S> for HashMap<K, V>
 where
-    T: 'a,
+    K: 'a + std::cmp::Eq + std::hash::Hash,
+    for<'b> &'b K: ToValue<S> + FromValue<'b, S>,
+    V: 'a
 {
-    type Constraint = KeysConstraint<'a, T>;
+    type Constraint = KeysConstraint<'a, S, K, V>;
 
-    fn has(&'a self, v: Variable<GenId>) -> Self::Constraint {
+    fn has(&'a self, v: Variable<S>) -> Self::Constraint {
         KeysConstraint::new(v, self)
     }
 }

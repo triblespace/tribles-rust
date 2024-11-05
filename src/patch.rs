@@ -433,12 +433,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn remove_leaf(slot: &mut Option<Self>, leaf_key: [u8; KEY_LEN], start_depth: usize) {
+    pub(crate) fn remove_leaf(slot: &mut Option<Self>, leaf_key: &[u8; KEY_LEN], start_depth: usize) {
         if let Some(this) = slot {
-            let head_depth = this.end_depth();
             let head_key = this.leaf_key();
 
-            let end_depth = std::cmp::min(head_depth, KEY_LEN);
+            let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
             for depth in start_depth..end_depth {
                 let i = O::key_index(depth);
                 if head_key[i] != leaf_key[i] {
@@ -474,7 +473,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                                     1 => {
                                         for child in &mut (*branch).child_table {
                                             if let Some(child) = child.take() {
-                                                slot.replace(child);
+                                                slot.replace(child.with_start(start_depth));
                                                 return;
                                             }
                                         }
@@ -493,11 +492,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     pub(crate) fn insert_leaf(&mut self, leaf: Self, start_depth: usize) {
-        let head_depth = self.end_depth();
         let head_key = self.leaf_key();
         let leaf_key = leaf.leaf_key();
 
-        let end_depth = std::cmp::min(head_depth, KEY_LEN);
+        let end_depth = std::cmp::min(self.end_depth(), KEY_LEN);
         for depth in start_depth..end_depth {
             let i = O::key_index(depth);
             if head_key[i] != leaf_key[i] {
@@ -516,7 +514,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
         if end_depth != KEY_LEN {
             self.upsert(leaf, |child, inserted| {
-                child.insert_leaf(inserted, head_depth)
+                child.insert_leaf(inserted, end_depth)
             });
         }
     }
@@ -784,7 +782,7 @@ where
         }
     }
 
-    pub fn remove(&mut self, key: [u8; KEY_LEN]) {
+    pub fn remove(&mut self, key: &[u8; KEY_LEN]) {
         Head::remove_leaf(&mut self.root, key, 0);
     }
 

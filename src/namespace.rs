@@ -14,18 +14,6 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! entity_inner {
-    ($Namespace:path, $Set:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
-        {
-            {
-                use $Namespace as ns;
-                $({let v: $crate::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
-                    $Set.insert(&$crate::trible::Trible::new(
-                    id,
-                    ns::ids::$FieldName,
-                    v));};)*
-            }
-        }
-    };
     ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             use $Namespace as ns;

@@ -1,7 +1,6 @@
-use crate::id::{OwnedId, RawId};
-use crate::value::{ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
+use crate::id::{try_aquire, OwnedId, RawId};
+use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
-use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use hex::FromHex;
@@ -18,30 +17,43 @@ impl ValueSchema for GenId {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum GenIdParseError {
+pub enum IdParseError {
     IsNil,
     BadFormat,
 }
 
-impl TryFrom<&Value<GenId>> for RawId {
-    type Error = GenIdParseError;
+impl<'a> TryFromValue<'a, GenId> for &'a RawId {
+    type Error = IdParseError;
 
-    fn try_from(value: &Value<GenId>) -> Result<Self, Self::Error> {
+    fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
         if value.bytes[0..16] != [0; 16] {
-            return Err(GenIdParseError::BadFormat);
+            return Err(IdParseError::BadFormat);
         }
         if value.bytes[16..32] == [0; 16] {
-            return Err(GenIdParseError::IsNil);
+            return Err(IdParseError::IsNil);
         }
         Ok(value.bytes[16..32].try_into().unwrap())
     }
 }
 
 impl TryFromValue<'_, GenId> for RawId {
-    type Error = GenIdParseError;
+    type Error = IdParseError;
 
-    fn try_from_value(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
-        v.try_into()
+    fn try_from_value(value: &Value<GenId>) -> Result<Self, Self::Error> {
+        let r: Result<&RawId, IdParseError> = value.try_from_value();
+        r.copied()
+    }
+}
+
+impl FromValue<'_, GenId> for RawId {
+    fn from_value(v: &Value<GenId>) -> Self {
+        v.try_from_value().unwrap()
+    }
+}
+
+impl<'a> FromValue<'a, GenId> for &'a RawId {
+    fn from_value(v: &'a Value<GenId>) -> Self {
+        v.try_from_value().unwrap()
     }
 }
 
@@ -53,6 +65,40 @@ impl ToValue<GenId> for RawId {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum OwnedIdError {
+    FailedParse(IdParseError),
+    FailedAquire()
+}
+
+impl From<IdParseError> for OwnedIdError {
+    fn from(e: IdParseError) -> Self {
+        OwnedIdError::FailedParse(e)
+    }
+}
+
+impl<'a> TryFromValue<'a, GenId> for OwnedId {
+    type Error = OwnedIdError;
+
+    fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
+        let id: RawId = value.try_from_value()?;
+        try_aquire(id).ok_or(OwnedIdError::FailedAquire())
+    }
+}
+
+impl FromValue<'_, GenId> for OwnedId {
+    fn from_value(v: &Value<GenId>) -> Self {
+        v.try_from_value().unwrap()
+    }
+}
+
+impl ToValue<GenId> for OwnedId {
+    fn to_value(self) -> Value<GenId> {
+        let id: RawId = self.raw;
+        id.to_value()
+    }
+}
+
 impl ToValue<GenId> for &OwnedId {
     fn to_value(self) -> Value<GenId> {
         let id: RawId = self.raw;
@@ -61,10 +107,10 @@ impl ToValue<GenId> for &OwnedId {
 }
 
 impl TryFromValue<'_, GenId> for String {
-    type Error = GenIdParseError;
+    type Error = IdParseError;
 
     fn try_from_value(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
-        let id: RawId = v.try_into()?;
+        let id: RawId = v.try_from_value()?;
         let mut s = String::new();
         s.push_str("genid:");
         s.push_str(&hex::encode(id));

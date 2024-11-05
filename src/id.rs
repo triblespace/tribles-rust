@@ -146,7 +146,7 @@ impl Drop for OwnedId {
     fn drop(&mut self) {
         OWNED_IDS.with_borrow_mut(|ids| {
             let entry = Entry::new(&self.raw);
-            ids.insert(&entry)
+            ids.insert(&entry);
         });
     }
 }
@@ -163,7 +163,7 @@ impl From<OwnedId> for RawId {
 pub fn try_aquire(id: RawId) -> Option<OwnedId> {
     OWNED_IDS.with_borrow_mut(|ids| {
         if ids.has_prefix(&id) {
-            ids.remove(id);
+            ids.remove(&id);
             Some(OwnedId::force(id))
         } else {
             None
@@ -196,6 +196,7 @@ pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
 
 #[cfg(test)]
 mod tests {
+    use crate::id::OwnedId;
     use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
@@ -230,9 +231,10 @@ mod tests {
                 title: "Nurse"
             }));
         }
+
         let mut r: Vec<_> = find!(
             ctx,
-            (person: Value<_>, name: String),
+            (person: OwnedId, name: String),
             and!(
                 local_owned(person),
                 knights::pattern!(ctx, &kb, [

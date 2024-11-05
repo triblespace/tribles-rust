@@ -5,7 +5,7 @@ pub use crate::blob::BlobSchema;
 pub use crate::blob::{Blob, FromBlob, ToBlob, TryFromBlob, TryToBlob};
 pub use crate::blobset::BlobSet;
 pub use crate::column::Column;
-pub use crate::id::{local_owned, aquire, try_aquire, fucid, rngid, ufoid};
+pub use crate::id::{local_owned, OwnedId, fucid, rngid, ufoid};
 pub use crate::namespace::NS;
 pub use crate::query::{
     find,

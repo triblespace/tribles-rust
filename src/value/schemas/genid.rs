@@ -1,4 +1,4 @@
-use crate::id::{try_aquire, OwnedId, RawId};
+use crate::id::{OwnedId, RawId};
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryInto;
@@ -82,7 +82,7 @@ impl<'a> TryFromValue<'a, GenId> for OwnedId {
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
         let id: RawId = value.try_from_value()?;
-        try_aquire(id).ok_or(OwnedIdError::FailedAquire())
+        OwnedId::try_aquire(id).ok_or(OwnedIdError::FailedAquire())
     }
 }
 

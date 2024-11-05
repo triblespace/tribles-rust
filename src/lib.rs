@@ -2,7 +2,6 @@
 
 pub mod blob;
 pub mod blobset;
-pub mod column;
 pub mod id;
 pub mod meta;
 pub mod namespace;

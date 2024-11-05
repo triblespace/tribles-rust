@@ -698,82 +698,6 @@ fn query_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-fn column_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("column");
-
-    let mut name: Column<ShortString> = Column::new();
-    let mut loves: Column<GenId> = Column::new();
-
-    (0..1000000).for_each(|_| {
-        let lover_a = ufoid();
-        let lover_b = ufoid();
-        name.insert(
-            &lover_a,
-            &Name(EN).fake::<String>(),
-        );
-        name.insert(
-            &lover_b,
-            &Name(EN).fake::<String>(),
-        );
-        loves.insert(&lover_a, &lover_b);
-        loves.insert(&lover_b, &lover_a);
-    });
-
-    (0..1000).for_each(|_| {
-        let lover_a = ufoid();
-        let lover_b = ufoid();
-        name.insert(&lover_a, "Wameo");
-        name.insert(
-            &lover_b,
-            &Name(EN).fake::<String>(),
-        );
-        loves.insert(&lover_a, &lover_b);
-        loves.insert(&lover_b, &lover_a);
-    });
-
-    let romeo = ufoid();
-    let juliet = ufoid();
-    name.insert(&romeo, "Romeo");
-    name.insert(&juliet, "Juliet");
-    loves.insert(&romeo, &juliet);
-    loves.insert(&juliet, &romeo);
-
-    group.throughput(Throughput::Elements(1));
-    group.bench_function(BenchmarkId::new("query", 1), |b| {
-        b.iter(|| {
-            find!(
-                ctx,
-                (juliet: Value<_>, romeo: Value<_>, romeo_name: Value<_>, juliet_name: Value<_>),
-                and!(
-                    romeo_name.is(black_box("Romeo").try_to_value().unwrap()),
-                    name.has(romeo, romeo_name),
-                    name.has(juliet, juliet_name),
-                    loves.has(romeo, juliet)
-                )
-            )
-            .count()
-        })
-    });
-
-    group.throughput(Throughput::Elements(1000));
-    group.bench_function(BenchmarkId::new("query", 1000), |b| {
-        b.iter(|| {
-            find!(
-                ctx,
-                (juliet: Value<_>, romeo: Value<_>, romeo_name: Value<_>, juliet_name: Value<_>),
-                and!(
-                    romeo_name.is(black_box("Wameo").try_to_value().unwrap()),
-                    name.has(romeo, romeo_name),
-                    name.has(juliet, juliet_name),
-                    loves.has(romeo, juliet)
-                )
-            )
-            .count()
-        })
-    });
-    group.finish();
-}
-
 fn oxigraph_benchmark(c: &mut Criterion) {
     use oxigraph::model::*;
     use oxigraph::sparql::QueryResults;
@@ -1079,7 +1003,6 @@ criterion_group!(
     archive_benchmark,
     entities_benchmark,
     query_benchmark,
-    column_benchmark,
     hashtribleset_benchmark,
     oxigraph_benchmark
 );

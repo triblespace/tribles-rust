@@ -147,13 +147,13 @@ mod tests {
         let count_data: Vec<_> = (0..size as u128)
             .map(|id| id_into_value(&id.to_be_bytes()))
             .collect();
-        let genid_data: Vec<_> = repeat_with(|| id_into_value(&rngid().raw))
+        let genid_data: Vec<_> = repeat_with(|| id_into_value(&rngid()))
             .take(size)
             .collect();
-        let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid().raw))
+        let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid()))
             .take(size)
             .collect();
-        let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid().raw))
+        let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid()))
             .take(size)
             .collect();
 
@@ -187,13 +187,13 @@ mod tests {
         let count_data: Vec<_> = (0..size as u128)
             .map(|id| id_into_value(&id.to_be_bytes()))
             .collect();
-        let genid_data: Vec<_> = repeat_with(|| id_into_value(&rngid().raw))
+        let genid_data: Vec<_> = repeat_with(|| id_into_value(&rngid()))
             .take(size)
             .collect();
-        let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid().raw))
+        let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid()))
             .take(size)
             .collect();
-        let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid().raw))
+        let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid()))
             .take(size)
             .collect();
 

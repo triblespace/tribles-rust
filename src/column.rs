@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 
 use crate::query::Variable;
+use crate::value::ToValue;
 use crate::{
     id::RawId,
     value::schemas::genid::GenId,
@@ -19,7 +20,7 @@ pub struct Column<S: ValueSchema> {
     pub ve: HashMap<Value<S>, HashSet<RawId>>,
 }
 
-impl<V: ValueSchema> Column<V> {
+impl<S: ValueSchema> Column<S> {
     pub fn new() -> Self {
         Self {
             ev: HashMap::new(),
@@ -27,26 +28,35 @@ impl<V: ValueSchema> Column<V> {
         }
     }
 
-    pub fn insert(&mut self, e: RawId, v: Value<V>) {
+    pub fn insert<T>(&mut self, e: &RawId, v: T)
+    where T: ToValue<S> {
+        let e = *e;
+        let v = v.to_value();
         self.ev.entry(e).or_default().insert(v);
         self.ve.entry(v).or_default().insert(e);
     }
 
-    pub fn remove(&mut self, e: RawId, v: Value<V>) {
+    pub fn remove<T>(&mut self, e: &RawId, v: T)
+    where T: ToValue<S> {
+        let e = *e;
+        let v = v.to_value();
         self.ev.entry(e).or_default().remove(&v);
         self.ve.entry(v).or_default().remove(&e);
     }
 
-    pub fn has<'a>(&'a self, e: Variable<GenId>, v: Variable<V>) -> ColumnConstraint<'a, V> {
+    pub fn has<'a>(&'a self, e: Variable<GenId>, v: Variable<S>) -> ColumnConstraint<'a, S> {
         ColumnConstraint::new(e, v, self)
     }
 }
 
-impl<'a, V: ValueSchema> FromIterator<&'a (RawId, Value<V>)> for Column<V> {
-    fn from_iter<I: IntoIterator<Item = &'a (RawId, Value<V>)>>(iter: I) -> Self {
+impl<'a, S, T> FromIterator<&'a (RawId, T)> for Column<S>
+where S: ValueSchema,
+      for<'b> &'b T: ToValue<S> {
+    fn from_iter<I: IntoIterator<Item = &'a (RawId, T)>>(iter: I) -> Self {
         let mut column = Self::new();
 
-        for &(k, v) in iter {
+        for (k, v) in iter {
+            let v = v.to_value();
             column.insert(k, v);
         }
         column

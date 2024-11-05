@@ -94,14 +94,14 @@ impl FromValue<'_, GenId> for OwnedId {
 
 impl ToValue<GenId> for OwnedId {
     fn to_value(self) -> Value<GenId> {
-        let id: RawId = self.raw;
+        let id: RawId = *self;
         id.to_value()
     }
 }
 
 impl ToValue<GenId> for &OwnedId {
     fn to_value(self) -> Value<GenId> {
-        let id: RawId = self.raw;
+        let id: RawId = **self;
         id.to_value()
     }
 }

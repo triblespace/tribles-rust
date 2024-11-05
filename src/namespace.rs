@@ -20,8 +20,8 @@ macro_rules! entity_inner {
             $({ let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
                 $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
-                ns::ids::$FieldName,
-                v));})*
+                &ns::ids::$FieldName,
+                &v));})*
         }
     };
 }
@@ -156,8 +156,8 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::tribleset::TribleSet::new();
-                        let id: $crate::id::RawId = $crate::id::rngid().raw;
-                        entity_inner!($mod_name, &mut set, id, $entity);
+                        let id: $crate::id::OwnedId = $crate::id::rngid();
+                        entity_inner!($mod_name, &mut set, &id, $entity);
                         set
                     }
                 };
@@ -166,7 +166,6 @@ macro_rules! NS {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::tribleset::TribleSet::new();
                         let id: &$crate::id::OwnedId = $entity_id;
-                        let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
                     }
@@ -176,7 +175,6 @@ macro_rules! NS {
                         use $crate::namespace::entity_inner;
                         let set: &mut TribleSet= $set;
                         let id: &$crate::id::OwnedId = $entity_id;
-                        let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, set, id, $entity);
                     }
                 };

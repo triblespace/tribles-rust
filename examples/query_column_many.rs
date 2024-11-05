@@ -10,38 +10,38 @@ fn main() {
     let mut loves: Column<GenId> = Column::new();
 
     (0..1000000).for_each(|_| {
-        let lover_a = ufoid().raw;
-        let lover_b = ufoid().raw;
+        let lover_a = ufoid();
+        let lover_b = ufoid();
         name.insert(
-            lover_a,
-            Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            &lover_a,
+            Name(EN).fake::<String>(),
         );
         name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            &lover_b,
+            Name(EN).fake::<String>(),
         );
-        loves.insert(lover_a, lover_b.to_value());
-        loves.insert(lover_b, lover_a.to_value());
+        loves.insert(&lover_a, &lover_b);
+        loves.insert(&lover_b, &lover_a);
     });
 
     (0..1000).for_each(|_| {
-        let lover_a = ufoid().raw;
-        let lover_b = ufoid().raw;
-        name.insert(lover_a, "Wameo".try_to_value().unwrap());
+        let lover_a = ufoid();
+        let lover_b = ufoid();
+        name.insert(&lover_a, "Wameo");
         name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            &lover_b,
+            Name(EN).fake::<String>(),
         );
-        loves.insert(lover_a, lover_b.to_value());
-        loves.insert(lover_b, lover_a.to_value());
+        loves.insert(&lover_a, &lover_b);
+        loves.insert(&lover_b, &lover_a);
     });
 
-    let romeo = ufoid().raw;
-    let juliet = ufoid().raw;
-    name.insert(romeo, "Romeo".try_to_value().unwrap());
-    name.insert(juliet, "Juliet".try_to_value().unwrap());
-    loves.insert(romeo, juliet.to_value());
-    loves.insert(juliet, romeo.to_value());
+    let romeo = ufoid();
+    let juliet = ufoid();
+    name.insert(&romeo, "Romeo");
+    name.insert(&juliet, "Juliet");
+    loves.insert(&romeo, &juliet);
+    loves.insert(&juliet, &romeo);
 
     loop {
         for _r in find!(

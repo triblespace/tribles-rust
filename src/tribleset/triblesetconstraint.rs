@@ -376,9 +376,9 @@ mod tests {
     fn constant() {
         let mut set = TribleSet::new();
         set.insert(&Trible::new(
-            rngid().raw,
-            rngid().raw,
-            Value::<UnknownValue>::new([0; 32]),
+            &rngid(),
+            &rngid(),
+            &Value::<UnknownValue>::new([0; 32]),
         ));
 
         let q = find!(

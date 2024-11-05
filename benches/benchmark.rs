@@ -54,7 +54,7 @@ fn random_tribles(length: usize) -> Vec<Trible> {
         }
 
         let v = fucid();
-        vec.push(Trible::new(e.raw, a.raw, v.to_value()))
+        vec.push(Trible::new(&e, &a, &v.to_value()))
     }
     return vec;
 }
@@ -705,38 +705,38 @@ fn column_benchmark(c: &mut Criterion) {
     let mut loves: Column<GenId> = Column::new();
 
     (0..1000000).for_each(|_| {
-        let lover_a = ufoid().raw;
-        let lover_b = ufoid().raw;
+        let lover_a = ufoid();
+        let lover_b = ufoid();
         name.insert(
-            lover_a,
-            Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            &lover_a,
+            &Name(EN).fake::<String>(),
         );
         name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            &lover_b,
+            &Name(EN).fake::<String>(),
         );
-        loves.insert(lover_a, lover_b.to_value());
-        loves.insert(lover_b, lover_a.to_value());
+        loves.insert(&lover_a, &lover_b);
+        loves.insert(&lover_b, &lover_a);
     });
 
     (0..1000).for_each(|_| {
-        let lover_a = ufoid().raw;
-        let lover_b = ufoid().raw;
-        name.insert(lover_a, "Wameo".try_to_value().unwrap());
+        let lover_a = ufoid();
+        let lover_b = ufoid();
+        name.insert(&lover_a, "Wameo");
         name.insert(
-            lover_b,
-            Name(EN).fake::<String>()[..].try_to_value().unwrap(),
+            &lover_b,
+            &Name(EN).fake::<String>(),
         );
-        loves.insert(lover_a, lover_b.to_value());
-        loves.insert(lover_b, lover_a.to_value());
+        loves.insert(&lover_a, &lover_b);
+        loves.insert(&lover_b, &lover_a);
     });
 
-    let romeo = ufoid().raw;
-    let juliet = ufoid().raw;
-    name.insert(romeo, "Romeo".try_to_value().unwrap());
-    name.insert(juliet, "Juliet".try_to_value().unwrap());
-    loves.insert(romeo, juliet.to_value());
-    loves.insert(juliet, romeo.to_value());
+    let romeo = ufoid();
+    let juliet = ufoid();
+    name.insert(&romeo, "Romeo");
+    name.insert(&juliet, "Juliet");
+    loves.insert(&romeo, &juliet);
+    loves.insert(&juliet, &romeo);
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("query", 1), |b| {
@@ -799,11 +799,11 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                 let mut dataset = Dataset::default();
                 (0..i).for_each(|_| {
                     let lover_a = NamedNode::new(
-                        ["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat(),
+                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
                     )
                     .unwrap();
                     let lover_b = NamedNode::new(
-                        ["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat(),
+                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
                     )
                     .unwrap();
 
@@ -861,11 +861,11 @@ fn oxigraph_benchmark(c: &mut Criterion) {
                 let store = Store::new().unwrap();
                 (0..i).for_each(|_| {
                     let lover_a = NamedNode::new(
-                        ["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat(),
+                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
                     )
                     .unwrap();
                     let lover_b = NamedNode::new(
-                        ["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat(),
+                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
                     )
                     .unwrap();
 
@@ -918,10 +918,10 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     (0..1000000).for_each(|_| {
         let lover_a =
-            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
                 .unwrap();
         let lover_b: NamedNode =
-            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
                 .unwrap();
 
         let quad = Quad::new(
@@ -960,9 +960,9 @@ fn oxigraph_benchmark(c: &mut Criterion) {
     });
 
     let juliet =
-        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
+        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
     let romeo: NamedNode =
-        NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat()).unwrap();
+        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
 
     let quad = Quad::new(
         romeo.clone(),
@@ -1000,10 +1000,10 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     (0..1000).for_each(|_| {
         let lover_a =
-            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
                 .unwrap();
         let lover_b: NamedNode =
-            NamedNode::new(["urn:id:", &ufoid().raw.encode_hex_upper::<String>()].concat())
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
                 .unwrap();
 
         let quad = Quad::new(

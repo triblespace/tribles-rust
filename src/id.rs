@@ -34,19 +34,20 @@
 //!
 //! # Consistency, Directed Edges and Owned IDs
 //!
-//! While a simple grow set already constitutes a CRDT,
-//! it is also limited in expressiveness.
-//! To provide richer semantics while guaranteeing conflict-free
-//! mergeability we allow (or at least strongly suggest) only "owned"
-//! IDs to be used in the `entity` position of newly generated triples.
-//! As owned IDs are [send] but not [sync] owning a set of them essentially
-//! constitutes a single writer transaction domain, allowing for some non-monotonic
-//! operations like `if-does-not-exist`, over the set of contained entities.
-//! Note that this does not enable operations that would break CALM, e.g. `delete`.
+//! While a simple grow set already constitutes a CRDT, it is also limited in
+//! expressiveness. To provide richer semantics while guaranteeing conflict-free
+//! mergeability we allow only "owned" IDs to be used in the `entity` position
+//! of newly generated triples. As owned IDs are [send] but not [sync] owning a
+//! set of them essentially constitutes a single writer transaction domain,
+//! allowing for some non-monotonic operations like `if-does-not-exist`, over
+//! the set of contained entities. Note that this does not make operations that
+//! would break CALM safe, e.g. `delete`.
 //!
 //! A different perspective is that edges are always ordered from describing
 //! to described entities, with circles constituting consensus between entities.
 //!
+//! 
+//! 
 //! # High-entropy persistent identifiers
 //!
 //! The only approach to generate persistent identifiers in a distributed setting
@@ -112,7 +113,7 @@ pub mod fucid;
 pub mod rngid;
 pub mod ufoid;
 
-use std::{cell::RefCell, convert::TryInto};
+use std::{borrow::Borrow, cell::RefCell, convert::TryInto, marker::PhantomData, ops::Deref};
 
 pub use fucid::fucid;
 pub use rngid::rngid;
@@ -128,24 +129,41 @@ pub type RawId = [u8; ID_LEN];
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct OwnedId {
-    pub raw: RawId,
+    raw: RawId,
     // Make sure that the type can't be syntactically initialized.
-    _private: ()
+    // Also make sure that we we don't get auto impl of Send and Sync
+    _private: PhantomData<*const usize>
 }
+
+unsafe impl Send for OwnedId {}
 
 impl OwnedId {
     pub fn force(id: RawId) -> Self {
         Self {
             raw: id,
-            _private: (),
+            _private: PhantomData,
         }
+    }
+}
+
+impl Deref for OwnedId {
+    type Target = RawId;
+
+    fn deref(&self) -> &Self::Target {
+        &self.raw
+    }
+}
+
+impl Borrow<RawId> for OwnedId {
+    fn borrow(&self) -> &RawId {
+        self
     }
 }
 
 impl Drop for OwnedId {
     fn drop(&mut self) {
         OWNED_IDS.with_borrow_mut(|ids| {
-            let entry = Entry::new(&self.raw);
+            let entry = Entry::new(&self);
             ids.insert(&entry);
         });
     }
@@ -153,7 +171,7 @@ impl Drop for OwnedId {
 
 impl From<OwnedId> for RawId {
     fn from(value: OwnedId) -> Self {
-        value.raw
+        *value
     }
 }
 

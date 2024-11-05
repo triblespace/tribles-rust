@@ -339,15 +339,15 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb.union(knights::entity!(juliet,
+        kb.union(knights::entity!(&juliet,
         {
             name: "Juliet",
-            loves: romeo,
+            loves: &romeo,
             title: "Maiden"
         }));
-        kb.union(knights::entity!(romeo, {
+        kb.union(knights::entity!(&romeo, {
             name: "Romeo",
-            loves: juliet,
+            loves: &juliet,
             title: "Prince"
         }));
         kb.union(knights::entity!({
@@ -369,7 +369,7 @@ mod tests {
         )
         .collect();
         assert_eq!(
-            vec![(juliet.to_value(), "Juliet".try_to_value().unwrap(),)],
+            vec![((&juliet).to_value(), "Juliet".try_to_value().unwrap(),)],
             r
         );
     }

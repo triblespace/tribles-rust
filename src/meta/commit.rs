@@ -66,7 +66,7 @@ pub fn sign(
     let signature = signing_key.sign(&hash);
     let r = ED25519RComponent::from_signature(signature);
     let s = ED25519SComponent::from_signature(signature);
-    let tribles = commit_ns::entity!(commit_id,
+    let tribles = commit_ns::entity!(&commit_id,
     {
         tribles: handle,
         ed25519_pubkey: signing_key.verifying_key(),

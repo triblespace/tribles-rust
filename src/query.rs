@@ -147,7 +147,7 @@ impl<T: ValueSchema> Variable<T> {
 pub trait ContainsConstraint<'a, T: ValueSchema> {
     type Constraint: Constraint<'a>;
 
-    fn has(&'a self, v: Variable<T>) -> Self::Constraint;
+    fn has(self, v: Variable<T>) -> Self::Constraint;
 }
 
 impl<T: ValueSchema> Variable<T> {
@@ -396,28 +396,28 @@ mod tests {
 
     #[test]
     fn and_set() {
-        let mut books = HashSet::<&str>::new();
+        let mut books = HashSet::<String>::new();
         let mut movies = HashSet::<Value<ShortString>>::new();
 
-        books.insert("LOTR");
-        books.insert("Dragonrider");
-        books.insert("Highlander");
+        books.insert("LOTR".to_string());
+        books.insert("Dragonrider".to_string());
+        books.insert("Highlander".to_string());
 
         movies.insert("LOTR".to_value());
         movies.insert("Highlander".to_value());
 
-        let inter: Vec<_> = find!(ctx, (a: Value<_>), and!(books.has(a), movies.has(a))).collect();
+        let inter: Vec<_> = find!(ctx, (a: Value<ShortString>), and!(books.has(a), movies.has(a))).collect();
 
         assert_eq!(inter.len(), 2);
 
         let cross: Vec<_> =
-            find!(ctx, (a: Value<_>, b: Value<_>), and!(books.has(a), movies.has(b))).collect();
+            find!(ctx, (a: Value<ShortString>, b: Value<ShortString>), and!(books.has(a), movies.has(b))).collect();
 
         assert_eq!(cross.len(), 6);
 
         let one: Vec<_> = find!(
             ctx,
-            (a: Value<_>),
+            (a: Value<ShortString>),
             and!(books.has(a), a.is("LOTR".try_to_value().unwrap())) //TODO
         )
         .collect();
@@ -447,17 +447,17 @@ mod tests {
         let waromeo = ufoid();
         let mut kb = TribleSet::new();
 
-        kb.union(knights::entity!(juliet,
+        kb.union(knights::entity!(&juliet,
         {
             name: "Juliet",
-            loves: romeo
+            loves: &romeo
         }));
 
-        kb.union(knights::entity!(romeo, {
+        kb.union(knights::entity!(&romeo, {
             name: "Romeo",
-            loves: juliet
+            loves: &juliet
         }));
-        kb.union(knights::entity!(waromeo, {
+        kb.union(knights::entity!(&waromeo, {
             name: "Romeo"
         }));
 

@@ -19,14 +19,14 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        kb.union(knights::entity!(lover_a,
+        kb.union(knights::entity!(&lover_a,
         {
             name: Name(EN).fake::<String>(),
-            loves: lover_b
+            loves: &lover_b
         }));
-        kb.union(knights::entity!(lover_b, {
+        kb.union(knights::entity!(&lover_b, {
             name: Name(EN).fake::<String>(),
-            loves: lover_a
+            loves: &lover_a
         }));
     });
 
@@ -35,26 +35,26 @@ fn main() {
     let romeo = ufoid();
     let juliet = ufoid();
 
-    kb.union(knights::entity!(juliet, {
+    kb.union(knights::entity!(&juliet, {
         name: "Juliet",
-        loves: romeo
+        loves: &romeo
     }));
-    kb.union(knights::entity!(romeo, {
+    kb.union(knights::entity!(&romeo, {
         name: "Romeo",
-        loves: juliet
+        loves: &juliet
     }));
 
     (0..999).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        data_kb.union(knights::entity!(lover_a, {
+        data_kb.union(knights::entity!(&lover_a, {
             name: "Romeo",
-            loves: lover_b
+            loves: &lover_b
         }));
-        data_kb.union(knights::entity!(lover_b, {
+        data_kb.union(knights::entity!(&lover_b, {
             name: Name(EN).fake::<String>(),
-            loves: lover_a
+            loves: &lover_a
         }));
     });
 

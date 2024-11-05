@@ -112,36 +112,44 @@ pub mod fucid;
 pub mod rngid;
 pub mod ufoid;
 
-use std::{collections::HashSet, convert::TryInto, cell::Cell};
+use std::{cell::RefCell, convert::TryInto};
 
 pub use fucid::fucid;
 pub use rngid::rngid;
 pub use ufoid::ufoid;
 
-use crate::value::{RawValue, VALUE_LEN};
+use crate::{patch::{Entry, IdentityOrder, SingleSegmentation, PATCH}, prelude::valueschemas::GenId, query::{Constraint, ContainsConstraint, Variable}, value::{RawValue, VALUE_LEN}};
 
-thread_local!(static OWNED_IDS: Cell<HashSet<RawId>> = Cell::new(HashSet::new()));
+thread_local!(static OWNED_IDS: RefCell<PATCH<ID_LEN, IdentityOrder, SingleSegmentation>> = RefCell::new(PATCH::new()));
 
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct OwnedId {
     pub raw: RawId,
-    _private: (),
+    // Make sure that the type can't be syntactically initialized.
+    _private: ()
 }
 
 impl OwnedId {
-    pub unsafe fn new(id: RawId) -> Self {
-        OwnedId {
+    pub fn force(id: RawId) -> Self {
+        Self {
             raw: id,
             _private: (),
         }
     }
 }
 
-unsafe impl Send for OwnedId {}
+impl Drop for OwnedId {
+    fn drop(&mut self) {
+        OWNED_IDS.with_borrow_mut(|ids| {
+            let entry = Entry::new(&self.raw);
+            ids.insert(&entry)
+        });
+    }
+}
 
 impl From<OwnedId> for RawId {
     fn from(value: OwnedId) -> Self {
@@ -149,7 +157,28 @@ impl From<OwnedId> for RawId {
     }
 }
 
+/// Takes ownership of this ID from the current write context (thread).
+/// Returns `None` if this ID was not found, because it is not associated with this
+/// write context, or because it is currently aquired.
+pub fn try_aquire(id: RawId) -> Option<OwnedId> {
+    OWNED_IDS.with_borrow_mut(|ids| {
+        if ids.has_prefix(&id) {
+            ids.remove(id);
+            Some(OwnedId::force(id))
+        } else {
+            None
+        }
+    })
+}
 
+pub fn aquire(id: RawId) -> OwnedId {
+    try_aquire(id).expect("failed to aquire ID, maybe the ID is no longer owned by this thread or has been aquired already")
+}
+
+pub fn local_owned(v: Variable<GenId>) -> impl Constraint<'static> {
+    let ids = OWNED_IDS.with_borrow(Clone::clone);
+    ids.has(v)
+}
 
 pub(crate) fn id_into_value(id: &RawId) -> RawValue {
     let mut data = [0; VALUE_LEN];
@@ -163,4 +192,59 @@ pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
     }
     let id = id[16..32].try_into().unwrap();
     Some(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::valueschemas::*;
+    use crate::prelude::*;
+
+    NS! {
+        pub namespace knights {
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
+            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
+        }
+    }
+
+    #[test]
+    fn ns_local_owned() {
+        let mut kb = TribleSet::new();
+
+        {
+            let romeo = ufoid();
+            let juliet = ufoid();
+            kb.union(knights::entity!(&juliet, {
+                name: "Juliet",
+                loves: &romeo,
+                title: "Maiden"
+            }));
+            kb.union(knights::entity!(&romeo, {
+                name: "Romeo",
+                loves: &juliet,
+                title: "Prince"
+            }));
+            kb.union(knights::entity!(
+            {
+                name: "Angelica",
+                title: "Nurse"
+            }));
+        }
+        let mut r: Vec<_> = find!(
+            ctx,
+            (person: Value<_>, name: String),
+            and!(
+                local_owned(person),
+                knights::pattern!(ctx, &kb, [
+                    {person @
+                        name: name
+                    }])
+            )
+        ).map(|(_, n)| n)
+        .collect();
+        r.sort();
+
+        assert_eq!(vec!["Angelica", "Juliet", "Romeo"], r);
+
+    }
 }

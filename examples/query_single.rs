@@ -21,11 +21,11 @@ fn main() {
 
         kb.union(knights::entity!({
             name: Name(EN).fake::<String>(),
-            loves: lover_b
+            loves: &lover_b
         }));
         kb.union(knights::entity!({
             name: Name(EN).fake::<String>(),
-            loves: lover_a
+            loves: &lover_a
         }));
     });
 
@@ -34,13 +34,13 @@ fn main() {
     let romeo = ufoid();
     let juliet = ufoid();
 
-    data_kb.union(knights::entity!(juliet, {
+    data_kb.union(knights::entity!(&juliet, {
         name: "Juliet",
-        loves: romeo
+        loves: &romeo
     }));
-    data_kb.union(knights::entity!(romeo, {
+    data_kb.union(knights::entity!(&romeo, {
         name: "Romeo",
-        loves: juliet
+        loves: &juliet
     }));
 
     kb.union(data_kb);

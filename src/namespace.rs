@@ -177,7 +177,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::tribleset::TribleSet::new();
-                        let id: $crate::id::OwnedId = $entity_id;
+                        let id: &$crate::id::OwnedId = $entity_id;
                         let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
@@ -187,7 +187,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let set: &mut TribleSet= $set;
-                        let id: $crate::id::OwnedId = $entity_id;
+                        let id: &$crate::id::OwnedId = $entity_id;
                         let id: $crate::id::RawId = id.raw;
                         entity_inner!($mod_name, set, id, $entity);
                     }
@@ -235,14 +235,14 @@ mod tests {
         let romeo = ufoid();
         let juliet = ufoid();
 
-        knights::entity!(juliet, {
+        knights::entity!(&juliet, {
             name: "Juliet",
-            loves: romeo,
+            loves: &romeo,
             title: "Maiden"
         });
-        knights::entity!(romeo, {
+        knights::entity!(&romeo, {
             name: "Romeo",
-            loves: juliet,
+            loves: &juliet,
             title: "Prince"
         });
         knights::entity!(
@@ -258,14 +258,14 @@ mod tests {
         let romeo = ufoid();
 
         let mut tribles = TribleSet::new();
-        tribles.union(knights::entity!(juliet, {
+        tribles.union(knights::entity!(&juliet, {
             name: "Juliet",
-            loves: romeo,
+            loves: &romeo,
             title: "Maiden"
         }));
-        tribles.union(knights::entity!(romeo, {
+        tribles.union(knights::entity!(&romeo, {
             name: "Romeo",
-            loves: juliet,
+            loves: &juliet,
             title: "Prince"
         }));
         tribles.union(knights::entity!({
@@ -282,15 +282,15 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb.union(knights::entity!(juliet,
+        kb.union(knights::entity!(&juliet,
         {
             name: "Juliet",
-            loves: romeo,
+            loves: &romeo,
             title: "Maiden"
         }));
-        kb.union(knights::entity!(romeo, {
+        kb.union(knights::entity!(&romeo, {
             name: "Romeo",
-            loves: juliet,
+            loves: &juliet,
             title: "Prince"
         }));
         kb.union(knights::entity!({
@@ -318,13 +318,13 @@ mod tests {
         (0..10000).for_each(|_| {
             let lover_a = ufoid();
             let lover_b = ufoid();
-            kb.union(knights::entity!(lover_a, {
-                name: &Name(EN).fake::<String>()[..],
-                loves: lover_b
+            kb.union(knights::entity!(&lover_a, {
+                name: Name(EN).fake::<String>(),
+                loves: &lover_b
             }));
-            kb.union(knights::entity!(lover_b, {
-                name: &Name(EN).fake::<String>()[..],
-                loves: lover_a
+            kb.union(knights::entity!(&lover_b, {
+                name: Name(EN).fake::<String>(),
+                loves: &lover_a
             }));
         });
 
@@ -332,13 +332,13 @@ mod tests {
         let romeo = ufoid();
 
         let mut data_kb = TribleSet::new();
-        data_kb.union(knights::entity!(juliet, {
+        data_kb.union(knights::entity!(&juliet, {
             name: "Juliet",
-            loves: romeo
+            loves: &romeo
         }));
-        data_kb.union(knights::entity!(romeo, {
+        data_kb.union(knights::entity!(&romeo, {
             name: "Romeo",
-            loves: juliet
+            loves: &juliet
         }));
 
         kb.union(data_kb);

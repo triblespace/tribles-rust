@@ -58,14 +58,14 @@ fn main() -> std::io::Result<()> {
 
     let author_id = ufoid();
 
-    set.union(literature::entity!(author_id, {
+    set.union(literature::entity!(&author_id, {
                 firstname: "Frank",
                 lastname: "Herbert",
             }));
 
     set.union(literature::entity!({
                 title: "Dune",
-                author: author_id,
+                author: &author_id,
                 quote: blobs.insert("Deep in the human unconscious is a \
                 pervasive need for a logical universe that makes sense. \
                 But the real universe is always one step beyond logic."),

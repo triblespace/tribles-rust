@@ -92,6 +92,7 @@ pub unsafe trait ByteEntry {
 pub trait ByteBucket<T: ByteEntry + Clone + Debug> {
     fn get_slot(&self, byte_key: u8) -> Option<&T>;
     fn get_mut_slot(&mut self, byte_key: u8) -> Option<&mut T>;
+    fn take_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn shove_empty_slot(&mut self, shoved_entry: T) -> Option<T>;
     fn shove_random_slot(&mut self, shoved_entry: T) -> Option<T>;
     fn shove_expensive_slot(
@@ -123,6 +124,19 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
             if let Some(entry) = entry {
                 if entry.key() == byte_key {
                     return Some(entry);
+                }
+            }
+        }
+        return None;
+    }
+
+    /// Find the entry associated with the provided byte key if it is stored in
+    /// the table and return it or `None` otherwise.
+    fn take_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
+        for slot in self {
+            if let Some(entry) = slot {
+                if entry.key() == byte_key {
+                    return Some(slot);
                 }
             }
         }
@@ -196,6 +210,7 @@ pub trait ByteTable<T: ByteEntry + Clone + Debug> {
     fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [Option<T>];
     fn table_get(&self, byte_key: u8) -> Option<&T>;
     fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T>;
+    fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn table_insert(&mut self, entry: T) -> Option<T>;
     fn table_grow(&self, grown: &mut Self);
 }
@@ -210,27 +225,51 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
     }
 
     fn table_get(&self, byte_key: u8) -> Option<&T> {
+        let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
+        let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
         let cheap_entry = self
-            .table_bucket(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
+            .table_bucket(cheap)
             .get_slot(byte_key);
         let rand_entry = self
-            .table_bucket(compress_hash(self.len(), rand_hash(byte_key)) as usize)
+            .table_bucket(rand)
             .get_slot(byte_key);
         cheap_entry.or(rand_entry)
     }
 
     fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
+        let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
+        let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
         if let Some(_) = self
-            .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
+            .table_bucket_mut(cheap)
             .get_mut_slot(byte_key)
         {
             return self
-                .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
+                .table_bucket_mut(cheap)
                 .get_mut_slot(byte_key); //TODO check if still needed
         }
         if let Some(entry) = self
-            .table_bucket_mut(compress_hash(self.len(), rand_hash(byte_key)) as usize)
+            .table_bucket_mut(rand)
             .get_mut_slot(byte_key)
+        {
+            return Some(entry);
+        }
+        return None;
+    }
+
+    fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
+        let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
+        let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
+        if let Some(_) = self
+            .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
+            .take_slot(byte_key)
+        {
+            return self
+                .table_bucket_mut(cheap)
+                .take_slot(byte_key); //TODO check if still needed
+        }
+        if let Some(entry) = self
+            .table_bucket_mut(rand)
+            .take_slot(byte_key)
         {
             return Some(entry);
         }

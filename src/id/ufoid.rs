@@ -16,7 +16,7 @@ pub fn ufoid() -> OwnedId {
     id[0..4].copy_from_slice(&(now_in_ms as u32).to_be_bytes());
     rng.fill_bytes(&mut id[4..16]);
 
-    unsafe { OwnedId::new(id) }
+    OwnedId::force(id)
 }
 
 #[cfg(test)]

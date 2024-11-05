@@ -2,6 +2,7 @@ use crate::id::RawId;
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
 
 use hex_literal::hex;
+use indxvec::Printing;
 use std::str::Utf8Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,6 +88,12 @@ impl ToValue<ShortString> for &str {
 impl ToValue<ShortString> for String {
     fn to_value(self) -> Value<ShortString> {
         self.try_to_value().unwrap()
+    }
+}
+
+impl ToValue<ShortString> for &String {
+    fn to_value(self) -> Value<ShortString> {
+        self.to_str().try_to_value().unwrap()
     }
 }
 

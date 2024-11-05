@@ -7,5 +7,5 @@ pub fn rngid() -> OwnedId {
     let mut id = [0; 16];
     rng.fill_bytes(&mut id[..]);
 
-    unsafe { OwnedId::new(id) }
+    OwnedId::force(id)
 }

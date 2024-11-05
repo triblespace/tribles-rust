@@ -241,13 +241,13 @@ fn archive_benchmark(c: &mut Criterion) {
             (0..i).for_each(|_| {
                 let lover_a = fucid();
                 let lover_b = fucid();
-                knights::entity!(&mut set, lover_a, {
+                knights::entity!(&mut set, &lover_a, {
                     name: Name(EN).fake::<String>(),
-                    loves: lover_b
+                    loves: &lover_b
                 });
-                knights::entity!(&mut set, lover_b, {
+                knights::entity!(&mut set, &lover_b, {
                     name: Name(EN).fake::<String>(),
-                    loves: lover_a
+                    loves: &lover_a
                 });
             });
             b.iter_with_large_drop(|| {
@@ -300,13 +300,13 @@ fn archive_benchmark(c: &mut Criterion) {
             (0..i).for_each(|_| {
                 let lover_a = ufoid();
                 let lover_b = ufoid();
-                knights::entity!(&mut set, lover_a, {
+                knights::entity!(&mut set, &lover_a, {
                     name: Name(EN).fake::<String>(),
-                    loves: lover_b
+                    loves: &lover_b
                 });
-                knights::entity!(&mut set, lover_b, {
+                knights::entity!(&mut set, &lover_b, {
                     name: Name(EN).fake::<String>(),
-                    loves: lover_a
+                    loves: &lover_a
                 });
             });
             let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
@@ -390,13 +390,13 @@ fn entities_benchmark(c: &mut Criterion) {
             let lover_a = fucid();
             let lover_b = fucid();
 
-            kb.union(knights::entity!(lover_a, {
+            kb.union(knights::entity!(&lover_a, {
                 name: Name(EN).fake::<String>(),
-                loves: lover_b
+                loves: &lover_b
             }));
-            kb.union(knights::entity!(lover_b, {
+            kb.union(knights::entity!(&lover_b, {
                 name: Name(EN).fake::<String>(),
-                loves: lover_a
+                loves: &lover_a
             }));
 
             kb
@@ -413,13 +413,13 @@ fn entities_benchmark(c: &mut Criterion) {
                 (0..i).for_each(|_| {
                     let lover_a = fucid();
                     let lover_b = fucid();
-                    knights::entity!(&mut kb, lover_a, {
+                    knights::entity!(&mut kb, &lover_a, {
                         name: Name(EN).fake::<String>(),
-                        loves: lover_b
+                        loves: &lover_b
                     });
-                    knights::entity!(&mut kb, lover_b, {
+                    knights::entity!(&mut kb, &lover_b, {
                         name: Name(EN).fake::<String>(),
-                        loves: lover_a
+                        loves: &lover_a
                     });
                 });
                 //let after_mem = PEAK_ALLOC.current_usage();
@@ -443,13 +443,13 @@ fn entities_benchmark(c: &mut Criterion) {
                         let lover_b = fucid();
 
                         [
-                            knights::entity!(lover_a, {
+                            knights::entity!(&lover_a, {
                                 name: Name(EN).fake::<String>(),
-                                loves: lover_b
+                                loves: &lover_b
                             }),
-                            knights::entity!(lover_b, {
+                            knights::entity!(&lover_b, {
                                 name: Name(EN).fake::<String>(),
-                                loves: lover_a
+                                loves: &lover_a
                             }),
                         ]
                     })
@@ -472,13 +472,13 @@ fn entities_benchmark(c: &mut Criterion) {
                     let lover_b = fucid();
 
                     [
-                        knights::entity!(lover_a, {
+                        knights::entity!(&lover_a, {
                             name: Name(EN).fake::<String>(),
-                            loves: lover_b
+                            loves: &lover_b
                         }),
-                        knights::entity!(lover_b, {
+                        knights::entity!(&lover_b, {
                             name: Name(EN).fake::<String>(),
-                            loves: lover_a
+                            loves: &lover_a
                         }),
                     ]
                 })
@@ -505,13 +505,13 @@ fn entities_benchmark(c: &mut Criterion) {
                         let lover_b = fucid();
 
                         [
-                            knights::entity!(lover_a, {
+                            knights::entity!(&lover_a, {
                                 name: Name(EN).fake::<String>(),
-                                loves: lover_b
+                                loves: &lover_b
                             }),
-                            knights::entity!(lover_b, {
+                            knights::entity!(&lover_b, {
                                 name: Name(EN).fake::<String>(),
-                                loves: lover_a
+                                loves: &lover_a
                             }),
                         ]
                     })
@@ -544,13 +544,13 @@ fn entities_benchmark(c: &mut Criterion) {
                                 let lover_b = gen.next();
 
                                 [
-                                    knights::entity!(lover_a, {
+                                    knights::entity!(&lover_a, {
                                         name: Name(EN).fake::<String>(),
-                                        loves: lover_b
+                                        loves: &lover_b
                                     }),
-                                    knights::entity!(lover_b, {
+                                    knights::entity!(&lover_b, {
                                         name: Name(EN).fake::<String>(),
-                                        loves: lover_a
+                                        loves: &lover_a
                                     }),
                                 ]
                             })
@@ -584,13 +584,13 @@ fn query_benchmark(c: &mut Criterion) {
         let lover_a = fucid();
         let lover_b = fucid();
 
-        kb.union(knights::entity!(lover_a, {
+        kb.union(knights::entity!(&lover_a, {
             name: Name(EN).fake::<String>(),
-            loves: lover_b
+            loves: &lover_b
         }));
-        kb.union(knights::entity!(lover_b, {
+        kb.union(knights::entity!(&lover_b, {
             name: Name(EN).fake::<String>(),
-            loves: lover_a
+            loves: &lover_a
         }));
     });
 
@@ -599,26 +599,26 @@ fn query_benchmark(c: &mut Criterion) {
     let juliet = ufoid();
     let romeo = ufoid();
 
-    kb.union(knights::entity!(juliet, {
+    kb.union(knights::entity!(&juliet, {
         name: "Juliet",
-        loves: romeo
+        loves: &romeo
     }));
-    kb.union(knights::entity!(romeo, {
+    kb.union(knights::entity!(&romeo, {
         name: "Romeo",
-        loves: juliet
+        loves: &juliet
     }));
 
     (0..1000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        data_kb.union(knights::entity!(lover_a, {
+        data_kb.union(knights::entity!(&lover_a, {
             name: "Wameo",
-            loves: lover_b
+            loves: &lover_b
         }));
-        data_kb.union(knights::entity!(lover_b, {
+        data_kb.union(knights::entity!(&lover_b, {
             name: Name(EN).fake::<String>(),
-            loves: lover_a
+            loves: &lover_a
         }));
     });
 

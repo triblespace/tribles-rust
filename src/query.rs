@@ -61,6 +61,7 @@ pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;
 pub mod intersectionconstraint;
+pub mod unionconstraint;
 pub mod mask;
 pub mod patchconstraint;
 mod variableset;

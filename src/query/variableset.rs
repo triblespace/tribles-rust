@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// A fixed size bitset over the possible values of a byte.
-#[derive(Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 #[repr(transparent)]
 pub struct VariableSet {
     bits: u128,

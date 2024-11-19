@@ -173,7 +173,7 @@ macro_rules! NS {
                 ($set:expr, $entity_id:expr, $entity:tt) => {
                     {
                         use $crate::namespace::entity_inner;
-                        let set: &mut TribleSet= $set;
+                        let set = $set;
                         let id: &$crate::id::OwnedId = $entity_id;
                         entity_inner!($mod_name, set, id, $entity);
                     }

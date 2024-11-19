@@ -1,4 +1,15 @@
-use std::convert::TryInto;
+// TODO:
+// Create a shared Trible type, that a Leaf-like and no-weak-ARCed.
+// Create an AbstractTrible type that can represent the different
+// trible upper/lower bounds "in-between" the fully bounded tribles.
+// I.e. something that is in between the all 1 and all 0 cases.
+// Implement the appropriate Ord over AbstractTribles.
+// Create a transparent wrapper type around shared tribles with a
+// reordering that checks the order on the fly.
+// Allow OrderedTribles to be borrowed as AbstractTribles.
+// Store OrderedTribles in the indexset.
+
+use std::{convert::TryInto, marker::PhantomData, sync::Arc};
 
 use crate::{
     id::{OwnedId, RawId},
@@ -48,8 +59,8 @@ impl Trible {
         Ok(Self { data })
     }
 
-    pub fn new_raw(data: [u8; 64]) -> Trible {
-        Self { data }
+    pub fn new_raw(data: &[u8; 64]) -> Trible {
+        Self { data: *data }
     }
 
     pub fn new_raw_values(e: RawValue, a: RawValue, v: RawValue) -> Trible {
@@ -80,6 +91,62 @@ impl Trible {
         let mut o = [0u8; 32];
         o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
         o
+    }
+
+    pub fn reordered<O: KeyOrdering<TRIBLE_LEN>>(&self) -> AbstractTrible<O> {
+        AbstractTrible::new(self)
+    }
+}
+
+#[derive(Arbitrary, Copy, Clone, Hash, Debug)]
+#[repr(transparent)]
+pub struct AbstractTrible<O: KeyOrdering<TRIBLE_LEN>> {
+    pub data: Arc<Trible>,
+    _order: PhantomData<O>
+}
+
+impl<O: KeyOrdering<TRIBLE_LEN>> AbstractTrible<O> {
+    pub fn new(trible: &Trible) -> Self {
+        Self {
+            data: O::tree_ordered(&trible.data),
+            _order: PhantomData
+        }
+    }
+
+    pub fn trible(&self) -> Trible {
+        Trible::new_raw(&O::key_ordered(&self.data))
+    }
+
+    pub fn prefix_bound_lower(&self, prefix_len: usize) -> [u8; TRIBLE_LEN] {
+        let mut bound = self.data;
+        bound[prefix_len..].fill(255);
+        bound
+    }
+
+    pub fn prefix_bound_upper(&self, prefix_len: usize) -> [u8; TRIBLE_LEN] {
+        let mut bound = self.data;
+        bound[prefix_len..].fill(0);
+        bound
+    }
+}
+
+impl<O: KeyOrdering<TRIBLE_LEN>> PartialEq for AbstractTrible<O> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
+}
+
+impl<O: KeyOrdering<TRIBLE_LEN>> Eq for AbstractTrible<O> {}
+
+impl<O: KeyOrdering<TRIBLE_LEN>> PartialOrd for AbstractTrible<O> {    
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.data.partial_cmp(&other.data)
+    }
+}
+
+impl<O: KeyOrdering<TRIBLE_LEN>> Ord for AbstractTrible<O> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.data.cmp(&other.data)
     }
 }
 

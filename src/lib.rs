@@ -12,6 +12,7 @@ pub mod remote;
 pub mod test;
 pub mod trible;
 pub mod tribleset;
+pub mod tribleindexset;
 pub mod value;
 
 #[cfg(test)]

@@ -1,4 +1,7 @@
+use std::mem;
+
 use super::*;
+use itertools::Itertools;
 
 pub struct UnionConstraint<C> {
     constraints: Vec<C>,
@@ -59,9 +62,20 @@ where
             .filter(|c| c.variable(variable))
             .collect();
 
-        relevant_constraints
+        proposals.sort();
+
+        let union: Vec<_> = relevant_constraints
             .iter()
-            .for_each(|c| c.confirm(variable, binding, proposals));
+            .map(|c| {
+                let mut proposals = proposals.clone();
+                c.confirm(variable, binding, &mut proposals);
+                proposals
+            })
+            .kmerge()
+            .dedup()
+            .collect();
+
+        _ = mem::replace(proposals, union);
     }
 }
 
@@ -74,5 +88,4 @@ macro_rules! or {
     )
 }
 
-use itertools::Itertools;
 pub use or;

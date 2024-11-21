@@ -8,7 +8,7 @@ use sucds::bit_vectors::Rank9Sel;
 use sucds::int_vectors::{DacsByte, DacsOpt};
 use sucds::Serializable;
 use tribles::blob::schemas::succinctarchive::{
-    CompressedUniverse, OrderedUniverse, SuccinctArchive, Universe,
+    CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
 };
 
 use tribles::prelude::valueschemas::*;
@@ -24,6 +24,8 @@ use im::OrdSet;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
+
+type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse<DacsByte>>;
 
 //use peak_alloc::PeakAlloc;
 //#[global_allocator]
@@ -251,8 +253,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter_with_large_drop(|| {
-                let archive: SuccinctArchive<CompressedUniverse<DacsByte>, Rank9Sel> =
-                    (&set).into();
+                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
                 let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                 let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
                 let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
@@ -309,7 +310,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     loves: &lover_a
                 });
             });
-            let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+            let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
             b.iter_with_large_drop(|| {
                 let set: TribleSet = (&archive).into();
                 set
@@ -323,7 +324,7 @@ fn archive_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
             b.iter_with_large_drop(|| {
-                let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
                 let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                 let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
                 let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
@@ -369,7 +370,7 @@ fn archive_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("random/unarchive", i), &i, |b, &i| {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
-            let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+            let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
             b.iter_with_large_drop(|| {
                 let set: TribleSet = (&archive).into();
                 set
@@ -660,7 +661,7 @@ fn query_benchmark(c: &mut Criterion) {
 
     group.sample_size(10);
 
-    let kb_archive: SuccinctArchive<CompressedUniverse<DacsOpt>, Rank9Sel> = (&kb).into();
+    let kb_archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&kb).into();
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {

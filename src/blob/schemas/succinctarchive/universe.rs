@@ -2,9 +2,10 @@ use crate::value::{RawValue, VALUE_LEN};
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::convert::{Infallible, TryInto};
 
 use indxvec::Search;
+use quick_cache::sync::Cache;
 use sucds::int_vectors::{Access as IAccess, Build as IBuild, NumVals};
 use sucds::Serializable;
 
@@ -127,6 +128,55 @@ where
     #[inline]
     fn len(&self) -> usize {
         self.data.num_vals() / 8
+    }
+}
+
+#[derive(Debug)]
+pub struct CachedUniverse<const ACCESS_CACHE: usize, const SEARCH_CACHE: usize, U: Universe> {
+    access_cache: Cache<usize, RawValue>,
+    search_cache: Cache<RawValue, Option<usize>>,
+    inner: U,
+}
+
+impl<const ACCESS_CACHE: usize, const SEARCH_CACHE: usize, U> Universe
+    for CachedUniverse<ACCESS_CACHE, SEARCH_CACHE, U>
+where
+    U: Universe,
+{
+    fn with<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = RawValue>,
+    {
+        Self {
+            access_cache: Cache::new(ACCESS_CACHE),
+            search_cache: Cache::new(SEARCH_CACHE),
+            inner: U::with(iter),
+        }
+    }
+
+    fn access(&self, pos: usize) -> RawValue {
+        self.access_cache
+            .get_or_insert_with::<_, Infallible>(&pos, || Ok(self.inner.access(pos)))
+            .unwrap()
+    }
+
+    fn search(&self, v: &RawValue) -> Option<usize> {
+        self.search_cache
+            .get_or_insert_with::<_, Infallible>(v, || {
+                Ok((0..=self.len() - 1)
+                    .binary_by(|p| self.access(p).cmp(v))
+                    .ok())
+            })
+            .unwrap()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        self.inner.size_in_bytes()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.inner.len()
     }
 }
 

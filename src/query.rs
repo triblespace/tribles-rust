@@ -61,15 +61,16 @@ pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;
 pub mod intersectionconstraint;
-pub mod unionconstraint;
 pub mod mask;
 pub mod patchconstraint;
+pub mod unionconstraint;
 mod variableset;
 
 use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
+use arrayvec::ArrayVec;
 use constantconstraint::*;
 use mask::*;
 
@@ -196,8 +197,8 @@ pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn variable(&self, variable: VariableId) -> bool;
     fn estimate(&self, variable: VariableId, binding: &Binding) -> usize;
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue>;
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>);
+    fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
 }
 
 impl<'a, T: Constraint<'a> + ?Sized> Constraint<'a> for Box<T> {
@@ -216,14 +217,14 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'a> for Box<T> {
         inner.estimate(variable, binding)
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+    fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let inner: &T = self;
-        inner.propose(variable, binding)
+        inner.propose(variable, binding, proposals)
     }
 
-    fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>) {
+    fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let inner: &T = self;
-        inner.confirm(variable, binding, proposal)
+        inner.confirm(variable, binding, proposals)
     }
 }
 
@@ -243,9 +244,9 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
         inner.estimate(variable, binding)
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+    fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let inner: &T = self;
-        inner.propose(variable, binding)
+        inner.propose(variable, binding, proposals)
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>) {
@@ -254,17 +255,14 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
     }
 }
 
-pub struct State {
-    variable: VariableId,
-    values: Vec<RawValue>,
-}
 pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     postprocessing: P,
     mode: Search,
     binding: Binding,
-    stack: Vec<State>,
-    unbound: Vec<VariableId>,
+    stack: ArrayVec<VariableId, 128>,
+    unbound: ArrayVec<VariableId, 128>,
+    values: [Vec<RawValue>; 128],
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
@@ -275,8 +273,9 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
             postprocessing,
             mode: Search::Vertical,
             binding: Default::default(),
-            stack: Vec::new(),
-            unbound: Vec::from_iter(variables),
+            stack: ArrayVec::new(),
+            unbound: ArrayVec::from_iter(variables),
+            values: [const { vec![] }; 128],
         }
     }
 }
@@ -304,10 +303,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                         }
                         1 => {
                             let next_variable = self.unbound.pop().unwrap();
-                            self.stack.push(State {
-                                variable: next_variable,
-                                values: self.constraint.propose(next_variable, &self.binding),
-                            })
+                            self.stack.push(next_variable);
+                            self.constraint.propose(
+                                next_variable,
+                                &self.binding,
+                                &mut self.values[next_variable as usize],
+                            );
                         }
                         _ => {
                             let (index, &next_variable) = self
@@ -317,17 +318,19 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                                 .min_by_key(|(_, &v)| self.constraint.estimate(v, &self.binding))
                                 .unwrap();
                             self.unbound.swap_remove(index);
-                            self.stack.push(State {
-                                variable: next_variable,
-                                values: self.constraint.propose(next_variable, &self.binding),
-                            });
+                            self.stack.push(next_variable);
+                            self.constraint.propose(
+                                next_variable,
+                                &self.binding,
+                                &mut self.values[next_variable as usize],
+                            );
                         }
                     }
                 }
                 Search::Horizontal => {
-                    if let Some(state) = self.stack.last_mut() {
-                        if let Some(assignment) = state.values.pop() {
-                            self.binding.set(state.variable, &assignment);
+                    if let Some(&variable) = self.stack.last() {
+                        if let Some(assignment) = self.values[variable as usize].pop() {
+                            self.binding.set(variable, &assignment);
                             self.mode = Search::Vertical;
                         } else {
                             self.mode = Search::Backtrack;
@@ -338,9 +341,10 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                     }
                 }
                 Search::Backtrack => {
-                    if let Some(state) = self.stack.pop() {
-                        self.binding.unset(state.variable);
-                        self.unbound.push(state.variable);
+                    if let Some(variable) = self.stack.pop() {
+                        self.binding.unset(variable);
+                        self.values[variable as usize].clear();
+                        self.unbound.push(variable);
                         self.mode = Search::Horizontal;
                     } else {
                         self.mode = Search::Done;
@@ -407,7 +411,8 @@ mod tests {
         movies.insert("LOTR".to_value());
         movies.insert("Highlander".to_value());
 
-        let inter: Vec<_> = find!(ctx, (a: Value<ShortString>), and!(books.has(a), movies.has(a))).collect();
+        let inter: Vec<_> =
+            find!(ctx, (a: Value<ShortString>), and!(books.has(a), movies.has(a))).collect();
 
         assert_eq!(inter.len(), 2);
 

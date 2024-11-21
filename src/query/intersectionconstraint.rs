@@ -36,7 +36,7 @@ where
             .unwrap()
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+    fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
@@ -44,13 +44,11 @@ where
             .collect();
         relevant_constraints.sort_by_cached_key(|c| c.estimate(variable, binding));
 
-        let mut proposal = relevant_constraints[0].propose(variable, binding);
+        relevant_constraints[0].propose(variable, binding, proposals);
 
         relevant_constraints[1..]
             .iter()
-            .for_each(|c| c.confirm(variable, binding, &mut proposal));
-
-        proposal
+            .for_each(|c| c.confirm(variable, binding, proposals));
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {

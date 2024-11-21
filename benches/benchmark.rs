@@ -722,14 +722,12 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
                 let mut dataset = Dataset::default();
                 (0..i).for_each(|_| {
-                    let lover_a = NamedNode::new(
-                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
-                    )
-                    .unwrap();
-                    let lover_b = NamedNode::new(
-                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
-                    )
-                    .unwrap();
+                    let lover_a =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
+                    let lover_b =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
 
                     let quad = Quad::new(
                         lover_a.clone(),
@@ -784,14 +782,12 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
                 let store = Store::new().unwrap();
                 (0..i).for_each(|_| {
-                    let lover_a = NamedNode::new(
-                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
-                    )
-                    .unwrap();
-                    let lover_b = NamedNode::new(
-                        ["urn:id:", &ufoid().encode_hex_upper::<String>()].concat(),
-                    )
-                    .unwrap();
+                    let lover_a =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
+                    let lover_b =
+                        NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
+                            .unwrap();
 
                     let quad = Quad::new(
                         lover_a.clone(),
@@ -842,11 +838,9 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     (0..1000000).for_each(|_| {
         let lover_a =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
-                .unwrap();
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
         let lover_b: NamedNode =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
-                .unwrap();
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
 
         let quad = Quad::new(
             lover_a.clone(),
@@ -924,11 +918,9 @@ fn oxigraph_benchmark(c: &mut Criterion) {
 
     (0..1000).for_each(|_| {
         let lover_a =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
-                .unwrap();
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
         let lover_b: NamedNode =
-            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat())
-                .unwrap();
+            NamedNode::new(["urn:id:", &ufoid().encode_hex_upper::<String>()].concat()).unwrap();
 
         let quad = Quad::new(
             lover_a.clone(),

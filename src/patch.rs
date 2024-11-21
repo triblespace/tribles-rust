@@ -375,7 +375,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
                     self.insert_child(inserted);
                 }
-            }
+            },
         }
     }
 
@@ -433,7 +433,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn remove_leaf(slot: &mut Option<Self>, leaf_key: &[u8; KEY_LEN], start_depth: usize) {
+    pub(crate) fn remove_leaf(
+        slot: &mut Option<Self>,
+        leaf_key: &[u8; KEY_LEN],
+        start_depth: usize,
+    ) {
         if let Some(this) = slot {
             let head_key = this.leaf_key();
 
@@ -454,13 +458,15 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     if let Some(child_slot) = (*branch).child_table.table_get_slot(key) {
                         if let Some(child) = child_slot {
                             let old_child_hash = child.hash();
-                            let old_child_segment_count = child.count_segment((*branch).end_depth as usize);
+                            let old_child_segment_count =
+                                child.count_segment((*branch).end_depth as usize);
                             let old_child_leaf_count = child.count();
-        
+
                             Self::remove_leaf(child_slot, leaf_key, end_depth);
                             if let Some(child) = child_slot {
                                 (*branch).hash = ((*branch).hash ^ old_child_hash) ^ child.hash();
-                                (*branch).segment_count = ((*branch).segment_count - old_child_segment_count)
+                                (*branch).segment_count = ((*branch).segment_count
+                                    - old_child_segment_count)
                                     + child.count_segment((*branch).end_depth as usize);
                                 (*branch).leaf_count =
                                     ((*branch).leaf_count - old_child_leaf_count) + child.count();
@@ -469,7 +475,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                             } else {
                                 (*branch).leaf_count = (*branch).leaf_count - old_child_leaf_count;
                                 match (*branch).leaf_count {
-                                    0 => {panic!("branch should have been collected previously")}
+                                    0 => {
+                                        panic!("branch should have been collected previously")
+                                    }
                                     1 => {
                                         for child in &mut (*branch).child_table {
                                             if let Some(child) = child.take() {
@@ -480,13 +488,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                                     }
                                     _ => {
                                         (*branch).hash = (*branch).hash ^ old_child_hash;
-                                        (*branch).segment_count = (*branch).segment_count - old_child_segment_count;
+                                        (*branch).segment_count =
+                                            (*branch).segment_count - old_child_segment_count;
                                     }
                                 }
                             }
                         }
                     }
-                }
+                },
             }
         }
     }

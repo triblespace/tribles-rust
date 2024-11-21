@@ -33,7 +33,7 @@ impl FUCIDgen {
     pub fn next(&mut self) -> OwnedId {
         let next_id = self.counter ^ self.salt;
         self.counter += 1;
-        let id =  next_id.to_be_bytes();
+        let id = next_id.to_be_bytes();
         OwnedId::force(id)
     }
 }
@@ -42,9 +42,7 @@ thread_local!(static GEN_STATE: RefCell<FUCIDgen> = RefCell::new(FUCIDgen::new()
 
 /// Fast Unsafe Compressable IDs
 pub fn fucid() -> OwnedId {
-    GEN_STATE.with_borrow_mut(|gen| {
-        gen.next()
-    })
+    GEN_STATE.with_borrow_mut(|gen| gen.next())
 }
 
 #[cfg(test)]

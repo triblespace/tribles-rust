@@ -4,27 +4,33 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::query::{Binding, Constraint, ContainsConstraint, Variable, VariableId, VariableSet};
-use crate::value::{FromValue, ToValue, Value, ValueSchema};
 use crate::value::RawValue;
+use crate::value::{FromValue, ToValue, Value, ValueSchema};
 
 pub struct KeysConstraint<S: ValueSchema, R, K, V>
-where R: Deref<Target = HashMap<K, V>> {
+where
+    R: Deref<Target = HashMap<K, V>>,
+{
     variable: Variable<S>,
     map: R,
 }
 
 impl<'a, S: ValueSchema, R, K, V> KeysConstraint<S, R, K, V>
-where R: Deref<Target = HashMap<K, V>> {
+where
+    R: Deref<Target = HashMap<K, V>>,
+{
     pub fn new(variable: Variable<S>, map: R) -> Self {
         KeysConstraint { variable, map }
     }
 }
 
 impl<'a, S: ValueSchema, R, K, V> Constraint<'a> for KeysConstraint<S, R, K, V>
-where K: 'a + std::cmp::Eq + std::hash::Hash + for<'b> FromValue<'b, S>,
-      for<'b> &'b K: ToValue<S>,
-      V: 'a,
-      R: Deref<Target = HashMap<K, V>> {
+where
+    K: 'a + std::cmp::Eq + std::hash::Hash + for<'b> FromValue<'b, S>,
+    for<'b> &'b K: ToValue<S>,
+    V: 'a,
+    R: Deref<Target = HashMap<K, V>>,
+{
     fn variables(&self) -> VariableSet {
         VariableSet::new_singleton(self.variable.index)
     }
@@ -37,12 +43,15 @@ where K: 'a + std::cmp::Eq + std::hash::Hash + for<'b> FromValue<'b, S>,
         self.map.capacity()
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
-        self.map.keys().map(|k| ToValue::to_value(k).bytes).collect()
+    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        proposals.extend(self.map.keys().map(|k| ToValue::to_value(k).bytes))
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| self.map.contains_key(&FromValue::from_value(Value::<S>::transmute_raw(v))));
+        proposals.retain(|v| {
+            self.map
+                .contains_key(&FromValue::from_value(Value::<S>::transmute_raw(v)))
+        });
     }
 }
 
@@ -50,7 +59,7 @@ impl<'a, S: ValueSchema, K, V> ContainsConstraint<'a, S> for &'a HashMap<K, V>
 where
     K: 'a + std::cmp::Eq + std::hash::Hash + for<'b> FromValue<'b, S>,
     for<'b> &'b K: ToValue<S>,
-    V: 'a
+    V: 'a,
 {
     type Constraint = KeysConstraint<S, Self, K, V>;
 
@@ -63,7 +72,7 @@ impl<'a, S: ValueSchema, K, V> ContainsConstraint<'a, S> for Rc<HashMap<K, V>>
 where
     K: 'a + std::cmp::Eq + std::hash::Hash + for<'b> FromValue<'b, S>,
     for<'b> &'b K: ToValue<S>,
-    V: 'a
+    V: 'a,
 {
     type Constraint = KeysConstraint<S, Self, K, V>;
 
@@ -76,7 +85,7 @@ impl<'a, S: ValueSchema, K, V> ContainsConstraint<'a, S> for Arc<HashMap<K, V>>
 where
     K: 'a + std::cmp::Eq + std::hash::Hash + for<'b> FromValue<'b, S>,
     for<'b> &'b K: ToValue<S>,
-    V: 'a
+    V: 'a,
 {
     type Constraint = KeysConstraint<S, Self, K, V>;
 

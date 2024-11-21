@@ -103,7 +103,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
         }
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+    fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let e_bound = binding.bound.is_set(self.variable_e);
         let a_bound = binding.bound.is_set(self.variable_a);
         let v_bound = binding.bound.is_set(self.variable_v);
@@ -124,78 +124,62 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
             binding.get(self.variable_v).unwrap_or(&[0; 32]),
         ) {
             match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-                (false, false, false, true, false, false) => self
-                    .set
-                    .ea
-                    .keys()
-                    .map(|e| as_value(e))
-                    .collect::<Vec<RawValue>>(),
-                (false, false, false, false, true, false) => self
-                    .set
-                    .ae
-                    .keys()
-                    .map(|a| as_value(a))
-                    .collect::<Vec<RawValue>>(),
+                (false, false, false, true, false, false) => {
+                    proposals.extend(self.set.ea.keys().map(|e| as_value(e)))
+                }
+                (false, false, false, false, true, false) => {
+                    proposals.extend(self.set.ae.keys().map(|a| as_value(a)))
+                }
                 (false, false, false, false, false, true) => {
-                    self.set.ve.keys().copied().collect::<Vec<RawValue>>()
+                    proposals.extend(self.set.ve.keys().copied())
                 }
-
                 (true, false, false, false, true, false) => {
-                    self.set.ea.get(&trible.e()).map_or(vec![], |s| {
-                        s.iter().map(|a| as_value(a)).collect::<Vec<RawValue>>()
-                    })
+                    if let Some(s) = self.set.ea.get(&trible.e()) {
+                        proposals.extend(s.iter().map(|a| as_value(a)));
+                    }
                 }
-                (true, false, false, false, false, true) => self
-                    .set
-                    .ev
-                    .get(&trible.e())
-                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<RawValue>>()),
-
+                (true, false, false, false, false, true) => {
+                    if let Some(s) = self.set.ev.get(&trible.e()) {
+                        proposals.extend(s.iter().copied());
+                    }
+                }
                 (false, true, false, true, false, false) => {
-                    self.set.ae.get(&trible.a()).map_or(vec![], |s| {
-                        s.iter().map(|e| as_value(e)).collect::<Vec<RawValue>>()
-                    })
+                    if let Some(s) = self.set.ae.get(&trible.a()) {
+                        proposals.extend(s.iter().map(|e| as_value(e)))
+                    }
                 }
-                (false, true, false, false, false, true) => self
-                    .set
-                    .av
-                    .get(&trible.a())
-                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<RawValue>>()),
-
+                (false, true, false, false, false, true) => {
+                    if let Some(s) = self.set.av.get(&trible.a()) {
+                        proposals.extend(s.iter().copied());
+                    }
+                }
                 (false, false, true, true, false, false) => {
-                    self.set.ve.get(&trible.v()).map_or(vec![], |s| {
-                        s.iter().map(|e| as_value(e)).collect::<Vec<RawValue>>()
-                    })
+                    if let Some(s) = self.set.ve.get(&trible.v()) {
+                        proposals.extend(s.iter().map(|e| as_value(e)));
+                    }
                 }
                 (false, false, true, false, true, false) => {
-                    self.set.va.get(&trible.v()).map_or(vec![], |s| {
-                        s.iter().map(|a| as_value(a)).collect::<Vec<RawValue>>()
-                    })
+                    if let Some(s) = self.set.va.get(&trible.v()) {
+                        proposals.extend(s.iter().map(|a| as_value(a)));
+                    }
                 }
-
-                (false, true, true, true, false, false) => self
-                    .set
-                    .ave
-                    .get(&(trible.a(), trible.v()))
-                    .map_or(vec![], |s| {
-                        s.iter().map(|e| as_value(e)).collect::<Vec<RawValue>>()
-                    }),
-                (true, false, true, false, true, false) => self
-                    .set
-                    .eva
-                    .get(&(trible.e(), trible.v()))
-                    .map_or(vec![], |s| {
-                        s.iter().map(|a| as_value(a)).collect::<Vec<RawValue>>()
-                    }),
-                (true, true, false, false, false, true) => self
-                    .set
-                    .eav
-                    .get(&(trible.e(), trible.a()))
-                    .map_or(vec![], |s| s.iter().copied().collect::<Vec<RawValue>>()),
+                (false, true, true, true, false, false) => {
+                    if let Some(s) = self.set.ave.get(&(trible.a(), trible.v())) {
+                        proposals.extend(s.iter().map(|e| as_value(e)));
+                    }
+                }
+                (true, false, true, false, true, false) => {
+                    if let Some(s) = self.set.eva.get(&(trible.e(), trible.v())) {
+                        proposals.extend(s.iter().map(|a| as_value(a)));
+                    }
+                }
+                (true, true, false, false, false, true) => {
+                    if let Some(s) = self.set.eav.get(&(trible.e(), trible.a())) {
+                        proposals.extend(s.iter().copied());
+                    }
+                }
                 _ => panic!(),
-            }
-        } else {
-            vec![]
+            };
         }
     }
 

@@ -46,8 +46,8 @@
 //! A different perspective is that edges are always ordered from describing
 //! to described entities, with circles constituting consensus between entities.
 //!
-//! 
-//! 
+//!
+//!
 //! # High-entropy persistent identifiers
 //!
 //! The only approach to generate persistent identifiers in a distributed setting
@@ -119,7 +119,12 @@ pub use fucid::fucid;
 pub use rngid::rngid;
 pub use ufoid::ufoid;
 
-use crate::{patch::{Entry, IdentityOrder, SingleSegmentation, PATCH}, prelude::valueschemas::GenId, query::{Constraint, ContainsConstraint, Variable}, value::{RawValue, VALUE_LEN}};
+use crate::{
+    patch::{Entry, IdentityOrder, SingleSegmentation, PATCH},
+    prelude::valueschemas::GenId,
+    query::{Constraint, ContainsConstraint, Variable},
+    value::{RawValue, VALUE_LEN},
+};
 
 thread_local!(static OWNED_IDS: RefCell<PATCH<ID_LEN, IdentityOrder, SingleSegmentation>> = RefCell::new(PATCH::new()));
 
@@ -132,7 +137,7 @@ pub struct OwnedId {
     raw: RawId,
     // Make sure that the type can't be syntactically initialized.
     // Also make sure that we we don't get auto impl of Send and Sync
-    _private: PhantomData<*const usize>
+    _private: PhantomData<*const usize>,
 }
 
 unsafe impl Send for OwnedId {}
@@ -268,11 +273,11 @@ mod tests {
                         name: name
                     }])
             )
-        ).map(|(_, n)| n)
+        )
+        .map(|(_, n)| n)
         .collect();
         r.sort();
 
         assert_eq!(vec!["Angelica", "Juliet", "Romeo"], r);
-
     }
 }

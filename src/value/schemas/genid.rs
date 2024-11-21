@@ -68,7 +68,7 @@ impl ToValue<GenId> for RawId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OwnedIdError {
     FailedParse(IdParseError),
-    FailedAquire()
+    FailedAquire(),
 }
 
 impl From<IdParseError> for OwnedIdError {

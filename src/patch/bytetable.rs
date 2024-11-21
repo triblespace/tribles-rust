@@ -227,30 +227,18 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
     fn table_get(&self, byte_key: u8) -> Option<&T> {
         let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
         let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        let cheap_entry = self
-            .table_bucket(cheap)
-            .get_slot(byte_key);
-        let rand_entry = self
-            .table_bucket(rand)
-            .get_slot(byte_key);
+        let cheap_entry = self.table_bucket(cheap).get_slot(byte_key);
+        let rand_entry = self.table_bucket(rand).get_slot(byte_key);
         cheap_entry.or(rand_entry)
     }
 
     fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
         let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
         let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        if let Some(_) = self
-            .table_bucket_mut(cheap)
-            .get_mut_slot(byte_key)
-        {
-            return self
-                .table_bucket_mut(cheap)
-                .get_mut_slot(byte_key); //TODO check if still needed
+        if let Some(_) = self.table_bucket_mut(cheap).get_mut_slot(byte_key) {
+            return self.table_bucket_mut(cheap).get_mut_slot(byte_key); //TODO check if still needed
         }
-        if let Some(entry) = self
-            .table_bucket_mut(rand)
-            .get_mut_slot(byte_key)
-        {
+        if let Some(entry) = self.table_bucket_mut(rand).get_mut_slot(byte_key) {
             return Some(entry);
         }
         return None;
@@ -263,14 +251,9 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
             .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
             .take_slot(byte_key)
         {
-            return self
-                .table_bucket_mut(cheap)
-                .take_slot(byte_key); //TODO check if still needed
+            return self.table_bucket_mut(cheap).take_slot(byte_key); //TODO check if still needed
         }
-        if let Some(entry) = self
-            .table_bucket_mut(rand)
-            .take_slot(byte_key)
-        {
+        if let Some(entry) = self.table_bucket_mut(rand).take_slot(byte_key) {
             return Some(entry);
         }
         return None;

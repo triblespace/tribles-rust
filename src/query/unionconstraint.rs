@@ -9,7 +9,8 @@ where
     C: Constraint<'a> + 'a,
 {
     pub fn new(constraints: Vec<C>) -> Self {
-        assert!(constraints.iter()
+        assert!(constraints
+            .iter()
             .map(|c| c.variables())
             .tuple_windows()
             .all(|(a, b)| a == b));
@@ -37,23 +38,18 @@ where
             .sum()
     }
 
-    fn propose(&self, variable: VariableId, binding: &Binding) -> Vec<RawValue> {
+    fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let relevant_constraints: Vec<_> = self
             .constraints
             .iter()
             .filter(|c| c.variable(variable))
             .collect();
 
-        let proposal = relevant_constraints.iter()
-            .map(|c| {
-                let mut p = c.propose(variable, binding);
-                p.sort();
-                p
-            })
-            .kmerge().dedup()
-            .collect();
-
-        proposal
+        relevant_constraints
+            .iter()
+            .for_each(|c| c.propose(variable, binding, proposals));
+        proposals.sort();
+        proposals.dedup();
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
@@ -78,6 +74,5 @@ macro_rules! or {
     )
 }
 
-use indxvec::Vecops;
 use itertools::Itertools;
 pub use or;

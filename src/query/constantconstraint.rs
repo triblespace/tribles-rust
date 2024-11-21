@@ -27,8 +27,8 @@ impl<'a> Constraint<'a> for ConstantConstraint {
         1
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding) -> Vec<RawValue> {
-        vec![self.constant]
+    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        proposals.push(self.constant);
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

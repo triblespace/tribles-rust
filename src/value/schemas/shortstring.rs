@@ -96,4 +96,3 @@ impl ToValue<ShortString> for &String {
         self.to_str().try_to_value().unwrap()
     }
 }
-

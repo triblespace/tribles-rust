@@ -3,7 +3,6 @@
 pub mod blob;
 pub mod blobset;
 pub mod id;
-pub mod meta;
 pub mod namespace;
 pub mod patch;
 pub mod prelude;

@@ -9,7 +9,7 @@ use hex_literal::hex;
 pub struct LongString {}
 
 impl BlobSchema for LongString {
-    const ID: RawId = hex!("8B173C65B7DB601A11E8A190BD774A79");
+    const ID: RawId = RawId::new(&hex!("8B173C65B7DB601A11E8A190BD774A79"));
 }
 
 impl TryFromBlob<'_, LongString> for PackedStr {

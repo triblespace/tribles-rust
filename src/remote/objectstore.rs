@@ -85,7 +85,7 @@ where
         T: BlobSchema,
     {
         async move {
-            let path = self.prefix.child(hex::encode(handle.bytes));
+            let path = self.prefix.child(hex::encode(handle.raw));
             let result = self.store.get(&path).await?;
             let object = result.bytes().await?;
             let bytes: Bytes = object.into();
@@ -110,7 +110,7 @@ where
     {
         async move {
             let handle = blob.as_handle();
-            let path = self.prefix.child(hex::encode(handle.bytes));
+            let path = self.prefix.child(hex::encode(handle.raw));
             let put_result = self
                 .store
                 .put_opts(
@@ -227,7 +227,7 @@ where
         old_hash: Option<Value<Hash<H>>>,
         new_hash: Value<Hash<H>>,
     ) -> Result<CommitResult<H>, Self::CommitErr> {
-        let new_bytes = bytes::Bytes::copy_from_slice(&new_hash.bytes);
+        let new_bytes = bytes::Bytes::copy_from_slice(&new_hash.raw);
 
         if let Some(old_hash) = old_hash {
             let mut result = self.store.get(&self.path).await;

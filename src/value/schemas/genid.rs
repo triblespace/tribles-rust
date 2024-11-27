@@ -1,4 +1,4 @@
-use crate::id::{OwnedId, RawId};
+use crate::id::{Id, OwnedId, RawId};
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryInto;
@@ -26,13 +26,13 @@ impl<'a> TryFromValue<'a, GenId> for &'a RawId {
     type Error = IdParseError;
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
-        if value.bytes[0..16] != [0; 16] {
+        if value.raw[0..16] != [0; 16] {
             return Err(IdParseError::BadFormat);
         }
-        if value.bytes[16..32] == [0; 16] {
+        if value.raw[16..32] == [0; 16] {
             return Err(IdParseError::IsNil);
         }
-        Ok(value.bytes[16..32].try_into().unwrap())
+        Ok(value.raw[16..32].try_into().unwrap())
     }
 }
 
@@ -42,6 +42,20 @@ impl TryFromValue<'_, GenId> for RawId {
     fn try_from_value(value: &Value<GenId>) -> Result<Self, Self::Error> {
         let r: Result<&RawId, IdParseError> = value.try_from_value();
         r.copied()
+    }
+}
+
+impl<'a> TryFromValue<'a, GenId> for &'a Id {
+    type Error = IdParseError;
+
+    fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
+        if value.raw[0..16] != [0; 16] {
+            return Err(IdParseError::BadFormat);
+        }
+        if value.raw[16..32] == [0; 16] {
+            return Err(IdParseError::IsNil);
+        }
+        Ok(value.raw[16..32].try_into().unwrap())
     }
 }
 
@@ -81,7 +95,7 @@ impl<'a> TryFromValue<'a, GenId> for OwnedId {
     type Error = OwnedIdError;
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
-        let id: RawId = value.try_from_value()?;
+        let id: Id = value.try_from_value()?;
         OwnedId::try_aquire(id).ok_or(OwnedIdError::FailedAquire())
     }
 }
@@ -94,14 +108,14 @@ impl FromValue<'_, GenId> for OwnedId {
 
 impl ToValue<GenId> for OwnedId {
     fn to_value(self) -> Value<GenId> {
-        let id: RawId = *self;
+        let id: RawId = **self;
         id.to_value()
     }
 }
 
 impl ToValue<GenId> for &OwnedId {
     fn to_value(self) -> Value<GenId> {
-        let id: RawId = **self;
+        let id: RawId = ***self; // &OwnedId -> OwnedId -> Id -> RawId
         id.to_value()
     }
 }
@@ -122,6 +136,7 @@ impl TryFromValue<'_, GenId> for String {
 pub enum PackIdError {
     BadProtocol,
     BadHex(FromHexError),
+    IsNil
 }
 
 impl From<FromHexError> for PackIdError {
@@ -138,7 +153,8 @@ impl TryToValue<GenId> for &str {
         if !self.starts_with(protocol) {
             return Err(PackIdError::BadProtocol);
         }
-        let id = RawId::from_hex(&self[protocol.len()..])?;
+        let id  = <[u8; 16]>::from_hex(&self[protocol.len()..])?;
+        let id = Id::new(RawId::new(&id));
         Ok(id.to_value())
     }
 }

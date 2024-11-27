@@ -38,7 +38,7 @@ impl<S: BlobSchema> Blob<S> {
         Handle<H, S>: ValueSchema,
     {
         let digest = H::digest(&self.bytes);
-        Value::new(digest.into())
+        Value::new(&digest.into())
     }
 
     pub fn from_blob<'a, T>(&'a self) -> T

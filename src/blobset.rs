@@ -43,7 +43,7 @@ impl<H: HashProtocol> BlobSet<H> {
     {
         let blob: Blob<S> = ToBlob::to_blob(item);
         let handle = blob.as_handle();
-        let unknown_handle: Value<Handle<H, UnknownBlob>> = Value::new(handle.bytes);
+        let unknown_handle: Value<Handle<H, UnknownBlob>> = Value::new(handle.raw);
         let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
         self.blobs.insert(unknown_handle, blob);
         handle
@@ -77,7 +77,7 @@ impl<H: HashProtocol> BlobSet<H> {
     // allowed to write non-handle typed triples, otherwise they might as well
     // introduce blobs directly.
     pub fn keep(&mut self, tribles: TribleSet) {
-        self.blobs.retain(|k, _| tribles.vae.has_prefix(&k.bytes));
+        self.blobs.retain(|k, _| tribles.vae.has_prefix(&k.raw));
     }
 }
 

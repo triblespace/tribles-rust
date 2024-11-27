@@ -44,7 +44,7 @@ where
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.extend(self.map.keys().map(|k| ToValue::to_value(k).bytes))
+        proposals.extend(self.map.keys().map(|k| ToValue::to_value(k).raw))
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

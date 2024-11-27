@@ -2,7 +2,7 @@ use rand::thread_rng;
 use rand::RngCore;
 use std::cell::RefCell;
 
-use super::OwnedId;
+use super::{ RawId, Id, OwnedId };
 
 pub struct FUCIDgen {
     salt: u128,
@@ -34,7 +34,7 @@ impl FUCIDgen {
         let next_id = self.counter ^ self.salt;
         self.counter += 1;
         let id = next_id.to_be_bytes();
-        OwnedId::force(id)
+        OwnedId::force(Id::new(RawId::new(&id)))
     }
 }
 

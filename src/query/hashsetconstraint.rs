@@ -40,7 +40,7 @@ where
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.extend(self.set.iter().map(|v| ToValue::to_value(v).bytes));
+        proposals.extend(self.set.iter().map(|v| ToValue::to_value(v).raw));
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

@@ -20,8 +20,8 @@ impl ValueSchema for FR256BE {
 
 impl FromValue<'_, FR256BE> for Ratio<i128> {
     fn from_value(v: &Value<FR256BE>) -> Self {
-        let n = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
-        let d = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
+        let n = i128::from_be_bytes(v.raw[0..16].try_into().unwrap());
+        let d = i128::from_be_bytes(v.raw[16..32].try_into().unwrap());
 
         Ratio::new(n, d)
     }
@@ -39,8 +39,8 @@ impl ToValue<FR256BE> for Ratio<i128> {
 
 impl FromValue<'_, FR256LE> for Ratio<i128> {
     fn from_value(v: &Value<FR256LE>) -> Self {
-        let n = i128::from_le_bytes(v.bytes[0..16].try_into().unwrap());
-        let d = i128::from_le_bytes(v.bytes[16..32].try_into().unwrap());
+        let n = i128::from_le_bytes(v.raw[0..16].try_into().unwrap());
+        let d = i128::from_le_bytes(v.raw[16..32].try_into().unwrap());
 
         Ratio::new(n, d)
     }

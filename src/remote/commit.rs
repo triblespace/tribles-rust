@@ -23,7 +23,7 @@ use crate::{
 
 NS! {
     pub namespace commit_ns {
-        "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: Handle<Blake3, SimpleArchive>;
+        "4DD4DDD05CC31734B03ABB4E43188B1F" as trible_delta: Handle<Blake3, SimpleArchive>;
         "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
         "ADB4FFAD247C886848161297EFF5A05B" as authored_by: GenId;
         "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: ed::ED25519RComponent;
@@ -62,13 +62,13 @@ pub fn sign(
     handle: Value<Handle<Blake3, SimpleArchive>>,
     commit_id: OwnedId,
 ) -> Result<TribleSet, ValidationError> {
-    let hash = handle.bytes;
+    let hash = handle.raw;
     let signature = signing_key.sign(&hash);
     let r = ED25519RComponent::from_signature(signature);
     let s = ED25519SComponent::from_signature(signature);
     let tribles = commit_ns::entity!(&commit_id,
     {
-        tribles: handle,
+        trible_delta: handle,
         ed25519_pubkey: signing_key.verifying_key(),
         ed25519_signature_r: r,
         ed25519_signature_s: s,
@@ -82,7 +82,7 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
         (payload: Value<_>, key: Value<_>, r, s),
         commit_ns::pattern!(ctx, &tribles, [
         {(commit_id) @
-            tribles: payload,
+            trible_delta: payload,
             ed25519_pubkey: key,
             ed25519_signature_r: r,
             ed25519_signature_s: s
@@ -90,7 +90,7 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
     )
     .exactly_one()?;
 
-    let hash = payload.bytes;
+    let hash = payload.raw;
     let signature = Signature::from_components(r, s);
     let verifying_key: VerifyingKey = verifying_key.try_from_value()?;
     verifying_key.verify(&hash, &signature)?;

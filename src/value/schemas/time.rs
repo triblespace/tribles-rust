@@ -26,8 +26,8 @@ impl ToValue<NsTAIInterval> for (Epoch, Epoch) {
 
 impl FromValue<'_, NsTAIInterval> for (Epoch, Epoch) {
     fn from_value(v: &Value<NsTAIInterval>) -> Self {
-        let lower = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
-        let upper = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
+        let lower = i128::from_be_bytes(v.raw[0..16].try_into().unwrap());
+        let upper = i128::from_be_bytes(v.raw[16..32].try_into().unwrap());
         let lower = Epoch::from_tai_duration(Duration::from_total_nanoseconds(lower));
         let upper = Epoch::from_tai_duration(Duration::from_total_nanoseconds(upper));
 

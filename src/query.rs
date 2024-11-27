@@ -188,7 +188,7 @@ impl Default for Binding {
     fn default() -> Self {
         Self {
             bound: VariableSet::new_empty(),
-            values: [[0; 32]; 128],
+            values: [RawValue; 128],
         }
     }
 }

@@ -16,7 +16,7 @@ pub const V_START: usize = 32;
 pub const V_END: usize = 63;
 
 #[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[repr(transparent)]
+#[repr(C, align(64))]
 pub struct Trible {
     pub data: [u8; TRIBLE_LEN],
 }
@@ -26,7 +26,7 @@ impl Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(a);
-        data[V_START..=V_END].copy_from_slice(&v.bytes[..]);
+        data[V_START..=V_END].copy_from_slice(&v.raw[..]);
 
         Self { data }
     }
@@ -48,10 +48,6 @@ impl Trible {
         Ok(Self { data })
     }
 
-    pub fn new_raw(data: [u8; 64]) -> Trible {
-        Self { data }
-    }
-
     pub fn new_raw_values(e: RawValue, a: RawValue, v: RawValue) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[16..32]);
@@ -62,24 +58,13 @@ impl Trible {
     }
 
     pub fn e(&self) -> RawId {
-        self.data[E_START..=E_END].try_into().unwrap()
+        RawId::new(self.data[E_START..=E_END].try_into().unwrap())
     }
     pub fn a(&self) -> RawId {
-        self.data[A_START..=A_END].try_into().unwrap()
+        RawId::new(self.data[A_START..=A_END].try_into().unwrap())
     }
     pub fn v(&self) -> RawValue {
-        self.data[V_START..=V_END].try_into().unwrap()
-    }
-
-    pub fn e_as_value(&self) -> RawValue {
-        let mut o = [0u8; 32];
-        o[16..=31].copy_from_slice(&self.data[E_START..=E_END]);
-        o
-    }
-    pub fn a_as_value(&self) -> RawValue {
-        let mut o = [0u8; 32];
-        o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
-        o
+        RawValue::new(self.data[V_START..=V_END].try_into().unwrap())
     }
 }
 

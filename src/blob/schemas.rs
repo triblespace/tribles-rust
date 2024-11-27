@@ -11,5 +11,5 @@ use hex_literal::hex;
 
 pub struct UnknownBlob;
 impl BlobSchema for UnknownBlob {
-    const ID: RawId = hex!("EAB14005141181B0C10C4B5DD7985F8D");
+    const ID: RawId = RawId::new(&hex!("EAB14005141181B0C10C4B5DD7985F8D"));
 }

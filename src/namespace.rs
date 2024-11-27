@@ -142,7 +142,7 @@ macro_rules! NS {
             pub mod ids {
                 #![allow(non_upper_case_globals, unused)]
                 use super::*;
-                $(pub const $FieldName:$crate::id::RawId = $crate::namespace::hex_literal::hex!($FieldId);)*
+                $(pub const $FieldName:$crate::id::RawId = $crate::id::RawId::new(&$crate::namespace::hex_literal::hex!($FieldId));)*
             }
             pub mod schemas {
                 #![allow(non_camel_case_types, unused)]

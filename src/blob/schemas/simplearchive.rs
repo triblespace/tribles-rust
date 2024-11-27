@@ -12,7 +12,7 @@ use std::convert::TryInto;
 pub struct SimpleArchive;
 
 impl BlobSchema for SimpleArchive {
-    const ID: RawId = hex!("8F4A27C8581DADCBA1ADA8BA228069B6");
+    const ID: RawId = RawId::new(&hex!("8F4A27C8581DADCBA1ADA8BA228069B6"));
 }
 
 impl ToBlob<SimpleArchive> for &TribleSet {

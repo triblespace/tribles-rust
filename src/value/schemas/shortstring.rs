@@ -22,11 +22,11 @@ impl<'a> TryFromValue<'a, ShortString> for &'a str {
 
     fn try_from_value(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
         std::str::from_utf8(
-            &v.bytes[0..v
-                .bytes
-                .iter()
-                .position(|&b| b == 0)
-                .unwrap_or(v.bytes.len())],
+            &v.raw.bytes[0..
+                v.raw.bytes
+                    .iter()
+                    .position(|&b| b == 0)
+                    .unwrap_or(v.raw.bytes.len())],
         )
     }
 }
@@ -67,7 +67,7 @@ impl TryToValue<ShortString> for &str {
         let mut data: [u8; 32] = [0; 32];
         data[..bytes.len()].copy_from_slice(bytes);
 
-        Ok(Value::new(data))
+        Ok(Value::new(&data))
     }
 }
 

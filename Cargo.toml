@@ -9,7 +9,7 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anybytes = {version = "0.10.0", features = ["bytes", "zerocopy"]}
+anybytes = {version = "0.11.0-alpha.1", features = ["bytes", "zerocopy"]}
 rand = "0.8.5"
 digest = "0.10.7"
 ux = "0.1.5"

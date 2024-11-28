@@ -113,7 +113,10 @@ pub mod fucid;
 pub mod rngid;
 pub mod ufoid;
 
-use std::{borrow::Borrow, cell::RefCell, convert::TryInto, marker::PhantomData, mem, ops::Deref};
+use std::{
+    borrow::Borrow, cell::RefCell, convert::TryInto, hash::Hash, marker::PhantomData, mem,
+    num::NonZero, ops::Deref,
+};
 
 pub use fucid::fucid;
 pub use rngid::rngid;
@@ -131,10 +134,79 @@ thread_local!(static OWNED_IDS: RefCell<PATCH<ID_LEN, IdentityOrder, SingleSegme
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(C, packed(1))]
+pub struct Id {
+    inner: NonZero<u128>,
+}
+
+impl Id {
+    pub const fn new(id: RawId) -> Option<Self> {
+        unsafe { std::mem::transmute(id) }
+    }
+
+    pub fn transmute_raw(id: &RawId) -> Option<&Self> {
+        if *id == [0; 16] {
+            None
+        } else {
+            Some(unsafe { std::mem::transmute(id) })
+        }
+    }
+}
+
+impl PartialOrd for Id {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let s: &RawId = &self;
+        let o: &RawId = &other;
+        PartialOrd::partial_cmp(s, o)
+    }
+}
+
+impl Ord for Id {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let s: &RawId = &self;
+        let o: &RawId = &other;
+        Ord::cmp(s, o)
+    }
+}
+
+impl Hash for Id {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let s: &RawId = &self;
+        Hash::hash(s, state);
+    }
+}
+
+impl Deref for Id {
+    type Target = RawId;
+
+    fn deref(&self) -> &Self::Target {
+        self.borrow()
+    }
+}
+
+impl Borrow<RawId> for Id {
+    fn borrow(&self) -> &RawId {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl From<Id> for RawId {
+    fn from(id: Id) -> Self {
+        *id
+    }
+}
+
+impl From<Id> for RawValue {
+    fn from(id: Id) -> Self {
+        id.into()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct OwnedId {
-    raw: RawId,
+    pub id: Id,
     // Make sure that the type can't be syntactically initialized.
     // Also make sure that we we don't get auto impl of Send and Sync
     _private: PhantomData<*const usize>,
@@ -143,9 +215,9 @@ pub struct OwnedId {
 unsafe impl Send for OwnedId {}
 
 impl OwnedId {
-    pub fn force(id: RawId) -> Self {
+    pub fn force(id: Id) -> Self {
         Self {
-            raw: id,
+            id,
             _private: PhantomData,
         }
     }
@@ -153,7 +225,7 @@ impl OwnedId {
     /// Takes ownership of this ID from the current write context (thread).
     /// Returns `None` if this ID was not found, because it is not associated with this
     /// write context, or because it is currently aquired.
-    pub fn try_aquire(id: RawId) -> Option<OwnedId> {
+    pub fn try_aquire(id: Id) -> Option<OwnedId> {
         OWNED_IDS.with_borrow_mut(|ids| {
             if ids.has_prefix(&id) {
                 ids.remove(&id);
@@ -164,7 +236,7 @@ impl OwnedId {
         })
     }
 
-    pub fn aquire(id: RawId) -> Self {
+    pub fn aquire(id: Id) -> Self {
         Self::try_aquire(id).expect("failed to aquire ID, maybe the ID is no longer owned by this thread or has been aquired already")
     }
 
@@ -178,15 +250,21 @@ impl OwnedId {
 }
 
 impl Deref for OwnedId {
-    type Target = RawId;
+    type Target = Id;
 
     fn deref(&self) -> &Self::Target {
-        &self.raw
+        &self.id
     }
 }
 
 impl Borrow<RawId> for OwnedId {
     fn borrow(&self) -> &RawId {
+        self
+    }
+}
+
+impl Borrow<Id> for OwnedId {
+    fn borrow(&self) -> &Id {
         self
     }
 }
@@ -202,7 +280,7 @@ impl Drop for OwnedId {
 
 impl From<OwnedId> for RawId {
     fn from(value: OwnedId) -> Self {
-        *value
+        **value
     }
 }
 

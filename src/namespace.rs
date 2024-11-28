@@ -20,7 +20,7 @@ macro_rules! entity_inner {
             $({ let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
                 $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
-                &ns::ids::$FieldName,
+                $crate::id::Id::transmute_raw(&ns::ids::$FieldName).unwrap(),
                 &v));})*
         }
     };

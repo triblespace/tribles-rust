@@ -50,7 +50,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
         let a_var = self.variable_a == variable;
         let v_var = self.variable_v == variable;
 
-        if let Ok(trible) = Trible::new_values(
+        if let Ok(trible) = Trible::new_raw_values(
             binding.get(self.variable_e).unwrap_or(&[0; 32]),
             binding.get(self.variable_a).unwrap_or(&[0; 32]),
             binding.get(self.variable_v).unwrap_or(&[0; 32]),
@@ -118,7 +118,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
             o
         }
 
-        if let Ok(trible) = Trible::new_values(
+        if let Ok(trible) = Trible::new_raw_values(
             binding.get(self.variable_e).unwrap_or(&[0; 32]),
             binding.get(self.variable_a).unwrap_or(&[0; 32]),
             binding.get(self.variable_v).unwrap_or(&[0; 32]),
@@ -196,7 +196,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
             (false, false, false) => panic!(),
             (true, false, false) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {
@@ -221,7 +221,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
             }
             (false, true, false) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {
@@ -246,7 +246,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
             }
             (false, false, true) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {
@@ -272,7 +272,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
 
             (true, true, false) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {
@@ -298,7 +298,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
 
             (true, false, true) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {
@@ -324,7 +324,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
 
             (false, true, true) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {
@@ -350,7 +350,7 @@ impl<'a> Constraint<'a> for HashTribleSetConstraint<'a> {
 
             (true, true, true) => {
                 proposals.retain(|value| {
-                    if let Ok(trible) = Trible::new_values(
+                    if let Ok(trible) = Trible::new_raw_values(
                         binding.get(self.variable_e).unwrap_or(if e_var {
                             value
                         } else {

@@ -54,7 +54,7 @@ where
             let a = self.domain.access(a);
             let v = self.domain.access(v);
 
-            let t = Trible::new_raw_values(e, a, v);
+            let t = Trible::new_raw_values(&e, &a, &v).unwrap();
             t
         })
     }

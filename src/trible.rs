@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use crate::{
-    id::{OwnedId, RawId},
+    id::{Id, OwnedId, RawId},
     patch::{KeyOrdering, KeySegmentation},
     value::{RawValue, Value, ValueSchema},
 };
@@ -22,16 +22,20 @@ pub struct Trible {
 }
 
 impl Trible {
-    pub fn new<V: ValueSchema>(e: &OwnedId, a: &RawId, v: &Value<V>) -> Trible {
+    pub fn new<V: ValueSchema>(e: &OwnedId, a: &Id, v: &Value<V>) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
-        data[A_START..=A_END].copy_from_slice(a);
+        data[A_START..=A_END].copy_from_slice(&a[..]);
         data[V_START..=V_END].copy_from_slice(&v.bytes[..]);
 
         Self { data }
     }
 
-    pub fn new_values(e: &RawValue, a: &RawValue, v: &RawValue) -> Result<Trible, &'static str> {
+    pub fn new_raw_values(
+        e: &RawValue,
+        a: &RawValue,
+        v: &RawValue,
+    ) -> Result<Trible, &'static str> {
         if e[0..16].iter().any(|&x| x != 0) {
             return Err(&"entity value is not a valid id");
         }
@@ -49,15 +53,6 @@ impl Trible {
     }
 
     pub fn new_raw(data: [u8; 64]) -> Trible {
-        Self { data }
-    }
-
-    pub fn new_raw_values(e: RawValue, a: RawValue, v: RawValue) -> Trible {
-        let mut data = [0; TRIBLE_LEN];
-        data[E_START..=E_END].copy_from_slice(&e[16..32]);
-        data[A_START..=A_END].copy_from_slice(&a[16..32]);
-        data[V_START..=V_END].copy_from_slice(&v[..]);
-
         Self { data }
     }
 

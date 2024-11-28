@@ -2,6 +2,7 @@ use rand::thread_rng;
 use rand::RngCore;
 use std::cell::RefCell;
 
+use super::Id;
 use super::OwnedId;
 
 pub struct FUCIDgen {
@@ -23,18 +24,13 @@ impl FUCIDgen {
         }
     }
 
-    pub fn new_salted(salt: [u8; 16]) -> Self {
-        Self {
-            salt: u128::from_be_bytes(salt),
-            counter: 0,
-        }
-    }
-
     pub fn next(&mut self) -> OwnedId {
         let next_id = self.counter ^ self.salt;
         self.counter += 1;
         let id = next_id.to_be_bytes();
-        OwnedId::force(id)
+        OwnedId::force(
+            Id::new(id).expect("The probability for counter ^ salt = 0 should be neglegible."),
+        )
     }
 }
 

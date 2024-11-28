@@ -1,7 +1,7 @@
 use rand::{thread_rng, RngCore};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::OwnedId;
+use super::{Id, OwnedId};
 
 // Universal Forgettable Ordered IDs
 pub fn ufoid() -> OwnedId {
@@ -16,7 +16,9 @@ pub fn ufoid() -> OwnedId {
     id[0..4].copy_from_slice(&(now_in_ms as u32).to_be_bytes());
     rng.fill_bytes(&mut id[4..16]);
 
-    OwnedId::force(id)
+    OwnedId::force(
+        Id::new(id).expect("The probability time and rng = 0 should be neglegible."),
+    )
 }
 
 #[cfg(test)]

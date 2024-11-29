@@ -225,7 +225,7 @@ impl OwnedId {
     /// Takes ownership of this ID from the current write context (thread).
     /// Returns `None` if this ID was not found, because it is not associated with this
     /// write context, or because it is currently aquired.
-    pub fn try_aquire(id: Id) -> Option<OwnedId> {
+    pub fn aquire(id: Id) -> Option<OwnedId> {
         OWNED_IDS.with_borrow_mut(|ids| {
             if ids.has_prefix(&id) {
                 ids.remove(&id);
@@ -234,10 +234,6 @@ impl OwnedId {
                 None
             }
         })
-    }
-
-    pub fn aquire(id: Id) -> Self {
-        Self::try_aquire(id).expect("failed to aquire ID, maybe the ID is no longer owned by this thread or has been aquired already")
     }
 
     pub fn release(self) {

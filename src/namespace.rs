@@ -20,7 +20,7 @@ macro_rules! entity_inner {
             $({ let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
                 $Set.insert(&$crate::trible::Trible::new(
                 $EntityId,
-                $crate::id::Id::transmute_raw(&ns::ids::$FieldName).unwrap(),
+                &ns::ids::$FieldName,
                 &v));})*
         }
     };
@@ -142,7 +142,7 @@ macro_rules! NS {
             pub mod ids {
                 #![allow(non_upper_case_globals, unused)]
                 use super::*;
-                $(pub const $FieldName:$crate::id::RawId = $crate::namespace::hex_literal::hex!($FieldId);)*
+                $(pub const $FieldName:$crate::id::Id = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();)*
             }
             pub mod schemas {
                 #![allow(non_camel_case_types, unused)]

@@ -48,7 +48,7 @@ impl<S: BlobSchema> Blob<S> {
         <T as FromBlob<'a, S>>::from_blob(self)
     }
 
-    pub fn try_from_blob<'a, T>(&'a self) -> Result<T, <T as TryFromBlob<S>>::Error>
+    pub fn try_from_blob<'a, T>(&'a self) -> Result<T, <T as TryFromBlob<'a, S>>::Error>
     where
         T: TryFromBlob<'a, S>,
     {

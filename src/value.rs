@@ -44,7 +44,7 @@ impl<S: ValueSchema> Value<S> {
         <T as FromValue<'a, S>>::from_value(self)
     }
 
-    pub fn try_from_value<'a, T>(&'a self) -> Result<T, <T as TryFromValue<S>>::Error>
+    pub fn try_from_value<'a, T>(&'a self) -> Result<T, <T as TryFromValue<'a, S>>::Error>
     where
         T: TryFromValue<'a, S>,
     {

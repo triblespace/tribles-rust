@@ -151,7 +151,7 @@ impl TryFromValue<'_, GenId> for String {
     type Error = IdParseError;
 
     fn try_from_value(v: &'_ Value<GenId>) -> Result<Self, Self::Error> {
-        let id: RawId = v.try_from_value()?;
+        let id: Id = v.try_from_value()?;
         let mut s = String::new();
         s.push_str("genid:");
         s.push_str(&hex::encode(id));

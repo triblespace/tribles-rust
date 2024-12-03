@@ -195,13 +195,25 @@ impl Deref for Id {
     type Target = RawId;
 
     fn deref(&self) -> &Self::Target {
-        self.borrow()
+        unsafe { std::mem::transmute(self) }
     }
 }
 
 impl Borrow<RawId> for Id {
     fn borrow(&self) -> &RawId {
-        unsafe { std::mem::transmute(self) }
+        self
+    }
+}
+
+impl AsRef<[u8; 16]> for Id {
+    fn as_ref(&self) -> &[u8; 16] {
+        self
+    }
+}
+
+impl AsRef<[u8]> for Id {
+    fn as_ref(&self) -> &[u8] {
+        &self[..]
     }
 }
 
@@ -249,6 +261,15 @@ impl OwnedId {
     }
 }
 
+impl Drop for OwnedId {
+    fn drop(&mut self) {
+        OWNED_IDS.with_borrow_mut(|ids| {
+            let entry = Entry::new(&self);
+            ids.insert(&entry);
+        });
+    }
+}
+
 impl Deref for OwnedId {
     type Target = Id;
 
@@ -269,12 +290,15 @@ impl Borrow<Id> for OwnedId {
     }
 }
 
-impl Drop for OwnedId {
-    fn drop(&mut self) {
-        OWNED_IDS.with_borrow_mut(|ids| {
-            let entry = Entry::new(&self);
-            ids.insert(&entry);
-        });
+impl AsRef<[u8; 16]> for OwnedId {
+    fn as_ref(&self) -> &[u8; 16] {
+        self
+    }
+}
+
+impl AsRef<[u8]> for OwnedId {
+    fn as_ref(&self) -> &[u8] {
+        &self[..]
     }
 }
 

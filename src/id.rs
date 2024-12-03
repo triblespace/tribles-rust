@@ -152,6 +152,20 @@ impl Id {
             Some(unsafe { std::mem::transmute(id) })
         }
     }
+
+    /// Takes ownership of this Id from the current write context (thread).
+    /// Returns `None` if this Id was not found, because it is not associated with this
+    /// write context, or because it is currently aquired.
+    pub fn aquire(self) -> Option<OwnedId> {
+        OWNED_IDS.with_borrow_mut(|ids| {
+            if ids.has_prefix(&self) {
+                ids.remove(&self);
+                Some(OwnedId::force(self))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl PartialOrd for Id {
@@ -222,26 +236,16 @@ impl OwnedId {
         }
     }
 
-    /// Takes ownership of this ID from the current write context (thread).
-    /// Returns `None` if this ID was not found, because it is not associated with this
-    /// write context, or because it is currently aquired.
-    pub fn aquire(id: Id) -> Option<OwnedId> {
-        OWNED_IDS.with_borrow_mut(|ids| {
-            if ids.has_prefix(&id) {
-                ids.remove(&id);
-                Some(OwnedId::force(id))
-            } else {
-                None
-            }
-        })
-    }
-
-    pub fn release(self) {
+    pub fn release(self) -> Id {
+        let id = self.id;
         mem::drop(self);
+        id
     }
 
-    pub fn forget(self) {
+    pub fn forget(self) -> Id {
+        let id = self.id;
         mem::forget(self);
+        id
     }
 }
 

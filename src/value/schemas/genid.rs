@@ -125,7 +125,7 @@ impl<'a> TryFromValue<'a, GenId> for OwnedId {
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
         let id: Id = value.try_from_value()?;
-        OwnedId::aquire(id).ok_or(OwnedIdError::FailedAquire())
+        id.aquire().ok_or(OwnedIdError::FailedAquire())
     }
 }
 

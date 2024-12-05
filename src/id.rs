@@ -129,10 +129,24 @@ use crate::{
     value::{RawValue, VALUE_LEN},
 };
 
-thread_local!(static OWNED_IDS: RefCell<PATCH<ID_LEN, IdentityOrder, SingleSegmentation>> = RefCell::new(PATCH::new()));
+thread_local!(static OWNED_IDS: RefCell<IdOwner> = RefCell::new(IdOwner::new()));
 
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
+
+pub(crate) fn id_into_value(id: &RawId) -> RawValue {
+    let mut data = [0; VALUE_LEN];
+    data[16..32].copy_from_slice(id);
+    data
+}
+
+pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
+    if id[0..16] != [0; 16] {
+        return None;
+    }
+    let id = id[16..32].try_into().unwrap();
+    Some(id)
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(C, packed(1))]
@@ -156,14 +170,9 @@ impl Id {
     /// Takes ownership of this Id from the current write context (thread).
     /// Returns `None` if this Id was not found, because it is not associated with this
     /// write context, or because it is currently aquired.
-    pub fn aquire(self) -> Option<OwnedId> {
-        OWNED_IDS.with_borrow_mut(|ids| {
-            if ids.has_prefix(&self) {
-                ids.remove(&self);
-                Some(OwnedId::force(self))
-            } else {
-                None
-            }
+    pub fn aquire(&self) -> Option<OwnedId> {
+        OWNED_IDS.with_borrow_mut(|owner| {
+            owner.take(self)
         })
     }
 }
@@ -264,8 +273,7 @@ impl OwnedId {
 impl Drop for OwnedId {
     fn drop(&mut self) {
         OWNED_IDS.with_borrow_mut(|ids| {
-            let entry = Entry::new(&self);
-            ids.insert(&entry);
+            ids.force_insert(self);
         });
     }
 }
@@ -309,22 +317,46 @@ impl From<OwnedId> for RawId {
 }
 
 pub fn local_owned(v: Variable<GenId>) -> impl Constraint<'static> {
-    let ids = OWNED_IDS.with_borrow(Clone::clone);
-    ids.has(v)
+    OWNED_IDS.with_borrow(|owner| owner.has(v))
 }
 
-pub(crate) fn id_into_value(id: &RawId) -> RawValue {
-    let mut data = [0; VALUE_LEN];
-    data[16..32].copy_from_slice(id);
-    data
+pub struct IdOwner {
+    owned_ids: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>
 }
 
-pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
-    if id[0..16] != [0; 16] {
-        return None;
+impl IdOwner {
+    pub fn new() -> Self {
+        Self {
+            owned_ids: PATCH::new()
+        }
     }
-    let id = id[16..32].try_into().unwrap();
-    Some(id)
+
+    pub fn insert(&mut self, owned_id: OwnedId) -> Id {
+        self.force_insert(&owned_id);
+        owned_id.forget()
+    }
+
+    pub fn force_insert(&mut self, id: &Id) {
+        let entry = Entry::new(&id);
+        self.owned_ids.insert(&entry);
+    }
+
+    pub fn take(&mut self, id: &Id) -> Option<OwnedId> {
+        if self.owned_ids.has_prefix(id) {
+            self.owned_ids.remove(id);
+            Some(OwnedId::force(*id))
+        } else {
+            None
+        }
+    }
+}
+
+impl ContainsConstraint<'static, GenId> for &IdOwner {
+    type Constraint = <PATCH<ID_LEN, IdentityOrder, SingleSegmentation> as ContainsConstraint<'static, GenId>>::Constraint;
+
+    fn has(self, v: Variable<GenId>) -> Self::Constraint {
+        self.owned_ids.clone().has(v)
+    }
 }
 
 #[cfg(test)]

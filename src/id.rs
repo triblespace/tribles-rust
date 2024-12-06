@@ -257,6 +257,10 @@ impl OwnedId {
         }
     }
 
+    pub fn transmute_force<'a>(id: &'a Id) -> &'a Self {
+        unsafe { std::mem::transmute(id) }
+    }
+
     pub fn release(self) -> Id {
         let id = self.id;
         mem::drop(self);

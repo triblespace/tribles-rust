@@ -349,6 +349,10 @@ impl IdOwner {
             None
         }
     }
+
+    pub fn owns(&mut self, id: & Id) -> bool {
+        self.owned_ids.has_prefix(id)
+    }
 }
 
 impl ContainsConstraint<'static, GenId> for &IdOwner {

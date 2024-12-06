@@ -4,7 +4,7 @@ pub mod valueschemas;
 pub use crate::blob::BlobSchema;
 pub use crate::blob::{Blob, FromBlob, ToBlob, TryFromBlob, TryToBlob};
 pub use crate::blobset::BlobSet;
-pub use crate::id::{fucid, local_owned, rngid, ufoid, Id, OwnedId, RawId};
+pub use crate::id::{fucid, local_owned, rngid, ufoid, Id, OwnedId, RawId, IdOwner};
 pub use crate::namespace::NS;
 pub use crate::query::{
     find,

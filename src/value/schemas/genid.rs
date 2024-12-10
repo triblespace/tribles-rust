@@ -100,11 +100,17 @@ impl<'a> FromValue<'a, GenId> for &'a Id {
     }
 }
 
-impl ToValue<GenId> for Id {
+impl ToValue<GenId> for &Id {
     fn to_value(self) -> Value<GenId> {
         let mut data = [0; VALUE_LEN];
         data[16..32].copy_from_slice(&self[..]);
         Value::new(data)
+    }
+}
+
+impl ToValue<GenId> for Id {
+    fn to_value(self) -> Value<GenId> {
+        (&self).to_value()
     }
 }
 

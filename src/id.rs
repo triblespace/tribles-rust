@@ -244,7 +244,7 @@ pub struct OwnedId {
     pub id: Id,
     // Make sure that the type can't be syntactically initialized.
     // Also make sure that we we don't get auto impl of Send and Sync
-    _private: PhantomData<*const usize>,
+    _private: PhantomData<*const ()>,
 }
 
 unsafe impl Send for OwnedId {}

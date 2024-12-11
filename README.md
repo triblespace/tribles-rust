@@ -3,6 +3,7 @@
 ![Discord Shield](https://discordapp.com/api/guilds/795317845181464651/widget.png?style=shield)
 
 # About
+🚧🚧🚧 Please note that this is work in progress, so while a lot of things have settled by now, we still favour breaking backwards compatiblity for seeminly minor improvements. 🚧🚧🚧
 
 > The real tragedy would be if people forgot that you can have new ideas about programming models in the first place. <br/> - [Bret Victor](https://worrydream.com/dbx/)
 
@@ -26,7 +27,7 @@ By reifying most concepts and operations as first class citizens, we hope to pro
 - Self describing and documenting.
 - Eventually consistent distributed semantics based on CRDTs and CALM,
 providing build-in version control.
-- Delta-Queries between arbitrary datasets.
+- 🚧 Delta-Queries between arbitrary datasets.
 - Compile-time typed queries and dataset construction.
 - Low overall complexity. If you feel that stuff is obvious, maybe a bit boring, and that you could have come up with it yourself, then we achieved our goal.
 

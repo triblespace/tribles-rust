@@ -44,7 +44,6 @@ quick_cache = "0.6.9"
 #[dev-dependencies]
 criterion = "0.3"
 im = "15.1.0"
-oxigraph = "0.3.22"
 peak_alloc = "0.1.0"
 fake = "2.8"
 coz = "0.1"

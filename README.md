@@ -2,8 +2,9 @@
 ![docs.rs](https://img.shields.io/docsrs/tribles)
 ![Discord Shield](https://discordapp.com/api/guilds/795317845181464651/widget.png?style=shield)
 
-# About
 🚧🚧🚧 Please note that this is work in progress, so while a lot of things have settled by now, we still favour breaking backwards compatiblity for seeminly minor improvements. 🚧🚧🚧
+
+# About
 
 > The real tragedy would be if people forgot that you can have new ideas about programming models in the first place. <br/> - [Bret Victor](https://worrydream.com/dbx/)
 

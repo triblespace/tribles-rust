@@ -22,7 +22,7 @@ use crate::{
 };
 
 NS! {
-    pub namespace commit_ns {
+    pub namespace commits {
         "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: Handle<Blake3, SimpleArchive>;
         "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
         "ADB4FFAD247C886848161297EFF5A05B" as authored_by: GenId;
@@ -66,7 +66,7 @@ pub fn sign(
     let signature = signing_key.sign(&hash);
     let r = ED25519RComponent::from_signature(signature);
     let s = ED25519SComponent::from_signature(signature);
-    let tribles = commit_ns::entity!(&commit_id,
+    let tribles = commits::entity!(&commit_id,
     {
         tribles: handle,
         ed25519_pubkey: signing_key.verifying_key(),
@@ -80,7 +80,7 @@ pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationErro
     let (payload, verifying_key, r, s) = find!(
         ctx,
         (payload: Value<_>, key: Value<_>, r, s),
-        commit_ns::pattern!(ctx, &tribles, [
+        commits::pattern!(ctx, &tribles, [
         {(commit_id) @
             tribles: payload,
             ed25519_pubkey: key,

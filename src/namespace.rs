@@ -91,9 +91,6 @@ pub use pattern_inner;
 
 pub use hex_literal;
 
-pub const ATTR_SCHEMA: Id = Id::new(hex_literal::hex!("213F89E3F49628A105B3830BD3A6612C")).unwrap();
-pub const ATTR_NAME: Id = Id::new(hex_literal::hex!("2E26F8BA886495A8DF04ACF0ED3ACBD4")).unwrap();
-
 /// Define a rust module to represent a namespace.
 /// The module additionally defines `entity!` and `pattern!` macros.
 ///
@@ -150,9 +147,9 @@ macro_rules! NS {
                 let mut set = $crate::tribleset::TribleSet::new();
                 $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
                    let schema_id = $crate::value::schemas::genid::GenId::to_value(<$FieldType as $crate::value::ValueSchema>::ID);
-                   set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::namespace::ATTR_SCHEMA, &schema_id));
+                   set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::metadata::ATTR_ATTR_SCHEMA, &schema_id));
                    let attr_name = $crate::value::schemas::shortstring::ShortString::to_value(stringify!($FieldName));
-                   set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::namespace::ATTR_NAME, &attr_name));
+                   set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::metadata::ATTR_LABEL, &attr_name));
                 })*
                 set
             }
@@ -217,8 +214,6 @@ macro_rules! NS {
 }
 
 pub use NS;
-
-use crate::id::Id;
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,6 @@
 pub mod schemas;
 
-use crate::{blob::BlobSchema, id::Id};
+use crate::id::Id;
 
 use core::fmt;
 use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};

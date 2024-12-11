@@ -16,9 +16,7 @@ pub fn ufoid() -> OwnedId {
     id[0..4].copy_from_slice(&(now_in_ms as u32).to_be_bytes());
     rng.fill_bytes(&mut id[4..16]);
 
-    OwnedId::force(
-        Id::new(id).expect("The probability time and rng = 0 should be neglegible."),
-    )
+    OwnedId::force(Id::new(id).expect("The probability time and rng = 0 should be neglegible."))
 }
 
 #[cfg(test)]

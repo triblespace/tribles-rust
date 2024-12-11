@@ -171,9 +171,7 @@ impl Id {
     /// Returns `None` if this Id was not found, because it is not associated with this
     /// write context, or because it is currently aquired.
     pub fn aquire(&self) -> Option<OwnedId> {
-        OWNED_IDS.with_borrow_mut(|owner| {
-            owner.take(self)
-        })
+        OWNED_IDS.with_borrow_mut(|owner| owner.take(self))
     }
 }
 
@@ -325,13 +323,13 @@ pub fn local_owned(v: Variable<GenId>) -> impl Constraint<'static> {
 }
 
 pub struct IdOwner {
-    owned_ids: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>
+    owned_ids: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>,
 }
 
 impl IdOwner {
     pub fn new() -> Self {
         Self {
-            owned_ids: PATCH::new()
+            owned_ids: PATCH::new(),
         }
     }
 
@@ -354,13 +352,16 @@ impl IdOwner {
         }
     }
 
-    pub fn owns(&mut self, id: & Id) -> bool {
+    pub fn owns(&mut self, id: &Id) -> bool {
         self.owned_ids.has_prefix(id)
     }
 }
 
 impl ContainsConstraint<'static, GenId> for &IdOwner {
-    type Constraint = <PATCH<ID_LEN, IdentityOrder, SingleSegmentation> as ContainsConstraint<'static, GenId>>::Constraint;
+    type Constraint = <PATCH<ID_LEN, IdentityOrder, SingleSegmentation> as ContainsConstraint<
+        'static,
+        GenId,
+    >>::Constraint;
 
     fn has(self, v: Variable<GenId>) -> Self::Constraint {
         self.owned_ids.clone().has(v)

@@ -230,9 +230,10 @@ where
     B: Build + Access + Rank + Select + NumBits,
 {
     type PatternConstraint<'a>
-     = SuccinctArchiveConstraint<'a, U, B>
-     where U: 'a,
-           B: 'a;
+        = SuccinctArchiveConstraint<'a, U, B>
+    where
+        U: 'a,
+        B: 'a;
 
     fn pattern<'a, V: ValueSchema>(
         &'a self,

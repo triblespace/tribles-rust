@@ -117,8 +117,10 @@ pub use hex_literal;
 /// ```
 /// mod namespace_name {
 ///   use super::*; // enables lexical scoping
-///   pub fn description() -> TribleSet {
-///     ...
+///   pub fn description() -> tribles::tribleset::TribleSet {
+///     let set = tribles::tribleset::TribleSet::new();
+///     // namespace described in terms of the `metadata` namespace
+///     set    
 ///   }
 ///   pub mod ids {
 ///       use super::*;

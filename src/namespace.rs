@@ -148,8 +148,12 @@ macro_rules! NS {
             pub fn description() -> $crate::tribleset::TribleSet {
                 let mut set = $crate::tribleset::TribleSet::new();
                 $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
-                   let schema_id = $crate::value::schemas::genid::GenId::to_value(<$FieldType as $crate::value::ValueSchema>::ID);
-                   set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::metadata::ATTR_ATTR_SCHEMA, &schema_id));
+                   let value_schema_id = $crate::value::schemas::genid::GenId::to_value(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
+                   set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::metadata::ATTR_ATTR_VALUE_SCHEMA, &value_schema_id));
+                   if let Some(blob_schema_id) = <$FieldType as $crate::value::ValueSchema>::BLOB_SCHEMA_ID {
+                      let blob_schema_id = $crate::value::schemas::genid::GenId::to_value(blob_schema_id);
+                      set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::metadata::ATTR_ATTR_BLOB_SCHEMA, &blob_schema_id));
+                   }
                    let attr_name = $crate::value::schemas::shortstring::ShortString::to_value(stringify!($FieldName));
                    set.insert(&$crate::trible::Trible::new($crate::id::OwnedId::transmute_force(&e), &$crate::metadata::ATTR_LABEL, &attr_name));
                 })*

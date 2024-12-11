@@ -1,6 +1,6 @@
 pub mod schemas;
 
-use crate::id::RawId;
+use crate::{blob::BlobSchema, id::Id};
 
 use core::fmt;
 use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
@@ -107,7 +107,8 @@ impl<T: ValueSchema> Debug for Value<T> {
 }
 
 pub trait ValueSchema: Sized + 'static {
-    const ID: RawId;
+    const VALUE_SCHEMA_ID: Id;
+    const BLOB_SCHEMA_ID: Option<Id> = None;
 
     fn to_value<T: ToValue<Self>>(t: T) -> Value<Self> {
         t.to_value()

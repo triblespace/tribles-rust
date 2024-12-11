@@ -9,12 +9,11 @@ pub mod iu256;
 pub mod shortstring;
 pub mod time;
 
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 use crate::value::ValueSchema;
-
-use hex_literal::hex;
 
 pub struct UnknownValue {}
 impl ValueSchema for UnknownValue {
-    const ID: RawId = hex!("4EC697E8599AC79D667C722E2C8BEBF4");
+    const VALUE_SCHEMA_ID: Id = id_hex!("4EC697E8599AC79D667C722E2C8BEBF4");
 }

@@ -1,18 +1,14 @@
 use crate::{
-    blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
-    id::RawId,
-    trible::{A_END, A_START, E_END, E_START},
-    tribleset::TribleSet,
+    blob::{Blob, BlobSchema, ToBlob, TryFromBlob}, id::Id, id_hex, trible::{A_END, A_START, E_END, E_START}, tribleset::TribleSet
 };
 
 use anybytes::{Bytes, PackedSlice};
-use hex_literal::hex;
 use std::convert::TryInto;
 
 pub struct SimpleArchive;
 
 impl BlobSchema for SimpleArchive {
-    const ID: RawId = hex!("8F4A27C8581DADCBA1ADA8BA228069B6");
+    const BLOB_SCHEMA_ID: Id = id_hex!("8F4A27C8581DADCBA1ADA8BA228069B6");
 }
 
 impl ToBlob<SimpleArchive> for &TribleSet {

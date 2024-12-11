@@ -1,7 +1,7 @@
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
 
-use hex_literal::hex;
 use indxvec::Printing;
 use std::str::Utf8Error;
 
@@ -14,7 +14,7 @@ pub enum FromStrError {
 pub struct ShortString;
 
 impl ValueSchema for ShortString {
-    const ID: RawId = hex!("2D848DB0AF112DB226A6BF1A3640D019");
+    const VALUE_SCHEMA_ID: Id = id_hex!("2D848DB0AF112DB226A6BF1A3640D019");
 }
 
 impl<'a> TryFromValue<'a, ShortString> for &'a str {

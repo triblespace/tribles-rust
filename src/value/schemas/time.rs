@@ -1,15 +1,15 @@
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 use crate::value::{FromValue, ToValue, Value, ValueSchema};
 
 use std::convert::TryInto;
 
-use hex_literal::hex;
 use hifitime::prelude::*;
 
 pub struct NsTAIInterval;
 
 impl ValueSchema for NsTAIInterval {
-    const ID: RawId = hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");
+    const VALUE_SCHEMA_ID: Id = id_hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");
 }
 
 impl ToValue<NsTAIInterval> for (Epoch, Epoch) {

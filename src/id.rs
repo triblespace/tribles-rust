@@ -236,6 +236,15 @@ impl From<Id> for RawValue {
     }
 }
 
+#[macro_export]
+macro_rules! id_hex {
+    ( $data:expr ) => {
+        $crate::id::Id::new(hex_literal::hex!($data)).unwrap()
+    };
+}
+
+pub use id_hex;
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct OwnedId {

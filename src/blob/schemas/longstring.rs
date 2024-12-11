@@ -1,15 +1,15 @@
 use crate::blob::{Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob};
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 
 use std::{convert::TryInto, str::Utf8Error};
 
 use anybytes::PackedStr;
-use hex_literal::hex;
 
 pub struct LongString {}
 
 impl BlobSchema for LongString {
-    const ID: RawId = hex!("8B173C65B7DB601A11E8A190BD774A79");
+    const BLOB_SCHEMA_ID: Id = id_hex!("8B173C65B7DB601A11E8A190BD774A79");
 }
 
 impl TryFromBlob<'_, LongString> for PackedStr {

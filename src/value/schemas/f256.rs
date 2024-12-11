@@ -1,8 +1,6 @@
-use crate::id::RawId;
-use crate::value::{FromValue, ToValue, Value, ValueSchema};
+use crate::{id::Id, id_hex, value::{FromValue, ToValue, Value, ValueSchema}};
 
 use f256::f256;
-use hex_literal::hex;
 
 pub struct F256LE;
 pub struct F256BE;
@@ -10,10 +8,10 @@ pub struct F256BE;
 pub type F256 = F256BE;
 
 impl ValueSchema for F256LE {
-    const ID: RawId = hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2");
+    const VALUE_SCHEMA_ID: Id = id_hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2");
 }
 impl ValueSchema for F256BE {
-    const ID: RawId = hex!("A629176D4656928D96B155038F9F2220");
+    const VALUE_SCHEMA_ID: Id = id_hex!("A629176D4656928D96B155038F9F2220");
 }
 
 impl FromValue<'_, F256BE> for f256 {

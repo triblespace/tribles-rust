@@ -1,9 +1,9 @@
 use ed25519::{ComponentBytes, Signature};
 use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
-use hex_literal::hex;
 
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
 
 pub struct ED25519RComponent;
@@ -11,13 +11,13 @@ pub struct ED25519SComponent;
 pub struct ED25519PublicKey;
 
 impl ValueSchema for ED25519RComponent {
-    const ID: RawId = hex!("995A86FFC83DB95ECEAA17E226208897");
+    const VALUE_SCHEMA_ID: Id = id_hex!("995A86FFC83DB95ECEAA17E226208897");
 }
 impl ValueSchema for ED25519SComponent {
-    const ID: RawId = hex!("10D35B0B628E9E409C549D8EC1FB3598");
+    const VALUE_SCHEMA_ID: Id = id_hex!("10D35B0B628E9E409C549D8EC1FB3598");
 }
 impl ValueSchema for ED25519PublicKey {
-    const ID: RawId = hex!("69A872254E01B4C1ED36E08E40445E93");
+    const VALUE_SCHEMA_ID: Id = id_hex!("69A872254E01B4C1ED36E08E40445E93");
 }
 
 impl ED25519RComponent {

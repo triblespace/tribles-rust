@@ -1,4 +1,5 @@
 use crate::id::{Id, OwnedId, RawId};
+use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
 use std::convert::TryInto;
@@ -8,12 +9,10 @@ use hex::FromHexError;
 
 use rand::RngCore;
 
-use hex_literal::hex;
-
 pub struct GenId;
 
 impl ValueSchema for GenId {
-    const ID: RawId = hex!("B08EE1D45EB081E8C47618178AFE0D81");
+    const VALUE_SCHEMA_ID: Id = id_hex!("B08EE1D45EB081E8C47618178AFE0D81");
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

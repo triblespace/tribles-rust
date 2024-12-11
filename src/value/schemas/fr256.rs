@@ -1,9 +1,9 @@
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 use crate::value::{FromValue, ToValue, Value, ValueSchema};
 
 use std::convert::TryInto;
 
-use hex_literal::hex;
 use num_rational::Ratio;
 
 pub struct FR256LE;
@@ -12,10 +12,10 @@ pub struct FR256BE;
 pub type FR256 = FR256LE;
 
 impl ValueSchema for FR256LE {
-    const ID: RawId = hex!("0A9B43C5C2ECD45B257CDEFC16544358");
+    const VALUE_SCHEMA_ID: Id = id_hex!("0A9B43C5C2ECD45B257CDEFC16544358");
 }
 impl ValueSchema for FR256BE {
-    const ID: RawId = hex!("CA5EAF567171772C1FFD776E9C7C02D1");
+    const VALUE_SCHEMA_ID: Id = id_hex!("CA5EAF567171772C1FFD776E9C7C02D1");
 }
 
 impl FromValue<'_, FR256BE> for Ratio<i128> {

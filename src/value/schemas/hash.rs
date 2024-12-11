@@ -1,16 +1,16 @@
 use crate::blob::BlobSchema;
-use crate::id::RawId;
+use crate::id::Id;
+use crate::id_hex;
 use crate::value::{FromValue, RawValue, TryToValue, Value, ValueSchema};
 
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
-use hex_literal::hex;
 use std::marker::PhantomData;
 
 pub trait HashProtocol: Digest<OutputSize = U32> + 'static {
     const NAME: &'static str;
-    const SCHEMA_ID: RawId;
+    const SCHEMA_ID: Id;
 }
 
 pub struct Hash<H> {
@@ -21,7 +21,7 @@ impl<H> ValueSchema for Hash<H>
 where
     H: HashProtocol,
 {
-    const ID: RawId = H::SCHEMA_ID;
+    const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
 }
 
 impl<H> Hash<H>
@@ -108,12 +108,12 @@ pub use blake3::Hasher as Blake3;
 
 impl HashProtocol for Blake2b {
     const NAME: &'static str = "blake2";
-    const SCHEMA_ID: RawId = hex!("91F880222412A49F012BE999942E6199");
+    const SCHEMA_ID: Id = id_hex!("91F880222412A49F012BE999942E6199");
 }
 
 impl HashProtocol for Blake3 {
     const NAME: &'static str = "blake3";
-    const SCHEMA_ID: RawId = hex!("4160218D6C8F620652ECFBD7FDC7BDB3");
+    const SCHEMA_ID: Id = id_hex!("4160218D6C8F620652ECFBD7FDC7BDB3");
 }
 
 #[repr(transparent)]
@@ -129,7 +129,8 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
 }
 
 impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
-    const ID: RawId = H::SCHEMA_ID;
+    const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
+    const BLOB_SCHEMA_ID: Option<Id> = Some(T::BLOB_SCHEMA_ID);
 }
 
 #[cfg(test)]

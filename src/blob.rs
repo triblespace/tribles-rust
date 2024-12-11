@@ -1,9 +1,8 @@
 pub mod schemas;
 
 use crate::{
-    id::RawId,
-    value::schemas::hash::{Handle, HashProtocol},
-    value::{Value, ValueSchema},
+    id::Id,
+    value::{schemas::hash::{Handle, HashProtocol}, Value, ValueSchema},
 };
 
 use std::{
@@ -86,7 +85,7 @@ impl<T: BlobSchema> Debug for Blob<T> {
 }
 
 pub trait BlobSchema: Sized + 'static {
-    const ID: RawId;
+    const BLOB_SCHEMA_ID: Id;
 
     fn to_blob<T: ToBlob<Self>>(t: T) -> Blob<Self> {
         t.to_blob()

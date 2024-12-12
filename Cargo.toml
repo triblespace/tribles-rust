@@ -1,6 +1,6 @@
 [package]
 name = "tribles"
-version = "0.4.0-alpha.10"
+version = "0.4.0-alpha.11"
 authors = ["Jan Bramkamp <crest@rlwinm.de>", "⚫️ <jp@bultmann.eu>", "Vanja Sophie Cangalovic <vanja@bultmann.eu>"]
 edition = "2018"
 description = "The tribles knowledge base implementation for rust."

@@ -415,17 +415,16 @@ mod tests {
             }));
         }
 
-        let mut r: Vec<_> = find!(
-            ctx,
-            (person: OwnedId, name: String),
+        let mut r: Vec<_> = find!{
+            (person: OwnedId, name: String) as q where
             and!(
                 local_owned(person),
-                knights::pattern!(ctx, &kb, [
+                knights::pattern!(q in &kb => [
                     {person @
                         name: name
                     }])
             )
-        )
+        }
         .map(|(_, n)| n)
         .collect();
         r.sort();

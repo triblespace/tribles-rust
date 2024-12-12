@@ -205,7 +205,7 @@ macro_rules! NS {
 
             #[allow(unused)]
             macro_rules! pattern {
-                ($ctx:ident, $set:expr, $pattern: tt) => {
+                ($ctx:ident in $set:expr => $pattern: tt) => {
                     {
                         use $crate::namespace::pattern_inner;
                         pattern_inner!($mod_name, $ctx, $set, $pattern)
@@ -304,10 +304,8 @@ mod tests {
             title: "Nurse"
         }));
 
-        let r: Vec<_> = find!(
-            ctx,
-            (juliet, name),
-            knights::pattern!(ctx, &kb, [
+        let r: Vec<_> = find!((juliet, name) as q where
+            knights::pattern!(q in &kb => [
             {name: ("Romeo"),
              loves: juliet},
             {juliet @
@@ -349,16 +347,15 @@ mod tests {
 
         kb.union(data_kb);
 
-        let r: Vec<_> = find!(
-            ctx,
-            (juliet, name),
-            knights::pattern!(ctx, &kb, [
+        let r: Vec<_> = find!{
+            (juliet, name) as q where
+            knights::pattern!{q in &kb => [
             {name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name
-            }])
-        )
+            }]}
+        }
         .collect();
 
         assert_eq!(vec![(juliet.to_value(), "Juliet".to_value(),)], r);

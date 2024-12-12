@@ -358,16 +358,15 @@ mod tests {
 
         let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
 
-        let r: Vec<_> = find!(
-            ctx,
-            (juliet, name),
-            knights::pattern!(ctx, &archive, [
+        let r: Vec<_> = find!{
+            (juliet, name) as q where
+            knights::pattern!(q in &archive => [
             {name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name
             }])
-        )
+        }
         .collect();
         assert_eq!(
             vec![((&juliet).to_value(), "Juliet".try_to_value().unwrap(),)],

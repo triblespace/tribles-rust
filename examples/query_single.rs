@@ -46,16 +46,15 @@ fn main() {
     kb.union(data_kb);
 
     loop {
-        for _r in find!(
-            ctx,
-            (juliet: Value<_>, name: Value<_>),
-            knights::pattern!(ctx, &kb, [
+        for _r in find!{
+            (juliet: Value<_>, name: Value<_>) as q where
+            knights::pattern!(q in &kb => [
             {name: ("Romeo"),
             loves: juliet},
             {juliet @
                 name: name
             }])
-        ) {
+        } {
             coz::progress!();
         }
     }

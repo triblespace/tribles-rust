@@ -627,16 +627,15 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("tribleset/single", 1), |b| {
         b.iter(|| {
-            find!(
-                ctx,
-                (juliet: Value<_>, name: Value<_>),
-                knights::pattern!(ctx, &kb, [
+            find!{
+                (juliet: Value<_>, name: Value<_>) as q where
+                knights::pattern!(q in &kb => [
                 {name: (black_box("Romeo")),
                  loves: juliet},
                 {juliet @
                     name: name
                 }])
-            )
+            }
             .count()
         })
     });
@@ -644,16 +643,14 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("tribleset/multi", 1000), |b| {
         b.iter(|| {
-            find!(
-                ctx,
-                (juliet: Value<_>, name: Value<_>),
-                knights::pattern!(ctx, &kb, [
+            find!{(juliet: Value<_>, name: Value<_>) as q where
+                knights::pattern!(q in &kb => [
                 {name: (black_box("Wameo")),
                  loves: juliet},
                 {juliet @
                     name: name
                 }])
-            )
+            }
             .count()
         })
     });
@@ -665,16 +662,14 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {
         b.iter(|| {
-            find!(
-                ctx,
-                (juliet: Value<_>, name: Value<_>),
-                knights::pattern!(ctx, &kb_archive, [
+            find!{(juliet: Value<_>, name: Value<_>) as q where
+                knights::pattern!(q in &kb_archive => [
                 {name: (black_box("Romeo")),
                  loves: juliet},
                 {juliet @
                     name: name
                 }])
-            )
+            }
             .count()
         })
     });
@@ -682,10 +677,8 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("archive/multi", 1000), |b| {
         b.iter(|| {
-            find!(
-                ctx,
-                (juliet: Value<_>, name: Value<_>),
-                knights::pattern!(ctx, &kb_archive, [
+            find!((juliet: Value<_>, name: Value<_>) as q where
+                knights::pattern!(q in &kb_archive => [
                 {name: (black_box("Wameo")),
                  loves: juliet},
                 {juliet @

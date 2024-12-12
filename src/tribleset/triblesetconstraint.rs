@@ -361,11 +361,10 @@ mod tests {
             &Value::<UnknownValue>::new([0; 32]),
         ));
 
-        let q = find!(
-            ctx,
-            (e: Value<_>, a: Value<_>, v: Value<_>),
+        let q = find!{
+            (e: Value<_>, a: Value<_>, v: Value<_>) as q where
             set.pattern(e, a, v as Variable<UnknownValue>)
-        );
+        };
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())

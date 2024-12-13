@@ -144,8 +144,10 @@ macro_rules! NS {
         $visibility mod $mod_name {
             #![allow(unused)]
             use super::*;
-            use $crate::value::ValueSchema;
+
             pub fn description() -> $crate::tribleset::TribleSet {
+                use $crate::value::ValueSchema;
+
                 let mut set = $crate::tribleset::TribleSet::new();
                 $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
                    let value_schema_id = $crate::value::schemas::genid::GenId::to_value(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
@@ -170,7 +172,7 @@ macro_rules! NS {
                 $(pub type $FieldName = $FieldType;)*
             }
 
-            #[allow(unused)]
+            #[macro_pub::macro_pub]
             macro_rules! entity {
                 ($entity:tt) => {
                     {
@@ -190,31 +192,18 @@ macro_rules! NS {
                         set
                     }
                 };
-                ($set:expr, $entity_id:expr, $entity:tt) => {
-                    {
-                        use $crate::namespace::entity_inner;
-                        let set: &mut TribleSet= $set;
-                        let id: &$crate::id::OwnedId = $entity_id;
-                        entity_inner!($mod_name, set, id, $entity);
-                    }
-                };
             }
 
-            #[allow(unused)]
-            pub(crate) use entity;
-
-            #[allow(unused)]
+            #[macro_pub::macro_pub]
             macro_rules! pattern {
-                ($ctx:ident in $set:expr => $pattern: tt) => {
+                ($set:expr, $pattern: tt) => {
                     {
                         use $crate::namespace::pattern_inner;
-                        pattern_inner!($mod_name, $ctx, $set, $pattern)
+                        let ctx = __local_find_context!();
+                        pattern_inner!($mod_name, ctx, $set, $pattern)
                     }
                 };
             }
-
-            #[allow(unused)]
-            pub(crate) use pattern;
         }
     };
 }
@@ -229,7 +218,7 @@ mod tests {
     use crate::prelude::*;
 
     NS! {
-        pub namespace knights {
+        pub namespace knights4 {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
@@ -241,17 +230,17 @@ mod tests {
         let romeo = ufoid();
         let juliet = ufoid();
 
-        knights::entity!(&juliet, {
+        knights4::entity!(&juliet, {
             name: "Juliet",
             loves: &romeo,
             title: "Maiden"
         });
-        knights::entity!(&romeo, {
+        knights4::entity!(&romeo, {
             name: "Romeo",
             loves: &juliet,
             title: "Prince"
         });
-        knights::entity!(
+        knights4::entity!(
         {
             name: "Angelica",
             title: "Nurse"
@@ -264,20 +253,20 @@ mod tests {
         let romeo = ufoid();
 
         let mut tribles = TribleSet::new();
-        tribles.union(knights::entity!(&juliet, {
+        tribles += knights4::entity!(&juliet, {
             name: "Juliet",
             loves: &romeo,
             title: "Maiden"
-        }));
-        tribles.union(knights::entity!(&romeo, {
+        });
+        tribles += knights4::entity!(&romeo, {
             name: "Romeo",
             loves: &juliet,
             title: "Prince"
-        }));
-        tribles.union(knights::entity!({
+        });
+        tribles += knights4::entity!({
             name: "Angelica",
             title: "Nurse"
-        }));
+        });
         println!("{:?}", tribles);
     }
 
@@ -288,24 +277,25 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb.union(knights::entity!(&juliet,
+        kb += knights4::entity!(&juliet,
         {
             name: "Juliet",
             loves: &romeo,
             title: "Maiden"
-        }));
-        kb.union(knights::entity!(&romeo, {
+        });
+        kb += knights4::entity!(&romeo, {
             name: "Romeo",
             loves: &juliet,
             title: "Prince"
-        }));
-        kb.union(knights::entity!({
+        });
+        kb += knights4::entity!({
             name: "Angelica",
             title: "Nurse"
-        }));
+        });
 
-        let r: Vec<_> = find!((juliet, name) as q where
-            knights::pattern!(q in &kb => [
+        let r: Vec<_> = find!(
+            (juliet, name),
+            knights4::pattern!(&kb, [
             {name: ("Romeo"),
              loves: juliet},
             {juliet @
@@ -322,40 +312,40 @@ mod tests {
         (0..10000).for_each(|_| {
             let lover_a = ufoid();
             let lover_b = ufoid();
-            kb.union(knights::entity!(&lover_a, {
+            kb += knights4::entity!(&lover_a, {
                 name: Name(EN).fake::<String>(),
                 loves: &lover_b
-            }));
-            kb.union(knights::entity!(&lover_b, {
+            });
+            kb += knights4::entity!(&lover_b, {
                 name: Name(EN).fake::<String>(),
                 loves: &lover_a
-            }));
+            });
         });
 
         let juliet = ufoid();
         let romeo = ufoid();
 
         let mut data_kb = TribleSet::new();
-        data_kb.union(knights::entity!(&juliet, {
+        data_kb += knights4::entity!(&juliet, {
             name: "Juliet",
             loves: &romeo
-        }));
-        data_kb.union(knights::entity!(&romeo, {
+        });
+        data_kb += knights4::entity!(&romeo, {
             name: "Romeo",
             loves: &juliet
-        }));
+        });
 
-        kb.union(data_kb);
+        kb += data_kb;
 
-        let r: Vec<_> = find!{
-            (juliet, name) as q where
-            knights::pattern!{q in &kb => [
+        let r: Vec<_> = find!(
+            (juliet, name),
+            knights4::pattern!(&kb, [
             {name: ("Romeo"),
-             loves: juliet},
+            loves: juliet},
             {juliet @
                 name: name
-            }]}
-        }
+            }])
+        )
         .collect();
 
         assert_eq!(vec![(juliet.to_value(), "Juliet".to_value(),)], r);

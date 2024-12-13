@@ -19,14 +19,14 @@ fn main() {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        kb.union(knights::entity!({
+        kb += knights::entity!({
             name: Name(EN).fake::<String>(),
             loves: &lover_b
-        }));
-        kb.union(knights::entity!({
+        });
+        kb += knights::entity!({
             name: Name(EN).fake::<String>(),
             loves: &lover_a
-        }));
+        });
     });
 
     let mut data_kb = TribleSet::new();
@@ -34,21 +34,21 @@ fn main() {
     let romeo = ufoid();
     let juliet = ufoid();
 
-    data_kb.union(knights::entity!(&juliet, {
+    data_kb += knights::entity!(&juliet, {
         name: "Juliet",
         loves: &romeo
-    }));
-    data_kb.union(knights::entity!(&romeo, {
+    });
+    data_kb += knights::entity!(&romeo, {
         name: "Romeo",
         loves: &juliet
-    }));
+    });
 
-    kb.union(data_kb);
+    kb += data_kb;
 
     loop {
-        for _r in find!{
-            (juliet: Value<_>, name: Value<_>) as q where
-            knights::pattern!(q in &kb => [
+        for _r in find! {
+            (juliet: Value<_>, name: Value<_>),
+            knights::pattern!(&kb, [
             {name: ("Romeo"),
             loves: juliet},
             {juliet @

@@ -367,20 +367,14 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 
 #[macro_export]
 macro_rules! find {
-    (($($Var:tt$(:$Ty:ty)?),+) as $ctx:ident where $Constraint:expr) => {
-        {
-            let mut $ctx = $crate::query::VariableContext::new();
-            $(let $Var = $ctx.next_variable();)*
-              $crate::query::Query::new($Constraint,
-                move |binding| {
-                    $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)+
-                    ($($Var),+,)
-            })
-        }
-    };
-    (($($Var:tt$(:$Ty:ty)?),+) where $Constraint:expr) => {
+    (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
         {
             let mut ctx = $crate::query::VariableContext::new();
+
+            macro_rules! __local_find_context {
+                () => {&mut ctx}
+            }
+
             $(let $Var = ctx.next_variable();)*
               $crate::query::Query::new($Constraint,
                 move |binding| {
@@ -404,7 +398,7 @@ mod tests {
     use super::*;
 
     NS! {
-        pub namespace knights {
+        pub namespace knights5 {
             "8143F46E812E88C4544E7094080EC523" as loves: GenId;
             "D6E0F2A6E5214E1330565B4D4138E55C" as name: ShortString;
         }
@@ -423,16 +417,16 @@ mod tests {
         movies.insert("Highlander".to_value());
 
         let inter: Vec<_> =
-            find!((a: Value<ShortString>) where and!(books.has(a), movies.has(a))).collect();
+            find!((a: Value<ShortString>), and!(books.has(a), movies.has(a))).collect();
 
         assert_eq!(inter.len(), 2);
 
         let cross: Vec<_> =
-            find!((a: Value<ShortString>, b: Value<ShortString>) where and!(books.has(a), movies.has(b))).collect();
+            find!((a: Value<ShortString>, b: Value<ShortString>), and!(books.has(a), movies.has(b))).collect();
 
         assert_eq!(cross.len(), 6);
 
-        let one: Vec<_> = find!((a: Value<ShortString>) where
+        let one: Vec<_> = find!((a: Value<ShortString>),
             and!(books.has(a), a.is("LOTR".try_to_value().unwrap())) //TODO
         )
         .collect();
@@ -462,23 +456,23 @@ mod tests {
         let waromeo = ufoid();
         let mut kb = TribleSet::new();
 
-        kb.union(knights::entity!(&juliet,
+        kb += knights5::entity!(&juliet,
         {
             name: "Juliet",
             loves: &romeo
-        }));
+        });
 
-        kb.union(knights::entity!(&romeo, {
+        kb += knights5::entity!(&romeo, {
             name: "Romeo",
             loves: &juliet
-        }));
-        kb.union(knights::entity!(&waromeo, {
+        });
+        kb += knights5::entity!(&waromeo, {
             name: "Romeo"
-        }));
+        });
 
-        let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find!{
-            (romeo: Value<_>, juliet: Value<_>, name: Value<_>) as q where
-            knights::pattern!(q in &kb => [
+        let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find! {
+            (romeo: Value<_>, juliet: Value<_>, name: Value<_>),
+            knights5::pattern!(&kb, [
             {romeo @
                 name: ("Romeo"),
              loves: juliet},
@@ -494,8 +488,8 @@ mod tests {
 
     #[test]
     fn constant() {
-        let q: Query<IntersectionConstraint<_>, _, _> = find!{
-            (string: Value<_>, number: Value<_>) where
+        let q: Query<IntersectionConstraint<_>, _, _> = find! {
+            (string: Value<_>, number: Value<_>),
             and!(
                 string.is(ShortString::to_value("Hello World!")),
                 number.is(I256BE::to_value(42))

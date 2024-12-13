@@ -60,12 +60,12 @@ fn main() -> std::io::Result<()> {
 
     let author_id = ufoid();
 
-    set.union(literature::entity!(&author_id, {
+    set += literature::entity![&author_id, {
                 firstname: "Frank",
                 lastname: "Herbert",
-            }));
+            }];
 
-    set.union(literature::entity!({
+    set += literature::entity![{
                 title: "Dune",
                 author: &author_id,
                 quote: blobs.insert("Deep in the human unconscious is a \
@@ -77,13 +77,12 @@ fn main() -> std::io::Result<()> {
                 pass over me and through me. And when it has gone past I \
                 will turn the inner eye to see its path. Where the fear \
                 has gone there will be nothing. Only I will remain.")
-            }));
+            }];
 
     let title = "Dune";
-    for (_, f, l, q) in find!{
-        (author: (), first: String, last: Value<_>, quote)
-        as q where
-            literature::pattern!{q in &set => [
+    for (_, f, l, q) in find!(
+        (author: (), first: String, last: Value<_>, quote),
+        literature::pattern!(&set, [
             { author @
                 firstname: first,
                 lastname: last
@@ -92,7 +91,7 @@ fn main() -> std::io::Result<()> {
                 title: (title),
                 author: author,
                 quote: quote
-            }]}} {
+            }])) {
         let q: &str = blobs.get(q).unwrap();
 
         println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())

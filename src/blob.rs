@@ -2,7 +2,10 @@ pub mod schemas;
 
 use crate::{
     id::Id,
-    value::{schemas::hash::{Handle, HashProtocol}, Value, ValueSchema},
+    value::{
+        schemas::hash::{Handle, HashProtocol},
+        Value, ValueSchema,
+    },
 };
 
 use std::{

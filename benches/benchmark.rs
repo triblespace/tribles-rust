@@ -242,11 +242,11 @@ fn archive_benchmark(c: &mut Criterion) {
             (0..i).for_each(|_| {
                 let lover_a = fucid();
                 let lover_b = fucid();
-                knights::entity!(&mut set, &lover_a, {
+                set += knights::entity!(&lover_a, {
                     name: Name(EN).fake::<String>(),
                     loves: &lover_b
                 });
-                knights::entity!(&mut set, &lover_b, {
+                set += knights::entity!(&lover_b, {
                     name: Name(EN).fake::<String>(),
                     loves: &lover_a
                 });
@@ -300,11 +300,11 @@ fn archive_benchmark(c: &mut Criterion) {
             (0..i).for_each(|_| {
                 let lover_a = ufoid();
                 let lover_b = ufoid();
-                knights::entity!(&mut set, &lover_a, {
+                set += knights::entity!(&lover_a, {
                     name: Name(EN).fake::<String>(),
                     loves: &lover_b
                 });
-                knights::entity!(&mut set, &lover_b, {
+                set += knights::entity!(&lover_b, {
                     name: Name(EN).fake::<String>(),
                     loves: &lover_a
                 });
@@ -390,47 +390,18 @@ fn entities_benchmark(c: &mut Criterion) {
             let lover_a = fucid();
             let lover_b = fucid();
 
-            kb.union(knights::entity!(&lover_a, {
+            kb += knights::entity!(&lover_a, {
                 name: Name(EN).fake::<String>(),
                 loves: &lover_b
-            }));
-            kb.union(knights::entity!(&lover_b, {
+            });
+            kb += knights::entity!(&lover_b, {
                 name: Name(EN).fake::<String>(),
                 loves: &lover_a
-            }));
+            });
 
             kb
         })
     });
-
-    for i in [1000000] {
-        group.sample_size(10);
-        group.throughput(Throughput::Elements(4 * i));
-        group.bench_function(BenchmarkId::new("direct", 4 * i), |b| {
-            b.iter_with_large_drop(|| {
-                //let before_mem = PEAK_ALLOC.current_usage();
-                let mut kb: TribleSet = TribleSet::new();
-                (0..i).for_each(|_| {
-                    let lover_a = fucid();
-                    let lover_b = fucid();
-                    knights::entity!(&mut kb, &lover_a, {
-                        name: Name(EN).fake::<String>(),
-                        loves: &lover_b
-                    });
-                    knights::entity!(&mut kb, &lover_b, {
-                        name: Name(EN).fake::<String>(),
-                        loves: &lover_a
-                    });
-                });
-                //let after_mem = PEAK_ALLOC.current_usage();
-                //println!(
-                //    "Trible size: {}",
-                //    (after_mem - before_mem) / kb.len() as usize
-                //);
-                kb
-            })
-        });
-    }
 
     for i in [1000000] {
         group.sample_size(10);
@@ -453,10 +424,7 @@ fn entities_benchmark(c: &mut Criterion) {
                             }),
                         ]
                     })
-                    .fold(TribleSet::new(), |mut kb, set| {
-                        kb.union(set);
-                        kb
-                    });
+                    .fold(TribleSet::new(), |kb, set| kb + set);
                 kb
             })
         });
@@ -486,7 +454,7 @@ fn entities_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let mut kb = TribleSet::new();
                 for set in &sets {
-                    kb.union(set.clone());
+                    kb += set.clone();
                 }
                 kb
             });
@@ -515,13 +483,7 @@ fn entities_benchmark(c: &mut Criterion) {
                             }),
                         ]
                     })
-                    .reduce(
-                        || TribleSet::new(),
-                        |mut a, b| {
-                            a.union(b);
-                            a
-                        },
-                    );
+                    .reduce(|| TribleSet::new(), |a, b| a + b);
                 kb
             })
         });
@@ -554,20 +516,14 @@ fn entities_benchmark(c: &mut Criterion) {
                                     }),
                                 ]
                             })
-                            .fold(TribleSet::new(), |mut kb, set| {
-                                kb.union(set);
-                                kb
-                            })
+                            .fold(TribleSet::new(), |kb, set| kb + set)
                     })
                     .collect();
                 b.iter_with_large_drop(|| {
                     subsets
                         .iter()
                         .cloned()
-                        .fold(TribleSet::new(), |mut kb, set| {
-                            kb.union(set);
-                            kb
-                        })
+                        .fold(TribleSet::new(), |kb, set| kb + set)
                 });
             },
         );
@@ -584,14 +540,14 @@ fn query_benchmark(c: &mut Criterion) {
         let lover_a = fucid();
         let lover_b = fucid();
 
-        kb.union(knights::entity!(&lover_a, {
+        kb += knights::entity!(&lover_a, {
             name: Name(EN).fake::<String>(),
             loves: &lover_b
-        }));
-        kb.union(knights::entity!(&lover_b, {
+        });
+        kb += knights::entity!(&lover_b, {
             name: Name(EN).fake::<String>(),
             loves: &lover_a
-        }));
+        });
     });
 
     let mut data_kb = TribleSet::new();
@@ -599,37 +555,37 @@ fn query_benchmark(c: &mut Criterion) {
     let juliet = ufoid();
     let romeo = ufoid();
 
-    kb.union(knights::entity!(&juliet, {
+    kb += knights::entity!(&juliet, {
         name: "Juliet",
         loves: &romeo
-    }));
-    kb.union(knights::entity!(&romeo, {
+    });
+    kb += knights::entity!(&romeo, {
         name: "Romeo",
         loves: &juliet
-    }));
+    });
 
     (0..1000).for_each(|_| {
         let lover_a = ufoid();
         let lover_b = ufoid();
 
-        data_kb.union(knights::entity!(&lover_a, {
+        data_kb += knights::entity!(&lover_a, {
             name: "Wameo",
             loves: &lover_b
-        }));
-        data_kb.union(knights::entity!(&lover_b, {
+        });
+        data_kb += knights::entity!(&lover_b, {
             name: Name(EN).fake::<String>(),
             loves: &lover_a
-        }));
+        });
     });
 
-    kb.union(data_kb);
+    kb += data_kb;
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("tribleset/single", 1), |b| {
         b.iter(|| {
-            find!{
-                (juliet: Value<_>, name: Value<_>) as q where
-                knights::pattern!(q in &kb => [
+            find! {
+                (juliet: Value<_>, name: Value<_>),
+                knights::pattern!(&kb, [
                 {name: (black_box("Romeo")),
                  loves: juliet},
                 {juliet @
@@ -643,14 +599,13 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("tribleset/multi", 1000), |b| {
         b.iter(|| {
-            find!{(juliet: Value<_>, name: Value<_>) as q where
-                knights::pattern!(q in &kb => [
-                {name: (black_box("Wameo")),
-                 loves: juliet},
-                {juliet @
-                    name: name
-                }])
-            }
+            find!((juliet: Value<_>, name: Value<_>),
+            knights::pattern!(&kb, [
+            {name: (black_box("Wameo")),
+             loves: juliet},
+            {juliet @
+                name: name
+            }]))
             .count()
         })
     });
@@ -662,14 +617,13 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {
         b.iter(|| {
-            find!{(juliet: Value<_>, name: Value<_>) as q where
-                knights::pattern!(q in &kb_archive => [
-                {name: (black_box("Romeo")),
-                 loves: juliet},
-                {juliet @
-                    name: name
-                }])
-            }
+            find!((juliet: Value<_>, name: Value<_>),
+            knights::pattern!(&kb_archive, [
+            {name: (black_box("Romeo")),
+             loves: juliet},
+            {juliet @
+                name: name
+            }]))
             .count()
         })
     });
@@ -677,8 +631,8 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("archive/multi", 1000), |b| {
         b.iter(|| {
-            find!((juliet: Value<_>, name: Value<_>) as q where
-                knights::pattern!(q in &kb_archive => [
+            find!((juliet: Value<_>, name: Value<_>),
+                knights::pattern!(&kb_archive, [
                 {name: (black_box("Wameo")),
                  loves: juliet},
                 {juliet @

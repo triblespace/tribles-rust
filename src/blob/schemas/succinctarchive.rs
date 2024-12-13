@@ -263,7 +263,7 @@ mod tests {
     use sucds::int_vectors::DacsOpt;
 
     NS! {
-        pub namespace knights {
+        pub namespace knights1 {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
@@ -340,33 +340,33 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb.union(knights::entity!(&juliet,
+        kb += knights1::entity!(&juliet,
         {
             name: "Juliet",
             loves: &romeo,
             title: "Maiden"
-        }));
-        kb.union(knights::entity!(&romeo, {
+        });
+        kb += knights1::entity!(&romeo, {
             name: "Romeo",
             loves: &juliet,
             title: "Prince"
-        }));
-        kb.union(knights::entity!({
+        });
+        kb += knights1::entity!({
             name: "Angelica",
             title: "Nurse"
-        }));
+        });
 
         let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
 
-        let r: Vec<_> = find!{
-            (juliet, name) as q where
-            knights::pattern!(q in &archive => [
+        let r: Vec<_> = find!(
+            (juliet, name),
+            knights1::pattern!(&archive, [
             {name: ("Romeo"),
              loves: juliet},
             {juliet @
                 name: name
             }])
-        }
+        )
         .collect();
         assert_eq!(
             vec![((&juliet).to_value(), "Juliet".try_to_value().unwrap(),)],

@@ -138,7 +138,7 @@ mod tests {
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
     NS! {
-        pub namespace knights {
+        pub namespace knights2 {
             "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
         }
     }
@@ -163,7 +163,7 @@ mod tests {
         let mut kb = TribleSet::new();
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
-            kb.union(knights::entity!({
+            kb.union(knights2::entity!({
                 description: blobs.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob())
             }));
         }

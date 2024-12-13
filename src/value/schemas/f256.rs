@@ -1,4 +1,8 @@
-use crate::{id::Id, id_hex, value::{FromValue, ToValue, Value, ValueSchema}};
+use crate::{
+    id::Id,
+    id_hex,
+    value::{FromValue, ToValue, Value, ValueSchema},
+};
 
 use f256::f256;
 

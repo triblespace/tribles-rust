@@ -384,7 +384,7 @@ mod tests {
     use crate::prelude::*;
 
     NS! {
-        pub namespace knights {
+        pub namespace knights3 {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
@@ -398,33 +398,33 @@ mod tests {
         {
             let romeo = ufoid();
             let juliet = ufoid();
-            kb.union(knights::entity!(&juliet, {
+            kb += knights3::entity!(&juliet, {
                 name: "Juliet",
                 loves: &romeo,
                 title: "Maiden"
-            }));
-            kb.union(knights::entity!(&romeo, {
+            });
+            kb += knights3::entity!(&romeo, {
                 name: "Romeo",
                 loves: &juliet,
                 title: "Prince"
-            }));
-            kb.union(knights::entity!(
+            });
+            kb += knights3::entity!(
             {
                 name: "Angelica",
                 title: "Nurse"
-            }));
+            });
         }
 
-        let mut r: Vec<_> = find!{
-            (person: OwnedId, name: String) as q where
+        let mut r: Vec<_> = find!(
+            (person: OwnedId, name: String),
             and!(
                 local_owned(person),
-                knights::pattern!(q in &kb => [
+                knights3::pattern!(&kb, [
                     {person @
                         name: name
                     }])
             )
-        }
+        )
         .map(|(_, n)| n)
         .collect();
         r.sort();

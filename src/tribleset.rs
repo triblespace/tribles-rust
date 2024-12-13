@@ -13,6 +13,7 @@ use crate::trible::{
 use crate::value::{schemas::genid::GenId, ValueSchema};
 
 use std::iter::FromIterator;
+use std::ops::{Add, AddAssign};
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
@@ -72,6 +73,21 @@ impl PartialEq for TribleSet {
 
 impl Eq for TribleSet {}
 
+impl AddAssign for TribleSet {
+    fn add_assign(&mut self, rhs: Self) {
+        self.union(rhs);
+    }
+}
+
+impl Add for TribleSet {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self.union(rhs);
+        self
+    }
+}
+
 impl FromIterator<Trible> for TribleSet {
     fn from_iter<I: IntoIterator<Item = Trible>>(iter: I) -> Self {
         let mut set = TribleSet::new();
@@ -121,14 +137,14 @@ mod tests {
         for _i in 0..2000 {
             let lover_a = ufoid();
             let lover_b = ufoid();
-            kb.union(knights::entity!(&lover_a, {
+            kb += knights::entity!(&lover_a, {
                 name: Name(EN).fake::<String>(),
                 loves: &lover_b
-            }));
-            kb.union(knights::entity!(&lover_b, {
+            });
+            kb += knights::entity!(&lover_b, {
                 name: Name(EN).fake::<String>(),
                 loves: &lover_a
-            }));
+            });
         }
         assert_eq!(kb.len(), 8000);
     }
@@ -151,13 +167,7 @@ mod tests {
                     }),
                 ]
             })
-            .reduce(
-                || TribleSet::new(),
-                |mut a, b| {
-                    a.union(b);
-                    a
-                },
-            );
+            .reduce(|| TribleSet::new(), |a, b| a + b);
         assert_eq!(kb.len(), 4000000);
     }
 

@@ -1,5 +1,9 @@
 use crate::{
-    blob::{Blob, BlobSchema, ToBlob, TryFromBlob}, id::Id, id_hex, trible::{A_END, A_START, E_END, E_START}, tribleset::TribleSet
+    blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
+    id::Id,
+    id_hex,
+    trible::{A_END, A_START, E_END, E_START},
+    tribleset::TribleSet,
 };
 
 use anybytes::{Bytes, PackedSlice};

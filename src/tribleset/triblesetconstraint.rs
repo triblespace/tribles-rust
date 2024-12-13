@@ -361,8 +361,8 @@ mod tests {
             &Value::<UnknownValue>::new([0; 32]),
         ));
 
-        let q = find!{
-            (e: Value<_>, a: Value<_>, v: Value<_>) as q where
+        let q = find! {
+            (e: Value<_>, a: Value<_>, v: Value<_>),
             set.pattern(e, a, v as Variable<UnknownValue>)
         };
         let r: Vec<_> = q.collect();

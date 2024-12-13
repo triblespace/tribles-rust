@@ -77,16 +77,15 @@ pub fn sign(
 }
 
 pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationError> {
-    let (payload, verifying_key, r, s) = find!{
-        (payload: Value<_>, key: Value<_>, r, s) as q where
-        commits::pattern!(q in &tribles => [
-        {(commit_id) @
-            tribles: payload,
-            ed25519_pubkey: key,
-            ed25519_signature_r: r,
-            ed25519_signature_s: s
-        }])
-    }
+    let (payload, verifying_key, r, s) = find!(
+    (payload: Value<_>, key: Value<_>, r, s),
+    commits::pattern!(&tribles, [
+    {(commit_id) @
+        tribles: payload,
+        ed25519_pubkey: key,
+        ed25519_signature_r: r,
+        ed25519_signature_s: s
+    }]))
     .exactly_one()?;
 
     let hash = payload.bytes;

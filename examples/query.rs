@@ -1,7 +1,7 @@
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Word;
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::blobschemas::*;
+use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use fake::faker::name::raw::*;
@@ -37,13 +37,14 @@ fn main() {
     });
 
     let _result: Vec<_> = find!(
-        (author: Value<_>, title: Value<_>, quote: Value<_>),
-        literature::pattern!(&kb, [
-        {author @
-            firstname: ("Frank"),
-            lastname: ("Herbert")},
-        { author: author,
-            title: title,
-            quote: quote
-        }])).collect();
+    (author: Value<_>, title: Value<_>, quote: Value<_>),
+    literature::pattern!(&kb, [
+    {author @
+        firstname: ("Frank"),
+        lastname: ("Herbert")},
+    { author: author,
+        title: title,
+        quote: quote
+    }]))
+    .collect();
 }

@@ -1,5 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use fake::faker::lorem::en::{Sentence, Word};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -11,8 +10,8 @@ use tribles::blob::schemas::succinctarchive::{
     CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
 };
 
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::blobschemas::*;
+use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use tribles::patch::{Entry, IdentityOrder};
@@ -20,6 +19,7 @@ use tribles::patch::{SingleSegmentation, PATCH};
 
 use im::OrdSet;
 
+use fake::faker::lorem::en::{Sentence, Word};
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
@@ -40,7 +40,6 @@ NS! {
         "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
     }
 }
-
 
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
@@ -217,7 +216,7 @@ fn archive_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.throughput(Throughput::Elements(5 * i));
-        group.bench_function(BenchmarkId::new("structured/archive", 4 * i), |b| {
+        group.bench_function(BenchmarkId::new("structured/archive", 5 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
                 let author = fucid();
@@ -275,8 +274,8 @@ fn archive_benchmark(c: &mut Criterion) {
     }
 
     for i in [1000000] {
-        group.throughput(Throughput::Elements(4 * i));
-        group.bench_function(BenchmarkId::new("structured/unarchive", 4 * i), |b| {
+        group.throughput(Throughput::Elements(5 * i));
+        group.bench_function(BenchmarkId::new("structured/unarchive", 5 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
                 let author = fucid();
@@ -365,8 +364,8 @@ fn archive_benchmark(c: &mut Criterion) {
 fn entities_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("entities");
 
-    group.throughput(Throughput::Elements(4));
-    group.bench_function(BenchmarkId::new("entities", 4), |b| {
+    group.throughput(Throughput::Elements(5));
+    group.bench_function(BenchmarkId::new("entities", 5), |b| {
         b.iter_with_large_drop(|| {
             let mut kb = TribleSet::new();
             let author = fucid();
@@ -387,8 +386,8 @@ fn entities_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.sample_size(10);
-        group.throughput(Throughput::Elements(4 * i));
-        group.bench_function(BenchmarkId::new("union", 4 * i), |b| {
+        group.throughput(Throughput::Elements(5 * i));
+        group.bench_function(BenchmarkId::new("union", 5 * i), |b| {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
                     .flat_map(|_| {
@@ -415,8 +414,8 @@ fn entities_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.sample_size(10);
-        group.throughput(Throughput::Elements(4 * i));
-        group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
+        group.throughput(Throughput::Elements(5 * i));
+        group.bench_function(BenchmarkId::new("union/prealloc", 5 * i), |b| {
             let sets: Vec<_> = (0..i)
                 .flat_map(|_| {
                     let author = fucid();
@@ -447,15 +446,15 @@ fn entities_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.sample_size(10);
-        group.throughput(Throughput::Elements(4 * i));
-        group.bench_function(BenchmarkId::new("union/parallel", 4 * i), |b| {
+        group.throughput(Throughput::Elements(5 * i));
+        group.bench_function(BenchmarkId::new("union/parallel", 5 * i), |b| {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
                     .into_par_iter()
                     .flat_map(|_| {
                         let author = fucid();
                         let book = fucid();
-    
+
                         [
                             literature::entity!(&author, {
                                 firstname: FirstName(EN).fake::<String>(),
@@ -476,7 +475,7 @@ fn entities_benchmark(c: &mut Criterion) {
 
     let total_unioned = 1000000;
     for i in [2, 10, 100, 1000] {
-        group.throughput(Throughput::Elements(4 * total_unioned as u64));
+        group.throughput(Throughput::Elements(5 * total_unioned as u64));
         group.bench_with_input(
             BenchmarkId::new("union/parallel/chunked", i),
             &i,
@@ -488,7 +487,6 @@ fn entities_benchmark(c: &mut Criterion) {
                             .flat_map(|_| {
                                 let author = fucid();
                                 let book = fucid();
-            
                                 [
                                     literature::entity!(&author, {
                                         firstname: FirstName(EN).fake::<String>(),
@@ -570,15 +568,15 @@ fn query_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("tribleset/single", 1), |b| {
         b.iter(|| {
             find!(
-                (author: Value<_>, title: Value<_>, quote: Value<_>),
-                literature::pattern!(&kb, [
-                {author @
-                    firstname: (black_box("Frank")),
-                    lastname: (black_box("Herbert"))},
-                { author: author,
-                  title: title,
-                  quote: quote
-                }]))
+            (author: Value<_>, quote: Value<_>),
+            literature::pattern!(&kb, [
+            {author @
+                firstname: ("Frank"),
+                lastname: ("Herbert")},
+            { author: author,
+              title: ("Dune"),
+              quote: quote
+            }]))
             .count()
         })
     });
@@ -587,15 +585,15 @@ fn query_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("tribleset/multi", 1000), |b| {
         b.iter(|| {
             find!(
-                (author: Value<_>, title: Value<_>, quote: Value<_>),
-                literature::pattern!(&kb, [
-                {author @
-                    firstname: (black_box("Fake")),
-                    lastname: (black_box("Herbert"))},
-                { author: author,
-                  title: title,
-                  quote: quote
-                }]))
+            (author: Value<_>, title: Value<_>, quote: Value<_>),
+            literature::pattern!(&kb, [
+            {author @
+                firstname: (black_box("Fake")),
+                lastname: (black_box("Herbert"))},
+            { author: author,
+              title: title,
+              quote: quote
+            }]))
             .count()
         })
     });
@@ -608,15 +606,15 @@ fn query_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {
         b.iter(|| {
             find!(
-                (author: Value<_>, title: Value<_>, quote: Value<_>),
-                literature::pattern!(&kb_archive, [
-                {author @
-                    firstname: (black_box("Frank")),
-                    lastname: (black_box("Herbert"))},
-                { author: author,
-                  title: title,
-                  quote: quote
-                }]))
+            (author: Value<_>, title: Value<_>, quote: Value<_>),
+            literature::pattern!(&kb_archive, [
+            {author @
+                firstname: (black_box("Frank")),
+                lastname: (black_box("Herbert"))},
+            { author: author,
+              title: title,
+              quote: quote
+            }]))
             .count()
         })
     });
@@ -625,15 +623,15 @@ fn query_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("archive/multi", 1000), |b| {
         b.iter(|| {
             find!(
-                (author: Value<_>, title: Value<_>, quote: Value<_>),
-                literature::pattern!(&kb_archive, [
-                {author @
-                    firstname: (black_box("Fake")),
-                    lastname: (black_box("Herbert"))},
-                { author: author,
-                  title: title,
-                  quote: quote
-                }]))
+            (author: Value<_>, title: Value<_>, quote: Value<_>),
+            literature::pattern!(&kb_archive, [
+            {author @
+                firstname: (black_box("Fake")),
+                lastname: (black_box("Herbert"))},
+            { author: author,
+              title: title,
+              quote: quote
+            }]))
             .count()
         })
     });

@@ -14,4 +14,4 @@ pub mod tribleset;
 pub mod value;
 
 #[cfg(test)]
-mod tests {}
+pub mod tests;

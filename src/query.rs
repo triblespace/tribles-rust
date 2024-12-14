@@ -393,6 +393,13 @@ mod tests {
     use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
+    use crate::tests::literature;
+
+    use fake::faker::lorem::en::{Sentence, Word};
+    use fake::faker::name::raw::*;
+    use fake::locales::*;
+    use fake::Fake;
+
     use std::collections::HashSet;
 
     use super::*;
@@ -432,56 +439,68 @@ mod tests {
         .collect();
 
         assert_eq!(one.len(), 1);
-
-        /*
-            query!((a),
-                and!(
-                    a.of(books),
-                    a.of(movies)
-                )
-            ).collect()
-
-            let inter: Vec<Binding> = Query::new(IntersectionConstraint::new(vec![
-            Box::new(SetConstraint::new(a, &books)),
-            Box::new(SetConstraint::new(a, &movies)),
-            ]))
-            .collect();
-        */
     }
 
     #[test]
     fn pattern() {
-        let romeo = ufoid();
-        let juliet = ufoid();
-        let waromeo = ufoid();
         let mut kb = TribleSet::new();
-
-        kb += knights5::entity!(&juliet,
-        {
-            name: "Juliet",
-            loves: &romeo
+        (0..1000000).for_each(|_| {
+            let author = fucid();
+            let book = fucid();
+            kb += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb += literature::entity!(&book, {
+                author: &author,
+                title: Word().fake::<String>(),
+                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+            });
         });
 
-        kb += knights5::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet
+        let author = fucid();
+        let book = fucid();
+        kb += literature::entity!(&author, {
+            firstname: "Frank",
+            lastname: "Herbert",
         });
-        kb += knights5::entity!(&waromeo, {
-            name: "Romeo"
+        kb += literature::entity!(&book, {
+            author: &author,
+            title: "Dune",
+            quote: "I must not fear. Fear is the \
+                    mind-killer. Fear is the little-death that brings total \
+                    obliteration. I will face my fear. I will permit it to \
+                    pass over me and through me. And when it has gone past I \
+                    will turn the inner eye to see its path. Where the fear \
+                    has gone there will be nothing. Only I will remain.".to_blob().as_handle()
         });
 
-        let q: Query<IntersectionConstraint<Box<dyn Constraint<'static>>>, _, _> = find! {
-            (romeo: Value<_>, juliet: Value<_>, name: Value<_>),
-            knights5::pattern!(&kb, [
-            {romeo @
-                name: ("Romeo"),
-             loves: juliet},
-            {juliet @
-                name: name
-            }])
-        };
+        (0..1000).for_each(|_| {
+            let author = fucid();
+            let book = fucid();
+            kb += literature::entity!(&author, {
+                firstname: "Fake",
+                lastname: "Herbert",
+            });
+            kb += literature::entity!(&book, {
+                author: &author,
+                title: Word().fake::<String>(),
+                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+            });
+        });
 
-        let r: Vec<_> = q.collect();
+        let r: Vec<_> = find!(
+        (author: Value<_>, book: Value<_>, title: Value<_>, quote: Value<_>),
+        literature::pattern!(&kb, [
+        {author @
+            firstname: ("Frank"),
+            lastname: ("Herbert")},
+        {book @
+          author: author,
+          title: title,
+          quote: quote
+        }]))
+        .collect();
 
         assert_eq!(1, r.len())
     }

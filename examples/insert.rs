@@ -1,7 +1,7 @@
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Word;
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::blobschemas::*;
+use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use fake::faker::name::raw::*;

@@ -1,22 +1,22 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use fake::faker::lorem::en::{Sentence, Word};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
-use sucds::int_vectors::{DacsByte, DacsOpt};
+use sucds::int_vectors::DacsByte;
 use sucds::Serializable;
 use tribles::blob::schemas::succinctarchive::{
     CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
 };
 
 use tribles::prelude::valueschemas::*;
+use tribles::prelude::blobschemas::*;
 use tribles::prelude::*;
 
-use tribles::id::fucid::FUCIDgen;
 use tribles::patch::{Entry, IdentityOrder};
 use tribles::patch::{SingleSegmentation, PATCH};
-use tribles::test::hashtribleset::HashTribleSet;
 
 use im::OrdSet;
 
@@ -31,12 +31,16 @@ type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse<DacsByte
 //static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 
 NS! {
-    pub namespace knights {
-        "39E2D06DBCD9CB96DE5BC46F362CFF31" as loves: GenId;
-        "7D4F339CC4AE0BBA2765F34BE1D108EF" as name: ShortString;
-        "3E0C58AC884072EA6429BB00A1BA1DA4" as title: ShortString;
+    pub namespace literature {
+        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
+        "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
+        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
+        "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
+        "76AE5012877E09FF0EE0868FE9AA0343" as height: FR256;
+        "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
     }
 }
+
 
 fn random_tribles(length: usize) -> Vec<Trible> {
     let mut rng = thread_rng();
@@ -75,30 +79,6 @@ fn std_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let set = HashSet::<Trible>::from_iter((&samples).iter().copied());
             b.iter(|| black_box(&set).iter().count());
-        });
-    }
-    //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
-    //println!("The max amount that was used {}", peak_mem);
-    group.finish();
-}
-
-fn hashtribleset_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("hashtribleset");
-
-    for i in [1000000].iter() {
-        group.throughput(Throughput::Elements(*i));
-        group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
-            let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| {
-                //let before_mem = PEAK_ALLOC.current_usage_as_gb();
-                let mut set = HashTribleSet::new();
-                for t in black_box(&samples) {
-                    set.insert(t);
-                }
-                //let after_mem = PEAK_ALLOC.current_usage_as_gb();
-                //println!("HashTribleset size: {}", after_mem - before_mem);
-                set
-            })
         });
     }
     //let peak_mem = PEAK_ALLOC.peak_usage_as_gb();
@@ -236,19 +216,20 @@ fn archive_benchmark(c: &mut Criterion) {
     group.sample_size(10);
 
     for i in [1000000] {
-        group.throughput(Throughput::Elements(4 * i));
+        group.throughput(Throughput::Elements(5 * i));
         group.bench_function(BenchmarkId::new("structured/archive", 4 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
-                let lover_a = fucid();
-                let lover_b = fucid();
-                set += knights::entity!(&lover_a, {
-                    name: Name(EN).fake::<String>(),
-                    loves: &lover_b
+                let author = fucid();
+                let book = fucid();
+                set += literature::entity!(&author, {
+                    firstname: FirstName(EN).fake::<String>(),
+                    lastname: LastName(EN).fake::<String>(),
                 });
-                set += knights::entity!(&lover_b, {
-                    name: Name(EN).fake::<String>(),
-                    loves: &lover_a
+                set += literature::entity!(&book, {
+                    author: &author,
+                    title: Word().fake::<String>(),
+                    quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                 });
             });
             b.iter_with_large_drop(|| {
@@ -298,15 +279,16 @@ fn archive_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("structured/unarchive", 4 * i), |b| {
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
-                let lover_a = ufoid();
-                let lover_b = ufoid();
-                set += knights::entity!(&lover_a, {
-                    name: Name(EN).fake::<String>(),
-                    loves: &lover_b
+                let author = fucid();
+                let book = fucid();
+                set += literature::entity!(&author, {
+                    firstname: FirstName(EN).fake::<String>(),
+                    lastname: LastName(EN).fake::<String>(),
                 });
-                set += knights::entity!(&lover_b, {
-                    name: Name(EN).fake::<String>(),
-                    loves: &lover_a
+                set += literature::entity!(&book, {
+                    author: &author,
+                    title: Word().fake::<String>(),
+                    quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                 });
             });
             let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
@@ -387,16 +369,16 @@ fn entities_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("entities", 4), |b| {
         b.iter_with_large_drop(|| {
             let mut kb = TribleSet::new();
-            let lover_a = fucid();
-            let lover_b = fucid();
-
-            kb += knights::entity!(&lover_a, {
-                name: Name(EN).fake::<String>(),
-                loves: &lover_b
+            let author = fucid();
+            let book = fucid();
+            kb += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
             });
-            kb += knights::entity!(&lover_b, {
-                name: Name(EN).fake::<String>(),
-                loves: &lover_a
+            kb += literature::entity!(&book, {
+                author: &author,
+                title: Word().fake::<String>(),
+                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
             });
 
             kb
@@ -410,17 +392,18 @@ fn entities_benchmark(c: &mut Criterion) {
             b.iter_with_large_drop(|| {
                 let kb = (0..i)
                     .flat_map(|_| {
-                        let lover_a = fucid();
-                        let lover_b = fucid();
+                        let author = fucid();
+                        let book = fucid();
 
                         [
-                            knights::entity!(&lover_a, {
-                                name: Name(EN).fake::<String>(),
-                                loves: &lover_b
+                            literature::entity!(&author, {
+                                firstname: FirstName(EN).fake::<String>(),
+                                lastname: LastName(EN).fake::<String>(),
                             }),
-                            knights::entity!(&lover_b, {
-                                name: Name(EN).fake::<String>(),
-                                loves: &lover_a
+                            literature::entity!(&book, {
+                                author: &author,
+                                title: Word().fake::<String>(),
+                                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                             }),
                         ]
                     })
@@ -436,17 +419,18 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union/prealloc", 4 * i), |b| {
             let sets: Vec<_> = (0..i)
                 .flat_map(|_| {
-                    let lover_a = fucid();
-                    let lover_b = fucid();
+                    let author = fucid();
+                    let book = fucid();
 
                     [
-                        knights::entity!(&lover_a, {
-                            name: Name(EN).fake::<String>(),
-                            loves: &lover_b
+                        literature::entity!(&author, {
+                            firstname: FirstName(EN).fake::<String>(),
+                            lastname: LastName(EN).fake::<String>(),
                         }),
-                        knights::entity!(&lover_b, {
-                            name: Name(EN).fake::<String>(),
-                            loves: &lover_a
+                        literature::entity!(&book, {
+                            author: &author,
+                            title: Word().fake::<String>(),
+                            quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                         }),
                     ]
                 })
@@ -469,17 +453,18 @@ fn entities_benchmark(c: &mut Criterion) {
                 let kb = (0..i)
                     .into_par_iter()
                     .flat_map(|_| {
-                        let lover_a = fucid();
-                        let lover_b = fucid();
-
+                        let author = fucid();
+                        let book = fucid();
+    
                         [
-                            knights::entity!(&lover_a, {
-                                name: Name(EN).fake::<String>(),
-                                loves: &lover_b
+                            literature::entity!(&author, {
+                                firstname: FirstName(EN).fake::<String>(),
+                                lastname: LastName(EN).fake::<String>(),
                             }),
-                            knights::entity!(&lover_b, {
-                                name: Name(EN).fake::<String>(),
-                                loves: &lover_a
+                            literature::entity!(&book, {
+                                author: &author,
+                                title: Word().fake::<String>(),
+                                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                             }),
                         ]
                     })
@@ -499,20 +484,20 @@ fn entities_benchmark(c: &mut Criterion) {
                 let subsets: Vec<TribleSet> = (0..i)
                     .into_par_iter()
                     .map(|_| {
-                        let mut gen = FUCIDgen::new();
                         (0..total_unioned / i)
                             .flat_map(|_| {
-                                let lover_a = gen.next();
-                                let lover_b = gen.next();
-
+                                let author = fucid();
+                                let book = fucid();
+            
                                 [
-                                    knights::entity!(&lover_a, {
-                                        name: Name(EN).fake::<String>(),
-                                        loves: &lover_b
+                                    literature::entity!(&author, {
+                                        firstname: FirstName(EN).fake::<String>(),
+                                        lastname: LastName(EN).fake::<String>(),
                                     }),
-                                    knights::entity!(&lover_b, {
-                                        name: Name(EN).fake::<String>(),
-                                        loves: &lover_a
+                                    literature::entity!(&book, {
+                                        author: &author,
+                                        title: Word().fake::<String>(),
+                                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                                     }),
                                 ]
                             })
@@ -537,61 +522,63 @@ fn query_benchmark(c: &mut Criterion) {
 
     let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
-        let lover_a = fucid();
-        let lover_b = fucid();
-
-        kb += knights::entity!(&lover_a, {
-            name: Name(EN).fake::<String>(),
-            loves: &lover_b
+        let author = fucid();
+        let book = fucid();
+        kb += literature::entity!(&author, {
+            firstname: FirstName(EN).fake::<String>(),
+            lastname: LastName(EN).fake::<String>(),
         });
-        kb += knights::entity!(&lover_b, {
-            name: Name(EN).fake::<String>(),
-            loves: &lover_a
+        kb += literature::entity!(&book, {
+            author: &author,
+            title: Word().fake::<String>(),
+            quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
         });
     });
 
-    let mut data_kb = TribleSet::new();
-
-    let juliet = ufoid();
-    let romeo = ufoid();
-
-    kb += knights::entity!(&juliet, {
-        name: "Juliet",
-        loves: &romeo
+    let author = fucid();
+    let book = fucid();
+    kb += literature::entity!(&author, {
+        firstname: "Frank",
+        lastname: "Herbert",
     });
-    kb += knights::entity!(&romeo, {
-        name: "Romeo",
-        loves: &juliet
+    kb += literature::entity!(&book, {
+        author: &author,
+        title: "Dune",
+        quote: "I must not fear. Fear is the \
+                mind-killer. Fear is the little-death that brings total \
+                obliteration. I will face my fear. I will permit it to \
+                pass over me and through me. And when it has gone past I \
+                will turn the inner eye to see its path. Where the fear \
+                has gone there will be nothing. Only I will remain.".to_blob().as_handle()
     });
 
     (0..1000).for_each(|_| {
-        let lover_a = ufoid();
-        let lover_b = ufoid();
-
-        data_kb += knights::entity!(&lover_a, {
-            name: "Wameo",
-            loves: &lover_b
+        let author = fucid();
+        let book = fucid();
+        kb += literature::entity!(&author, {
+            firstname: "Fake",
+            lastname: "Herbert",
         });
-        data_kb += knights::entity!(&lover_b, {
-            name: Name(EN).fake::<String>(),
-            loves: &lover_a
+        kb += literature::entity!(&book, {
+            author: &author,
+            title: Word().fake::<String>(),
+            quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
         });
     });
-
-    kb += data_kb;
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("tribleset/single", 1), |b| {
         b.iter(|| {
-            find! {
-                (juliet: Value<_>, name: Value<_>),
-                knights::pattern!(&kb, [
-                {name: (black_box("Romeo")),
-                 loves: juliet},
-                {juliet @
-                    name: name
-                }])
-            }
+            find!(
+                (author: Value<_>, title: Value<_>, quote: Value<_>),
+                literature::pattern!(&kb, [
+                {author @
+                    firstname: (black_box("Frank")),
+                    lastname: (black_box("Herbert"))},
+                { author: author,
+                  title: title,
+                  quote: quote
+                }]))
             .count()
         })
     });
@@ -599,13 +586,16 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("tribleset/multi", 1000), |b| {
         b.iter(|| {
-            find!((juliet: Value<_>, name: Value<_>),
-            knights::pattern!(&kb, [
-            {name: (black_box("Wameo")),
-             loves: juliet},
-            {juliet @
-                name: name
-            }]))
+            find!(
+                (author: Value<_>, title: Value<_>, quote: Value<_>),
+                literature::pattern!(&kb, [
+                {author @
+                    firstname: (black_box("Fake")),
+                    lastname: (black_box("Herbert"))},
+                { author: author,
+                  title: title,
+                  quote: quote
+                }]))
             .count()
         })
     });
@@ -617,13 +607,16 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {
         b.iter(|| {
-            find!((juliet: Value<_>, name: Value<_>),
-            knights::pattern!(&kb_archive, [
-            {name: (black_box("Romeo")),
-             loves: juliet},
-            {juliet @
-                name: name
-            }]))
+            find!(
+                (author: Value<_>, title: Value<_>, quote: Value<_>),
+                literature::pattern!(&kb_archive, [
+                {author @
+                    firstname: (black_box("Frank")),
+                    lastname: (black_box("Herbert"))},
+                { author: author,
+                  title: title,
+                  quote: quote
+                }]))
             .count()
         })
     });
@@ -631,14 +624,16 @@ fn query_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(1000));
     group.bench_function(BenchmarkId::new("archive/multi", 1000), |b| {
         b.iter(|| {
-            find!((juliet: Value<_>, name: Value<_>),
-                knights::pattern!(&kb_archive, [
-                {name: (black_box("Wameo")),
-                 loves: juliet},
-                {juliet @
-                    name: name
-                }])
-            )
+            find!(
+                (author: Value<_>, title: Value<_>, quote: Value<_>),
+                literature::pattern!(&kb_archive, [
+                {author @
+                    firstname: (black_box("Fake")),
+                    lastname: (black_box("Herbert"))},
+                { author: author,
+                  title: title,
+                  quote: quote
+                }]))
             .count()
         })
     });
@@ -654,7 +649,6 @@ criterion_group!(
     archive_benchmark,
     entities_benchmark,
     query_benchmark,
-    hashtribleset_benchmark,
 );
 
 criterion_main!(benches);

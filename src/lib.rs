@@ -9,7 +9,6 @@ pub mod patch;
 pub mod prelude;
 pub mod query;
 pub mod remote;
-pub mod test;
 pub mod trible;
 pub mod tribleset;
 pub mod value;

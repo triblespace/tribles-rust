@@ -35,4 +35,15 @@ fn main() {
             quote: blobs.insert(Sentence(5..25).fake::<String>())
         });
     });
+
+    let _result: Vec<_> = find!(
+        (author: Value<_>, title: Value<_>, quote: Value<_>),
+        literature::pattern!(&kb, [
+        {author @
+            firstname: ("Frank"),
+            lastname: ("Herbert")},
+        { author: author,
+            title: title,
+            quote: quote
+        }])).collect();
 }

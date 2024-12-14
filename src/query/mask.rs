@@ -16,11 +16,7 @@ impl<'a> Constraint<'a> for MaskConstraint<'a> {
         self.constraint.variables().intersect(self.mask)
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.mask.is_set(variable) && self.constraint.variable(variable)
-    }
-
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
         self.constraint.estimate(variable, binding)
     }
 

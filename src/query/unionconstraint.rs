@@ -29,23 +29,18 @@ where
         self.constraints[0].variables()
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.constraints[0].variable(variable)
-    }
-
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
         self.constraints
             .iter()
-            .filter(|c| c.variable(variable))
-            .map(|c| c.estimate(variable, binding))
-            .sum()
+            .filter_map(|c| c.estimate(variable, binding))
+            .reduce(|acc, e| acc + e)
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
         let relevant_constraints: Vec<_> = self
             .constraints
             .iter()
-            .filter(|c| c.variable(variable))
+            .filter(|c| c.estimate(variable, binding).is_some())
             .collect();
 
         relevant_constraints
@@ -59,7 +54,7 @@ where
         let relevant_constraints: Vec<_> = self
             .constraints
             .iter()
-            .filter(|c| c.variable(variable))
+            .filter(|c| c.estimate(variable, binding).is_some())
             .collect();
 
         proposals.sort();

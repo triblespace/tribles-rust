@@ -85,21 +85,22 @@ where
         variables
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e == variable || self.variable_a == variable || self.variable_v == variable
-    }
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
+        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable {
+            return None;
+        }
 
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
         let e_var = self.variable_e == variable;
         let a_var = self.variable_a == variable;
         let v_var = self.variable_v == variable;
+
 
         let e_bound = binding.get(self.variable_e);
         let a_bound = binding.get(self.variable_a);
         let v_bound = binding.get(self.variable_v);
 
         //TODO add disting color counting ds to archive and estimate better
-        (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+        Some(match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => self.archive.e_a.len(),
             (None, None, None, false, true, false) => self.archive.a_a.len(),
             (None, None, None, false, false, true) => self.archive.v_a.len(),
@@ -155,7 +156,7 @@ where
                 r.len()
             }
             _ => panic!(),
-        }) as usize
+        })
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {

@@ -37,18 +37,18 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         variables
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.variable_e == variable || self.variable_a == variable || self.variable_v == variable
-    }
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
+        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable {
+            return None;
+        }
 
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
         let e_var = self.variable_e == variable;
         let a_var = self.variable_a == variable;
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
             let Some(e) = id_from_value(&e) else {
-                return 0;
+                return Some(0);
             };
             Some(e)
         } else {
@@ -56,7 +56,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
             let Some(a) = id_from_value(&a) else {
-                return 0;
+                return Some(0);
             };
             Some(a)
         } else {
@@ -64,7 +64,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         };
         let v_bound = binding.get(self.variable_v);
 
-        (match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+        Some(match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => self.set.eav.segmented_len(&[0; 0]),
             (None, None, None, false, true, false) => self.set.aev.segmented_len(&[0; 0]),
             (None, None, None, false, false, true) => self.set.vea.segmented_len(&[0; 0]),
@@ -117,7 +117,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
                 self.set.eav.segmented_len(&prefix)
             }
             _ => panic!(),
-        }) as usize
+        } as usize)
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {

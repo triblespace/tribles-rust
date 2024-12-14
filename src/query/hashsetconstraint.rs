@@ -31,12 +31,12 @@ where
         VariableSet::new_singleton(self.variable.index)
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.variable.index == variable
-    }
-
-    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
-        self.set.capacity()
+    fn estimate(&self, variable: VariableId, _binding: &Binding) -> Option<usize> {
+        if self.variable.index == variable {
+            Some(self.set.capacity())
+        } else {
+            None
+        }
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

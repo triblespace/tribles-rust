@@ -25,12 +25,13 @@ impl<'a, S: ValueSchema> Constraint<'a> for PatchValueConstraint<'a, S> {
         VariableSet::new_singleton(self.variable.index)
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.variable.index == variable
-    }
-
-    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
-        self.patch.len() as usize
+    fn estimate(&self, variable: VariableId, _binding: &Binding) -> Option<usize> {
+        if self.variable.index == variable {
+            Some(self.patch.len() as usize)
+        } else {
+            None
+        }
+        
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
@@ -81,12 +82,12 @@ where
         VariableSet::new_singleton(self.variable.index)
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.variable.index == variable
-    }
-
-    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
-        self.patch.len() as usize
+    fn estimate(&self, variable: VariableId, _binding: &Binding) -> Option<usize> {
+        if self.variable.index == variable {
+            Some(self.patch.len() as usize)
+        } else {
+            None
+        }
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

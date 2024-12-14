@@ -195,8 +195,7 @@ impl Default for Binding {
 
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
-    fn variable(&self, variable: VariableId) -> bool;
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize;
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize>;
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
 }
@@ -207,12 +206,7 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'a> for Box<T> {
         inner.variables()
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        let inner: &T = self;
-        inner.variable(variable)
-    }
-
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
         let inner: &T = self;
         inner.estimate(variable, binding)
     }
@@ -234,12 +228,7 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
         inner.variables()
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        let inner: &T = self;
-        inner.variable(variable)
-    }
-
-    fn estimate(&self, variable: VariableId, binding: &Binding) -> usize {
+    fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
         let inner: &T = self;
         inner.estimate(variable, binding)
     }

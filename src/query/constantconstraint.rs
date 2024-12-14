@@ -19,12 +19,12 @@ impl<'a> Constraint<'a> for ConstantConstraint {
         VariableSet::new_singleton(self.variable)
     }
 
-    fn variable(&self, variable: VariableId) -> bool {
-        self.variable == variable
-    }
-
-    fn estimate(&self, _variable: VariableId, _binding: &Binding) -> usize {
-        1
+    fn estimate(&self, variable: VariableId, _binding: &Binding) -> Option<usize> {
+        if self.variable == variable {
+            Some(1)
+        } else {
+            None
+        }
     }
 
     fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

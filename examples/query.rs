@@ -1,5 +1,5 @@
 use fake::faker::lorem::en::Sentence;
-use fake::faker::lorem::en::Word;
+use fake::faker::lorem::en::Words;
 use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
@@ -31,7 +31,7 @@ fn main() {
         });
         kb += literature::entity!(&book, {
             author: &author,
-            title: Word().fake::<String>(),
+            title: Words(1..3).fake::<Vec<String>>().join(" "),
             quote: blobs.insert(Sentence(5..25).fake::<String>())
         });
     });

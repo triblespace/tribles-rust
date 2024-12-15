@@ -384,7 +384,7 @@ mod tests {
 
     use crate::tests::literature;
 
-    use fake::faker::lorem::en::{Sentence, Word};
+    use fake::faker::lorem::en::{Sentence, Words};
     use fake::faker::name::raw::*;
     use fake::locales::*;
     use fake::Fake;
@@ -442,7 +442,7 @@ mod tests {
             });
             kb += literature::entity!(&book, {
                 author: &author,
-                title: Word().fake::<String>(),
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
                 quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
             });
         });
@@ -473,7 +473,7 @@ mod tests {
             });
             kb += literature::entity!(&book, {
                 author: &author,
-                title: Word().fake::<String>(),
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
                 quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
             });
         });

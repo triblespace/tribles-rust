@@ -260,7 +260,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
         Query {
             constraint,
             postprocessing,
-            mode: Search::Vertical,
+            mode: Search::NextVariable,
             binding: Default::default(),
             stack: ArrayVec::new(),
             unbound: ArrayVec::from_iter(variables),
@@ -271,8 +271,8 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
 
 #[derive(Copy, Clone, Debug)]
 enum Search {
-    Vertical,
-    Horizontal,
+    NextVariable,
+    NextValue,
     Backtrack,
     Done,
 }
@@ -283,8 +283,8 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &self.mode {
-                Search::Vertical => {
-                    self.mode = Search::Horizontal;
+                Search::NextVariable => {
+                    self.mode = Search::NextValue;
 
                     match self.unbound.len() {
                         0 => {
@@ -316,11 +316,11 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                         }
                     }
                 }
-                Search::Horizontal => {
+                Search::NextValue => {
                     if let Some(&variable) = self.stack.last() {
                         if let Some(assignment) = self.values[variable as usize].pop() {
                             self.binding.set(variable, &assignment);
-                            self.mode = Search::Vertical;
+                            self.mode = Search::NextVariable;
                         } else {
                             self.mode = Search::Backtrack;
                         }
@@ -334,7 +334,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                         self.binding.unset(variable);
                         self.values[variable as usize].clear();
                         self.unbound.push(variable);
-                        self.mode = Search::Horizontal;
+                        self.mode = Search::NextValue;
                     } else {
                         self.mode = Search::Done;
                         return None;

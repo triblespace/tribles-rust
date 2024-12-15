@@ -38,7 +38,8 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
-        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable {
+        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable
+        {
             return None;
         }
 

@@ -31,16 +31,19 @@ impl<'a, S: ValueSchema> Constraint<'a> for PatchValueConstraint<'a, S> {
         } else {
             None
         }
-        
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        self.patch
-            .infixes(&[0; 0], &mut |&k: &[u8; 32]| proposals.push(k));
+    fn propose(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            self.patch
+                .infixes(&[0; 0], &mut |&k: &[u8; 32]| proposals.push(k));
+        }
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| self.patch.has_prefix(v));
+    fn confirm(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            proposals.retain(|v| self.patch.has_prefix(v));
+        }
     }
 }
 
@@ -90,10 +93,12 @@ where
         }
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        self.patch.infixes(&[0; 0], &mut |id: &[u8; 16]| {
-            proposals.push(id_into_value(id))
-        });
+    fn propose(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            self.patch.infixes(&[0; 0], &mut |id: &[u8; 16]| {
+                proposals.push(id_into_value(id))
+            });
+        }
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {

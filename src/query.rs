@@ -305,7 +305,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                                 .iter()
                                 .enumerate()
                                 .min_by_key(|(_, &v)| self.constraint.estimate(v, &self.binding))
-                                .unwrap();
+                                .expect("unbound len > 0");
                             self.unbound.swap_remove(index);
                             self.stack.push(next_variable);
                             self.constraint.propose(

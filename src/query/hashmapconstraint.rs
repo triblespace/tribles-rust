@@ -43,15 +43,19 @@ where
         }
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.extend(self.map.keys().map(|k| ToValue::to_value(k).bytes))
+    fn propose(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            proposals.extend(self.map.keys().map(|k| ToValue::to_value(k).bytes));
+        }
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| {
-            self.map
-                .contains_key(&FromValue::from_value(Value::<S>::transmute_raw(v)))
-        });
+    fn confirm(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            proposals.retain(|v| {
+                self.map
+                    .contains_key(&FromValue::from_value(Value::<S>::transmute_raw(v)))
+            });
+        }
     }
 }
 

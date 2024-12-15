@@ -36,9 +36,14 @@ where
             .iter()
             .filter_map(|c| Some((c.estimate(variable, binding)?, c)))
             .collect();
+        if relevant_constraints.len() == 0 {
+            return;
+        }
         relevant_constraints.sort_by_key(|(estimate, _)| *estimate);
 
-        relevant_constraints[0].1.propose(variable, binding, proposals);
+        relevant_constraints[0]
+            .1
+            .propose(variable, binding, proposals);
 
         relevant_constraints[1..]
             .iter()

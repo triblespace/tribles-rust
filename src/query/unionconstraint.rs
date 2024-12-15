@@ -37,13 +37,7 @@ where
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let relevant_constraints: Vec<_> = self
-            .constraints
-            .iter()
-            .filter(|c| c.estimate(variable, binding).is_some())
-            .collect();
-
-        relevant_constraints
+        self.constraints
             .iter()
             .for_each(|c| c.propose(variable, binding, proposals));
         proposals.sort();
@@ -51,15 +45,10 @@ where
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let relevant_constraints: Vec<_> = self
-            .constraints
-            .iter()
-            .filter(|c| c.estimate(variable, binding).is_some())
-            .collect();
-
         proposals.sort();
 
-        let union: Vec<_> = relevant_constraints
+        let union: Vec<_> = self
+            .constraints
             .iter()
             .map(|c| {
                 let mut proposals = proposals.clone();

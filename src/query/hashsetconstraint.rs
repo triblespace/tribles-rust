@@ -39,15 +39,19 @@ where
         }
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.extend(self.set.iter().map(|v| ToValue::to_value(v).bytes));
+    fn propose(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            proposals.extend(self.set.iter().map(|v| ToValue::to_value(v).bytes));
+        }
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| {
-            let t = FromValue::from_value(Value::<S>::transmute_raw(v));
-            self.set.contains(&t)
-        });
+    fn confirm(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable.index == variable {
+            proposals.retain(|v| {
+                let t = FromValue::from_value(Value::<S>::transmute_raw(v));
+                self.set.contains(&t)
+            });
+        }
     }
 }
 

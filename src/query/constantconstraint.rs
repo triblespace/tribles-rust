@@ -27,11 +27,15 @@ impl<'a> Constraint<'a> for ConstantConstraint {
         }
     }
 
-    fn propose(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.push(self.constant);
+    fn propose(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable == variable {
+            proposals.push(self.constant);
+        }
     }
 
-    fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| *v == self.constant);
+    fn confirm(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable == variable {
+            proposals.retain(|v| *v == self.constant);
+        }
     }
 }

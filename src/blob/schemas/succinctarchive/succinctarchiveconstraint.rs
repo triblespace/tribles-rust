@@ -86,14 +86,14 @@ where
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
-        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable {
+        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable
+        {
             return None;
         }
 
         let e_var = self.variable_e == variable;
         let a_var = self.variable_a == variable;
         let v_var = self.variable_v == variable;
-
 
         let e_bound = binding.get(self.variable_e);
         let a_bound = binding.get(self.variable_a);
@@ -160,6 +160,11 @@ where
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable
+        {
+            return;
+        }
+
         let e_var = self.variable_e == variable;
         let a_var = self.variable_a == variable;
         let v_var = self.variable_v == variable;
@@ -278,6 +283,11 @@ where
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
+        if self.variable_e != variable && self.variable_a != variable && self.variable_v != variable
+        {
+            return;
+        }
+
         let e_var = self.variable_e == variable;
         let a_var = self.variable_a == variable;
         let v_var = self.variable_v == variable;

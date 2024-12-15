@@ -59,7 +59,7 @@ macro_rules! pattern_inner {
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            $constraints.push({ let e: $crate::id::RawId = $EntityId; Box::new(e_var.is(e.to_value()))});
+            $constraints.push({ let e: $crate::id::Id = $EntityId; Box::new(e_var.is(e.to_value()))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -124,9 +124,9 @@ pub use hex_literal;
 ///   }
 ///   pub mod ids {
 ///       use super::*;
-///       use hex_literal::hex;
-///       pub const attr_name: tribles::id::RawId  = hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
-///       pub const attr_name2: tribles::id::RawId  = hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
+///       use tribles::id::id_hex;
+///       pub const attr_name: tribles::id::Id  = id_hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
+///       pub const attr_name2: tribles::id::Id  = id_hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
 ///   }
 ///   pub mod schemas {
 ///       use super::*;

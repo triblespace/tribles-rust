@@ -6,7 +6,7 @@ use ed25519::signature::Signer;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
-    id::{OwnedId, RawId},
+    id::{Id, OwnedId},
     namespace::NS,
     query::find,
     tribleset::TribleSet,
@@ -76,7 +76,7 @@ pub fn sign(
     Ok(tribles)
 }
 
-pub fn verify(tribles: TribleSet, commit_id: RawId) -> Result<(), ValidationError> {
+pub fn verify(tribles: TribleSet, commit_id: Id) -> Result<(), ValidationError> {
     let (payload, verifying_key, r, s) = find!(
     (payload: Value<_>, key: Value<_>, r, s),
     commits::pattern!(&tribles, [

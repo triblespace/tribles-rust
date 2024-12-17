@@ -380,16 +380,8 @@ impl ContainsConstraint<'static, GenId> for &IdOwner {
 #[cfg(test)]
 mod tests {
     use crate::id::OwnedId;
-    use crate::prelude::valueschemas::*;
     use crate::prelude::*;
-
-    NS! {
-        pub namespace knights3 {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
-            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
-        }
-    }
+    use crate::tests::literature;
 
     #[test]
     fn ns_local_owned() {
@@ -398,30 +390,23 @@ mod tests {
         {
             let romeo = ufoid();
             let juliet = ufoid();
-            kb += knights3::entity!(&juliet, {
-                name: "Juliet",
-                loves: &romeo,
-                title: "Maiden"
+            kb += literature::entity!(&juliet, {
+                firstname: "Jules",
+                lastname: "Verne"
             });
-            kb += knights3::entity!(&romeo, {
-                name: "Romeo",
-                loves: &juliet,
-                title: "Prince"
-            });
-            kb += knights3::entity!(
-            {
-                name: "Angelica",
-                title: "Nurse"
+            kb += literature::entity!(&romeo, {
+                firstname: "Isaac",
+                lastname: "Asimov"
             });
         }
 
         let mut r: Vec<_> = find!(
-            (person: OwnedId, name: String),
+            (author: OwnedId, name: String),
             and!(
-                local_owned(person),
-                knights3::pattern!(&kb, [
-                    {person @
-                        name: name
+                local_owned(author),
+                literature::pattern!(&kb, [
+                    {author @
+                        firstname: name
                     }])
             )
         )
@@ -429,6 +414,6 @@ mod tests {
         .collect();
         r.sort();
 
-        assert_eq!(vec!["Angelica", "Juliet", "Romeo"], r);
+        assert_eq!(vec!["Isaac", "Jules"], r);
     }
 }

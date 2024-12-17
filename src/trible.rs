@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use crate::{
-    id::{Id, OwnedId, RawId},
+    id::{Id, RawId},
     patch::{KeyOrdering, KeySegmentation},
     value::{RawValue, Value, ValueSchema},
 };
@@ -22,7 +22,7 @@ pub struct Trible {
 }
 
 impl Trible {
-    pub fn new<V: ValueSchema>(e: &OwnedId, a: &Id, v: &Value<V>) -> Trible {
+    pub fn new<V: ValueSchema>(e: &Id, a: &Id, v: &Value<V>) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(&a[..]);

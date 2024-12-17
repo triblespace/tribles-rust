@@ -114,7 +114,7 @@ pub mod rngid;
 pub mod ufoid;
 
 use std::{
-    borrow::Borrow, cell::RefCell, convert::TryInto, fmt::{Binary, Display, LowerHex, UpperHex}, hash::Hash, marker::PhantomData, mem, num::NonZero, ops::Deref
+    borrow::Borrow, cell::RefCell, convert::TryInto, fmt::{Display, LowerHex, UpperHex}, hash::Hash, marker::PhantomData, mem, num::NonZero, ops::Deref
 };
 
 pub use fucid::fucid;
@@ -241,19 +241,10 @@ impl Display for Id {
     }
 }
 
-impl Binary for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for byte in &self[..] {
-            write!(f, "{byte:b}")?;
-        }
-        Ok(())
-    }
-}
-
 impl LowerHex for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for byte in &self[..] {
-            write!(f, "{byte:x}")?;
+            write!(f, "{byte:02x}")?;
         }
         Ok(())
     }
@@ -262,7 +253,7 @@ impl LowerHex for Id {
 impl UpperHex for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for byte in &self[..] {
-            write!(f, "{byte:X}")?;
+            write!(f, "{byte:02X}")?;
         }
         Ok(())
     }
@@ -421,6 +412,13 @@ mod tests {
     use crate::id::OwnedId;
     use crate::prelude::*;
     use crate::tests::literature;
+
+    #[test]
+    fn id_formatting() {
+       let id: Id = id_hex!("7D06820D69947D76E7177E5DEA4EA773");
+        assert_eq!(format!("{id:x}"), "7d06820d69947d76e7177e5dea4ea773");
+        assert_eq!(format!("{id:X}"), "7D06820D69947D76E7177E5DEA4EA773");
+    }
 
     #[test]
     fn ns_local_owned() {

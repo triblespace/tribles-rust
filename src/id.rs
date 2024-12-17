@@ -114,8 +114,7 @@ pub mod rngid;
 pub mod ufoid;
 
 use std::{
-    borrow::Borrow, cell::RefCell, convert::TryInto, hash::Hash, marker::PhantomData, mem,
-    num::NonZero, ops::Deref,
+    borrow::Borrow, cell::RefCell, convert::TryInto, fmt::{Binary, Display, LowerHex, UpperHex}, hash::Hash, marker::PhantomData, mem, num::NonZero, ops::Deref
 };
 
 pub use fucid::fucid;
@@ -236,6 +235,39 @@ impl From<Id> for RawValue {
     }
 }
 
+impl Display for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Id({self:X})")
+    }
+}
+
+impl Binary for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in &self[..] {
+            write!(f, "{byte:b}")?;
+        }
+        Ok(())
+    }
+}
+
+impl LowerHex for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in &self[..] {
+            write!(f, "{byte:x}")?;
+        }
+        Ok(())
+    }
+}
+
+impl UpperHex for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in &self[..] {
+            write!(f, "{byte:X}")?;
+        }
+        Ok(())
+    }
+}
+
 #[macro_export]
 macro_rules! id_hex {
     ( $data:expr ) => {
@@ -324,6 +356,13 @@ impl AsRef<[u8]> for OwnedId {
 impl From<OwnedId> for RawId {
     fn from(value: OwnedId) -> Self {
         **value
+    }
+}
+
+impl Display for OwnedId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let id: &Id = self;
+        write!(f, "OwnedId({id:X})")
     }
 }
 

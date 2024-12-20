@@ -77,11 +77,10 @@ macro_rules! pattern_inner {
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
-    ($Namespace:path, $ctx:ident, $set:expr, [$($Entity:tt),*]) => {
+    ($Namespace:path, $ctx:ident, $set:ident, [$($Entity:tt),*]) => {
         {
-            let set = $set;
             let mut constraints: Vec<Box<dyn $crate::query::Constraint>> = vec!();
-            $(pattern_inner!(@entity (constraints, $ctx, set, $Namespace, $Entity));)*
+            $(pattern_inner!(@entity (constraints, $ctx, $set, $Namespace, $Entity));)*
             $crate::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }
     };
@@ -200,7 +199,8 @@ macro_rules! NS {
                     {
                         use $crate::namespace::pattern_inner;
                         let ctx = __local_find_context!();
-                        pattern_inner!($mod_name, ctx, $set, $pattern)
+                        let set = $set;
+                        pattern_inner!($mod_name, ctx, set, $pattern)
                     }
                 };
             }

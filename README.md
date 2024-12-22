@@ -6,32 +6,23 @@
 
 # About
 
-> The real tragedy would be if people forgot that you can have new ideas about programming models in the first place. <br/> - [Bret Victor](https://worrydream.com/dbx/)
+> “Insufficient facts always invite danger.”  
+> — *Mr. Spock*
 
-The [trible.space](https://trible.space) is our answer to the question "what if we re-invented data storage from first principles".
-It is a knowledge graph standard for blob storage that provides metadata management capabilities similar to file- and version-control-systems
-with the queryability and convenience of an embedded database.
+**Trible Space** is a knowledge graph standard built on blob storage. It offers metadata management capabilities similar to file- and version-control systems, combined with the queryability and convenience of an embedded database.
 
-We hope to overcome the shortcomings of previous semantic web/triple-store technologies, through simplicity, easy canonicalization and cryptographic identifiers, clean distributed semantics and lightweight libraries empowered by idiomatic host-language capabilities.
+Our goal is to re-invent data storage from first principles and overcome the shortcomings of prior semantic web/triple-store technologies. By focusing on simplicity, canonical data formats, cryptographic identifiers, and clean distributed semantics, we aim to provide a lightweight yet powerful toolkit for knowledge representation, database management, and data exchange use cases.
 
-By reifying most concepts and operations as first class citizens, we hope to provide a toolkit that can be flexibly combined to serve a variety of knowledge representation, database, and data exchange use cases.
+## Features
 
-# Differentiators
+- **Predictable Performance**: An optimizer-free design using novel algorithms and data structures removes the need for manual query-tuning and enables single-digit microsecond latency.  
+- **Fast In-Memory Datasets**: Enjoy cheap copy-on-write (COW) semantics and speedy set operations, allowing you to treat entire datasets as values.  
+- **Lightweight & Flexible**: Data storage should seamlessly scale from in-memory data organization to large-scale blob and metadata storage on S3.  
+- **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives (WIP), and built-in version control.  
+- **Compile-Time Typed Queries**: Safer data handling, plus handy features like delta queries.  
+- **Low Overall Complexity**: We aim for a design that feels obvious (in the best way) and makes good use of existing language facilities.  
+- **Easy Implementation**: The spec is designed to be friendly to high- and low-level languages, or even hardware implementations.
 
-- A novel family of worst case optimal join algorithms combined with a series of tailored datastructures obviates manual query-tuning.
-- Optimizer-free query engine design, providing predicatable performance and enabling single digit μs latency.
-- Fast in-memory datasets with cheap COW semantics (i.e. persistent immutability).
-- Fast set operations over in-memory datasets.
-- Separation of names and identities.
-- Explicit abstract datatypes and concrete layouts.
-- Durable compressed fully queryable zero-copy archives, based on succinct datastructures.
-- Self describing and documenting.
-- Eventually consistent distributed semantics based on CRDTs and CALM,
-providing build-in version control.
-- 🚧 Delta-Queries between arbitrary datasets.
-- Compile-time typed queries and dataset construction.
-- Low overall complexity. If you feel that stuff is obvious, maybe a bit boring, and that you could have come up with it yourself, then we achieved our goal.
-- Implementability. A standard is only as good as its implementations. We took great care to design a system that is easy to implement in high- to low-level langauges and even hardware.
 
 # Community
 
@@ -61,12 +52,14 @@ fn main() -> std::io::Result<()> {
 
     let author_id = ufoid();
 
-    set += literature::entity![&author_id, {
+    // Note how the entity macro returns TribleSets that can be cheaply merged
+    // into our existing dataset.
+    set += literature::entity!(&author_id, {
                 firstname: "Frank",
                 lastname: "Herbert",
-            }];
+            });
 
-    set += literature::entity![{
+    set += literature::entity!({
                 title: "Dune",
                 author: &author_id,
                 quote: blobs.insert("Deep in the human unconscious is a \
@@ -78,9 +71,11 @@ fn main() -> std::io::Result<()> {
                 pass over me and through me. And when it has gone past I \
                 will turn the inner eye to see its path. Where the fear \
                 has gone there will be nothing. Only I will remain.")
-            }];
+            });
 
     let title = "Dune";
+
+    // We can then find all entities matching a certain pattern in our dataset.
     for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
         literature::pattern!(&set, [

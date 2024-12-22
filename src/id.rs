@@ -1,5 +1,3 @@
-//! [RawId]/[OwnedId] are 128bit high-entropy persistent identifiers.
-//!
 //! # General Remarks on Identifiers
 //! We found it useful to split identifiers into three categories:
 //! - **Human-Readable Names (e.g., attribute names, head labels)**  
@@ -110,11 +108,22 @@
 //!
 //! # ID Ownership
 //!
+//! In distributed systems, consistency requires monotonicity due to the CALM principle. 
+//! However, this is not necessary for single writer systems. By assigning each ID an owner, 
+//! we ensure that only the current owner can write new information about an entity associated 
+//! with that ID. This allows for fine-grained synchronization and concurrency control.
 //!
+//! To create a transaction, you can uniquely own all entities involved and write new data for them 
+//! simultaneously. Since there can only be one owner for each ID at any given time, you can be 
+//! confident that no other information has been written about the entities in question.
+//!
+//! By default, all minted `OwnedID`s are associated with the thread they are dropped from. 
+//! These IDs can be found in queries via the `local_ids` function.
+//! 
 
-mod fucid;
-mod rngid;
-mod ufoid;
+pub mod fucid;
+pub mod rngid;
+pub mod ufoid;
 
 use std::{
     borrow::Borrow,
@@ -128,7 +137,7 @@ use std::{
     ops::Deref,
 };
 
-pub use fucid::fucid;
+pub use fucid::{ fucid, FUCIDsource };
 pub use rngid::rngid;
 pub use ufoid::ufoid;
 
@@ -144,12 +153,16 @@ thread_local!(static OWNED_IDS: RefCell<IdOwner> = RefCell::new(IdOwner::new()))
 pub const ID_LEN: usize = 16;
 pub type RawId = [u8; ID_LEN];
 
+/// Converts a 16 byte [RawId] reference into an 32 byte [RawValue].
 pub(crate) fn id_into_value(id: &RawId) -> RawValue {
     let mut data = [0; VALUE_LEN];
     data[16..32].copy_from_slice(id);
     data
 }
 
+/// Converts a 32 byte [RawValue] reference into an 16 byte [RawId].
+/// Returns `None` if the value is not in the canonical ID format,
+/// i.e. the first 16 bytes are all zero.
 pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
     if id[0..16] != [0; 16] {
         return None;
@@ -158,6 +171,11 @@ pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
     Some(id)
 }
 
+/// Represents a unique abstract 128 bit identifier.
+/// As we do not allow for all zero `nil` IDs,
+/// `Option<Id>` benefits from Option nieche optimizations.
+/// 
+/// Note that it has an alignment of 1, and can be referenced as a `[u8; 16]` [RawId].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(C, packed(1))]
 pub struct Id {
@@ -165,10 +183,12 @@ pub struct Id {
 }
 
 impl Id {
+    /// Creates a new `Id` from a [RawId] 16 byte array.
     pub const fn new(id: RawId) -> Option<Self> {
         unsafe { std::mem::transmute(id) }
     }
 
+    /// Transmutes a reference to a [RawId] into a reference to an `Id`.
     pub fn transmute_raw(id: &RawId) -> Option<&Self> {
         if *id == [0; 16] {
             None
@@ -177,7 +197,7 @@ impl Id {
         }
     }
 
-    /// Takes ownership of this Id from the current write context (thread).
+    /// Takes ownership of this Id from the current write context (i.e. thread).
     /// Returns `None` if this Id was not found, because it is not associated with this
     /// write context, or because it is currently aquired.
     pub fn aquire(&self) -> Option<OwnedId> {
@@ -270,6 +290,13 @@ impl UpperHex for Id {
     }
 }
 
+/// Creates an `Id` from a hex string literal.
+///
+/// # Example
+/// ```
+/// use tribles::id::id_hex;
+/// let id = id_hex!("7D06820D69947D76E7177E5DEA4EA773");
+/// ```
 #[macro_export]
 macro_rules! id_hex {
     ( $data:expr ) => {
@@ -279,6 +306,18 @@ macro_rules! id_hex {
 
 pub use id_hex;
 
+/// Represents an ID that can only be used by a single writer at a time.
+/// 
+/// `OwnedId`s are associated with one owning context (typically a thread) at a time.
+/// Because they are `Send` and `!Sync` they can be passed between contexts, but not used concurrently.
+/// This makes use of Rust's borrow checker to enforce a weaker form of software transactional memory (STM) without rollbacks - as these are not an issue with the heavy use of copy-on-write data structures.
+/// 
+/// They are automatically associated with the thread they are dropped, which can be used in queries via the [local_ids] constraint.
+/// You can also make use of explicit [IdOwner] containers to store them when not actively used in a transaction.
+/// 
+/// Most methods defined on [OwnedId] are low-level primitives meant to be used for the implementation of new ownership management strategies,
+/// such as a transactional database that tracks checked out IDs for ownership, or distributed ledgers like blockchains.
+///
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct OwnedId {
@@ -291,23 +330,50 @@ pub struct OwnedId {
 unsafe impl Send for OwnedId {}
 
 impl OwnedId {
+    /// Forces a regular (read-only) `Id` to become a writable `OwnedId`.
+    /// 
+    /// This should be done with care, as it allows scenarios where multiple writers can create conflicting information for the same ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The `Id` to be forced into an `OwnedId`.
     pub fn force(id: Id) -> Self {
         Self {
             id,
             _private: PhantomData,
         }
     }
-
+    /// Transmutes a reference to an `Id` into a reference to an `OwnedId`,
+    /// with the same caveats as with [force].
+    /// 
+    /// Note that dropping the returned reference will not release an `OwnedId` to the thread local owner.
+    /// 
+    /// # Arguments
+    ///
+    /// * `id` - The `Id` reference to be transmuted into an `OwnedId` reference.
     pub fn transmute_force<'a>(id: &'a Id) -> &'a Self {
         unsafe { std::mem::transmute(id) }
     }
 
+    /// Releases the `OwnedId` to thread local owner, returning the underlying `Id`.
+    /// This is the same as dropping the `OwnedId`, but allows for more explicit control.
+    /// 
+    /// # Returns
+    /// 
+    /// The underlying `Id`.
     pub fn release(self) -> Id {
         let id = self.id;
         mem::drop(self);
         id
     }
 
+    /// Forgets the `OwnedId`, leaking ownership of the underlying `Id`, while returning it.
+    /// 
+    /// This is not as potentially problematic as [force], because it prevents further writes with the `OwnedId`, thus avoiding potential conflicts.
+    /// 
+    /// # Returns
+    /// 
+    /// The underlying `Id`.
     pub fn forget(self) -> Id {
         let id = self.id;
         mem::forget(self);
@@ -368,7 +434,7 @@ impl Display for OwnedId {
     }
 }
 
-pub fn local_owned(v: Variable<GenId>) -> impl Constraint<'static> {
+pub fn local_ids(v: Variable<GenId>) -> impl Constraint<'static> {
     OWNED_IDS.with_borrow(|owner| owner.has(v))
 }
 
@@ -432,7 +498,7 @@ mod tests {
     }
 
     #[test]
-    fn ns_local_owned() {
+    fn ns_local_ids() {
         let mut kb = TribleSet::new();
 
         {
@@ -451,7 +517,7 @@ mod tests {
         let mut r: Vec<_> = find!(
             (author: OwnedId, name: String),
             and!(
-                local_owned(author),
+                local_ids(author),
                 literature::pattern!(&kb, [
                     {author @
                         firstname: name

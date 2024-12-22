@@ -10,7 +10,21 @@
 //! Great care has been taken to design the system in a way that data described
 //! in different data definition languages can be merged, and more importanly
 //! that multiple query languages can be cooperatively used in a single query.
-
+//!
+//! # Consistency, Directed Edges and Owned IDs
+//!
+//! While a simple grow set already constitutes a CRDT, it is also limited in
+//! expressiveness. To provide richer semantics while guaranteeing conflict-free
+//! mergeability we allow only "owned" IDs to be used in the `entity` position
+//! of newly generated triples. As owned IDs are [send] but not [sync] owning a
+//! set of them essentially constitutes a single writer transaction domain,
+//! allowing for some non-monotonic operations like `if-does-not-exist`, over
+//! the set of contained entities. Note that this does not make operations that
+//! would break CALM safe, e.g. `delete`.
+//!
+//! A different perspective is that edges are always ordered from describing
+//! to described entities, with circles constituting consensus between entities.
+//!
 #[doc(hidden)]
 #[macro_export]
 macro_rules! entity_inner {

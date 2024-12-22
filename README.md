@@ -19,7 +19,7 @@ By reifying most concepts and operations as first class citizens, we hope to pro
 # Differentiators
 
 - A novel family of worst case optimal join algorithms combined with a series of tailored datastructures obviates manual query-tuning.
-- Optimizer-free query engine design, providing predicatble performance and enabling single digit μs latency.
+- Optimizer-free query engine design, providing predicatable performance and enabling single digit μs latency.
 - Fast in-memory datasets with cheap COW semantics (i.e. persistent immutability).
 - Fast set operations over in-memory datasets.
 - Separation of names and identities.
@@ -31,6 +31,7 @@ providing build-in version control.
 - 🚧 Delta-Queries between arbitrary datasets.
 - Compile-time typed queries and dataset construction.
 - Low overall complexity. If you feel that stuff is obvious, maybe a bit boring, and that you could have come up with it yourself, then we achieved our goal.
+- Implementability. A standard is only as good as its implementations. We took great care to design a system that is easy to implement in high- to low-level langauges and even hardware.
 
 # Community
 

@@ -27,7 +27,7 @@ impl ToBlob<SimpleArchive> for &TribleSet {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnarchiveError {
     BadArchive,
-    BadTriple,
+    BadTrible,
     BadCanonicalizationRedundancy,
     BadCanonicalizationOrdering,
 }
@@ -43,23 +43,20 @@ impl TryFromBlob<'_, SimpleArchive> for TribleSet {
             return Err(UnarchiveError::BadArchive);
         };
         for t in packed_tribles.iter() {
-            let trible = Trible::transmute_raw(t);
-            if trible.e().is_none() {
-                return Err(UnarchiveError::BadTriple);
-            }
-            if trible.a().is_none() {
-                return Err(UnarchiveError::BadTriple);
-            }
-            if let Some(prev) = prev_trible {
-                if prev == t {
-                    return Err(UnarchiveError::BadCanonicalizationRedundancy);
+            if let Some(trible) = Trible::transmute_raw(t) {
+                if let Some(prev) = prev_trible {
+                    if prev == t {
+                        return Err(UnarchiveError::BadCanonicalizationRedundancy);
+                    }
+                    if prev > t {
+                        return Err(UnarchiveError::BadCanonicalizationOrdering);
+                    }
                 }
-                if prev > t {
-                    return Err(UnarchiveError::BadCanonicalizationOrdering);
-                }
+                prev_trible = Some(t);
+                tribles.insert(trible);
+            } else {
+                return Err(UnarchiveError::BadTrible);
             }
-            prev_trible = Some(t);
-            tribles.insert(trible);
         }
 
         Ok(tribles)

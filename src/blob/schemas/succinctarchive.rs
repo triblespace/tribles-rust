@@ -1,10 +1,12 @@
 mod succinctarchiveconstraint;
 mod universe;
 
-use crate::id::id_into_value;
+use crate::id::{id_from_value, id_into_value, Id};
 use crate::query::TriblePattern;
 use crate::trible::Trible;
 use crate::tribleset::TribleSet;
+use crate::value::Value;
+use crate::value::schemas::UnknownValue;
 use crate::value::{schemas::genid::GenId, RawValue, ValueSchema};
 use succinctarchiveconstraint::*;
 
@@ -54,8 +56,11 @@ where
             let a = self.domain.access(a);
             let v = self.domain.access(v);
 
-            let t = Trible::new_raw_values(&e, &a, &v).unwrap();
-            t
+            let e: Id = Id::new(id_from_value(&e).unwrap()).unwrap();
+            let a: Id = Id::new(id_from_value(&a).unwrap()).unwrap();
+            let v: Value<UnknownValue> = Value::new(v);
+            
+            Trible::new(&e, &a, &v)
         })
     }
 }

@@ -1,9 +1,9 @@
 use std::convert::TryInto;
 
 use crate::{
-    id::{Id, RawId},
+    id::Id,
     patch::{KeyOrdering, KeySegmentation},
-    value::{RawValue, Value, ValueSchema},
+    value::{Value, ValueSchema},
 };
 use arbitrary::Arbitrary;
 
@@ -15,10 +15,12 @@ pub const A_END: usize = 31;
 pub const V_START: usize = 32;
 pub const V_END: usize = 63;
 
+pub type RawTrible = [u8; TRIBLE_LEN];
+
 #[derive(Arbitrary, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
 pub struct Trible {
-    pub data: [u8; TRIBLE_LEN],
+    pub data: RawTrible,
 }
 
 impl Trible {
@@ -31,57 +33,32 @@ impl Trible {
         Self { data }
     }
 
-    pub fn new_raw_values(
-        e: &RawValue,
-        a: &RawValue,
-        v: &RawValue,
-    ) -> Result<Trible, &'static str> {
-        if e[0..16].iter().any(|&x| x != 0) {
-            return Err(&"entity value is not a valid id");
+    pub fn new_raw(data: RawTrible) -> Option<Trible> {
+        if data[E_START..=E_END].iter().all(|&x| x == 0) ||
+           data[A_START..=A_END].iter().all(|&x| x == 0) {
+            return None;
         }
+        Some(Self { data })
+    }
 
-        if a[0..16].iter().any(|&x| x != 0) {
-            return Err(&"attribute value is not a valid id");
+    pub fn transmute_raw(data: &RawTrible) -> Option<&Self> {
+        if data[E_START..=E_END].iter().all(|&x| x == 0) ||
+           data[A_START..=A_END].iter().all(|&x| x == 0) {
+            return None;
         }
-
-        let mut data = [0; TRIBLE_LEN];
-        data[E_START..=E_END].copy_from_slice(&e[16..32]);
-        data[A_START..=A_END].copy_from_slice(&a[16..32]);
-        data[V_START..=V_END].copy_from_slice(&v[..]);
-
-        Ok(Self { data })
+        Some(unsafe { std::mem::transmute(data) })
     }
 
-    pub fn new_raw(data: [u8; TRIBLE_LEN]) -> Trible {
-        Self { data }
+    pub fn e(&self) -> &Id {
+        Id::transmute_raw(self.data[E_START..=E_END].try_into().unwrap()).unwrap()
     }
 
-    pub fn transmute_raw(data: &[u8; TRIBLE_LEN]) -> &Self {
-        unsafe { std::mem::transmute(data) }
-    }
-
-    pub fn raw_e(&self) -> &RawId {
-        self.data[E_START..=E_END].try_into().unwrap()
-    }
-
-    pub fn raw_a(&self) -> &RawId {
-        self.data[A_START..=A_END].try_into().unwrap()
-    }
-
-    pub fn raw_v(&self) -> &RawValue {
-        self.data[V_START..=V_END].try_into().unwrap()
-    }
-
-    pub fn e(&self) -> Option<&Id> {
-        Id::transmute_raw(self.raw_e())
-    }
-
-    pub fn a(&self) -> Option<&Id> {
-        Id::transmute_raw(self.raw_a())
+    pub fn a(&self) -> &Id {
+        Id::transmute_raw(self.data[A_START..=A_END].try_into().unwrap()).unwrap()
     }
 
     pub fn v<V: ValueSchema>(&self) -> &Value<V> {
-        Value::transmute_raw(self.raw_v())
+        Value::transmute_raw(self.data[V_START..=V_END].try_into().unwrap())
     }
 }
 

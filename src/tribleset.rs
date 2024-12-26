@@ -70,7 +70,8 @@ impl TribleSet {
 
     pub fn iter(&self) -> TribleSetIterator {
         TribleSetIterator {
-            inner: self.eav.iter().map(|data| Trible::new_raw(data)),
+            inner: self.eav.iter().map(|data| Trible::new_raw(data)
+                    .expect("only valid Tribles in TribleSet")),
         }
     }
 }

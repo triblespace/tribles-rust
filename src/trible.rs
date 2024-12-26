@@ -52,36 +52,43 @@ impl Trible {
         Ok(Self { data })
     }
 
-    pub fn new_raw(data: [u8; 64]) -> Trible {
+    pub fn new_raw(data: [u8; TRIBLE_LEN]) -> Trible {
         Self { data }
     }
 
-    pub fn e(&self) -> RawId {
+    pub fn transmute_raw(data: &[u8; TRIBLE_LEN]) -> &Self {
+        unsafe { std::mem::transmute(data) }
+    }
+
+    pub fn raw_e(&self) -> &RawId {
         self.data[E_START..=E_END].try_into().unwrap()
     }
-    pub fn a(&self) -> RawId {
+
+    pub fn raw_a(&self) -> &RawId {
         self.data[A_START..=A_END].try_into().unwrap()
     }
-    pub fn v(&self) -> RawValue {
+
+    pub fn raw_v(&self) -> &RawValue {
         self.data[V_START..=V_END].try_into().unwrap()
     }
 
-    pub fn e_as_value(&self) -> RawValue {
-        let mut o = [0u8; 32];
-        o[16..=31].copy_from_slice(&self.data[E_START..=E_END]);
-        o
+    pub fn e(&self) -> Option<&Id> {
+        Id::transmute_raw(self.raw_e())
     }
-    pub fn a_as_value(&self) -> RawValue {
-        let mut o = [0u8; 32];
-        o[16..=31].copy_from_slice(&self.data[A_START..=A_END]);
-        o
+
+    pub fn a(&self) -> Option<&Id> {
+        Id::transmute_raw(self.raw_a())
+    }
+
+    pub fn v<V: ValueSchema>(&self) -> &Value<V> {
+        Value::transmute_raw(self.raw_v())
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct TribleSegmentation {}
 
-impl KeySegmentation<64> for TribleSegmentation {
+impl KeySegmentation<TRIBLE_LEN> for TribleSegmentation {
     fn segment(depth: usize) -> usize {
         match depth {
             E_START..=E_END => 0,

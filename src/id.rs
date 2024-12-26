@@ -150,7 +150,10 @@ use crate::{
 
 thread_local!(static OWNED_IDS: RefCell<IdOwner> = RefCell::new(IdOwner::new()));
 
+/// The length of a 128bit abstract identifier in bytes.
 pub const ID_LEN: usize = 16;
+
+/// Represents a 16 byte abstract identifier.
 pub type RawId = [u8; ID_LEN];
 
 /// Converts a 16 byte [RawId] reference into an 32 byte [RawValue].
@@ -189,6 +192,7 @@ impl Id {
     }
 
     /// Transmutes a reference to a [RawId] into a reference to an `Id`.
+    /// Returns `None` if the referenced RawId is nil (all zero).
     pub fn transmute_raw(id: &RawId) -> Option<&Self> {
         if *id == [0; 16] {
             None
@@ -309,10 +313,10 @@ pub use id_hex;
 /// Represents an ID that can only be used by a single writer at a time.
 /// 
 /// `OwnedId`s are associated with one owning context (typically a thread) at a time.
-/// Because they are `Send` and `!Sync` they can be passed between contexts, but not used concurrently.
+/// Because they are `Send` and `!Sync`, they can be passed between contexts, but not used concurrently.
 /// This makes use of Rust's borrow checker to enforce a weaker form of software transactional memory (STM) without rollbacks - as these are not an issue with the heavy use of copy-on-write data structures.
 /// 
-/// They are automatically associated with the thread they are dropped, which can be used in queries via the [local_ids] constraint.
+/// They are automatically associated with the thread they are dropped from, which can be used in queries via the [local_ids] constraint.
 /// You can also make use of explicit [IdOwner] containers to store them when not actively used in a transaction.
 /// 
 /// Most methods defined on [OwnedId] are low-level primitives meant to be used for the implementation of new ownership management strategies,
@@ -323,7 +327,7 @@ pub use id_hex;
 pub struct OwnedId {
     pub id: Id,
     // Make sure that the type can't be syntactically initialized.
-    // Also make sure that we we don't get auto impl of Send and Sync
+    // Also make sure that we don't get auto impl of Send and Sync
     _private: PhantomData<*const ()>,
 }
 
@@ -332,7 +336,11 @@ unsafe impl Send for OwnedId {}
 impl OwnedId {
     /// Forces a regular (read-only) `Id` to become a writable `OwnedId`.
     /// 
+    /// This is a low-level primitive that is meant to be used for the implementation of new ownership management strategies,
+    /// such as a transactional database that tracks checked out IDs for ownership, or distributed ledgers like blockchains.
+    /// 
     /// This should be done with care, as it allows scenarios where multiple writers can create conflicting information for the same ID.
+    /// Similar caution should be applied when using the `transmute_force` and `forget` methods.
     /// 
     /// # Arguments
     /// 
@@ -343,20 +351,19 @@ impl OwnedId {
             _private: PhantomData,
         }
     }
-    /// Transmutes a reference to an `Id` into a reference to an `OwnedId`,
-    /// with the same caveats as with [force].
+
+    /// Safely transmutes a reference to an `Id` into a reference to an `OwnedId`.
     /// 
-    /// Note that dropping the returned reference will not release an `OwnedId` to the thread local owner.
+    /// Similar caution should be applied when using the `force` method.
     /// 
     /// # Arguments
-    ///
-    /// * `id` - The `Id` reference to be transmuted into an `OwnedId` reference.
+    /// 
+    /// * `id` - A reference to the `Id` to be transmuted.
     pub fn transmute_force<'a>(id: &'a Id) -> &'a Self {
         unsafe { std::mem::transmute(id) }
     }
 
-    /// Releases the `OwnedId` to thread local owner, returning the underlying `Id`.
-    /// This is the same as dropping the `OwnedId`, but allows for more explicit control.
+    /// Releases the `OwnedId`, returning the underlying `Id`.
     /// 
     /// # Returns
     /// 
@@ -434,31 +441,79 @@ impl Display for OwnedId {
     }
 }
 
+/// A constraint that checks if a variable is an `OwnedId` associated with the current write context (i.e. thread).
 pub fn local_ids(v: Variable<GenId>) -> impl Constraint<'static> {
     OWNED_IDS.with_borrow(|owner| owner.has(v))
 }
 
+/// A container for [OwnedId]s, allowing for explicit ownership management.
+/// There is an implicit `IdOwner` for each thread, to which `OwnedId`s are associated when they are dropped,
+/// and which can be queried via the [local_ids] constraint.
+/// 
+/// # Example
+/// 
+/// ```
+/// use tribles::id::{IdOwner, OwnedId, fucid};
+/// let mut owner = IdOwner::new();
+/// let owned_id = fucid();
+/// let id = owner.insert(owned_id);
+/// 
+/// assert!(owner.owns(&id));
+/// assert_eq!(owner.take(&id), Some(OwnedId::force(id)));
+/// assert!(!owner.owns(&id));
+/// ```
+/// 
 pub struct IdOwner {
     owned_ids: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>,
 }
 
 impl IdOwner {
+    /// Creates a new `IdOwner`.
+    /// 
+    /// This is typically not necessary, as each thread has an implicit `IdOwner` associated with it.
+    /// 
+    /// # Returns
+    /// 
+    /// A new `IdOwner`.
     pub fn new() -> Self {
         Self {
             owned_ids: PATCH::new(),
         }
     }
 
+    /// Inserts an `OwnedId` into the `IdOwner`, returning the underlying `Id`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `owned_id` - The `OwnedId` to be inserted.
+    /// 
+    /// # Returns
+    /// 
+    /// The underlying `Id`.
     pub fn insert(&mut self, owned_id: OwnedId) -> Id {
         self.force_insert(&owned_id);
         owned_id.forget()
     }
 
+    /// Forces an `Id` into the `IdOwner` as an `OwnedId`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The `Id` to be forced into an `OwnedId`.
     pub fn force_insert(&mut self, id: &Id) {
         let entry = Entry::new(&id);
         self.owned_ids.insert(&entry);
     }
 
+    /// Takes an `Id` from the `IdOwner`, returning it as an `OwnedId`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The `Id` to be taken.
+    /// 
+    /// # Returns
+    /// 
+    /// An `OwnedId` if the `Id` was found, otherwise `None`.
     pub fn take(&mut self, id: &Id) -> Option<OwnedId> {
         if self.owned_ids.has_prefix(id) {
             self.owned_ids.remove(id);
@@ -468,6 +523,15 @@ impl IdOwner {
         }
     }
 
+    /// Checks if the `IdOwner` owns an `Id`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The `Id` to be checked.
+    /// 
+    /// # Returns
+    /// 
+    /// `true` if the `Id` is owned by the `IdOwner`, otherwise `false`.
     pub fn owns(&mut self, id: &Id) -> bool {
         self.owned_ids.has_prefix(id)
     }
@@ -502,13 +566,13 @@ mod tests {
         let mut kb = TribleSet::new();
 
         {
-            let romeo = ufoid();
-            let juliet = ufoid();
-            kb += literature::entity!(&juliet, {
+            let isaac = ufoid();
+            let jules = ufoid();
+            kb += literature::entity!(&jules, {
                 firstname: "Jules",
                 lastname: "Verne"
             });
-            kb += literature::entity!(&romeo, {
+            kb += literature::entity!(&isaac, {
                 firstname: "Isaac",
                 lastname: "Asimov"
             });

@@ -847,6 +847,12 @@ where
         }
     }
 
+    pub fn iter<'a>(
+        &'a self,
+    ) -> PATCHIterator<'a, KEY_LEN, O, S> {
+        PATCHIterator::new(self)
+    }
+
     pub fn iter_prefix<'a, const PREFIX_LEN: usize>(
         &'a self,
     ) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S> {

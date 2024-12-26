@@ -15,14 +15,13 @@ Our goal is to re-invent data storage from first principles and overcome the sho
 
 ## Features
 
+- **Lightweight & Flexible**: Data storage should seamlessly scale from in-memory data organization to large-scale blob and metadata storage on S3.
+- **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives (WIP), and built-in version control.
 - **Predictable Performance**: An optimizer-free design using novel algorithms and data structures removes the need for manual query-tuning and enables single-digit microsecond latency.  
-- **Fast In-Memory Datasets**: Enjoy cheap copy-on-write (COW) semantics and speedy set operations, allowing you to treat entire datasets as values.  
-- **Lightweight & Flexible**: Data storage should seamlessly scale from in-memory data organization to large-scale blob and metadata storage on S3.  
-- **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives (WIP), and built-in version control.  
+- **Fast In-Memory Datasets**: Enjoy cheap copy-on-write (COW) semantics and speedy set operations, allowing you to treat entire datasets as values.
 - **Compile-Time Typed Queries**: Safer data handling, plus handy features like delta queries.  
-- **Low Overall Complexity**: We aim for a design that feels obvious (in the best way) and makes good use of existing language facilities.  
+- **Low Overall Complexity**: We aim for a design that feels obvious (in the best way) and makes good use of existing language facilities. A serverless design makes it completely self-sufficient for local use and requires only an S3-compatible service for distribution.
 - **Easy Implementation**: The spec is designed to be friendly to high- and low-level languages, or even hardware implementations.
-
 
 # Community
 

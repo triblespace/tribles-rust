@@ -2,7 +2,7 @@ use crate::{
     blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
     id::Id,
     id_hex,
-    trible::{A_END, A_START, E_END, E_START},
+    trible::Trible,
     tribleset::TribleSet,
 };
 
@@ -43,10 +43,11 @@ impl TryFromBlob<'_, SimpleArchive> for TribleSet {
             return Err(UnarchiveError::BadArchive);
         };
         for t in packed_tribles.iter() {
-            if t[E_START..=E_END] == [0; 16] {
+            let trible = Trible::transmute_raw(t);
+            if trible.e().is_none() {
                 return Err(UnarchiveError::BadTriple);
             }
-            if t[A_START..=A_END] == [0; 16] {
+            if trible.a().is_none() {
                 return Err(UnarchiveError::BadTriple);
             }
             if let Some(prev) = prev_trible {
@@ -58,7 +59,7 @@ impl TryFromBlob<'_, SimpleArchive> for TribleSet {
                 }
             }
             prev_trible = Some(t);
-            tribles.insert_raw(t);
+            tribles.insert(trible);
         }
 
         Ok(tribles)

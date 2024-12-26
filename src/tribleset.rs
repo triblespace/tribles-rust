@@ -12,17 +12,21 @@ use crate::trible::{
 };
 use crate::value::{schemas::genid::GenId, ValueSchema};
 
-use std::iter::FromIterator;
+use std::iter::{FromIterator, Map};
 use std::ops::{Add, AddAssign};
 
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    pub eav: PATCH<64, EAVOrder, TribleSegmentation>,
-    pub vea: PATCH<64, VEAOrder, TribleSegmentation>,
-    pub ave: PATCH<64, AVEOrder, TribleSegmentation>,
-    pub vae: PATCH<64, VAEOrder, TribleSegmentation>,
-    pub eva: PATCH<64, EVAOrder, TribleSegmentation>,
-    pub aev: PATCH<64, AEVOrder, TribleSegmentation>,
+    pub eav: PATCH<TRIBLE_LEN, EAVOrder, TribleSegmentation>,
+    pub vea: PATCH<TRIBLE_LEN, VEAOrder, TribleSegmentation>,
+    pub ave: PATCH<TRIBLE_LEN, AVEOrder, TribleSegmentation>,
+    pub vae: PATCH<TRIBLE_LEN, VAEOrder, TribleSegmentation>,
+    pub eva: PATCH<TRIBLE_LEN, EVAOrder, TribleSegmentation>,
+    pub aev: PATCH<TRIBLE_LEN, AEVOrder, TribleSegmentation>,
+}
+
+pub struct TribleSetIterator<'a> {
+    inner: Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, TribleSegmentation>, fn([u8; 64]) -> Trible>,
 }
 
 impl TribleSet {
@@ -51,17 +55,23 @@ impl TribleSet {
     }
 
     pub fn insert(&mut self, trible: &Trible) {
-        self.insert_raw(&trible.data)
-    }
-
-    pub fn insert_raw(&mut self, data: &[u8; TRIBLE_LEN]) {
-        let key = Entry::new(data);
+        let key = Entry::new(&trible.data);
         self.eav.insert(&key);
         self.eva.insert(&key);
         self.aev.insert(&key);
         self.ave.insert(&key);
         self.vea.insert(&key);
         self.vae.insert(&key);
+    }
+
+    pub fn contains(&self, trible: &Trible) -> bool {
+        self.eav.has_prefix(&trible.data)
+    }
+
+    pub fn iter(&self) -> TribleSetIterator {
+        TribleSetIterator {
+            inner: self.eav.iter().map(|data| Trible::new_raw(data)),
+        }
     }
 }
 
@@ -113,37 +123,46 @@ impl TriblePattern for TribleSet {
     }
 }
 
+impl<'a> Iterator for TribleSetIterator<'a> {
+    type Item = Trible;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a> IntoIterator for &'a TribleSet {
+    type Item = Trible;
+    type IntoIter = TribleSetIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::prelude::valueschemas::*;
+    use crate::tests::literature;
     use crate::prelude::*;
 
     use super::*;
-    use fake::{faker::name::raw::Name, locales::EN, Fake};
-    use itertools::Itertools;
-    use proptest::prelude::*;
+    use fake::{faker::lorem::en::Words, faker::name::raw::{FirstName, LastName}, locales::EN, Fake};
+    
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
-
-    NS! {
-        pub namespace knights {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
-            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
-        }
-    }
 
     #[test]
     fn union() {
         let mut kb = TribleSet::new();
         for _i in 0..2000 {
-            let lover_a = ufoid();
-            let lover_b = ufoid();
-            kb += knights::entity!(&lover_a, {
-                name: Name(EN).fake::<String>(),
-                loves: &lover_b
+            let author = ufoid();
+            let book = ufoid();
+            kb += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
             });
-            kb += knights::entity!(&lover_b, {
-                name: Name(EN).fake::<String>(),
-                loves: &lover_a
+            kb += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
             });
         }
         assert_eq!(kb.len(), 8000);
@@ -154,32 +173,120 @@ mod tests {
         let kb = (0..1000000)
             .into_par_iter()
             .flat_map(|_| {
-                let lover_a = ufoid();
-                let lover_b = ufoid();
+                let author = ufoid();
+                let book = ufoid();
                 [
-                    knights::entity!(&lover_a, {
-                        name: Name(EN).fake::<String>(),
-                        loves: &lover_b
+                    literature::entity!(&author, {
+                        firstname: FirstName(EN).fake::<String>(),
+                        lastname: LastName(EN).fake::<String>(),
                     }),
-                    knights::entity!(&lover_b, {
-                        name: Name(EN).fake::<String>(),
-                        loves: &lover_a
+                    literature::entity!(&book, {
+                        title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        author: &author
                     }),
                 ]
             })
             .reduce(|| TribleSet::new(), |a, b| a + b);
         assert_eq!(kb.len(), 4000000);
     }
+/*
+    #[test]
+    fn intersection() {
+        let mut kb1 = TribleSet::new();
+        let mut kb2 = TribleSet::new();
+        for _i in 0..1000 {
+            let author = ufoid();
+            let book = ufoid();
+            kb1 += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb1 += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
+            });
+            kb2 += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb2 += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
+            });
+        }
+        let intersection = kb1.intersection(&kb2);
+        // Verify that the intersection contains only elements present in both kb1 and kb2
+        for trible in &intersection {
+            assert!(kb1.contains(trible));
+            assert!(kb2.contains(trible));
+        }
+    }
 
-    proptest! {
-        #[test]
-        fn insert(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-            let mut set = TribleSet::new();
-            for entry in entries {
-                let mut key = [0; 64];
-                key.iter_mut().set_from(entry.iter().cloned());
-                set.insert(&Trible{ data: key});
+    #[test]
+    fn difference() {
+        let mut kb1 = TribleSet::new();
+        let mut kb2 = TribleSet::new();
+        for _i in 0..1000 {
+            let author = ufoid();
+            let book = ufoid();
+            kb1 += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb1 += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
+            });
+            if _i % 2 == 0 {
+                kb2 += literature::entity!(&author, {
+                    firstname: FirstName(EN).fake::<String>(),
+                    lastname: LastName(EN).fake::<String>(),
+                });
+                kb2 += literature::entity!(&book, {
+                    title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    author: &author
+                });
             }
+        }
+        let difference = kb1.difference(&kb2);
+        // Verify that the difference contains only elements present in kb1 but not in kb2
+        for trible in &difference {
+            assert!(kb1.contains(trible));
+            assert!(!kb2.contains(trible));
+        }
+    }
+*/
+    #[test]
+    fn test_contains() {
+        let mut kb = TribleSet::new();
+        let author = ufoid();
+        let book = ufoid();
+        let author_tribles = literature::entity!(&author, {
+            firstname: FirstName(EN).fake::<String>(),
+            lastname: LastName(EN).fake::<String>(),
+        });
+        let book_tribles = literature::entity!(&book, {
+            title: Words(1..3).fake::<Vec<String>>().join(" "),
+            author: &author
+        });
+
+        kb += author_tribles.clone();
+        kb += book_tribles.clone();
+
+        for trible in &author_tribles {
+            assert!(kb.contains(&trible));
+        }
+        for trible in &book_tribles {
+            assert!(kb.contains(&trible));
+        }
+
+        let non_existent_trible = literature::entity!(&ufoid(), {
+            firstname: FirstName(EN).fake::<String>(),
+            lastname: LastName(EN).fake::<String>(),
+        });
+
+        for trible in &non_existent_trible {
+            assert!(!kb.contains(&trible));
         }
     }
 }

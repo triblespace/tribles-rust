@@ -9,7 +9,7 @@
 > “Insufficient facts always invite danger.”  
 > — *Mr. Spock*
 
-**Trible Space** is a knowledge graph standard built on blob storage. It offers metadata management capabilities similar to file- and version-control systems, combined with the queryability and convenience of an embedded database.
+**Trible Space** is a data space and knowledge graph standard. It offers metadata management capabilities similar to file- and version-control systems, combined with the queryability and convenience of an embedded database, tailored towards use with simple blob storage. It is designed to be a lightweight, self-contained, and distributed data storage solution that can be used in a variety of contexts, from embedded systems to cloud services.
 
 Our goal is to re-invent data storage from first principles and overcome the shortcomings of prior semantic web/triple-store technologies. By focusing on simplicity, canonical data formats, cryptographic identifiers, and clean distributed semantics, we aim to provide a lightweight yet powerful toolkit for knowledge representation, database management, and data exchange use cases.
 

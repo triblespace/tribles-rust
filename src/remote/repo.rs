@@ -7,8 +7,7 @@ use std::{
 use futures::{stream, Stream, StreamExt};
 
 use crate::{
-    blob::{schemas::UnknownBlob, Blob, BlobSchema},
-    blobset::BlobSet,
+    blob::{schemas::UnknownBlob, Blob, BlobSchema, BlobSet},
     value::{
         schemas::hash::{Handle, HashProtocol},
         Value, ValueSchema,

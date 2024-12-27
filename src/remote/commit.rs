@@ -9,7 +9,7 @@ use crate::{
     id::{Id, OwnedId},
     namespace::NS,
     query::find,
-    tribleset::TribleSet,
+    trible::TribleSet,
     value::{
         schemas::{
             ed25519::{self as ed, ED25519RComponent, ED25519SComponent},

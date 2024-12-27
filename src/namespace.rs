@@ -118,10 +118,10 @@ macro_rules! NS {
             #![allow(unused)]
             use super::*;
 
-            pub fn description() -> $crate::tribleset::TribleSet {
+            pub fn description() -> $crate::trible::TribleSet {
                 use $crate::value::ValueSchema;
 
-                let mut set = $crate::tribleset::TribleSet::new();
+                let mut set = $crate::trible::TribleSet::new();
                 $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
                    let value_schema_id = $crate::value::schemas::genid::GenId::value_from(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
                    set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_VALUE_SCHEMA, &value_schema_id));
@@ -150,7 +150,7 @@ macro_rules! NS {
                 ($entity:tt) => {
                     {
                         use $crate::namespace::entity_inner;
-                        let mut set = $crate::tribleset::TribleSet::new();
+                        let mut set = $crate::trible::TribleSet::new();
                         let id: $crate::id::OwnedId = $crate::id::rngid();
                         entity_inner!($mod_name, &mut set, &id, $entity);
                         set
@@ -159,7 +159,7 @@ macro_rules! NS {
                 ($entity_id:expr, $entity:tt) => {
                     {
                         use $crate::namespace::entity_inner;
-                        let mut set = $crate::tribleset::TribleSet::new();
+                        let mut set = $crate::trible::TribleSet::new();
                         let id: &$crate::id::OwnedId = $entity_id;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set

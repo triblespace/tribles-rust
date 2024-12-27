@@ -1,6 +1,6 @@
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::blob::{FromBlob, ToBlob};
-use crate::tribleset::TribleSet;
+use crate::trible::TribleSet;
 use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
 use crate::value::Value;
 
@@ -128,7 +128,7 @@ where
 mod tests {
     use crate::{
         blob::{schemas::longstring::LongString, ToBlob},
-        tribleset::TribleSet,
+        trible::TribleSet,
         value::schemas::hash::{Blake3, Handle},
         NS,
     };

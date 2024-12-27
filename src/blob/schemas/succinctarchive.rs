@@ -3,8 +3,7 @@ mod universe;
 
 use crate::id::{id_from_value, id_into_value, Id};
 use crate::query::TriblePattern;
-use crate::trible::Trible;
-use crate::tribleset::TribleSet;
+use crate::trible::{Trible, TribleSet};
 use crate::value::schemas::UnknownValue;
 use crate::value::Value;
 use crate::value::{schemas::genid::GenId, RawValue, ValueSchema};

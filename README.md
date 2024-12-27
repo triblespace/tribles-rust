@@ -11,11 +11,11 @@
 
 **Trible Space** is a data space and knowledge graph standard. It offers metadata management capabilities similar to file- and version-control systems, combined with the queryability and convenience of an embedded database, tailored towards use with simple blob storage. It is designed to be a lightweight, self-contained, and distributed data storage solution that can be used in a variety of contexts, from embedded systems to cloud services.
 
-Our goal is to re-invent data storage from first principles and overcome the shortcomings of prior semantic web/triple-store technologies. By focusing on simplicity, canonical data formats, cryptographic identifiers, and clean distributed semantics, we aim to provide a lightweight yet powerful toolkit for knowledge representation, database management, and data exchange use cases.
+Our goal is to re-invent data storage from first principles and overcome the shortcomings of prior semantic web/triple-store technologies. By focusing on simplicity, canonical data formats, cryptographic identifiers, and clean distributed semantics, we aim to provide a lean, lightweight yet powerful toolkit for knowledge representation, database management, and data exchange use cases.
 
 ## Features
 
-- **Lightweight & Flexible**: Data storage should seamlessly scale from in-memory data organization to large-scale blob and metadata storage on S3.
+- **Lean, Lightweight & Flexible**: Data storage should seamlessly scale from in-memory data organization to large-scale blob and metadata storage on S3.
 - **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives (WIP), and built-in version control.
 - **Predictable Performance**: An optimizer-free design using novel algorithms and data structures removes the need for manual query-tuning and enables single-digit microsecond latency.  
 - **Fast In-Memory Datasets**: Enjoy cheap copy-on-write (COW) semantics and speedy set operations, allowing you to treat entire datasets as values.

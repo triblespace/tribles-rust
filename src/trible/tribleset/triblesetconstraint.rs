@@ -2,7 +2,7 @@ use core::panic;
 
 use crate::id::{id_from_value, id_into_value, ID_LEN};
 use crate::query::{Binding, Constraint, Variable, VariableId, VariableSet};
-use crate::tribleset::TribleSet;
+use crate::trible::TribleSet;
 use crate::value::{schemas::genid::GenId, RawValue, ValueSchema, VALUE_LEN};
 
 pub struct TribleSetConstraint {
@@ -348,8 +348,7 @@ mod tests {
         find,
         id::rngid,
         query::{TriblePattern, Variable},
-        trible::Trible,
-        tribleset::TribleSet,
+        trible::{Trible, TribleSet},
         value::{schemas::UnknownValue, Value},
     };
 

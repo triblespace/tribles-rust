@@ -2,8 +2,7 @@ use crate::{
     blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
     id::Id,
     id_hex,
-    trible::Trible,
-    tribleset::TribleSet,
+    trible::{Trible, TribleSet},
 };
 
 use anybytes::{Bytes, PackedSlice};

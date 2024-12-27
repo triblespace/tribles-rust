@@ -1,3 +1,4 @@
+//! # Identifiers for Distributed Systems
 //! # General Remarks on Identifiers
 //! We found it useful to split identifiers into three categories:
 //! - **Human-Readable Names (e.g., attribute names, head labels)**  

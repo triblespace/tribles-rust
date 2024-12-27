@@ -1,3 +1,4 @@
+mod blobset;
 pub mod schemas;
 
 use crate::{
@@ -13,6 +14,8 @@ use std::{
     hash::Hash,
     marker::PhantomData,
 };
+
+pub use blobset::BlobSet;
 
 pub use anybytes::Bytes;
 

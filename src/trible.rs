@@ -1,3 +1,5 @@
+mod tribleset;
+
 use std::convert::TryInto;
 
 use crate::{
@@ -5,6 +7,8 @@ use crate::{
     patch::{KeyOrdering, KeySegmentation},
     value::{Value, ValueSchema},
 };
+
+pub use tribleset::TribleSet;
 
 pub const TRIBLE_LEN: usize = 64;
 pub const E_START: usize = 0;

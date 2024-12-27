@@ -13,6 +13,12 @@ use crate::id::Id;
 use crate::id_hex;
 use crate::value::ValueSchema;
 
+/// A value schema for an unknown value.
+/// This value schema is used as a fallback when the value schema is not known.
+/// It is not recommended to use this value schema in practice.
+/// Instead, use a specific value schema.
+///
+/// Any bit pattern can be a valid value of this schema.
 pub struct UnknownValue {}
 impl ValueSchema for UnknownValue {
     const VALUE_SCHEMA_ID: Id = id_hex!("4EC697E8599AC79D667C722E2C8BEBF4");

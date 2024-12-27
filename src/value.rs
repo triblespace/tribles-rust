@@ -279,6 +279,14 @@ impl<T: ValueSchema> Debug for Value<T> {
     }
 }
 
+/// A trait that represents an abstract schema type that can be (de)serialized as a [Value].
+///
+/// This trait is usually implemented on a type-level empty struct,
+/// but may contain additional information about the schema type as associated constants or types.
+/// The [Handle](crate::value::schemas::hash::Handle) type for example contains type information about the hash algorithm,
+/// and the schema of the referenced blob.
+///
+/// See the [value](crate::value) module for more information.
 pub trait ValueSchema: Sized + 'static {
     const VALUE_SCHEMA_ID: Id;
     const BLOB_SCHEMA_ID: Option<Id> = None;

@@ -25,6 +25,9 @@
 //! A different perspective is that edges are always ordered from describing
 //! to described entities, with circles constituting consensus between entities.
 //!
+
+/// Helper macro for constructing trible entries for an entity.
+/// Hidden by default, used internally by the `entity!` macro.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! entity_inner {
@@ -42,6 +45,8 @@ macro_rules! entity_inner {
 
 pub use entity_inner;
 
+/// Helper macro for constructing pattern-based queries.
+/// Hidden by default, used internally by the `pattern!` macro.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! pattern_inner {
@@ -104,53 +109,8 @@ pub use pattern_inner;
 
 pub use hex_literal;
 
-/// Define a rust module to represent a namespace.
-/// The module additionally defines `entity!` and `pattern!` macros.
-///
-/// The `entity!` macro can be used to conveniently create triblesets
-/// containing an entity conforming to the namespace.
-///
-/// The `pattern!` macro can be used to query datastructures implementing
-/// the [crate::query::TriblePattern] trait.
-///
-/// A namespace defined like this
-/// ```
-/// use tribles::NS;
-///
-/// NS! {
-///     pub namespace namespace_name {
-///         "FF00FF00FF00FF00FF00FF00FF00FF00" as attr_name: tribles::value::schemas::genid::GenId;
-///         "BBAABBAABBAABBAABBAABBAABBAABBAA" as attr_name2: tribles::value::schemas::shortstring::ShortString;
-///     }
-/// }
-/// ```
-///
-/// will define a module with a structure similar to
-///
-/// ```
-/// mod namespace_name {
-///   use super::*; // enables lexical scoping
-///   pub fn description() -> tribles::tribleset::TribleSet {
-///     let set = tribles::tribleset::TribleSet::new();
-///     // namespace described in terms of the `metadata` namespace
-///     set    
-///   }
-///   pub mod ids {
-///       use super::*;
-///       use tribles::id::id_hex;
-///       pub const attr_name: tribles::id::Id  = id_hex!("FF00FF00FF00FF00FF00FF00FF00FF00");
-///       pub const attr_name2: tribles::id::Id  = id_hex!("BBAABBAABBAABBAABBAABBAABBAABBAA");
-///   }
-///   pub mod schemas {
-///       use super::*;
-///       pub use tribles::value::schemas::genid::GenId as attr_name;
-///       pub use tribles::value::schemas::shortstring::ShortString as attr_name2;
-///   }
-/// }
-/// ```
-///
-/// this allows you to access attribute ids and schemas via their human readable names, e.g.
-/// `namespace_name::ids::attrName` and `namespace_name::schemas::attrName`.
+/// Defines a Rust module to represent a namespace, along with convenience macros.
+/// The `namespace` block maps human-readable names to attribute IDs and type schemas.
 #[macro_export]
 macro_rules! NS {
     ($visibility:vis namespace $mod_name:ident {$($FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
@@ -163,13 +123,13 @@ macro_rules! NS {
 
                 let mut set = $crate::tribleset::TribleSet::new();
                 $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
-                   let value_schema_id = $crate::value::schemas::genid::GenId::to_value(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
+                   let value_schema_id = $crate::value::schemas::genid::GenId::value_from(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
                    set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_VALUE_SCHEMA, &value_schema_id));
                    if let Some(blob_schema_id) = <$FieldType as $crate::value::ValueSchema>::BLOB_SCHEMA_ID {
-                      let blob_schema_id = $crate::value::schemas::genid::GenId::to_value(blob_schema_id);
+                      let blob_schema_id = $crate::value::schemas::genid::GenId::value_from(blob_schema_id);
                       set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_BLOB_SCHEMA, &blob_schema_id));
                    }
-                   let attr_name = $crate::value::schemas::shortstring::ShortString::to_value(stringify!($FieldName));
+                   let attr_name = $crate::value::schemas::shortstring::ShortString::value_from(stringify!($FieldName));
                    set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_NAME, &attr_name));
                 })*
                 set

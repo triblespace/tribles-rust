@@ -2,10 +2,10 @@
 
 pub mod ed25519;
 pub mod f256;
-pub mod fr256;
 pub mod genid;
 pub mod hash;
 pub mod iu256;
+pub mod r256;
 pub mod shortstring;
 pub mod time;
 

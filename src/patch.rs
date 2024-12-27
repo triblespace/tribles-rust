@@ -847,9 +847,7 @@ where
         }
     }
 
-    pub fn iter<'a>(
-        &'a self,
-    ) -> PATCHIterator<'a, KEY_LEN, O, S> {
+    pub fn iter<'a>(&'a self) -> PATCHIterator<'a, KEY_LEN, O, S> {
         PATCHIterator::new(self)
     }
 

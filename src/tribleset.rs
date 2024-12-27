@@ -26,7 +26,10 @@ pub struct TribleSet {
 }
 
 pub struct TribleSetIterator<'a> {
-    inner: Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, TribleSegmentation>, fn([u8; 64]) -> Trible>,
+    inner: Map<
+        crate::patch::PATCHIterator<'a, 64, EAVOrder, TribleSegmentation>,
+        fn([u8; 64]) -> Trible,
+    >,
 }
 
 impl TribleSet {
@@ -70,8 +73,10 @@ impl TribleSet {
 
     pub fn iter(&self) -> TribleSetIterator {
         TribleSetIterator {
-            inner: self.eav.iter().map(|data| Trible::new_raw(data)
-                    .expect("only valid Tribles in TribleSet")),
+            inner: self
+                .eav
+                .iter()
+                .map(|data| Trible::new_raw(data).expect("only valid Tribles in TribleSet")),
         }
     }
 }
@@ -143,12 +148,17 @@ impl<'a> IntoIterator for &'a TribleSet {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::literature;
     use crate::prelude::*;
+    use crate::tests::literature;
 
     use super::*;
-    use fake::{faker::lorem::en::Words, faker::name::raw::{FirstName, LastName}, locales::EN, Fake};
-    
+    use fake::{
+        faker::lorem::en::Words,
+        faker::name::raw::{FirstName, LastName},
+        locales::EN,
+        Fake,
+    };
+
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
     #[test]
@@ -190,55 +200,22 @@ mod tests {
             .reduce(|| TribleSet::new(), |a, b| a + b);
         assert_eq!(kb.len(), 4000000);
     }
-/*
-    #[test]
-    fn intersection() {
-        let mut kb1 = TribleSet::new();
-        let mut kb2 = TribleSet::new();
-        for _i in 0..1000 {
-            let author = ufoid();
-            let book = ufoid();
-            kb1 += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
-            });
-            kb1 += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
-            });
-            kb2 += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
-            });
-            kb2 += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
-            });
-        }
-        let intersection = kb1.intersection(&kb2);
-        // Verify that the intersection contains only elements present in both kb1 and kb2
-        for trible in &intersection {
-            assert!(kb1.contains(trible));
-            assert!(kb2.contains(trible));
-        }
-    }
-
-    #[test]
-    fn difference() {
-        let mut kb1 = TribleSet::new();
-        let mut kb2 = TribleSet::new();
-        for _i in 0..1000 {
-            let author = ufoid();
-            let book = ufoid();
-            kb1 += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
-            });
-            kb1 += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
-            });
-            if _i % 2 == 0 {
+    /*
+        #[test]
+        fn intersection() {
+            let mut kb1 = TribleSet::new();
+            let mut kb2 = TribleSet::new();
+            for _i in 0..1000 {
+                let author = ufoid();
+                let book = ufoid();
+                kb1 += literature::entity!(&author, {
+                    firstname: FirstName(EN).fake::<String>(),
+                    lastname: LastName(EN).fake::<String>(),
+                });
+                kb1 += literature::entity!(&book, {
+                    title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    author: &author
+                });
                 kb2 += literature::entity!(&author, {
                     firstname: FirstName(EN).fake::<String>(),
                     lastname: LastName(EN).fake::<String>(),
@@ -248,15 +225,48 @@ mod tests {
                     author: &author
                 });
             }
+            let intersection = kb1.intersection(&kb2);
+            // Verify that the intersection contains only elements present in both kb1 and kb2
+            for trible in &intersection {
+                assert!(kb1.contains(trible));
+                assert!(kb2.contains(trible));
+            }
         }
-        let difference = kb1.difference(&kb2);
-        // Verify that the difference contains only elements present in kb1 but not in kb2
-        for trible in &difference {
-            assert!(kb1.contains(trible));
-            assert!(!kb2.contains(trible));
+
+        #[test]
+        fn difference() {
+            let mut kb1 = TribleSet::new();
+            let mut kb2 = TribleSet::new();
+            for _i in 0..1000 {
+                let author = ufoid();
+                let book = ufoid();
+                kb1 += literature::entity!(&author, {
+                    firstname: FirstName(EN).fake::<String>(),
+                    lastname: LastName(EN).fake::<String>(),
+                });
+                kb1 += literature::entity!(&book, {
+                    title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    author: &author
+                });
+                if _i % 2 == 0 {
+                    kb2 += literature::entity!(&author, {
+                        firstname: FirstName(EN).fake::<String>(),
+                        lastname: LastName(EN).fake::<String>(),
+                    });
+                    kb2 += literature::entity!(&book, {
+                        title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        author: &author
+                    });
+                }
+            }
+            let difference = kb1.difference(&kb2);
+            // Verify that the difference contains only elements present in kb1 but not in kb2
+            for trible in &difference {
+                assert!(kb1.contains(trible));
+                assert!(!kb2.contains(trible));
+            }
         }
-    }
-*/
+    */
     #[test]
     fn test_contains() {
         let mut kb = TribleSet::new();

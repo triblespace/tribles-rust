@@ -58,7 +58,7 @@ pub fn ufoid() -> OwnedId {
     OwnedId::force(Id::new(id).expect("The probability time and rng = 0 should be neglegible."))
 }
 
-pub fn timestamp_distance(now: u32, ts1: u32, ts2: u32) -> i64 { 
+pub fn timestamp_distance(now: u32, ts1: u32, ts2: u32) -> i64 {
     let d1 = now.wrapping_sub(ts1) as i64;
     let d2 = now.wrapping_sub(ts2) as i64;
     d1 - d2

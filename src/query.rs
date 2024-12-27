@@ -499,8 +499,8 @@ mod tests {
         let q: Query<IntersectionConstraint<_>, _, _> = find! {
             (string: Value<_>, number: Value<_>),
             and!(
-                string.is(ShortString::to_value("Hello World!")),
-                number.is(I256BE::to_value(42))
+                string.is(ShortString::value_from("Hello World!")),
+                number.is(I256BE::value_from(42))
             )
         };
         let r: Vec<_> = q.collect();

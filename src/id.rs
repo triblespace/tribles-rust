@@ -108,18 +108,18 @@
 //!
 //! # ID Ownership
 //!
-//! In distributed systems, consistency requires monotonicity due to the CALM principle. 
-//! However, this is not necessary for single writer systems. By assigning each ID an owner, 
-//! we ensure that only the current owner can write new information about an entity associated 
+//! In distributed systems, consistency requires monotonicity due to the CALM principle.
+//! However, this is not necessary for single writer systems. By assigning each ID an owner,
+//! we ensure that only the current owner can write new information about an entity associated
 //! with that ID. This allows for fine-grained synchronization and concurrency control.
 //!
-//! To create a transaction, you can uniquely own all entities involved and write new data for them 
-//! simultaneously. Since there can only be one owner for each ID at any given time, you can be 
+//! To create a transaction, you can uniquely own all entities involved and write new data for them
+//! simultaneously. Since there can only be one owner for each ID at any given time, you can be
 //! confident that no other information has been written about the entities in question.
 //!
-//! By default, all minted `OwnedID`s are associated with the thread they are dropped from. 
+//! By default, all minted `OwnedID`s are associated with the thread they are dropped from.
 //! These IDs can be found in queries via the `local_ids` function.
-//! 
+//!
 
 pub mod fucid;
 pub mod rngid;
@@ -137,7 +137,7 @@ use std::{
     ops::Deref,
 };
 
-pub use fucid::{ fucid, FUCIDsource };
+pub use fucid::{fucid, FUCIDsource};
 pub use rngid::rngid;
 pub use ufoid::ufoid;
 
@@ -177,7 +177,7 @@ pub(crate) fn id_from_value(id: &RawValue) -> Option<RawId> {
 /// Represents a unique abstract 128 bit identifier.
 /// As we do not allow for all zero `nil` IDs,
 /// `Option<Id>` benefits from Option nieche optimizations.
-/// 
+///
 /// Note that it has an alignment of 1, and can be referenced as a `[u8; 16]` [RawId].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(C, packed(1))]
@@ -311,14 +311,14 @@ macro_rules! id_hex {
 pub use id_hex;
 
 /// Represents an ID that can only be used by a single writer at a time.
-/// 
+///
 /// `OwnedId`s are associated with one owning context (typically a thread) at a time.
 /// Because they are `Send` and `!Sync`, they can be passed between contexts, but not used concurrently.
 /// This makes use of Rust's borrow checker to enforce a weaker form of software transactional memory (STM) without rollbacks - as these are not an issue with the heavy use of copy-on-write data structures.
-/// 
+///
 /// They are automatically associated with the thread they are dropped from, which can be used in queries via the [local_ids] constraint.
 /// You can also make use of explicit [IdOwner] containers to store them when not actively used in a transaction.
-/// 
+///
 /// Most methods defined on [OwnedId] are low-level primitives meant to be used for the implementation of new ownership management strategies,
 /// such as a transactional database that tracks checked out IDs for ownership, or distributed ledgers like blockchains.
 ///
@@ -335,15 +335,15 @@ unsafe impl Send for OwnedId {}
 
 impl OwnedId {
     /// Forces a regular (read-only) `Id` to become a writable `OwnedId`.
-    /// 
+    ///
     /// This is a low-level primitive that is meant to be used for the implementation of new ownership management strategies,
     /// such as a transactional database that tracks checked out IDs for ownership, or distributed ledgers like blockchains.
-    /// 
+    ///
     /// This should be done with care, as it allows scenarios where multiple writers can create conflicting information for the same ID.
     /// Similar caution should be applied when using the `transmute_force` and `forget` methods.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - The `Id` to be forced into an `OwnedId`.
     pub fn force(id: Id) -> Self {
         Self {
@@ -353,20 +353,20 @@ impl OwnedId {
     }
 
     /// Safely transmutes a reference to an `Id` into a reference to an `OwnedId`.
-    /// 
+    ///
     /// Similar caution should be applied when using the `force` method.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - A reference to the `Id` to be transmuted.
     pub fn transmute_force<'a>(id: &'a Id) -> &'a Self {
         unsafe { std::mem::transmute(id) }
     }
 
     /// Releases the `OwnedId`, returning the underlying `Id`.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The underlying `Id`.
     pub fn release(self) -> Id {
         let id = self.id;
@@ -375,11 +375,11 @@ impl OwnedId {
     }
 
     /// Forgets the `OwnedId`, leaking ownership of the underlying `Id`, while returning it.
-    /// 
+    ///
     /// This is not as potentially problematic as [force], because it prevents further writes with the `OwnedId`, thus avoiding potential conflicts.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The underlying `Id`.
     pub fn forget(self) -> Id {
         let id = self.id;
@@ -449,31 +449,31 @@ pub fn local_ids(v: Variable<GenId>) -> impl Constraint<'static> {
 /// A container for [OwnedId]s, allowing for explicit ownership management.
 /// There is an implicit `IdOwner` for each thread, to which `OwnedId`s are associated when they are dropped,
 /// and which can be queried via the [local_ids] constraint.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use tribles::id::{IdOwner, OwnedId, fucid};
 /// let mut owner = IdOwner::new();
 /// let owned_id = fucid();
 /// let id = owner.insert(owned_id);
-/// 
+///
 /// assert!(owner.owns(&id));
 /// assert_eq!(owner.take(&id), Some(OwnedId::force(id)));
 /// assert!(!owner.owns(&id));
 /// ```
-/// 
+///
 pub struct IdOwner {
     owned_ids: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>,
 }
 
 impl IdOwner {
     /// Creates a new `IdOwner`.
-    /// 
+    ///
     /// This is typically not necessary, as each thread has an implicit `IdOwner` associated with it.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new `IdOwner`.
     pub fn new() -> Self {
         Self {
@@ -482,13 +482,13 @@ impl IdOwner {
     }
 
     /// Inserts an `OwnedId` into the `IdOwner`, returning the underlying `Id`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `owned_id` - The `OwnedId` to be inserted.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The underlying `Id`.
     pub fn insert(&mut self, owned_id: OwnedId) -> Id {
         self.force_insert(&owned_id);
@@ -496,9 +496,9 @@ impl IdOwner {
     }
 
     /// Forces an `Id` into the `IdOwner` as an `OwnedId`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - The `Id` to be forced into an `OwnedId`.
     pub fn force_insert(&mut self, id: &Id) {
         let entry = Entry::new(&id);
@@ -506,13 +506,13 @@ impl IdOwner {
     }
 
     /// Takes an `Id` from the `IdOwner`, returning it as an `OwnedId`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - The `Id` to be taken.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// An `OwnedId` if the `Id` was found, otherwise `None`.
     pub fn take(&mut self, id: &Id) -> Option<OwnedId> {
         if self.owned_ids.has_prefix(id) {
@@ -524,13 +524,13 @@ impl IdOwner {
     }
 
     /// Checks if the `IdOwner` owns an `Id`.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - The `Id` to be checked.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the `Id` is owned by the `IdOwner`, otherwise `false`.
     pub fn owns(&mut self, id: &Id) -> bool {
         self.owned_ids.has_prefix(id)

@@ -78,6 +78,17 @@ use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
 
 pub use variableset::VariableSet;
 
+/// Types storing tribles can implement this trait to expose them to queries.
+/// The trait provides a method to create a constraint for a given trible pattern.
+///
+/// The method `pattern` takes three variables, one for each part of the trible.
+/// The schemas of the entities and attributes are always [GenId], while the value
+/// schema can be any type implementing [ValueSchema] and is specified as a type parameter.
+///
+/// The `pattern` method is usually not called directly, but rather through typed query language
+/// macros like [crate::namespace::pattern!].
+///
+/// The associated type `PatternConstraint` is the type of the constraint that is created.
 pub trait TriblePattern {
     type PatternConstraint<'a>: Constraint<'a>
     where

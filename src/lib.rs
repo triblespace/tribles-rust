@@ -1,4 +1,6 @@
 #![doc = include_str!("../README.md")]
+#![cfg_attr(nightly, feature(rustc_attrs))]
+#![cfg_attr(nightly, feature(decl_macro))]
 
 pub mod blob;
 pub mod id;

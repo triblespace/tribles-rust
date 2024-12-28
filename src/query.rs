@@ -72,7 +72,7 @@
 //! The query engine and data model is flexible enough to allow for the exploration of a wide range of
 //! query languages, including graph queries, relational queries, and document queries.
 //!
-//! For example the [tribles::namespace] module provides a set of macros that allow for the easy creation of
+//! For example the [crate::namespace] module provides a set of macros that allow for the easy creation of
 //! constraints for a given trible pattern, with a syntax that similar to query by example
 //! languages like SPARQL or GraphQL, tailored to a document-graph oriented data model.
 //! But it would also be possible to implement a property graph query language like Cypher,
@@ -122,7 +122,7 @@ pub use variableset::VariableSet;
 /// schema can be any type implementing [ValueSchema] and is specified as a type parameter.
 ///
 /// The `pattern` method is usually not called directly, but rather through typed query language
-/// macros like [crate::namespace::pattern!].
+/// macros like [pattern!][crate::namespace].
 ///
 /// The associated type `PatternConstraint` is the type of the constraint that is created.
 pub trait TriblePattern {
@@ -353,7 +353,7 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
 /// This struct is usually not created directly, but rather through the `find!` macro,
 /// which provides a convenient way to declare variables and concrete types for them.
 /// And which sets up the nessecairy context for higher-level query languages
-/// like the one provided by the [tribles::namespace] module.
+/// like the one provided by the [crate::namespace] module.
 pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     postprocessing: P,
@@ -475,10 +475,10 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 
 /// The `find!` macro is a convenient way to declare variables and concrete types for them.
 /// It also sets up the nessecairy context for higher-level query languages like the one
-/// provided by the [tribles::namespace] module, by injecting a `_local_find_context!` macro
-/// that provides a reference to the current variable context. [^1]
+/// provided by the [crate::namespace] module, by injecting a `_local_find_context!` macro
+/// that provides a reference to the current variable context. [^note]
 ///
-/// ^1: This is a bit of a hack to simulate dynamic scoping, which is not possible in Rust.
+/// [^note]: This is a bit of a hack to simulate dynamic scoping, which is not possible in Rust.
 /// But it allows for a more ergonomic query language syntax that does not require the user
 /// to manually pass around the variable context.
 ///
@@ -490,7 +490,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 /// as arguments, and returns a [Query] object that can be used to iterate over the results of the query.
 ///
 /// The macro also injects a `_local_find_context!` macro that provides a reference to the current variable context.
-/// This allows for macros in query languages, like [tribles::namespace::pattern!],
+/// This allows for macros in query languages, like [pattern!](crate::namespace),
 /// to declare new variables in the same scope as the `find!` macro.
 /// But you should not use the `_local_find_context!` macro directly,
 /// unless you are implementing a custom query language.

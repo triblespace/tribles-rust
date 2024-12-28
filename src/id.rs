@@ -123,11 +123,11 @@
 //!
 //! ## Ownership and Eventual Consistency
 //!
-//! While a simple grow set like the history stored in a [tribles::remote::Head]
+//! While a simple grow set like the history stored in a [Head](crate::remote::Head)
 //! already constitutes a conflict-free replicated data type (CRDT), it is also limited in expressiveness.
 //! To provide richer semantics while guaranteeing conflict-free mergeability we allow only
 //! "owned" IDs to be used in the `entity` position of newly generated triples.
-//! As owned IDs are [send] but not [sync] owning a
+//! As owned IDs are [Send] but not [Sync] owning a
 //! set of them essentially constitutes a single writer transaction domain,
 //! allowing for some non-monotonic operations like `if-does-not-exist`, over
 //! the set of contained entities. Note that this does not make operations that
@@ -389,7 +389,7 @@ impl OwnedId {
 
     /// Forgets the `OwnedId`, leaking ownership of the underlying `Id`, while returning it.
     ///
-    /// This is not as potentially problematic as [force], because it prevents further writes with the `OwnedId`, thus avoiding potential conflicts.
+    /// This is not as potentially problematic as [force](OwnedId::force), because it prevents further writes with the `OwnedId`, thus avoiding potential conflicts.
     ///
     /// # Returns
     ///

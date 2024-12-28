@@ -25,7 +25,7 @@
 //!
 //! Each schema type has to have a unique value schema id, and can optionally have a unique blob schema id.
 //! The value schema id is used to identify the schema type for the bytes of a [Value] type, and the blob schema id is used to identify the schema type for the bytes of
-//! the associated blob type, should the value schema represent a intrinsic identifier for a larger value stored in a blob. See the [blob] module for more information.
+//! the associated blob type, should the value schema represent a intrinsic identifier for a larger value stored in a blob. See the [crate::blob] module for more information.
 //!
 //! These ids are used to store metadata and documentation about the schema type in the knowledge graph itself,
 //! and can for example be used to look up the schema type in a schema registry.
@@ -178,7 +178,7 @@ impl<S: ValueSchema> Value<S> {
     /// rust type can't represent the specific value of the schema type,
     /// e.g. if the schema type is a fractional number and the rust type is an integer.
     ///
-    /// For a conversion that always returns a result, use the [try_from_value] method.
+    /// For a conversion that always returns a result, use the [Value::try_from_value] method.
     ///
     /// # Example
     ///
@@ -204,7 +204,7 @@ impl<S: ValueSchema> Value<S> {
     /// rust type can't represent the specific value of the schema type,
     /// e.g. if the schema type is a fractional number and the rust type is an integer.
     ///
-    /// For a conversion that retrieves the value without error handling, use the [from_value] method.
+    /// For a conversion that retrieves the value without error handling, use the [Value::from_value] method.
     ///
     /// # Example
     ///

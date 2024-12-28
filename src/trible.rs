@@ -344,7 +344,7 @@ impl Trible {
 
 /// A segmentation of the trible into three segments: entity, attribute, and value.
 /// The entity is the first 16 bytes, the attribute is the next 16 bytes, and the value is the last 32 bytes.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]
@@ -362,7 +362,7 @@ impl KeySegmentation<TRIBLE_LEN> for TribleSegmentation {
 }
 
 /// An ordering of the trible with the segments in the order entity, attribute, value.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]
@@ -379,7 +379,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EAVOrder {
 }
 
 /// An ordering of the trible with the segments in the order entity, value, attribute.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]
@@ -405,7 +405,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
 }
 
 /// An ordering of the trible with the segments in the order attribute, entity, value.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]
@@ -431,7 +431,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
 }
 
 /// An ordering of the trible with the segments in the order attribute, value, entity.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]
@@ -457,7 +457,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
 }
 
 /// An ordering of the trible with the segments in the order value, entity, attribute.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]
@@ -483,7 +483,7 @@ impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
 }
 
 /// An ordering of the trible with the segments in the order value, attribute, entity.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::tribleset::TribleSet].
+/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
 ///
 /// This is a type-level constant and never instantiated.
 #[derive(Copy, Clone, Debug)]

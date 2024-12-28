@@ -93,7 +93,7 @@ impl<S: BlobSchema> Blob<S> {
     /// If the schema types are not compatible, this will not cause undefined behavior,
     /// but it might cause unexpected results.
     ///
-    /// This is primarily used to give blobs with an [UnknownBlob] schema a more specific schema.
+    /// This is primarily used to give blobs with an [UnknownBlob](crate::blob::schemas::UnknownBlob) schema a more specific schema.
     /// Use with caution.
     pub fn transmute<T: BlobSchema>(&self) -> &Blob<T> {
         unsafe { std::mem::transmute(self) }
@@ -111,7 +111,7 @@ impl<S: BlobSchema> Blob<S> {
 
     /// Converts the blob to a concrete Rust type.
     /// If the conversion fails, this might cause a panic.
-    /// Use [try_from_blob] to explicitly handle the error.
+    /// Use [try_from_blob](Blob::try_from_blob) to explicitly handle the error.
     pub fn from_blob<'a, T>(&'a self) -> T
     where
         T: FromBlob<'a, S>,
@@ -121,7 +121,7 @@ impl<S: BlobSchema> Blob<S> {
 
     /// Tries to convert the blob to a concrete Rust type.
     /// If the conversion fails, an error is returned.
-    /// Use [from_blob] if you are sure that the conversion will succeed.
+    /// Use [from_blob](Blob::from_blob) if you are sure that the conversion will succeed.
     pub fn try_from_blob<'a, T>(&'a self) -> Result<T, <T as TryFromBlob<'a, S>>::Error>
     where
         T: TryFromBlob<'a, S>,
@@ -166,14 +166,14 @@ pub trait BlobSchema: Sized + 'static {
 
     /// Converts a concrete Rust type to a blob with this schema.
     /// If the conversion fails, this might cause a panic.
-    /// Use [try_blob_from] to explicitly handle the error.
+    /// Use [try_blob_from](BlobSchema::try_blob_from) to explicitly handle the error.
     fn blob_from<T: ToBlob<Self>>(t: T) -> Blob<Self> {
         t.to_blob()
     }
 
     /// Converts a concrete Rust type to a blob with this schema.
     /// If the conversion fails, an error is returned.
-    /// Use [blob_from] if you are sure that the conversion will succeed.
+    /// Use [blob_from](BlobSchema::blob_from) if you are sure that the conversion will succeed.
     fn try_blob_from<T: TryToBlob<Self>>(
         t: T,
     ) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {

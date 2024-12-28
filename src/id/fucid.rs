@@ -85,7 +85,7 @@ thread_local!(static GEN_STATE: RefCell<FUCIDsource> = RefCell::new(FUCIDsource:
 /// ```
 ///
 /// Note that creating a new `FUCIDsource` for each ID is equivalent to the
-/// [RNGID](crate::id::rngid) scheme.
+/// [RNGID](crate::id::rngid::rngid) scheme.
 
 pub fn fucid() -> OwnedId {
     GEN_STATE.with_borrow_mut(|gen| gen.mint())

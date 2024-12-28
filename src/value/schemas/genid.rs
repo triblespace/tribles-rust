@@ -12,7 +12,7 @@ use rand::RngCore;
 /// A value schema for an abstract 128-bit identifier.
 /// This identifier is generated with high entropy and is suitable for use as a unique identifier.
 ///
-/// See the [tribles::id] module documentation for a discussion on the role of this identifier.
+/// See the [crate::id] module documentation for a discussion on the role of this identifier.
 pub struct GenId;
 
 impl ValueSchema for GenId {

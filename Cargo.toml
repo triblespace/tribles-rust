@@ -1,6 +1,6 @@
 [package]
 name = "tribles"
-version = "0.4.0"
+version = "0.4.1-alpha.0"
 authors = ["Jan Bramkamp <crest@rlwinm.de>", "⚫️ <jp@bultmann.eu>", "Vanja Sophie Cangalovic <vanja@bultmann.eu>"]
 edition = "2018"
 description = "The tribles knowledge base implementation for rust."
@@ -50,6 +50,9 @@ fake = "2.8"
 coz = "0.1"
 rayon = "1.7"
 
+[build-dependencies]
+rustversion = "1.0"
+
 [features]
 default = ["proptest"]
 proptest = ["dep:proptest"]
@@ -64,3 +67,6 @@ opt-level = 3
 
 [profile.release]
 debug = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)'] }

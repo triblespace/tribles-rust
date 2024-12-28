@@ -37,7 +37,7 @@ compile_error!("PATCH tagged pointers require 64-bit targets");
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
 
-pub fn init_sip_key() {
+fn init_sip_key() {
     INIT.call_once(|| {
         bytetable::init();
 

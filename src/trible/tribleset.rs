@@ -76,7 +76,7 @@ impl TribleSet {
             inner: self
                 .eav
                 .iter()
-                .map(|data| Trible::new_raw(data).expect("only valid Tribles in TribleSet")),
+                .map(|data| Trible::force_raw(data).expect("only valid Tribles in TribleSet")),
         }
     }
 }
@@ -148,8 +148,8 @@ impl<'a> IntoIterator for &'a TribleSet {
 
 #[cfg(test)]
 mod tests {
+    use crate::examples::literature;
     use crate::prelude::*;
-    use crate::tests::literature;
 
     use super::*;
     use fake::{

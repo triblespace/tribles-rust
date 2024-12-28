@@ -59,7 +59,7 @@ where
             let a: Id = Id::new(id_from_value(&a).unwrap()).unwrap();
             let v: Value<UnknownValue> = Value::new(v);
 
-            Trible::new(&e, &a, &v)
+            Trible::force(&e, &a, &v)
         })
     }
 }

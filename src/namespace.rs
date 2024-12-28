@@ -10,21 +10,6 @@
 //! Great care has been taken to design the system in a way that data described
 //! in different data definition languages can be merged, and more importanly
 //! that multiple query languages can be cooperatively used in a single query.
-//!
-//! # Consistency, Directed Edges and Owned IDs
-//!
-//! While a simple grow set already constitutes a CRDT, it is also limited in
-//! expressiveness. To provide richer semantics while guaranteeing conflict-free
-//! mergeability we allow only "owned" IDs to be used in the `entity` position
-//! of newly generated triples. As owned IDs are [send] but not [sync] owning a
-//! set of them essentially constitutes a single writer transaction domain,
-//! allowing for some non-monotonic operations like `if-does-not-exist`, over
-//! the set of contained entities. Note that this does not make operations that
-//! would break CALM safe, e.g. `delete`.
-//!
-//! A different perspective is that edges are always ordered from describing
-//! to described entities, with circles constituting consensus between entities.
-//!
 
 /// Helper macro for constructing trible entries for an entity.
 /// Hidden by default, used internally by the `entity!` macro.
@@ -124,13 +109,13 @@ macro_rules! NS {
                 let mut set = $crate::trible::TribleSet::new();
                 $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
                    let value_schema_id = $crate::value::schemas::genid::GenId::value_from(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
-                   set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_VALUE_SCHEMA, &value_schema_id));
+                   set.insert(&$crate::trible::Trible::force(&e, &$crate::metadata::ATTR_VALUE_SCHEMA, &value_schema_id));
                    if let Some(blob_schema_id) = <$FieldType as $crate::value::ValueSchema>::BLOB_SCHEMA_ID {
                       let blob_schema_id = $crate::value::schemas::genid::GenId::value_from(blob_schema_id);
-                      set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_BLOB_SCHEMA, &blob_schema_id));
+                      set.insert(&$crate::trible::Trible::force(&e, &$crate::metadata::ATTR_BLOB_SCHEMA, &blob_schema_id));
                    }
                    let attr_name = $crate::value::schemas::shortstring::ShortString::value_from(stringify!($FieldName));
-                   set.insert(&$crate::trible::Trible::new(&e, &$crate::metadata::ATTR_NAME, &attr_name));
+                   set.insert(&$crate::trible::Trible::force(&e, &$crate::metadata::ATTR_NAME, &attr_name));
                 })*
                 set
             }

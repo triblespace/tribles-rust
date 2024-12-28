@@ -1,3 +1,11 @@
+//! This module re-exports the most commonly used types and traits from the `tribles` crate.
+//! It is intended to be glob imported as `use tribles::prelude::*;`.
+//!
+//! # Introduction
+//!
+//! The `tribles` crate is a Rust library for working with graph data.
+//!
+
 pub mod blobschemas;
 pub mod valueschemas;
 

@@ -121,6 +121,18 @@
 //! By default, all minted `OwnedID`s are associated with the thread they are dropped from.
 //! These IDs can be found in queries via the `local_ids` function.
 //!
+//! ## Ownership and Eventual Consistency
+//!
+//! While a simple grow set like the history stored in a [tribles::remote::Head]
+//! already constitutes a conflict-free replicated data type (CRDT), it is also limited in expressiveness.
+//! To provide richer semantics while guaranteeing conflict-free mergeability we allow only
+//! "owned" IDs to be used in the `entity` position of newly generated triples.
+//! As owned IDs are [send] but not [sync] owning a
+//! set of them essentially constitutes a single writer transaction domain,
+//! allowing for some non-monotonic operations like `if-does-not-exist`, over
+//! the set of contained entities. Note that this does not make operations that
+//! would break CALM (consistency as logical monotonicity) safe, e.g. `delete`.
+//!
 
 pub mod fucid;
 pub mod rngid;
@@ -551,9 +563,9 @@ impl ContainsConstraint<'static, GenId> for &IdOwner {
 
 #[cfg(test)]
 mod tests {
+    use crate::examples::literature;
     use crate::id::OwnedId;
     use crate::prelude::*;
-    use crate::tests::literature;
 
     #[test]
     fn id_formatting() {

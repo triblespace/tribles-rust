@@ -1,9 +1,52 @@
+//! The `trible` module contains the definition of the `Trible` struct, which is the fundamental unit of knowledge in the knowledge graph.
+//! Instance of `Trible`s are stored in `TribleSet`s which index the trible in various ways, allowing for efficient querying and retrieval of data.
+//!
+//! # Direction and Consistency
+//!
+//! In other triple stores the direction of the edge drawn by a triple is often
+//! choosen incidentally, e.g. there is no intrinsic preference for `hasColor` over
+//! `colorOf`. This can lead to confusion and inconsistency in the graph, as
+//! different writers might choose different directions for the same edge.
+//! This is typically solved by:
+//! - Automatically inferring the opposite edge for every edge inserted,
+//! as done by OWL and RDF with the `inverseOf` predicate. Leading to a
+//! doubling of the number of edges in the graph or inference at query time.
+//! - Endless bikeshedding about the "right" direction of edges.
+//!
+//! In the `tribles` crate we solve this problem by giving the direction of the edge
+//! an explicit semantic meaning: The direction of the edge indicates which entity
+//! is the one making the statement, i.e. which entity is observing the fact
+//! or proclaiming the relationship. This is a simple and consistent rule that
+//! naturally fits into a distributed system, where each entity is associated with
+//! a single writer that is responsible the consistency of the facts it asserts.
+//! - see [ID Ownership](crate::id).
+//!
+//! A different perspective is that edges are always ordered from describing
+//! to described entities, with circles constituting consensus between them.
+//!
+//! For example, the edge `hasColor` is always drawn from the entity that has
+//! the color to the entity that represents the color. This makes the direction
+//! of the edge a natural consequence of the semantics of the edge, and not
+//! an arbitrary choice.
+//!
+//! # Canonicalization
+//!
+//! The `Trible` struct is designed to be canonical, i.e. there is only one
+//! representation for each trible. This is achieved by using only fixed-size
+//! fields for the entity, attribute, and value, and by always using the same
+//! order for the fields.
+//!
+//! Their fixed size makes them straightforward to store sequentially, and
+//! allows for easy comparison and ordering by their lexicographical byte representation.
+//! Combined these properties allow for straightforward canonicalization of entire graphs.
+//! Simply store them in a sorted array.
+
 mod tribleset;
 
 use std::convert::TryInto;
 
 use crate::{
-    id::Id,
+    id::{Id, OwnedId},
     patch::{KeyOrdering, KeySegmentation},
     value::{Value, ValueSchema},
 };
@@ -35,7 +78,7 @@ pub type RawTrible = [u8; TRIBLE_LEN];
 /// Values can be any data that fits "inlined" into the fixed width, and they need to be large enough to hold an intrinsic
 /// identifier for larger data. As established in the `id` module documentation, these need to be at least 256 bits / 32 bytes.
 /// Counter-intuitively, their size and thus the size of "inline" data is determined by the scenario where data is too large
-/// to be inlined.
+/// to be inlined. See [blob](crate::blob)s for a way to store larger data.
 ///
 /// The trible is stored as a contiguous 64-byte array, with the entity taking the first 16 bytes,
 /// the attribute taking the next 16 bytes, and the value taking the last 32 bytes.
@@ -47,7 +90,11 @@ pub type RawTrible = [u8; TRIBLE_LEN];
 /// - It is very easy to define an order on tribles, which allows for efficient storage
 ///   and easy canonicalization of data.
 /// - It is very easy to define a segmentation on tribles, which allows for efficient
-///   indexing and querying of data.
+///   indexing and querying of data, without then need for an interning mechanism,
+///   that translates values to an internal integer representation. This simplifies
+///   the implementation, saves memory and an additional lookup, prevents the single
+///   registry from becoming a bottleneck, allowing for easy parallelization, and
+///   obviates the need for a garbage collection mechanism.
 /// - It is very easy to define a schema for the value, which allows for efficient
 ///   serialization and deserialization of data.
 /// - On a high level, it is very easy to reason about the data stored in the knowledge graph.
@@ -86,7 +133,7 @@ impl Trible {
     /// let v: Value<R256> = R256::value_from(42);
     /// let trible = Trible::new(&e, &a, &v);
     /// ```
-    pub fn new<V: ValueSchema>(e: &Id, a: &Id, v: &Value<V>) -> Trible {
+    pub fn new<V: ValueSchema>(e: &OwnedId, a: &Id, v: &Value<V>) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(&a[..]);
@@ -95,7 +142,44 @@ impl Trible {
         Self { data }
     }
 
+    /// Creates a new trible from an entity, an attribute, and a value.
+    /// This is similar to [Trible::new], but takes a plain entity id instead of an owned id.
+    /// Allowing to circumvent the ownership system, which can be used to inject
+    /// data into a local knowledge graph without owning the entity.
+    /// This is useful for loading existing trible data, for example when loading
+    /// an existing [crate::trible::TribleSet] from a blob, or when declaring
+    /// a namespace.
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - The entity of the trible.
+    /// * `a` - The attribute of the trible.
+    /// * `v` - The value of the trible.
+    ///
+    /// # Returns
+    ///
+    /// A new trible.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tribles::prelude::*;
+    /// use valueschemas::R256;
+    ///
+    /// let e = fucid();
+    /// let a = fucid();
+    /// let v: Value<R256> = R256::value_from(42);
+    /// let trible = Trible::force(&e, &a, &v);
+    ///
+    /// assert_eq!(trible.e(), &*e);
+    /// ```
+    pub fn force<V: ValueSchema>(e: &Id, a: &Id, v: &Value<V>) -> Trible {
+        Trible::new(&OwnedId::transmute_force(e), a, v)
+    }
+
     /// Creates a new trible from a raw trible (a 64-byte array).
+    /// It circumvents the ownership system, and is useful for loading existing trible data,
+    /// just like [Trible::force].
     ///
     /// # Arguments
     ///
@@ -120,10 +204,10 @@ impl Trible {
     ///    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     ///    48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     /// ];
-    /// let trible = Trible::new_raw(data);
+    /// let trible = Trible::force_raw(data);
     /// assert!(trible.is_some());
     /// ```
-    pub fn new_raw(data: RawTrible) -> Option<Trible> {
+    pub fn force_raw(data: RawTrible) -> Option<Trible> {
         if data[E_START..=E_END].iter().all(|&x| x == 0)
             || data[A_START..=A_END].iter().all(|&x| x == 0)
         {
@@ -133,6 +217,8 @@ impl Trible {
     }
 
     /// Transmutes a raw trible reference into a trible reference.
+    /// Circumvents the ownership system, and is useful for loading existing trible data,
+    /// just like [Trible::force] and [Trible::force_raw].
     ///
     /// # Arguments
     ///
@@ -157,10 +243,10 @@ impl Trible {
     ///   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     ///   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     /// ];
-    /// let trible = Trible::transmute_raw(&data);
+    /// let trible = Trible::transmute_force_raw(&data);
     /// assert!(trible.is_some());
     /// ```
-    pub fn transmute_raw(data: &RawTrible) -> Option<&Self> {
+    pub fn transmute_force_raw(data: &RawTrible) -> Option<&Self> {
         if data[E_START..=E_END].iter().all(|&x| x == 0)
             || data[A_START..=A_END].iter().all(|&x| x == 0)
         {
@@ -189,7 +275,7 @@ impl Trible {
     ///   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     ///   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     /// ];
-    /// let trible = Trible::new_raw(data).unwrap();
+    /// let trible = Trible::force_raw(data).unwrap();
     /// let entity = trible.e();
     /// assert_eq!(entity, &Id::new([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).unwrap());
     /// ```
@@ -217,7 +303,7 @@ impl Trible {
     ///   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     ///   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     /// ];
-    /// let trible = Trible::new_raw(data).unwrap();
+    /// let trible = Trible::force_raw(data).unwrap();
     /// let attribute = trible.a();
     /// assert_eq!(attribute, &Id::new([16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]).unwrap());
     /// ```
@@ -246,7 +332,7 @@ impl Trible {
     ///   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     ///   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     /// ];
-    /// let trible = Trible::new_raw(data).unwrap();
+    /// let trible = Trible::force_raw(data).unwrap();
     /// let value = trible.v::<R256>();
     /// assert_eq!(value, &Value::new([32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     /// 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]));

@@ -11,5 +11,4 @@ pub mod remote;
 pub mod trible;
 pub mod value;
 
-#[cfg(test)]
-pub mod tests;
+pub mod examples;

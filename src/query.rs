@@ -1,62 +1,98 @@
 //! Queries allow you to retrieve data by describing the patterns you are looking for.
 //!
-//! The query engine provided here has the design goals of extreme simplicity,
-//! low, consistent, and predictable latency, skew resistence, with no tuning required (or possible).
+//! The query engine provided here is designed with goals of extreme simplicity,
+//! low, consistent, and predictable latency, skew resistance, and no required (or possible) tuning.
 //!
 //! New constraints can be implemented via the [Constraint] trait,
-//! providing great flexibililty in the way different query operators,
-//! sub-languages, and data-sources can be composed.
+//! providing great flexibility in composing different query operators,
+//! sub-languages, and data sources.
 //!
 //! # Queries as Schemas
 //!
-//! You might already have noticed that trible.space does not have any concept
-//! of an ontology or schema specification beyond the association of attributes
-//! with [ValueSchema] and [crate::prelude::BlobSchema]. This is deliberate, as one of our
-//! lessons learned from the semantic web was that it is too loose in the typing
-//! of individual values, but too strict and computationally infeasible in the
-//! description of larger structures. Any system that deals with real-world data
-//! grounded in reality will need to robustly handle cases of missing,
-//! duplicate, or additonal fields, which is fundamentally in conflict with
-//! strong constraints like classes.
+//! You might have noticed that trible.space does not have a concept
+//! of an ontology or schema specification beyond associating attributes
+//! with [ValueSchema] and [crate::prelude::BlobSchema]. This is deliberate. One of our
+//! lessons from the semantic web was that it is too loose in typing
+//! individual values, but too strict and computationally infeasible in describing
+//! larger structures. Any system dealing with real-world data
+//! must handle cases of missing, duplicate, or additional fields, which conflicts
+//! with strong constraints like classes.
 //!
-//! Our approach is to be sympathetic to the edge case and has the system deal
-//! only with the data that it declares capable of handling. These "application
-//! specific schema declarations" are exactly the shapes and constraints
-//! described by our queries[^1], with data not conforming to these
-//! queries/schemas simply being ignored by definition (as a query only returns
-//! the data conforming to it's constraints).[^2]
+//! Our approach is to be sympathetic to edge cases and have the system deal
+//! only with the data it declares capable of handling. These "application-specific schema declarations"
+//! are exactly the shapes and constraints described by our queries[^1]. Data not conforming to these
+//! queries/schemas is simply ignored by definition (as a query only returns
+//! data conforming to its constraints).[^2]
 //!
-//! # The Atreides Family of Worstcase Optimal Join Algorithms
+//! # The Atreides Family of Worst-case Optimal Join Algorithms
 //!
-//! The heart of the system is a constraint solving approach based on the theory
-//! of worst case optimal joins, specifically a family of novel join algorithms
-//! we dubbed the "Atreides-Family".
+//! The heart of the system is a constraint-solving approach based on the theory
+//! of worst-case optimal joins, specifically a family of novel join algorithms
+//! we call the "Atreides Family".
 //!
-//! The insigt being that we can use size estimations normally used by the query optimzer
-//! to directly guide the join algorithm to retrieve bounds which normally require
-//! sorted indexes for the random-access case.
+//! The key insight is that size estimations, normally used by query optimizers,
+//! can directly guide the join algorithm to retrieve bounds that typically require
+//! sorted indexes for random access.
 //!
-//! As this moves a lot of the execution cost on cardinality estimation we also
-//! developed novel datastructures to efficiently maintain these estimates in O(1).
+//! This shifts much of the execution cost to cardinality estimation, so we developed
+//! novel data structures to efficiently maintain these estimates in O(1) time.
 //!
-//! We focus on three specific instantiations of the "Atreides-Family",
-//! which differ in the quality of the cardiality estimation provided, i.e.
-//! the clarity that the algorithm has when looking into the future.
+//! We focus on three specific instantiations of the "Atreides Family",
+//! which differ in the quality of the cardinality estimation provided, i.e.,
+//! the clarity the algorithm has when looking into the future.
 //!
-//! Given a _partial_ Binding.
+//! Given a _partial_ Binding:
 //!
-//! - *Jessica's Join* - The smallest number of rows matching the variable.
-//! - *Paul's Join* - The smallest number of distinct values from one column matching the variable.
-//! - *Leto's Join* - The true number of values matching the variable (e.g. after intersection).
+//! - *Jessica's Join* - Estimates the smallest number of rows matching the variable.
+//! - *Paul's Join* - Estimates the smallest number of distinct values from one column matching the variable.
+//! - *Ghanima's Join* - Estimates the number of values matching the variable with the given binding, without considering yet-to-be-bound variables.
+//! - *Leto's Join* - Estimates the true number of values matching the variable with the given binding, considering all variables, even those not yet bound.
 //!
-//! [^1]: Note that this query-schema isomorphism isn't nessecarily true in all
-//! databases or query languages, e.g. it does not hold for SQL.
+//! The algorithm uses a depth-first search, where the query engine tries to find
+//! a solution by iteratively proposing values for the variables, and backtracking when it reaches a dead end.
+//! The constraints are not evaluated in a fixed order, but rather the query engine uses the
+//! estimates provided by the constraints to guide the search.
+//! This allows for a more flexible and efficient exploration of the search space,
+//! as the query engine can focus on the most promising parts.
+//! This also obviates the need for complex query optimization techniques, as the
+//! constraints themselves provide the necessary information to guide the search,
+//! and the query engine can adapt dynamically to the data and the query, providing
+//! skew-resistance and predictable performance. Meaning that the query engine can
+//! handle queries that have a wide range of variances in the cardinalities of the variables,
+//! without suffering from performance degradation.
+//!
+//! # Query Languages
+//!
+//! There is no query language in the traditional sense, but rather a set of
+//! constraints that can be combined using logical operators like `and` and `or`.
+//! The constraints are designed to be simple and flexible, allowing for a wide range of
+//! constraints to be implemented, while still allowing for efficient exploration of the
+//! search space by the query engine.
+//!
+//! The query engine and data model is flexible enough to allow for the exploration of a wide range of
+//! query languages, including graph queries, relational queries, and document queries.
+//!
+//! For example the [tribles::namespace] module provides a set of macros that allow for the easy creation of
+//! constraints for a given trible pattern, with a syntax that similar to query by example
+//! languages like SPARQL or GraphQL, tailored to a document-graph oriented data model.
+//! But it would also be possible to implement a property graph query language like Cypher,
+//! or a relational query language like Datalog, on top of the query engine.[^3]
+//!
+//! Great care has been taken to ensure that query languages with different styles and
+//! semantics can be easily implemented on top of the query engine, while allowing for
+//! them to be mixed and matched with other languages and data models in the same query.
+//!
+//! [^1]: Note that this query-schema isomorphism isn't necessarily true in all
+//! databases or query languages, e.g., it does not hold for SQL.
 //! [^2]: In RDF terminology:
-//! We challenge the classical A-Box & T-Box dichotomy. Replacing the T-Box with
-//! a "Q-Box", which instead of being prescriptive and closed, is descriptive
-//! and open. This Q-Box naturally evolves with new and changing requirements,
+//! We challenge the classical A-Box & T-Box dichotomy by replacing the T-Box with
+//! a "Q-Box", which is descriptive and open rather than prescriptive and closed.
+//! This Q-Box naturally evolves with new and changing requirements,
 //! contexts, and applications.
-//!
+//! [^3]: SQL would be a bit more challenging, as it is surprisingly imperative
+//! e.g. with its explicit JOINs and ORDER BYs, and its lack of a clear declarative
+//! semantics. This makes it harder to implement on top of a constraint-based query engine,
+//! tailored towards a more declarative and functional style.
 pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;
@@ -102,8 +138,12 @@ pub trait TriblePattern {
     ) -> Self::PatternConstraint<'a>;
 }
 
+/// Low-level identifier for a variable in a query.
 pub type VariableId = u8;
 
+/// Context for creating variables in a query.
+/// The context keeps track of the next index to assign to a variable.
+/// This allows for the creation of new anonymous variables in higher-level query languages.
 #[derive(Debug)]
 pub struct VariableContext {
     pub next_index: VariableId,
@@ -169,6 +209,15 @@ impl<T: ValueSchema> Variable<T> {
     }
 }
 
+/// The binding keeps track of the values assigned to variables in a query.
+/// It maps variables to values - by their index - via a simple array,
+/// and keeps track of which variables are bound.
+/// It is used to store intermediate results and to pass information
+/// between different constraints.
+/// The binding is mutable, as it is modified by the query engine.
+/// It is not thread-safe and should not be shared between threads.
+/// The binding is a simple data structure that is cheap to clone.
+/// It is not intended to be used as a long-term storage for query results.
 #[derive(Clone, Debug)]
 pub struct Binding {
     pub bound: VariableSet,
@@ -204,6 +253,41 @@ impl Default for Binding {
     }
 }
 
+/// A constraint is a predicate used to filter the results of a query.
+/// It restricts the values that can be assigned to a variable.
+/// Constraints can be combined using logical operators like `and` and `or`.
+/// This trait provides methods to estimate, propose, and confirm values for a variable:
+/// - `estimate` method estimates the number of values that match the constraint.
+/// - `propose` method suggests values for a variable that match the constraint.
+/// - `confirm` method verifies a value for a variable that matches the constraint.
+/// - `variables` method returns the set of variables used by the constraint.
+/// The trait is generic over the lifetime of an underlying borrowed data structure that the
+/// constraint might use, such as a [std::collections::HashMap] or a [crate::trible::TribleSet].
+///
+/// Note that the constraint does not store any state, but rather operates on the binding
+/// passed to it by the query engine. This allows the query engine to efficiently
+/// backtrack and try different values for the variables, potentially in parallel.
+///
+/// The trait is designed to be simple and flexible, allowing for a wide range of
+/// constraints to be implemented, while still allowing for efficient exploration of the
+/// search space by the query engine.
+///
+/// In contrast to many other query languages, the constraints are not evaluated in a
+/// fixed order, but rather the query engine uses the estimates provided by the constraints
+/// to guide the search. This allows for a more flexible and efficient exploration of the
+/// search space, as the query engine can focus on the most promising parts.
+/// This also also obviates the need for complex query optimization techniques, as the
+/// constraints themselves provide the necessary information to guide the search,
+/// and the query engine can adapt dynamically to the data and the query, providing
+/// skew-resistance and predictable performance. This also removes the need for ordered indexes,
+/// allowing for queries to be executed on unsorted data structures like hashmaps, which
+/// enables easy integration with native Rust data structures and libraries.
+/// This also allows for the query engine to be easily extended with new constraints,
+/// so long as they provide reasonable estimates of the number of values that match the constraint.
+/// See the module documentation for notes on the accuracy of these estimates.
+///
+/// The trait is designed to be used in combination with the [Query] struct, which provides
+/// a simple and efficient way to iterate over the results of a query.
 pub trait Constraint<'a> {
     fn variables(&self) -> VariableSet;
     fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize>;
@@ -255,6 +339,21 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
     }
 }
 
+/// A query is an iterator over the results of a query.
+/// It takes a constraint and a post-processing function as input,
+/// and returns the results of the query as a stream of values.
+/// The query engine uses a depth-first search to find solutions to the query,
+/// proposing values for the variables and backtracking when it reaches a dead end.
+/// The query engine is designed to be simple and efficient, providing low, consistent,
+/// and predictable latency, skew resistance, and no required (or possible) tuning.
+/// The query engine is designed to be used in combination with the [Constraint] trait,
+/// which provides a simple and flexible way to implement constraints that can be used
+/// to filter the results of a query.
+///
+/// This struct is usually not created directly, but rather through the `find!` macro,
+/// which provides a convenient way to declare variables and concrete types for them.
+/// And which sets up the nessecairy context for higher-level query languages
+/// like the one provided by the [tribles::namespace] module.
 pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     postprocessing: P,
@@ -280,6 +379,15 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
     }
 }
 
+/// The search mode of the query engine.
+/// The query engine uses a depth-first search to find solutions to the query,
+/// proposing values for the variables and backtracking when it reaches a dead end.
+/// The search mode is used to keep track of the current state of the search.
+/// The search mode can be one of the following:
+/// - `NextVariable` - The query engine is looking for the next variable to assign a value to.
+/// - `NextValue` - The query engine is looking for the next value to assign to a variable.
+/// - `Backtrack` - The query engine is backtracking to try a different value for a variable.
+/// - `Done` - The query engine has finished the search and there are no more results.
 #[derive(Copy, Clone, Debug)]
 enum Search {
     NextVariable,
@@ -365,6 +473,27 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
     }
 }
 
+/// The `find!` macro is a convenient way to declare variables and concrete types for them.
+/// It also sets up the nessecairy context for higher-level query languages like the one
+/// provided by the [tribles::namespace] module, by injecting a `_local_find_context!` macro
+/// that provides a reference to the current variable context. [^1]
+///
+/// ^1: This is a bit of a hack to simulate dynamic scoping, which is not possible in Rust.
+/// But it allows for a more ergonomic query language syntax that does not require the user
+/// to manually pass around the variable context.
+///
+/// The `find!` macro takes two arguments:
+/// - A tuple of variables and their concrete result types, e.g., `(a: Value<ShortString>, b: Ratio)`.
+/// - A constraint that describes the pattern you are looking for, e.g., `and!(a.is("Hello World!"), b.is(42))`.
+///
+/// The macro expands to a call to the [Query::new] constructor, which takes the variables and the constraint
+/// as arguments, and returns a [Query] object that can be used to iterate over the results of the query.
+///
+/// The macro also injects a `_local_find_context!` macro that provides a reference to the current variable context.
+/// This allows for macros in query languages, like [tribles::namespace::pattern!],
+/// to declare new variables in the same scope as the `find!` macro.
+/// But you should not use the `_local_find_context!` macro directly,
+/// unless you are implementing a custom query language.
 #[macro_export]
 macro_rules! find {
     (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
@@ -393,7 +522,7 @@ mod tests {
     use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
-    use crate::tests::literature;
+    use crate::examples::literature;
 
     use fake::faker::lorem::en::{Sentence, Words};
     use fake::faker::name::raw::*;

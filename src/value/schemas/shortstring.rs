@@ -5,12 +5,19 @@ use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSch
 use indxvec::Printing;
 use std::str::Utf8Error;
 
+/// An error that occurs when converting a string to a short string.
+/// This error occurs when the string is too long or contains an interior NUL byte.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FromStrError {
     TooLong,
     InteriorNul,
 }
 
+/// A value schema for a short string.
+/// A short string is a UTF-8 encoded string with a maximum length of 32 bytes (inclusive)
+/// The string is null-terminated.
+/// If the string is shorter than 32 bytes, the remaining bytes are zero.
+/// If the string is exactly 32 bytes, then there is no zero terminator.
 pub struct ShortString;
 
 impl ValueSchema for ShortString {

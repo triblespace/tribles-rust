@@ -2,9 +2,9 @@
 //!
 //! A blob is a immutable sequence of bytes that can be used to represent any kind of data.
 //! It is the fundamental building block of data storage and transmission.
-//! It also provides the `BlobSchema` trait, which is used to define the schema of a blob.
-//!
+//! The `BlobSchema` trait is used to define the abstract schema type of a blob.
 //! This is similar to the `Value` type and the `ValueSchema` trait in the [`value`](crate::value) module.
+//!
 //! But while values (and tribles) are used "in the small" to represent individual data items,
 //! blobs are used "in the large" to represent larger data structures like files, images, videos, etc.,
 //! collections of data items, or even entire databases.
@@ -68,6 +68,10 @@ pub use blobset::BlobSet;
 
 pub use anybytes::Bytes;
 
+/// A blob is a immutable sequence of bytes that can be used to represent any kind of data.
+/// It is the fundamental building block of data storage and transmission.
+/// The `BlobSchema` type parameter is used to define the abstract schema type of a blob.
+/// This is similar to the `Value` type and the `ValueSchema` trait in the [`value`](crate::value) module.
 #[repr(transparent)]
 pub struct Blob<S: BlobSchema> {
     pub bytes: Bytes,
@@ -75,6 +79,8 @@ pub struct Blob<S: BlobSchema> {
 }
 
 impl<S: BlobSchema> Blob<S> {
+    /// Creates a new blob from a sequence of bytes.
+    /// The bytes are stored in the blob as-is.
     pub fn new(bytes: Bytes) -> Self {
         Self {
             bytes,
@@ -82,10 +88,18 @@ impl<S: BlobSchema> Blob<S> {
         }
     }
 
+    /// Transmutes the blob to a blob of a different schema.
+    /// This is a zero-cost operation.
+    /// If the schema types are not compatible, this will not cause undefined behavior,
+    /// but it might cause unexpected results.
+    ///
+    /// This is primarily used to give blobs with an [UnknownBlob] schema a more specific schema.
+    /// Use with caution.
     pub fn transmute<T: BlobSchema>(&self) -> &Blob<T> {
         unsafe { std::mem::transmute(self) }
     }
 
+    /// Hashes the blob with the given hash protocol and returns the hash as a handle.
     pub fn as_handle<H>(&self) -> Value<Handle<H, S>>
     where
         H: HashProtocol,
@@ -95,6 +109,9 @@ impl<S: BlobSchema> Blob<S> {
         Value::new(digest.into())
     }
 
+    /// Converts the blob to a concrete Rust type.
+    /// If the conversion fails, this might cause a panic.
+    /// Use [try_from_blob] to explicitly handle the error.
     pub fn from_blob<'a, T>(&'a self) -> T
     where
         T: FromBlob<'a, S>,
@@ -102,6 +119,9 @@ impl<S: BlobSchema> Blob<S> {
         <T as FromBlob<'a, S>>::from_blob(self)
     }
 
+    /// Tries to convert the blob to a concrete Rust type.
+    /// If the conversion fails, an error is returned.
+    /// Use [from_blob] if you are sure that the conversion will succeed.
     pub fn try_from_blob<'a, T>(&'a self) -> Result<T, <T as TryFromBlob<'a, S>>::Error>
     where
         T: TryFromBlob<'a, S>,
@@ -139,30 +159,77 @@ impl<T: BlobSchema> Debug for Blob<T> {
     }
 }
 
+/// A trait for defining the abstract schema type of a blob.
+/// This is similar to the `ValueSchema` trait in the [`value`](crate::value) module.
 pub trait BlobSchema: Sized + 'static {
     const BLOB_SCHEMA_ID: Id;
 
-    fn to_blob<T: ToBlob<Self>>(t: T) -> Blob<Self> {
+    /// Converts a concrete Rust type to a blob with this schema.
+    /// If the conversion fails, this might cause a panic.
+    /// Use [try_blob_from] to explicitly handle the error.
+    fn blob_from<T: ToBlob<Self>>(t: T) -> Blob<Self> {
         t.to_blob()
     }
 
-    fn try_to_blob<T: TryToBlob<Self>>(t: T) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {
+    /// Converts a concrete Rust type to a blob with this schema.
+    /// If the conversion fails, an error is returned.
+    /// Use [blob_from] if you are sure that the conversion will succeed.
+    fn try_blob_from<T: TryToBlob<Self>>(
+        t: T,
+    ) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {
         t.try_to_blob()
     }
 }
 
+/// A trait for converting a Rust type to a [Blob] with a specific schema.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might cause a panic if the conversion is not possible,
+/// see [TryToBlob] for a conversion that returns a result.
+///
+/// This is the counterpart to the [FromBlob] trait.
+///
+/// See [ToValue](crate::value::ToValue) for the counterpart trait for values.
 pub trait ToBlob<S: BlobSchema> {
     fn to_blob(self) -> Blob<S>;
 }
+
+/// A trait for converting a [Blob] with a specific schema to a Rust type.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might cause a panic if the conversion is not possible,
+/// see [TryFromBlob] for a conversion that returns a result.
+///
+/// This is the counterpart to the [ToBlob] trait.
+///
+/// See [FromValue](crate::value::FromValue) for the counterpart trait for values.
 pub trait FromBlob<'a, S: BlobSchema> {
     fn from_blob(b: &'a Blob<S>) -> Self;
 }
 
+/// A trait for converting a Rust type to a [Blob] with a specific schema.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might return an error if the conversion is not possible,
+/// see [ToBlob] for cases where the conversion is guaranteed to succeed (or panic).
+///
+/// This is the counterpart to the [TryFromBlob] trait.
+///
+/// See [TryToValue](crate::value::TryToValue) for the counterpart trait for values.
 pub trait TryToBlob<S: BlobSchema> {
     type Error;
     fn try_to_blob(&self) -> Result<Blob<S>, Self::Error>;
 }
 
+/// A trait for converting a [Blob] with a specific schema to a Rust type.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might return an error if the conversion is not possible,
+/// see [FromBlob] for cases where the conversion is guaranteed to succeed (or panic).
+///
+/// This is the counterpart to the [TryToBlob] trait.
+///
+/// See [TryFromValue](crate::value::TryFromValue) for the counterpart trait for values.
 pub trait TryFromBlob<'a, S: BlobSchema>: Sized {
     type Error;
     fn try_from_blob(b: &'a Blob<S>) -> Result<Self, Self::Error>;

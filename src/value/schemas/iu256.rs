@@ -4,12 +4,24 @@ use crate::value::{FromValue, ToValue, Value, ValueSchema};
 
 use ethnum;
 
+/// A value schema for a 256-bit unsigned integer in little-endian byte order.
 pub struct U256LE;
+
+/// A value schema for a 256-bit unsigned integer in big-endian byte order.
 pub struct U256BE;
+
+/// A value schema for a 256-bit signed integer in little-endian byte order.
 pub struct I256LE;
+
+/// A value schema for a 256-bit signed integer in big-endian byte order.
 pub struct I256BE;
 
+/// A type alias for a 256-bit signed integer.
+/// This type is an alias for [I256BE].
 pub type I256 = I256BE;
+
+/// A type alias for a 256-bit unsigned integer.
+/// This type is an alias for [U256BE].
 pub type U256 = U256BE;
 
 impl ValueSchema for U256LE {

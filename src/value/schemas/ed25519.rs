@@ -6,8 +6,13 @@ use crate::id::Id;
 use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
 
+/// A value schema for the R component of an Ed25519 signature.
 pub struct ED25519RComponent;
+
+/// A value schema for the S component of an Ed25519 signature.
 pub struct ED25519SComponent;
+
+/// A value schema for an Ed25519 public key.
 pub struct ED25519PublicKey;
 
 impl ValueSchema for ED25519RComponent {

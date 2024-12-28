@@ -287,6 +287,7 @@ impl<T: ValueSchema> Debug for Value<T> {
 /// and the schema of the referenced blob.
 ///
 /// See the [value](crate::value) module for more information.
+/// See the [BlobSchema](crate::blob::BlobSchema) trait for the counterpart trait for blobs.
 pub trait ValueSchema: Sized + 'static {
     const VALUE_SCHEMA_ID: Id;
     const BLOB_SCHEMA_ID: Option<Id> = None;
@@ -302,17 +303,55 @@ pub trait ValueSchema: Sized + 'static {
     }
 }
 
+/// A trait for converting a Rust type to a [Value] with a specific schema type.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might cause a panic if the conversion is not possible,
+/// see [TryToValue] for a conversion that returns a result.
+///
+/// This is the counterpart to the [FromValue] trait.
+///
+/// See [ToBlob](crate::blob::ToBlob) for the counterpart trait for blobs.
 pub trait ToValue<S: ValueSchema> {
     fn to_value(self) -> Value<S>;
 }
+
+/// A trait for converting a [Value] with a specific schema type to a Rust type.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might cause a panic if the conversion is not possible,
+/// see [TryFromValue] for a conversion that returns a result.
+///
+/// This is the counterpart to the [ToValue] trait.
+///
+/// See [FromBlob](crate::blob::FromBlob) for the counterpart trait for blobs.
 pub trait FromValue<'a, S: ValueSchema> {
     fn from_value(v: &'a Value<S>) -> Self;
 }
 
+/// A trait for converting a Rust type to a [Value] with a specific schema type.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might return an error if the conversion is not possible,
+/// see [ToValue] for cases where the conversion is guaranteed to succeed (or panic).
+///
+/// This is the counterpart to the [TryFromValue] trait.
+///
+/// See [TryToBlob](crate::blob::TryToBlob) for the counterpart trait for blobs.
 pub trait TryToValue<S: ValueSchema> {
     type Error;
     fn try_to_value(self) -> Result<Value<S>, Self::Error>;
 }
+
+/// A trait for converting a [Value] with a specific schema type to a Rust type.
+/// This trait is implemented on the concrete Rust type.
+///
+/// This might return an error if the conversion is not possible,
+/// see [FromValue] for cases where the conversion is guaranteed to succeed (or panic).
+///
+/// This is the counterpart to the [TryToValue] trait.
+///
+/// See [TryFromBlob](crate::blob::TryFromBlob) for the counterpart trait for blobs.
 pub trait TryFromValue<'a, S: ValueSchema>: Sized {
     type Error;
     fn try_from_value(v: &'a Value<S>) -> Result<Self, Self::Error>;

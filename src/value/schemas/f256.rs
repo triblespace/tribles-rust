@@ -6,10 +6,14 @@ use crate::{
 
 use f256::f256;
 
+/// A value schema for a 256-bit floating point number in little-endian byte order.
 pub struct F256LE;
+
+/// A value schema for a 256-bit floating point number in big-endian byte order.
 pub struct F256BE;
 
-pub type F256 = F256BE;
+/// A type alias for the little-endian version of the 256-bit floating point number.
+pub type F256 = F256LE;
 
 impl ValueSchema for F256LE {
     const VALUE_SCHEMA_ID: Id = id_hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2");

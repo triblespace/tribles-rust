@@ -8,11 +8,19 @@ use digest::{typenum::U32, Digest};
 use hex::{FromHex, FromHexError};
 use std::marker::PhantomData;
 
+/// A trait for hash functions.
+/// This trait is implemented by hash functions that can be in a value schema
+/// for example via a [Hash] or a [Handle].
 pub trait HashProtocol: Digest<OutputSize = U32> + 'static {
     const NAME: &'static str;
     const SCHEMA_ID: Id;
 }
 
+/// A value schema for a hash.
+/// A hash is a fixed-size 256bit digest of a byte sequence.
+///
+/// See the [tribles::id] module documentation for a discussion on the length
+/// of the digest and its role as an intrinsic identifier.
 pub struct Hash<H> {
     _hasher: PhantomData<H>,
 }
@@ -55,6 +63,8 @@ where
     }
 }
 
+/// An error that can occur when converting a hash value from a string.
+/// The error can be caused by a bad protocol or a bad hex encoding.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum HashError {
     BadProtocol,
@@ -116,6 +126,14 @@ impl HashProtocol for Blake3 {
     const SCHEMA_ID: Id = id_hex!("4160218D6C8F620652ECFBD7FDC7BDB3");
 }
 
+/// This is a value schema for a handle.
+/// A handle to a blob is comprised of a hash of a blob and type level information about the blobs schema.
+///
+/// The handle can be stored in a Trible, while the blob can be stored in a BlobSet, allowing for a
+/// separation of the blob data from the means of identifying and accessing it.
+///
+/// The handle is generated when a blob is inserted into a BlobSet, and the handle
+/// can be used to retrieve the blob from the BlobSet later.
 #[repr(transparent)]
 pub struct Handle<H, T: BlobSchema> {
     digest: Hash<H>,

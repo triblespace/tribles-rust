@@ -9,12 +9,17 @@ use hex::FromHexError;
 
 use rand::RngCore;
 
+/// A value schema for an abstract 128-bit identifier.
+/// This identifier is generated with high entropy and is suitable for use as a unique identifier.
+///
+/// See the [tribles::id] module documentation for a discussion on the role of this identifier.
 pub struct GenId;
 
 impl ValueSchema for GenId {
     const VALUE_SCHEMA_ID: Id = id_hex!("B08EE1D45EB081E8C47618178AFE0D81");
 }
 
+/// Error that can occur when parsing an identifier from a Value.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum IdParseError {
     IsNil,

@@ -6,6 +6,12 @@ use std::convert::TryInto;
 
 use hifitime::prelude::*;
 
+/// A value schema for a TAI interval.
+/// A TAI interval is a pair of TAI epochs.
+/// The interval is stored as two 128-bit signed integers, the lower and upper bounds.
+/// The lower bound is stored in the first 16 bytes and the upper bound is stored in the last 16 bytes.
+/// Both the lower and upper bounds are stored in little-endian byte order.
+/// Both the lower and upper bounds are inclusive. That is, the interval contains all TAI epochs between the lower and upper bounds.
 pub struct NsTAIInterval;
 
 impl ValueSchema for NsTAIInterval {
@@ -18,16 +24,16 @@ impl ToValue<NsTAIInterval> for (Epoch, Epoch) {
         let upper = self.1.to_tai_duration().total_nanoseconds();
 
         let mut value = [0; 32];
-        value[0..16].copy_from_slice(&lower.to_be_bytes());
-        value[16..32].copy_from_slice(&upper.to_be_bytes());
+        value[0..16].copy_from_slice(&lower.to_le_bytes());
+        value[16..32].copy_from_slice(&upper.to_le_bytes());
         Value::new(value)
     }
 }
 
 impl FromValue<'_, NsTAIInterval> for (Epoch, Epoch) {
     fn from_value(v: &Value<NsTAIInterval>) -> Self {
-        let lower = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
-        let upper = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
+        let lower = i128::from_le_bytes(v.bytes[0..16].try_into().unwrap());
+        let upper = i128::from_le_bytes(v.bytes[16..32].try_into().unwrap());
         let lower = Epoch::from_tai_duration(Duration::from_total_nanoseconds(lower));
         let upper = Epoch::from_tai_duration(Duration::from_total_nanoseconds(upper));
 

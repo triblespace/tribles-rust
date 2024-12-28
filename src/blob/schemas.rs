@@ -8,6 +8,12 @@ use crate::blob::BlobSchema;
 use crate::id::Id;
 use crate::id_hex;
 
+/// A blob schema for an unknown blob.
+/// This blob schema is used as a fallback when the blob schema is not known.
+/// It is not recommended to use this blob schema in practice.
+/// Instead, use a specific blob schema.
+///
+/// Any bit pattern can be a valid blob of this schema.
 pub struct UnknownBlob;
 impl BlobSchema for UnknownBlob {
     const BLOB_SCHEMA_ID: Id = id_hex!("EAB14005141181B0C10C4B5DD7985F8D");

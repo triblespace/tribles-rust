@@ -107,7 +107,10 @@ use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::Phantom
 
 use hex::ToHex;
 
+/// The length of a value in bytes.
 pub const VALUE_LEN: usize = 32;
+
+/// A raw value is simply a 32-byte array.
 pub type RawValue = [u8; VALUE_LEN];
 
 /// A value is a 32-byte array that can be (de)serialized as a Rust type.
@@ -292,10 +295,20 @@ pub trait ValueSchema: Sized + 'static {
     const VALUE_SCHEMA_ID: Id;
     const BLOB_SCHEMA_ID: Option<Id> = None;
 
+    /// Create a new value from a concrete Rust type.
+    /// This is a convenience method that calls the [ToValue] trait.
+    /// This method might panic if the conversion is not possible.
+    ///
+    /// See the [ValueSchema::value_try_from] method for a conversion that returns a result.
     fn value_from<T: ToValue<Self>>(t: T) -> Value<Self> {
         t.to_value()
     }
 
+    /// Create a new value from a concrete Rust type.
+    /// This is a convenience method that calls the [TryToValue] trait.
+    /// This method might return an error if the conversion is not possible.
+    ///
+    /// See the [ValueSchema::value_from] method for a conversion that always succeeds (or panics).
     fn value_try_from<T: TryToValue<Self>>(
         t: T,
     ) -> Result<Value<Self>, <T as TryToValue<Self>>::Error> {
@@ -313,6 +326,10 @@ pub trait ValueSchema: Sized + 'static {
 ///
 /// See [ToBlob](crate::blob::ToBlob) for the counterpart trait for blobs.
 pub trait ToValue<S: ValueSchema> {
+    /// Convert the Rust type to a [Value] with a specific schema type.
+    /// This might cause a panic if the conversion is not possible.
+    ///
+    /// See the [TryToValue] trait for a conversion that returns a result.
     fn to_value(self) -> Value<S>;
 }
 
@@ -326,6 +343,10 @@ pub trait ToValue<S: ValueSchema> {
 ///
 /// See [FromBlob](crate::blob::FromBlob) for the counterpart trait for blobs.
 pub trait FromValue<'a, S: ValueSchema> {
+    /// Convert the [Value] with a specific schema type to the Rust type.
+    /// This might cause a panic if the conversion is not possible.
+    ///
+    /// See the [TryFromValue] trait for a conversion that returns a result.
     fn from_value(v: &'a Value<S>) -> Self;
 }
 
@@ -340,6 +361,10 @@ pub trait FromValue<'a, S: ValueSchema> {
 /// See [TryToBlob](crate::blob::TryToBlob) for the counterpart trait for blobs.
 pub trait TryToValue<S: ValueSchema> {
     type Error;
+    /// Convert the Rust type to a [Value] with a specific schema type.
+    /// This might return an error if the conversion is not possible.
+    ///
+    /// See the [ToValue] trait for a conversion that always succeeds (or panics).
     fn try_to_value(self) -> Result<Value<S>, Self::Error>;
 }
 
@@ -354,6 +379,10 @@ pub trait TryToValue<S: ValueSchema> {
 /// See [TryFromBlob](crate::blob::TryFromBlob) for the counterpart trait for blobs.
 pub trait TryFromValue<'a, S: ValueSchema>: Sized {
     type Error;
+    /// Convert the [Value] with a specific schema type to the Rust type.
+    /// This might return an error if the conversion is not possible.
+    ///
+    /// See the [FromValue] trait for a conversion that always succeeds (or panics).
     fn try_from_value(v: &'a Value<S>) -> Result<Self, Self::Error>;
 }
 

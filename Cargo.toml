@@ -29,7 +29,7 @@ anyhow = "1.0"
 zerocopy = { version = "0.7.34", features = ["derive"] }
 bytes = "1.6.0"
 bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
-proptest = { version = "1.4.0", optional = true }
+proptest = { version = "1.6.0", optional = true }
 hifitime = "3.9.0"
 f256 = "0.2.0"
 sucds = "0.8.1"

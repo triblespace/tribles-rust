@@ -53,12 +53,22 @@ use crate::{
 
 pub use tribleset::TribleSet;
 
+/// The length of a trible in bytes.
 pub const TRIBLE_LEN: usize = 64;
+
+/// The start index of the entity in a trible.
 pub const E_START: usize = 0;
+/// The end index of the entity in a trible (inclusive).
 pub const E_END: usize = 15;
+
+/// The start index of the attribute in a trible.
 pub const A_START: usize = 16;
+/// The end index of the attribute in a trible (inclusive).
 pub const A_END: usize = 31;
+
+/// The start index of the value in a trible.
 pub const V_START: usize = 32;
+/// The end index of the value in a trible (inclusive).
 pub const V_END: usize = 63;
 
 /// Fundamentally a trible is always a collection of 64 bytes.

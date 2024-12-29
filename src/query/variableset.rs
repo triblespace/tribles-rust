@@ -1,6 +1,8 @@
 use std::fmt;
 
-/// A fixed size bitset over the possible values of a byte.
+/// A fixed size bitset for up to 128 variables.
+/// The set is represented as a 128-bit integer where each bit
+/// represents the presence of the corresponding element in the set.
 #[derive(Eq, PartialEq, Clone, Copy)]
 #[repr(transparent)]
 pub struct VariableSet {
@@ -18,7 +20,7 @@ impl VariableSet {
     }
 
     /// Create a new set with a single value from the domain set.
-    pub fn new_singleton(index: u8) -> Self {
+    pub fn new_singleton(index: usize) -> Self {
         let mut set = Self::new_empty();
         set.set(index);
         return set;
@@ -33,16 +35,16 @@ impl VariableSet {
         self.bits.count_ones() as usize
     }
     /// Set the given value in the set.
-    pub fn set(&mut self, index: u8) {
+    pub fn set(&mut self, index: usize) {
         self.bits |= 1 << index;
     }
     /// Remove the given value from the set.
-    pub fn unset(&mut self, index: u8) {
+    pub fn unset(&mut self, index: usize) {
         self.bits &= !(1 << index);
     }
     /// Sets or removes the given element into or from the set
     /// depending on the passed value.
-    pub fn set_value(&mut self, index: u8, value: bool) {
+    pub fn set_value(&mut self, index: usize, value: bool) {
         if value {
             self.set(index);
         } else {
@@ -58,28 +60,28 @@ impl VariableSet {
         self.bits = 0;
     }
     /// Check if the given value is in the set.
-    pub fn is_set(&self, index: u8) -> bool {
+    pub fn is_set(&self, index: usize) -> bool {
         0 != (self.bits & (1 << index))
     }
     /// Finds the index of the first set bit.
     /// If no bits are set, returns `None`.
-    pub fn find_first_set(&self) -> Option<u8> {
+    pub fn find_first_set(&self) -> Option<usize> {
         if self.bits != 0 {
-            return Some(self.bits.trailing_zeros() as u8);
+            return Some(self.bits.trailing_zeros() as usize);
         }
         return None;
     }
     /// Finds the index of the last set bit.
     /// If no bits are set, returns `None`.
-    pub fn find_last_set(&self) -> Option<u8> {
+    pub fn find_last_set(&self) -> Option<usize> {
         if self.bits != 0 {
-            return Some(127 - (self.bits.leading_zeros() as u8));
+            return Some(127 - (self.bits.leading_zeros() as usize));
         }
         return None;
     }
     /// Returns the index of the next set bit
     /// in the bit set, in ascending order, while unseting it.
-    pub fn drain_next_ascending(&mut self) -> Option<u8> {
+    pub fn drain_next_ascending(&mut self) -> Option<usize> {
         if let Some(next_index) = self.find_first_set() {
             self.unset(next_index);
             Some(next_index)
@@ -89,7 +91,7 @@ impl VariableSet {
     }
     /// Returns the index of the next set bit
     /// in the bit set, in descending order, while unseting it.
-    pub fn drain_next_descending(&mut self) -> Option<u8> {
+    pub fn drain_next_descending(&mut self) -> Option<usize> {
         if let Some(next_index) = self.find_last_set() {
             self.unset(next_index);
             Some(next_index)
@@ -136,7 +138,7 @@ impl VariableSet {
     }
     /// Remove all elements from the set except the one passed.
     /// Equal to an intersection with a set containing only the passed element.
-    pub fn keep_single(&mut self, index: u8) {
+    pub fn keep_single(&mut self, index: usize) {
         let had_bit = self.is_set(index);
         self.unset_all();
         if had_bit {
@@ -146,7 +148,7 @@ impl VariableSet {
 
     /// Similar to keep_single, except that only values in the
     /// specified range are kept. Both range ends are inclusive.
-    pub fn keep_range(&mut self, from_index: u8, to_index: u8) {
+    pub fn keep_range(&mut self, from_index: usize, to_index: usize) {
         self.bits &= !0 << from_index;
         self.bits &= !(!1 << to_index);
     }
@@ -156,7 +158,7 @@ impl fmt::Debug for VariableSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "VariableSet: {{")?;
         let mut needs_comma = false;
-        for byte in 0u8..128 {
+        for byte in 0..128 {
             if self.is_set(byte) {
                 if needs_comma {
                     write!(f, ", ",)?;
@@ -173,7 +175,7 @@ impl fmt::Debug for VariableSet {
 pub struct VariableSetIterator(VariableSet);
 
 impl Iterator for VariableSetIterator {
-    type Item = u8;
+    type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.drain_next_ascending()
@@ -181,7 +183,7 @@ impl Iterator for VariableSetIterator {
 }
 
 impl IntoIterator for VariableSet {
-    type Item = u8;
+    type Item = usize;
     type IntoIter = VariableSetIterator;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -265,33 +267,33 @@ mod tests {
     }
     proptest! {
         #[test]
-        fn find_first_set(n in 0u8..128) {
+        fn find_first_set(n in 0..128usize) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.find_first_set());
         }
         #[test]
-        fn find_last_set(n in 0u8..128) {
+        fn find_last_set(n in 0..128usize) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.find_last_set());
         }
         #[test]
-        fn drain_ascending_drains(n in 0u8..128) {
+        fn drain_ascending_drains(n in 0..128usize) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.drain_next_ascending());
             prop_assert!(!set.is_set(n));
         }
         #[test]
-        fn drain_descending_drains(n in 0u8..128) {
+        fn drain_descending_drains(n in 0..128usize) {
             let mut set = VariableSet::new_empty();
             set.set(n);
             prop_assert_eq!(Some(n), set.drain_next_descending());
             prop_assert!(!set.is_set(n));
         }
         #[test]
-        fn intersect(n in 0u8..128, m in 0u8..128) {
+        fn intersect(n in 0..128usize, m in 0..128usize) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -301,7 +303,7 @@ mod tests {
             prop_assert_eq!(n == m, out.is_set(n));
         }
         #[test]
-        fn union(n in 0u8..128, m in 0u8..128) {
+        fn union(n in 0..128usize, m in 0..128usize) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -312,7 +314,7 @@ mod tests {
             prop_assert!(out.is_set(m));
         }
         #[test]
-        fn subtract(n in 0u8..128, m in 0u8..128) {
+        fn subtract(n in 0..128usize, m in 0..128usize) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -322,7 +324,7 @@ mod tests {
             prop_assert_eq!(n != m, out.is_set(n));
         }
         #[test]
-        fn difference(n in 0u8..128, m in 0u8..128) {
+        fn difference(n in 0..128usize, m in 0..128usize) {
             let mut left = VariableSet::new_empty();
             let mut right = VariableSet::new_empty();
             left.set(n);
@@ -333,7 +335,7 @@ mod tests {
             prop_assert_eq!(n != m, out.is_set(m));
         }
         #[test]
-        fn complement(n in 0u8..128, m in 0u8..128) {
+        fn complement(n in 0..128usize, m in 0..128usize) {
             let mut input = VariableSet::new_empty();
             input.set(n);
 
@@ -344,7 +346,7 @@ mod tests {
             }
         }
         #[test]
-        fn keep_single(n in 0u8..128, m in 0u8..128) {
+        fn keep_single(n in 0..128usize, m in 0..128usize) {
             let mut set = VariableSet::new_full();
             set.keep_single(n);
             prop_assert!(set.is_set(n));
@@ -353,11 +355,11 @@ mod tests {
             }
         }
         #[test]
-        fn keep_range(from in 0u8..128, to in 0u8..128) {
+        fn keep_range(from in 0..128usize, to in 0..128usize) {
             let mut set = VariableSet::new_full();
             set.keep_range(from, to);
 
-            for n in 0u8..128 {
+            for n in 0..128 {
                 prop_assert_eq!(from <= n && n <= to, set.is_set(n));
             }
         }

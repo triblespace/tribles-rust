@@ -116,20 +116,19 @@ pub use variableset::VariableSet;
 
 /// Types storing tribles can implement this trait to expose them to queries.
 /// The trait provides a method to create a constraint for a given trible pattern.
-///
-/// The method `pattern` takes three variables, one for each part of the trible.
-/// The schemas of the entities and attributes are always [GenId], while the value
-/// schema can be any type implementing [ValueSchema] and is specified as a type parameter.
-///
-/// The `pattern` method is usually not called directly, but rather through typed query language
-/// macros like [pattern!][crate::namespace].
-///
-/// The associated type `PatternConstraint` is the type of the constraint that is created.
 pub trait TriblePattern {
+    /// The type of the constraint created by the pattern method.
     type PatternConstraint<'a>: Constraint<'a>
     where
         Self: 'a;
 
+    /// Create a constraint for a given trible pattern.
+    /// The method takes three variables, one for each part of the trible.
+    /// The schemas of the entities and attributes are always [GenId], while the value
+    /// schema can be any type implementing [ValueSchema] and is specified as a type parameter.
+    ///
+    /// This method is usually not called directly, but rather through typed query language
+    /// macros like [pattern!][crate::namespace].
     fn pattern<'a, V: ValueSchema>(
         &'a self,
         e: Variable<GenId>,
@@ -139,7 +138,7 @@ pub trait TriblePattern {
 }
 
 /// Low-level identifier for a variable in a query.
-pub type VariableId = u8;
+pub type VariableId = usize;
 
 /// Context for creating variables in a query.
 /// The context keeps track of the next index to assign to a variable.
@@ -150,10 +149,19 @@ pub struct VariableContext {
 }
 
 impl VariableContext {
+    /// Create a new variable context.
+    /// The context starts with an index of 0.
     pub fn new() -> Self {
         VariableContext { next_index: 0 }
     }
 
+    /// Create a new variable.
+    /// The variable is assigned the next available index.
+    ///
+    /// Panics if the number of variables exceeds 128.
+    ///
+    /// This method is usually not called directly, but rather through typed query language
+    /// macros like [find!][crate::query].
     pub fn next_variable<T: ValueSchema>(&mut self) -> Variable<T> {
         assert!(
             self.next_index < 128,
@@ -197,13 +205,23 @@ impl<T: ValueSchema> Variable<T> {
     }
 }
 
+/// Collections can implement this trait so that they can be used in queries.
+/// The returned constraint will filter the values assigned to the variable
+/// to only those that are contained in the collection.
 pub trait ContainsConstraint<'a, T: ValueSchema> {
     type Constraint: Constraint<'a>;
 
+    /// Create a constraint that filters the values assigned to the variable
+    /// to only those that are contained in the collection.
+    ///
+    /// The returned constraint will usually perform a conversion between the
+    /// concrete rust type stored in the collection a [Value] of the appropriate schema
+    /// type for the variable.
     fn has(self, v: Variable<T>) -> Self::Constraint;
 }
 
 impl<T: ValueSchema> Variable<T> {
+    /// Create a constraint so that only a specific value can be assigned to the variable.
     pub fn is(self, constant: Value<T>) -> ConstantConstraint {
         ConstantConstraint::new(self, constant)
     }
@@ -225,17 +243,20 @@ pub struct Binding {
 }
 
 impl Binding {
+    /// Create a new empty binding.
     pub fn set(&mut self, variable: VariableId, value: &RawValue) {
         self.values[variable as usize] = *value;
         self.bound.set(variable);
     }
 
+    /// Unset a variable in the binding.
+    /// This is used to backtrack in the query engine.
     pub fn unset(&mut self, variable: VariableId) {
         self.bound.unset(variable);
     }
 
+    /// Check if a variable is bound in the binding.
     pub fn get(&self, variable: VariableId) -> Option<&RawValue> {
-        //TODO check if we should make this a ref
         if self.bound.is_set(variable) {
             Some(&self.values[variable as usize])
         } else {
@@ -289,9 +310,35 @@ impl Default for Binding {
 /// The trait is designed to be used in combination with the [Query] struct, which provides
 /// a simple and efficient way to iterate over the results of a query.
 pub trait Constraint<'a> {
+    /// Return the set of variables used by the constraint.
+    /// This is only called once at the beginning of the query.
+    /// The query engine uses this information to keep track of the variables
+    /// that are used by each constraint.
     fn variables(&self) -> VariableSet;
+
+    /// Estimate the number of values that match the constraint.
+    /// This is used by the query engine to guide the search.
+    /// The estimate should be as accurate as possible, while being cheap to compute,
+    /// and is not required to be exact or a permissible heuristic.
+    /// The binding passed to the method contains the values assigned to the variables so far.
+    ///
+    /// If the variable is not used by the constraint, the method should return `None`.
     fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize>;
+
+    /// Propose values for a variable that match the constraint.
+    /// This is used by the query engine to explore the search space.
+    /// The method should add values to the `proposals` vector that match the constraint.
+    /// The binding passed to the method contains the values assigned to the variables so far.
+    ///
+    /// If the variable is not used by the constraint, the method should do nothing.
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
+
+    /// Confirm a value for a variable that matches the constraint.
+    /// This is used by the query engine to prune the search space, and confirm that a value satisfies the constraint.
+    /// The method should remove values from the `proposals` vector that do not match the constraint.
+    /// The binding passed to the method contains the values assigned to the variables so far.
+    ///
+    /// If the variable is not used by the constraint, the method should do nothing.
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
 }
 
@@ -365,6 +412,11 @@ pub struct Query<C, P: Fn(&Binding) -> R, R> {
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
+    /// Create a new query.
+    /// The query takes a constraint and a post-processing function as input,
+    /// and returns the results of the query as a stream of values.
+    ///
+    /// This method is usually not called directly, but rather through the [find!] macro,
     pub fn new(constraint: C, postprocessing: P) -> Self {
         let variables = constraint.variables();
         Query {

@@ -4,7 +4,7 @@
 //! # Introduction
 //!
 //! The `tribles` crate is a Rust library for working with graph data.
-//!
+//! It is designed to be simple, fast, and flexible.
 
 pub mod blobschemas;
 pub mod valueschemas;

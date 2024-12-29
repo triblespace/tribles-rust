@@ -37,6 +37,8 @@ compile_error!("PATCH tagged pointers require 64-bit targets");
 static mut SIP_KEY: [u8; 16] = [0; 16];
 static INIT: Once = Once::new();
 
+/// Initializes the SIP key used for key hashing.
+/// This function is called automatically when a new PATCH is created.
 fn init_sip_key() {
     INIT.call_once(|| {
         bytetable::init();
@@ -48,10 +50,21 @@ fn init_sip_key() {
     });
 }
 
+/// A trait is used to provide a re-ordered view of the keys stored in the PATCH.
+/// This allows for different PATCH instances share the same leaf nodes,
+/// independent of the key ordering used in the tree.
 pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
+    /// Returns the index in the tree view, given the index in the key view.
+    ///
+    /// This is the inverse of [Self::key_index].
     fn tree_index(key_index: usize) -> usize;
+
+    /// Returns the index in the key view, given the index in the tree view.
+    ///
+    /// This is the inverse of [Self::tree_index].
     fn key_index(tree_index: usize) -> usize;
 
+    /// Reorders the key from the shared key ordering to the tree ordering.
     fn tree_ordered(key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
         let mut new_key = [0; KEY_LEN];
         for i in 0..KEY_LEN {
@@ -60,6 +73,7 @@ pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
         new_key
     }
 
+    /// Reorders the key from the tree ordering to the shared key ordering.
     fn key_ordered(tree_key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
         let mut new_key = [0; KEY_LEN];
         for i in 0..KEY_LEN {
@@ -69,13 +83,30 @@ pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
     }
 }
 
+/// This trait is used to segment keys stored in the PATCH.
+/// The segmentation is used to determine sub-fields of the key,
+/// allowing for segment based operations, like counting the number
+/// of elements in a segment with a given prefix without traversing the tree.
+///
+/// Note that the segmentation is defined on the shared key ordering,
+/// and should thus be only implemented once, independent of additional key orderings.
+///
+/// See [TribleSegmentation](crate::trible::TribleSegmentation) for an example that segments keys into entity,
+/// attribute, and value segments.
 pub trait KeySegmentation<const KEY_LEN: usize>: Copy + Clone + Debug {
-    fn segment(at_depth: usize) -> usize;
+    /// Returns the segment index for the given key index.
+    fn segment(key_index: usize) -> usize;
 }
 
+/// A `KeyOrdering` that does not reorder the keys.
+/// This is useful for keys that are already ordered in the desired way.
+/// This is the default ordering.
 #[derive(Copy, Clone, Debug)]
 pub struct IdentityOrder {}
 
+/// A `KeySegmentation` that does not segment the keys.
+/// This is useful for keys that do not have a segment structure.
+/// This is the default segmentation.
 #[derive(Copy, Clone, Debug)]
 pub struct SingleSegmentation {}
 
@@ -768,8 +799,22 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 }
 
+/// A PATCH is a persistent data structure that stores a set of keys.
+/// Each key can be reordered and segmented, based on the provided key ordering and segmentation.
+///
+/// The patch supports efficient set operations, like union, intersection, and difference,
+/// because it efficiently maintains a hash for all keys that are part of a sub-tree.
+///
+/// The tree itself is a path-compressed a 256-ary trie, where each node is compressed
+/// by storing its children in a cuckoo hash table. Table sizes are powers of two, starting at 2.
+///
+/// The PATCH allows for cheap copy-on-write operations, with `clone` being O(1).
 #[derive(Debug, Clone)]
-pub struct PATCH<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+pub struct PATCH<
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN> = IdentityOrder,
+    S: KeySegmentation<KEY_LEN> = SingleSegmentation,
+> {
     root: Option<Head<KEY_LEN, O, S>>,
 }
 
@@ -778,11 +823,18 @@ where
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
 {
+    /// Creates a new empty PATCH.
     pub fn new() -> Self {
         init_sip_key();
         PATCH { root: None }
     }
 
+    /// Inserts a shared key into the PATCH.
+    ///
+    /// Takes an [Entry](crate::Entry) object that can be created from a key,
+    /// and inserted into multiple PATCH instances.
+    ///
+    /// If the key is already present, this is a no-op.
     pub fn insert(&mut self, entry: &Entry<KEY_LEN>) {
         if let Some(root) = &mut self.root {
             root.insert_leaf(entry.leaf(), 0);
@@ -791,10 +843,14 @@ where
         }
     }
 
+    /// Removes a key from the PATCH.
+    ///
+    /// If the key is not present, this is a no-op.
     pub fn remove(&mut self, key: &[u8; KEY_LEN]) {
         Head::remove_leaf(&mut self.root, key, 0);
     }
 
+    /// Returns the number of keys in the PATCH.
     pub fn len(&self) -> u64 {
         if let Some(root) = &self.root {
             root.count()
@@ -803,12 +859,25 @@ where
         }
     }
 
+    /// Allows iteratig over all infixes of a given length with a given prefix.
+    /// Each infix is passed to the provided closure.
+    ///
+    /// The entire operation is performed over the tree view ordering of the keys.
+    ///
+    /// The length of the prefix and the infix is provided as type parameters,
+    /// but will usually inferred from the arguments.
+    ///
+    /// The sum of `PREFIX_LEN` and `INFIX_LEN` must be less than or equal to `KEY_LEN`
+    /// or a panic will occur.
+    ///
+    /// Because all infixes are iterated in one go, less bookkeeping is required,
+    /// than when using an Iterator, allowing for better performance.
     pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
         &self,
         prefix: &[u8; PREFIX_LEN],
-        mut f: F,
+        mut for_each: F,
     ) where
-        F: FnMut(&[u8; INFIX_LEN]), //TODO can we make this a ref too?
+        F: FnMut(&[u8; INFIX_LEN]),
     {
         assert!(
             PREFIX_LEN + INFIX_LEN <= KEY_LEN,
@@ -827,10 +896,11 @@ where
             S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1))
         );
         if let Some(root) = &self.root {
-            root.infixes(prefix, 0, &mut f);
+            root.infixes(prefix, 0, &mut for_each);
         }
     }
 
+    /// Returns true if the PATCH has a key with the given prefix.
     pub fn has_prefix<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> bool {
         if let Some(root) = &self.root {
             root.has_prefix(0, prefix)
@@ -839,6 +909,7 @@ where
         }
     }
 
+    /// Returns the number of unique segments in keys with the given prefix.
     pub fn segmented_len<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> u64 {
         if let Some(root) = &self.root {
             root.segmented_len(0, prefix)
@@ -847,16 +918,21 @@ where
         }
     }
 
+    /// Iterates over all keys in the PATCH.
     pub fn iter<'a>(&'a self) -> PATCHIterator<'a, KEY_LEN, O, S> {
         PATCHIterator::new(self)
     }
 
+    /// Iterates over all keys in the PATCH that have a given prefix.
     pub fn iter_prefix<'a, const PREFIX_LEN: usize>(
         &'a self,
     ) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S> {
         PATCHPrefixIterator::new(self)
     }
 
+    /// Unions this PATCH with another PATCH.
+    ///
+    /// The other PATCH is consumed, and this PATCH is updated in place.
     pub fn union(&mut self, other: Self) {
         if let Some(other) = other.root {
             if let Some(root) = &mut self.root {
@@ -898,6 +974,7 @@ where
     }
 }
 
+/// An iterator over all keys in a PATCH.
 pub struct PATCHIterator<
     'a,
     const KEY_LEN: usize,
@@ -951,6 +1028,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
     }
 }
 
+/// An iterator over all keys in a PATCH that have a given prefix.
 pub struct PATCHPrefixIterator<
     'a,
     const KEY_LEN: usize,

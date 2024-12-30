@@ -84,7 +84,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
-        leaf: *mut Self,
+        leaf: *const Self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,

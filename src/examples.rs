@@ -1,5 +1,6 @@
-/// This module contains an example namespace for use in the documentation.
-/// It is not intended to be used in practice.
+//! This module contains an example namespace for use in the documentation.
+//! It is not intended to be used in practice.
+
 use crate::prelude::blobschemas::*;
 use crate::prelude::valueschemas::*;
 use crate::NS;

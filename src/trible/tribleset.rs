@@ -15,6 +15,20 @@ use crate::value::{schemas::genid::GenId, ValueSchema};
 use std::iter::{FromIterator, Map};
 use std::ops::{Add, AddAssign};
 
+/// A collection of [Trible]s.
+/// 
+/// A [TribleSet] is a collection of [Trible]s that can be queried and manipulated.
+/// It supports efficient set operations like union, intersection, and difference.
+/// 
+/// The stored [Trible]s are indexed by the six possible orderings of their fields
+/// in corresponding [PATCH]es.
+/// 
+/// Clone is extremely cheap and can be used to create a snapshot of the current state of the [TribleSet].
+/// 
+/// Note that the [TribleSet] does not support an explicit `delete`/`remove` operation,
+/// as this would conflict with the CRDT semantics of the [TribleSet] and CALM principles as a whole.
+/// It does allow for set subtraction, but that operation is meant to compute the difference between two sets
+/// and not to remove elements from the set. A subtle but important distinction.
 #[derive(Debug, Clone)]
 pub struct TribleSet {
     pub eav: PATCH<TRIBLE_LEN, EAVOrder, TribleSegmentation>,
@@ -33,6 +47,9 @@ pub struct TribleSetIterator<'a> {
 }
 
 impl TribleSet {
+    /// Union of two [TribleSet]s.
+    /// 
+    /// The other [TribleSet] is consumed, and this [TribleSet] is updated in place.
     pub fn union(&mut self, other: Self) {
         self.eav.union(other.eav);
         self.eva.union(other.eva);
@@ -40,6 +57,24 @@ impl TribleSet {
         self.ave.union(other.ave);
         self.vea.union(other.vea);
         self.vae.union(other.vae);
+    }
+
+    pub fn intersect(&self, other: &Self) {
+        self.eav.intersect(&other.eav);
+        self.eva.intersect(&other.eva);
+        self.aev.intersect(&other.aev);
+        self.ave.intersect(&other.ave);
+        self.vea.intersect(&other.vea);
+        self.vae.intersect(&other.vae);
+    }
+
+    pub fn difference(&self, other: &Self) {
+        self.eav.difference(&other.eav);
+        self.eva.difference(&other.eva);
+        self.aev.difference(&other.aev);
+        self.ave.difference(&other.ave);
+        self.vea.difference(&other.vea);
+        self.vae.difference(&other.vae);
     }
 
     pub fn new() -> TribleSet {

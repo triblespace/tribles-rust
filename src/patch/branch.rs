@@ -57,27 +57,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub unsafe fn take_or_clone_children<F>(branch: *mut Self, mut f: F)
-    where
-        F: FnMut(Head<KEY_LEN, O, S>),
-    {
-        if (*branch).rc.load(Acquire) == 1 {
-            for child in &mut (*branch).child_table {
-                if let Some(child) = child.take() {
-                    f(child);
-                }
-            }
-        } else {
-            for child in &(*branch).child_table {
-                if let Some(child) = child {
-                    f(child.clone());
-                }
-            }
-        }
-    }
-
     pub(super) unsafe fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
-        branch: *mut Self,
+        branch: *const Self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,

@@ -141,8 +141,14 @@ pub(crate) enum HeadTag {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub(crate) enum Body<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
-    Leaf(*mut Leaf<KEY_LEN>),
-    Branch(*mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>),
+    Leaf(*const Leaf<KEY_LEN>),
+    Branch(*const BranchN<KEY_LEN, O, S>),
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub(crate) enum BodyMut<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+    Leaf(*const Leaf<KEY_LEN>),
+    Branch(*mut BranchN<KEY_LEN, O, S>),
 }
 
 #[repr(C)]
@@ -258,15 +264,18 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         self
     }
 
-    pub(crate) fn cow(&mut self) {
+    pub(crate) fn body_mut(&mut self) -> BodyMut<KEY_LEN, O, S> {
         unsafe {
             match self.tag() {
-                HeadTag::Leaf => panic!("called cow on leaf"),
+                HeadTag::Leaf => BodyMut::Leaf(self.ptr()),
                 HeadTag::Branch2 => {
                     let branch =
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch4 => {
@@ -274,6 +283,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch8 => {
@@ -281,6 +293,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch16 => {
@@ -288,6 +303,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch32 => {
@@ -295,6 +313,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch64 => {
@@ -302,6 +323,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch128 => {
@@ -309,6 +333,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
                 HeadTag::Branch256 => {
@@ -316,6 +343,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>>();
                     if let Some(copy) = Branch::rc_cow(branch) {
                         *self = Head::new(self.tag(), self.key(), copy);
+                        BodyMut::Branch(copy)
+                    } else {
+                        BodyMut::Branch(branch)
                     }
                 }
             }
@@ -380,10 +410,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     where
         F: FnOnce(&mut Head<KEY_LEN, O, S>, Head<KEY_LEN, O, S>),
     {
-        self.cow();
-        match self.body() {
-            Body::Leaf(_) => panic!("upsert on leaf"),
-            Body::Branch(branch) => unsafe {
+        match self.body_mut() {
+            BodyMut::Leaf(_) => panic!("upsert on leaf"),
+            BodyMut::Branch(branch) => unsafe {
                 let inserted = inserted.with_start((*branch).end_depth as usize);
                 let key = inserted.key();
                 if let Some(child) = (*branch).child_table.table_get_mut(key) {
@@ -479,12 +508,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     return;
                 }
             }
-            match this.body() {
-                Body::Leaf(_) => {
+            match this.body_mut() {
+                BodyMut::Leaf(_) => {
                     slot.take();
                 }
-                Body::Branch(branch) => unsafe {
-                    this.cow();
+                BodyMut::Branch(branch) => unsafe {
                     let key = leaf_key[end_depth];
                     if let Some(child_slot) = (*branch).child_table.table_get_slot(key) {
                         if let Some(child) = child_slot {
@@ -619,7 +647,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn union(&mut self, other: Self, at_depth: usize) {
+    pub(crate) fn union(&mut self, mut other: Self, at_depth: usize) {
         let self_hash = self.hash();
         let other_hash = other.hash();
         if self_hash == other_hash {
@@ -660,27 +688,76 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             return;
         }
 
-        other.take_or_clone_children(|other_child| {
-            self.upsert(other_child, |child, inserted| {
-                child.union(inserted, self_depth)
-            });
-        });
+        match other.body_mut() {
+            // we already checked for equality by comparing the hashes,
+            // if they are not equal, the keys must be different which is
+            // already handled by the above code.
+            BodyMut::Leaf(_) => unreachable!(),
+            BodyMut::Branch(other_branch) => unsafe {
+                for other_child in (*other_branch).child_table.iter_mut().filter_map(Option::take) {
+                    self.upsert(other_child, |child, inserted| {
+                        child.union(inserted, self_depth)
+                    });
+                }
+        },
+        }
     }
 
-    pub(crate) fn take_or_clone_children<F>(&self, f: F)
-    where
-        F: FnMut(Self),
-    {
-        unsafe {
+    pub(crate) fn intersect(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
+        todo!()
+        /*
+        let self_hash = self.hash();
+        let other_hash = other.hash();
+        if self_hash == other_hash {
+            return Some(self.clone());
+        }
+        let self_depth = self.end_depth();
+        let other_depth = other.end_depth();
+
+        let self_key = self.leaf_key();
+        let other_key = other.leaf_key();
+        for depth in at_depth..std::cmp::min(self_depth, other_depth) {
+            let i = O::key_index(depth);
+            if self_key[i] != other_key[i] {
+                return None;
+            }
+        }
+        //>>>
+        if self_depth < other_depth {
             match self.body() {
-                Body::Leaf(_) => panic!("take_or_clone_children on leaf"),
+                Body::Leaf(_) => unreachable!(),
                 Body::Branch(branch) => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::take_or_clone_children(
-                        branch, f,
-                    )
+                    if let Some(child) = unsafe { *branch }.child_table.table_get(other_key[O::key_index(self_depth)]) {
+                        return child.intersect(other, self_depth)
+                    } else {
+                        return None;
+                    }
                 }
             }
         }
+
+        if other_depth < self_depth {
+            let mut new_self = self.clone();
+            new_self.upsert(self.clone(), |child, inserted| {
+                child.intersect(&inserted, other_depth);
+            });
+            return Some(new_self);
+        }
+
+        let mut new_self = self.clone();
+        new_self.take_or_clone_children(|self_child| {
+            if let Some(other_child) = other.iter_children().next() {
+                if let Some(intersected) = self_child.intersect(other_child, self_depth) {
+                    new_self.insert_child(intersected);
+                }
+            }
+        });
+        Some(new_self)
+        */
+    }
+
+    pub(crate) fn difference(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
+        todo!()
     }
 
     pub(crate) fn iter_children(&self) -> std::slice::Iter<Option<Head<KEY_LEN, O, S>>> {
@@ -805,8 +882,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 /// The patch supports efficient set operations, like union, intersection, and difference,
 /// because it efficiently maintains a hash for all keys that are part of a sub-tree.
 ///
-/// The tree itself is a path-compressed a 256-ary trie, where each node is compressed
-/// by storing its children in a cuckoo hash table. Table sizes are powers of two, starting at 2.
+/// The tree itself is a path- and node-compressed a 256-ary trie.
+/// Each nodes stores its children in a byte oriented cuckoo hash table,
+/// allowing for O(1) access to children, while keeping the memory overhead low.
+/// Table sizes are powers of two, starting at 2.
+/// 
+/// Having a single node type for all branching factors simplifies the implementation,
+/// compared to other adaptive trie implementations, like ARTs or Judy Arrays
 ///
 /// The PATCH allows for cheap copy-on-write operations, with `clone` being O(1).
 #[derive(Debug, Clone)]
@@ -940,6 +1022,34 @@ where
             } else {
                 self.root.replace(other);
             }
+        }
+    }
+
+    /// Intersects this PATCH with another PATCH.
+    /// 
+    /// Returns a new PATCH that contains only the keys that are present in both PATCHes.
+    pub fn intersect(&self, other: &Self) -> Self {
+        if let Some(root) = &self.root {
+            if let Some(other_root) = &other.root {
+                return Self { root: root.intersect(other_root, 0) }
+            }
+        }
+        Self::new()
+    }
+
+    /// Returns the difference between this PATCH and another PATCH.
+    /// 
+    /// Returns a new PATCH that contains only the keys that are present in this PATCH,
+    /// but not in the other PATCH.
+    pub fn difference(&self, other: &Self) -> Self {
+        if let Some(root) = &self.root {
+            if let Some(other_root) = &other.root {
+                return Self { root: root.difference(other_root, 0) }
+            } else {
+                return self.clone()
+            }
+        } else {
+            return other.clone()
         }
     }
 }

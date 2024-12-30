@@ -1,3 +1,8 @@
+//! Metadata namespace for the `tribles` crate.
+//! 
+//! This namespace is used to bootstrap the meaning of other namespaces.
+//! It defines meta attributes that are used to describe other attributes.
+
 use crate::{id::Id, id_hex, NS};
 
 pub const ATTR_VALUE_SCHEMA: Id = id_hex!("213F89E3F49628A105B3830BD3A6612C");

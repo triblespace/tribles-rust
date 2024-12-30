@@ -171,142 +171,109 @@ pub use NS;
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::*;
+    use crate::examples::literature;
+
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
-    use crate::prelude::valueschemas::*;
-    use crate::prelude::*;
-
-    NS! {
-        pub namespace knights4 {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
-            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
-        }
-    }
-
-    #[test]
-    fn ns_entities() {
-        let romeo = ufoid();
-        let juliet = ufoid();
-
-        knights4::entity!(&juliet, {
-            name: "Juliet",
-            loves: &romeo,
-            title: "Maiden"
-        });
-        knights4::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet,
-            title: "Prince"
-        });
-        knights4::entity!(
-        {
-            name: "Angelica",
-            title: "Nurse"
-        });
-    }
 
     #[test]
     fn ns_entity() {
-        let juliet = ufoid();
-        let romeo = ufoid();
-
         let mut tribles = TribleSet::new();
-        tribles += knights4::entity!(&juliet, {
-            name: "Juliet",
-            loves: &romeo,
-            title: "Maiden"
+
+        let author = ufoid();
+        let book = ufoid();
+    
+        tribles += literature::entity!(&author, {
+            firstname: "William",
+            lastname: "Shakespeare",
         });
-        tribles += knights4::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet,
-            title: "Prince"
+
+        tribles += literature::entity!(&book, {
+            title: "Hamlet",
+            author: &author,
+            quote: "To be, or not to be, that is the question.".to_blob().as_handle()
         });
-        tribles += knights4::entity!({
-            name: "Angelica",
-            title: "Nurse"
-        });
-        println!("{:?}", tribles);
+
+        assert_eq!(tribles.len(), 5);
     }
 
     #[test]
     fn ns_pattern() {
-        let juliet = ufoid();
-        let romeo = ufoid();
+        let author = ufoid();
+        let book = ufoid();
 
         let mut kb = TribleSet::new();
 
-        kb += knights4::entity!(&juliet,
-        {
-            name: "Juliet",
-            loves: &romeo,
-            title: "Maiden"
+        kb += literature::entity!(&author, {
+            firstname: "William",
+            lastname: "Shakespeare",
         });
-        kb += knights4::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet,
-            title: "Prince"
-        });
-        kb += knights4::entity!({
-            name: "Angelica",
-            title: "Nurse"
+        kb += literature::entity!(&book, {
+            title: "Hamlet",
+            author: &author,
+            quote: "To be, or not to be, that is the question.".to_blob().as_handle()
         });
 
         let r: Vec<_> = find!(
-            (juliet, name),
-            knights4::pattern!(&kb, [
-            {name: ("Romeo"),
-             loves: juliet},
-            {juliet @
-                name: name
+            (book, title, firstname),
+            literature::pattern!(&kb, [
+            {firstname: firstname,
+             lastname: ("Shakespeare")},
+            {book @
+                title: title,
+                author: (author)
             }])
         )
         .collect();
-        assert_eq!(vec![(juliet.to_value(), "Juliet".to_value(),)], r);
+        assert_eq!(vec![(book.to_value(), "Hamlet".to_value(), "William".to_value())], r);
     }
 
     #[test]
     fn ns_pattern_large() {
         let mut kb = TribleSet::new();
         (0..10000).for_each(|_| {
-            let lover_a = ufoid();
-            let lover_b = ufoid();
-            kb += knights4::entity!(&lover_a, {
-                name: Name(EN).fake::<String>(),
-                loves: &lover_b
+            let author = ufoid();
+            let book = ufoid();
+            kb += literature::entity!(&author, {
+                firstname: Name(EN).fake::<String>(),
+                lastname: Name(EN).fake::<String>()
             });
-            kb += knights4::entity!(&lover_b, {
-                name: Name(EN).fake::<String>(),
-                loves: &lover_a
+            kb += literature::entity!(&book, {
+                title: Name(EN).fake::<String>(),
+                author: &author
             });
         });
 
-        let juliet = ufoid();
-        let romeo = ufoid();
+        let shakespeare = ufoid();
+        let hamlet = ufoid();
 
         let mut data_kb = TribleSet::new();
-        data_kb += knights4::entity!(&juliet, {
-            name: "Juliet",
-            loves: &romeo
+        data_kb += literature::entity!(&shakespeare, {
+            firstname: "William",
+            lastname: "Shakespeare"
         });
-        data_kb += knights4::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet
+        data_kb += literature::entity!(&hamlet, {
+            title: "Hamlet",
+            author: &shakespeare,
+            quote: "To be, or not to be, that is the question.".to_blob().as_handle()
         });
 
         kb += data_kb;
 
         let r: Vec<_> = find!(
-            (juliet, name),
-            knights4::pattern!(&kb, [
-            {name: ("Romeo"),
-            loves: juliet},
-            {juliet @
-                name: name
+            (author, hamlet, title),
+            literature::pattern!(&kb, [
+            {author @
+             firstname: ("William"),
+             lastname: ("Shakespeare")},
+            {hamlet @
+                title: title,
+                author: author
             }])
         )
         .collect();
 
-        assert_eq!(vec![(juliet.to_value(), "Juliet".to_value(),)], r);
+        assert_eq!(vec![(shakespeare.to_value(), hamlet.to_value(), "Hamlet".to_value(),)], r);
     }
 }

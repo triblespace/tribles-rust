@@ -212,7 +212,7 @@ pub trait ByteTable<T: ByteEntry + Clone + Debug> {
     fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T>;
     fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn table_insert(&mut self, entry: T) -> Option<T>;
-    fn table_grow(&self, grown: &mut Self);
+    fn table_grow(&mut self, grown: &mut Self);
 }
 
 impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
@@ -307,14 +307,14 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
         }
     }
 
-    fn table_grow(&self, grown: &mut Self) {
+    fn table_grow(&mut self, grown: &mut Self) {
         debug_assert!(self.len() * 2 == grown.len());
         let buckets_len = self.len() / BUCKET_ENTRY_COUNT;
         let grown_len = grown.len();
         let (lower_portion, upper_portion) = grown.split_at_mut(self.len());
         for bucket_index in 0..buckets_len {
-            for entry in self.table_bucket(bucket_index) {
-                if let Some(entry) = entry {
+            for entry in self.table_bucket_mut(bucket_index) {
+                if let Some(entry) = entry.take() {
                     let byte_key = entry.key();
                     let cheap_index = compress_hash(grown_len, cheap_hash(byte_key));
                     let rand_index = compress_hash(grown_len, rand_hash(byte_key));
@@ -322,11 +322,11 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
                     if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
                         _ = lower_portion[bucket_index * BUCKET_ENTRY_COUNT
                             ..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-                            .shove_empty_slot(entry.clone());
+                            .shove_empty_slot(entry);
                     } else {
                         _ = upper_portion[bucket_index * BUCKET_ENTRY_COUNT
                             ..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-                            .shove_empty_slot(entry.clone());
+                            .shove_empty_slot(entry);
                     }
                 }
             }

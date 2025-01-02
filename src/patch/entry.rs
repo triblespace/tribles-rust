@@ -3,7 +3,7 @@ use super::*;
 #[derive(Debug)]
 #[repr(C)]
 pub struct Entry<const KEY_LEN: usize> {
-    ptr: *mut Leaf<KEY_LEN>,
+    ptr: NonNull<Leaf<KEY_LEN>>,
 }
 
 impl<const KEY_LEN: usize> Entry<KEY_LEN> {

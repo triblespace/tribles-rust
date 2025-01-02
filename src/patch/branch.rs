@@ -45,6 +45,10 @@ pub(crate) type BranchN<const KEY_LEN: usize, O, S> =
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     BranchN<KEY_LEN, O, S>
 {
+    pub fn is_owned(branch: *const Self) -> bool {
+        unsafe { (*branch).rc.load(Acquire) == 1 }
+    }
+
     pub fn count_segment(branch: *const Self, at_depth: usize) -> u64 {
         unsafe {
             if S::segment(O::key_index(at_depth))
@@ -159,26 +163,25 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) -> Head<KEY_LEN, O, S> {
         unsafe {
             let layout = Layout::new::<Self>();
-            let ptr = alloc(layout) as *mut Self;
-            if ptr.is_null() {
+            if let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) {
+                ptr.write(
+                    Self {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf: child.childleaf(),
+                        leaf_count: child.count(),
+                        segment_count: child.count_segment(end_depth),
+                        hash: child.hash(),
+                        child_table: [Some(child), None],
+                    },
+                );
+    
+                Head::new(HeadTag::Branch2, head_key, ptr)
+            } else {
                 panic!("Allocation failed!");
             }
-            std::ptr::write(
-                ptr,
-                Self {
-                    key_ordering: PhantomData,
-                    key_segments: PhantomData,
-                    rc: atomic::AtomicU32::new(1),
-                    end_depth: end_depth as u32,
-                    childleaf: child.childleaf(),
-                    leaf_count: child.count(),
-                    segment_count: child.count_segment(end_depth),
-                    hash: child.hash(),
-                    child_table: [Some(child), None],
-                },
-            );
-
-            Head::new(HeadTag::Branch2, head_key, ptr)
         }
     }
 }
@@ -190,8 +193,9 @@ impl<
         S: KeySegmentation<KEY_LEN>,
     > Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; SLOT_COUNT]>
 {
-    pub(super) unsafe fn rc_inc(branch: *mut Self) -> *mut Self {
+    pub(super) unsafe fn rc_inc(branch: NonNull<Self>) -> NonNull<Self> {
         unsafe {
+            let branch = branch.as_ptr();
             let mut current = (*branch).rc.load(Relaxed);
             loop {
                 if current == u32::MAX {
@@ -201,15 +205,16 @@ impl<
                     .rc
                     .compare_exchange(current, current + 1, Relaxed, Relaxed)
                 {
-                    Ok(_) => return branch,
+                    Ok(_) => return NonNull::new_unchecked(branch),
                     Err(v) => current = v,
                 }
             }
         }
     }
 
-    pub(super) unsafe fn rc_dec(branch: *mut Self) {
+    pub(super) unsafe fn rc_dec(branch: NonNull<Self>) {
         unsafe {
+            let branch = branch.as_ptr();
             if (*branch).rc.fetch_sub(1, Release) != 1 {
                 return;
             }
@@ -223,19 +228,15 @@ impl<
         }
     }
 
-    pub(super) unsafe fn rc_cow(branch: *const Self) -> Option<*mut Self> {
+    pub(super) unsafe fn rc_cow(branch: NonNull<Self>) -> Option<NonNull<Self>> {
         unsafe {
+            let branch = branch.as_ptr();
             if (*branch).rc.load(Acquire) == 1 {
                 None
             } else {
                 let layout = Layout::new::<Self>();
-                let ptr = alloc(layout) as *mut Self;
-                if ptr.is_null() {
-                    panic!("Allocation failed!");
-                }
-                std::ptr::write(
-                    ptr,
-                    Self {
+                if let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) {
+                    ptr.write(Self {
                         key_ordering: PhantomData,
                         key_segments: PhantomData,
                         rc: atomic::AtomicU32::new(1),
@@ -245,9 +246,12 @@ impl<
                         segment_count: (*branch).segment_count,
                         hash: (*branch).hash,
                         child_table: (*branch).child_table.clone(),
-                    },
-                );
-                Some(ptr)
+                    });
+                    Self::rc_dec(NonNull::new_unchecked(branch));
+                    Some(ptr)
+                } else {
+                    panic!("Allocation failed!");
+                }
             }
         }
     }
@@ -259,35 +263,40 @@ macro_rules! create_grow {
             Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $base_size]>
         {
             pub(super) fn grow(
-                branch: *mut Self,
-            ) -> *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]> {
+                branch: NonNull<Self>,
+            ) -> NonNull<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]>> {
                 unsafe {
+                    let branch = branch.as_ptr();
                     let layout = Layout::new::<
                         Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]>,
                     >();
-                    let ptr = alloc(layout)
-                        as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]>;
-                    if ptr.is_null() {
+                    if let Some(ptr) = NonNull::new(alloc(layout)
+                        as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]>)
+                    {
+                        ptr.write(
+                            Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]> {
+                                key_ordering: PhantomData,
+                                key_segments: PhantomData,
+                                rc: atomic::AtomicU32::new(1),
+                                end_depth: (*branch).end_depth,
+                                leaf_count: (*branch).leaf_count,
+                                segment_count: (*branch).segment_count,
+                                childleaf: (*branch).childleaf,
+                                hash: (*branch).hash,
+                                child_table: std::array::from_fn(|_| None),
+                            },
+                        );
+
+                        (*branch).child_table.table_grow(&mut (*ptr.as_ptr()).child_table);
+
+                        Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $base_size]>::rc_dec(
+                            NonNull::new_unchecked(branch),
+                        );
+
+                        ptr
+                    } else {
                         panic!("Allocation failed!");
                     }
-                    std::ptr::write(
-                        ptr,
-                        Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; $grown_size]> {
-                            key_ordering: PhantomData,
-                            key_segments: PhantomData,
-                            rc: atomic::AtomicU32::new(1),
-                            end_depth: (*branch).end_depth,
-                            leaf_count: (*branch).leaf_count,
-                            segment_count: (*branch).segment_count,
-                            childleaf: (*branch).childleaf,
-                            hash: (*branch).hash,
-                            child_table: std::array::from_fn(|_| None),
-                        },
-                    );
-
-                    (*branch).child_table.table_grow(&mut (*ptr).child_table);
-
-                    ptr
                 }
             }
         }

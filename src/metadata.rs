@@ -1,5 +1,5 @@
 //! Metadata namespace for the `tribles` crate.
-//! 
+//!
 //! This namespace is used to bootstrap the meaning of other namespaces.
 //! It defines meta attributes that are used to describe other attributes.
 

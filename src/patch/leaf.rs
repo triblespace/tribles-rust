@@ -1,6 +1,6 @@
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use siphasher::sip128::{Hasher128, SipHasher24};
+use siphasher::sip128::SipHasher24;
 use std::alloc::*;
 use std::ptr::addr_of;
 
@@ -15,32 +15,30 @@ pub(crate) struct Leaf<const KEY_LEN: usize> {
 }
 
 impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
-    pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> *mut Self {
+    pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> NonNull<Self> {
         unsafe {
             let layout = Layout::new::<Self>();
-            let ptr = alloc(layout) as *mut Self;
-            if ptr.is_null() {
+            if let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) {
+                let hash = SipHasher24::new_with_key(&*addr_of!(SIP_KEY)).hash(&key[..]).into();
+
+                ptr.write(
+                    Self {
+                        key: *key,
+                        hash,
+                        rc: atomic::AtomicU32::new(1),
+                    },
+                );
+    
+                ptr
+            } else {
                 panic!("Allocation failed!");
             }
-            let mut hasher = SipHasher24::new_with_key(&*addr_of!(SIP_KEY));
-            hasher.write(&key[..]);
-            let hash = hasher.finish128().into();
-
-            std::ptr::write(
-                ptr,
-                Self {
-                    key: *key,
-                    hash,
-                    rc: atomic::AtomicU32::new(1),
-                },
-            );
-
-            ptr
         }
     }
 
-    pub(crate) unsafe fn rc_inc(leaf: *mut Self) -> *mut Self {
+    pub(crate) unsafe fn rc_inc(leaf: NonNull<Self>) -> NonNull<Self> {
         unsafe {
+            let leaf = leaf.as_ptr();
             let mut current = (*leaf).rc.load(Relaxed);
             loop {
                 if current == u32::MAX {
@@ -50,31 +48,32 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                     .rc
                     .compare_exchange(current, current + 1, Relaxed, Relaxed)
                 {
-                    Ok(_) => return leaf,
+                    Ok(_) => return NonNull::new_unchecked(leaf),
                     Err(v) => current = v,
                 }
             }
         }
     }
 
-    pub(crate) unsafe fn rc_dec(node: *mut Self) {
+    pub(crate) unsafe fn rc_dec(leaf: NonNull<Self>) {
         unsafe {
-            let rc = (*node).rc.fetch_sub(1, Release);
+            let ptr = leaf.as_ptr();
+            let rc = (*ptr).rc.fetch_sub(1, Release);
             if rc != 1 {
                 return;
             }
-            (*node).rc.load(Acquire);
+            (*ptr).rc.load(Acquire);
 
-            std::ptr::drop_in_place(node);
+            std::ptr::drop_in_place(ptr);
 
             let layout = Layout::new::<Self>();
-            let ptr = node as *mut u8;
+            let ptr = ptr as *mut u8;
             dealloc(ptr, layout);
         }
     }
 
-    pub(crate) unsafe fn hash(node: *const Self) -> u128 {
-        (*node).hash
+    pub(crate) fn hash(&self) -> u128 {
+        self.hash
     }
 
     pub(crate) unsafe fn infixes<

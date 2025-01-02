@@ -171,11 +171,10 @@ pub use NS;
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
     use crate::examples::literature;
+    use crate::prelude::*;
 
     use fake::{faker::name::raw::Name, locales::EN, Fake};
-
 
     #[test]
     fn ns_entity() {
@@ -183,7 +182,7 @@ mod tests {
 
         let author = ufoid();
         let book = ufoid();
-    
+
         tribles += literature::entity!(&author, {
             firstname: "William",
             lastname: "Shakespeare",
@@ -226,7 +225,10 @@ mod tests {
             }])
         )
         .collect();
-        assert_eq!(vec![(book.to_value(), "Hamlet".to_value(), "William".to_value())], r);
+        assert_eq!(
+            vec![(book.to_value(), "Hamlet".to_value(), "William".to_value())],
+            r
+        );
     }
 
     #[test]
@@ -274,6 +276,13 @@ mod tests {
         )
         .collect();
 
-        assert_eq!(vec![(shakespeare.to_value(), hamlet.to_value(), "Hamlet".to_value(),)], r);
+        assert_eq!(
+            vec![(
+                shakespeare.to_value(),
+                hamlet.to_value(),
+                "Hamlet".to_value(),
+            )],
+            r
+        );
     }
 }

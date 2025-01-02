@@ -25,20 +25,60 @@ pub(crate) struct Branch<
 
 pub(crate) type Branch2<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch2<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch2;
+}
+
 pub(crate) type Branch4<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch4<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch4;
+}
+
 pub(crate) type Branch8<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch8<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch8;
+}
+
 pub(crate) type Branch16<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch16<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch16;
+}
+
 pub(crate) type Branch32<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch32<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch32;
+}
+
 pub(crate) type Branch64<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch64<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch64;
+}
+
 pub(crate) type Branch128<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch128<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch128;
+}
+
 pub(crate) type Branch256<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>;
+
+impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body for Branch256<KEY_LEN, O, S> {
+    const TAG: HeadTag = HeadTag::Branch256;
+}
+
 pub(crate) type BranchN<const KEY_LEN: usize, O, S> =
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>;
 
@@ -178,7 +218,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     },
                 );
     
-                Head::new(HeadTag::Branch2, head_key, ptr)
+                Head::new(head_key, ptr)
             } else {
                 panic!("Allocation failed!");
             }

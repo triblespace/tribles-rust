@@ -179,15 +179,17 @@ unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KE
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Head<KEY_LEN, O, S>
 {
-    pub(crate) unsafe fn new<T>(tag: HeadTag, key: u8, body: NonNull<T>) -> Self {
-        Self {
-            tptr: std::ptr::NonNull::new_unchecked((body.as_ptr()).map_addr(|addr| {
-                ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
-                    | ((key as u64) << 48)
-                    | ((tag as u64) << 56)) as usize
-            }) as *mut u8),
-            key_ordering: PhantomData,
-            key_segments: PhantomData,
+    pub(crate) fn new<T: Body>(key: u8, body: NonNull<T>) -> Self {
+        unsafe {
+            Self {
+                tptr: std::ptr::NonNull::new_unchecked((body.as_ptr()).map_addr(|addr| {
+                    ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
+                        | ((key as u64) << 48)
+                        | ((T::TAG as u64) << 56)) as usize
+                }) as *mut u8),
+                key_ordering: PhantomData,
+                key_segments: PhantomData,
+            }
         }
     }
 
@@ -195,15 +197,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(crate) fn tag(&self) -> HeadTag {
         unsafe { transmute((self.tptr.as_ptr() as u64 >> 56) as u8) }
     }
-
-    #[inline]
-    pub(crate) unsafe fn set_tag(&mut self, tag: HeadTag) {
-        self.tptr = std::ptr::NonNull::new(self.tptr.as_ptr().map_addr(|addr| {
-            ((addr as u64 & 0x00_ff_ff_ff_ff_ff_ff_ffu64) | ((tag as u64) << 56)) as usize
-        }))
-        .unwrap();
-    }
-
 
     #[inline]
     pub(crate) fn key(&self) -> u8 {
@@ -219,7 +212,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     #[inline]
-    pub(crate) unsafe fn ptr<T>(&self) -> NonNull<T> {
+    pub(crate) unsafe fn ptr<T: Body>(&self) -> NonNull<T> {
+        debug_assert_eq!(T::TAG, self.tag());
+
         NonNull::new_unchecked(
             self.tptr
                 .as_ptr()
@@ -229,11 +224,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     #[inline]
-    pub(crate) unsafe fn set_ptr<T>(&mut self, ptr: NonNull<T>) {
-        self.tptr = NonNull::new_unchecked(ptr.as_ptr().map_addr(|addr| {
-            ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
-                | (self.tptr.as_ptr() as u64 & 0xff_ff_00_00_00_00_00_00u64)) as usize
-        }) as *mut u8)
+    pub(crate) fn set_ptr<T: Body>(&mut self, ptr: NonNull<T>) {
+        unsafe {
+            self.tptr = NonNull::new_unchecked(ptr.as_ptr().map_addr(|addr| {
+                ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
+                    | (self.tptr.as_ptr() as u64 & 0x00_ff_00_00_00_00_00_00u64)
+                    | ((T::TAG as u64) << 56)) as usize
+            }) as *mut u8)
+        }
     }
 
     pub(crate) fn with_start(mut self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
@@ -419,7 +417,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 4 {
                             let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch4::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch4);
                                 return;
                             };
                             inserted = displaced;
@@ -428,7 +425,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 8 {
                             let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch8::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch8);
                                 return;
                             };
                             inserted = displaced;
@@ -437,7 +433,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 16 {
                             let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch16::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch16);
                                 return;
                             };
                             inserted = displaced;
@@ -446,7 +441,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 32 {
                             let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch32::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch32);
                                 return;
                             };
                             inserted = displaced;
@@ -455,7 +449,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 64 {
                             let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch64::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch64);
                                 return;
                             };
                             inserted = displaced;
@@ -464,7 +457,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 128 {
                             let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch128::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch128);
                                 return;
                             };
                             inserted = displaced;
@@ -473,7 +465,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         if (*branch).child_table.len() == 256 {
                             let Some(_) = (*branch).child_table.table_insert(inserted) else {
                                 self.set_ptr(NonNull::new_unchecked(branch as *mut Branch256::<KEY_LEN, O, S>));
-                                self.set_tag(HeadTag::Branch256);
                                 return;
                             };
                             panic!("failed to insert on Branch256");
@@ -864,45 +855,37 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         unsafe {
             match self.tag() {
                 HeadTag::Leaf => {
-                    Self::new(self.tag(), self.key(), Leaf::<KEY_LEN>::rc_inc(self.ptr()))
+                    Self::new(self.key(), Leaf::<KEY_LEN>::rc_inc(self.ptr()))
                 }
                 HeadTag::Branch2 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch4 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch8 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch16 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch32 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch64 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch128 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>::rc_inc(self.ptr()),
                 ),
                 HeadTag::Branch256 => Self::new(
-                    self.tag(),
                     self.key(),
                     Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>::rc_inc(self.ptr()),
                 ),
@@ -1292,13 +1275,10 @@ mod tests {
 
     #[test]
     fn head_tag() {
-        let head = unsafe {
-            Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(
-                HeadTag::Leaf,
+        let head = Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(
                 0,
                 NonNull::dangling(),
-            )
-        };
+            );
         assert_eq!(head.tag(), HeadTag::Leaf);
         mem::forget(head);
     }
@@ -1306,13 +1286,10 @@ mod tests {
     #[test]
     fn head_key() {
         for k in 0..=255 {
-            let head = unsafe {
-                Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(
-                    HeadTag::Leaf,
+            let head = Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(
                     k,
                     NonNull::dangling(),
-                )
-            };
+                );
             assert_eq!(head.key(), k);
             mem::forget(head);
         }

@@ -14,6 +14,10 @@ pub(crate) struct Leaf<const KEY_LEN: usize> {
     rc: atomic::AtomicU32,
 }
 
+impl<const KEY_LEN: usize> Body for Leaf<KEY_LEN> {
+    const TAG: HeadTag = HeadTag::Leaf;
+}
+
 impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> NonNull<Self> {
         unsafe {

@@ -630,16 +630,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        unsafe {
-            match self.body() {
-                BodyRef::Leaf(leaf) => Leaf::<KEY_LEN>::infixes::<PREFIX_LEN, INFIX_LEN, O, S, F>(
-                    leaf, prefix, at_depth, f,
-                ),
-                BodyRef::Branch(branch) => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::infixes(
-                        branch, prefix, at_depth, f,
-                    )
-                }
+        match self.body() {
+            BodyRef::Leaf(leaf) => Leaf::<KEY_LEN>::infixes::<PREFIX_LEN, INFIX_LEN, O, S, F>(
+                leaf, prefix, at_depth, f,
+            ),
+            BodyRef::Branch(branch) => {
+                Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::infixes(
+                    branch, prefix, at_depth, f,
+                )
             }
         }
     }
@@ -649,16 +647,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        unsafe {
-            match self.body() {
-                BodyRef::Leaf(leaf) => {
-                    Leaf::<KEY_LEN>::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix)
-                }
-                BodyRef::Branch(branch) => {
-                    branch::Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::has_prefix(
-                        branch, at_depth, prefix,
-                    )
-                }
+        match self.body() {
+            BodyRef::Leaf(leaf) => {
+                Leaf::<KEY_LEN>::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix)
+            }
+            BodyRef::Branch(branch) => {
+                branch::Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::has_prefix(
+                    branch, at_depth, prefix,
+                )
             }
         }
     }
@@ -668,16 +664,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        unsafe {
-            match self.body() {
-                BodyRef::Leaf(leaf) => {
-                    leaf::Leaf::<KEY_LEN>::segmented_len::<O, PREFIX_LEN>(leaf, at_depth, prefix)
-                }
-                BodyRef::Branch(branch) => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::segmented_len(
-                        branch, at_depth, prefix,
-                    )
-                }
+        match self.body() {
+            BodyRef::Leaf(leaf) => {
+                leaf::Leaf::<KEY_LEN>::segmented_len::<O, PREFIX_LEN>(leaf, at_depth, prefix)
+            }
+            BodyRef::Branch(branch) => {
+                Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::segmented_len(
+                    branch, at_depth, prefix,
+                )
             }
         }
     }
@@ -825,13 +819,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
     pub(crate) fn difference(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
         todo!()
-    }
-
-    pub(crate) fn iter_children(&self) -> std::slice::Iter<Option<Head<KEY_LEN, O, S>>> {
-        match self.body() {
-            BodyRef::Leaf(_) => panic!("iter_children on leaf"),
-            BodyRef::Branch(branch) => (&(*branch).child_table).iter(),
-        }
     }
 }
 
@@ -1179,17 +1166,16 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
         loop {
             if let Some(child) = iter.next() {
                 if let Some(child) = child {
-                    match child.tag() {
-                        HeadTag::Leaf => {
-                            let leaf: *const Leaf<KEY_LEN> = unsafe { child.ptr().as_ptr() };
-                            let key = O::tree_ordered(unsafe { &(*leaf).key });
+                    match child.body() {
+                        BodyRef::Leaf(leaf) => {
+                            let key = O::tree_ordered(&leaf.key);
                             self.stack.push(iter);
                             return Some(key);
-                        }
-                        _ => {
+                        },
+                        BodyRef::Branch(branch) => {
                             self.stack.push(iter);
-                            iter = child.iter_children();
-                        }
+                            iter = branch.child_table.iter();
+                        },
                     }
                 }
             } else {
@@ -1249,15 +1235,19 @@ impl<
         loop {
             if let Some(child) = level.pop() {
                 if child.end_depth() >= PREFIX_LEN {
-                    let leaf: *const Leaf<KEY_LEN> = unsafe { child.childleaf() };
-                    let key = O::tree_ordered(unsafe { &(*leaf).key });
+                    let key = O::tree_ordered(child.leaf_key());
                     let suffix_count = child.count();
                     self.stack.push(level);
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
                     self.stack.push(level);
-                    level = child.iter_children().filter_map(|c| c.as_ref()).collect();
-                    level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                    match child.body() {
+                        BodyRef::Leaf(_) => panic!("iter_children on leaf"),
+                        BodyRef::Branch(branch) => {
+                            level = branch.child_table.iter().filter_map(|c| c.as_ref()).collect();
+                            level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                        },
+                    }
                 }
             } else {
                 level = self.stack.pop()?;

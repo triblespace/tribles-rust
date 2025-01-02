@@ -253,7 +253,7 @@ where
 mod tests {
     use std::convert::TryInto;
 
-    use crate::id::ufoid;
+    use crate::id::fucid;
     use crate::namespace::NS;
     use crate::query::find;
     use crate::trible::Trible;
@@ -339,8 +339,8 @@ mod tests {
 
     #[test]
     fn archive_pattern() {
-        let juliet = ufoid();
-        let romeo = ufoid();
+        let juliet = fucid();
+        let romeo = fucid();
 
         let mut kb = TribleSet::new();
 

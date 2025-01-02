@@ -80,21 +80,21 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         self.hash
     }
 
-    pub(crate) unsafe fn infixes<
+    pub(crate) fn infixes<
         const PREFIX_LEN: usize,
         const INFIX_LEN: usize,
         O: KeyOrdering<KEY_LEN>,
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
-        leaf: *const Self,
+        &self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        let leaf_key = &(*leaf).key;
+        let leaf_key = &self.key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return;
@@ -102,16 +102,16 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
 
         let infix: [u8; INFIX_LEN] =
-            core::array::from_fn(|i| (*leaf).key[O::key_index(PREFIX_LEN + i)]);
+            core::array::from_fn(|i| self.key[O::key_index(PREFIX_LEN + i)]);
         f(&infix);
     }
 
-    pub(crate) unsafe fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
-        leaf: *const Self,
+    pub(crate) fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
+        &self,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        let leaf_key: &[u8; KEY_LEN] = &(*leaf).key;
+        let leaf_key: &[u8; KEY_LEN] = &self.key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return false;
@@ -120,12 +120,12 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         return true;
     }
 
-    pub(crate) unsafe fn segmented_len<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
-        node: *const Self,
+    pub(crate) fn segmented_len<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
+        &self,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        let leaf_key: &[u8; KEY_LEN] = &(*node).key;
+        let leaf_key: &[u8; KEY_LEN] = &self.key;
         for depth in at_depth..PREFIX_LEN {
             let key_depth = O::key_index(depth);
             if leaf_key[key_depth] != prefix[depth] {

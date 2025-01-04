@@ -1,7 +1,7 @@
 use rand::{thread_rng, RngCore};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{Id, OwnedId};
+use super::{Id, ExclusiveId};
 
 /// # Universal Forgettable Ordered IDs (UFOIDs)
 ///
@@ -43,7 +43,7 @@ use super::{Id, OwnedId};
 /// let id2 = ufoid();
 /// assert_ne!(id1, id2);
 /// ```
-pub fn ufoid() -> OwnedId {
+pub fn ufoid() -> ExclusiveId {
     let mut rng = thread_rng();
     let now_in_sys = SystemTime::now();
     let now_since_epoch = now_in_sys
@@ -55,7 +55,7 @@ pub fn ufoid() -> OwnedId {
     id[0..4].copy_from_slice(&(now_in_ms as u32).to_be_bytes());
     rng.fill_bytes(&mut id[4..16]);
 
-    OwnedId::force(Id::new(id).expect("The probability time and rng = 0 should be neglegible."))
+    ExclusiveId::force(Id::new(id).expect("The probability time and rng = 0 should be neglegible."))
 }
 
 pub fn timestamp_distance(now: u32, ts1: u32, ts2: u32) -> i64 {

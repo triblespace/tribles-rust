@@ -36,37 +36,6 @@
 //! would share the same abstract identity but have different intrinsic identities.  
 //! Human-readable names, by contrast, do not provide any form of persistent identity on their own.
 //!
-//! ## Example: Scientific Publishing
-//!
-//! Consider the case of published scientific papers. Each artifact, such as a `.html` or `.pdf` file,
-//! should be identified by its intrinsic identifier, typically a cryptographic hash of its content.
-//! This ensures that any two entities referencing the same hash are referring to the exact same version
-//! of the artifact, providing immutability and validation.  
-//!
-//! Across different versions of the same paper, an abstract identifier can be used to tie these
-//! artifacts together as part of one logical entity. The abstract identifier provides continuity,
-//! regardless of changes to the paper’s content over time.  
-//!
-//! Human-readable names, such as abbreviations in citations or bibliographies, are scoped to
-//! individual papers and provide context-specific usability for readers. These names do not convey
-//! identity but serve as a way for humans to reference the persistent identifiers that underlie the system.
-//!
-//! Contrastingly, systems like DOIs conflate multiple concepts from this categorization. While they attempt to provide
-//! persistent intrinsic identity, they effectively reduce to poorly readable human-readable names when
-//! encoded as URLs.  
-//!
-//! Although each paper revision is theoretically assigned a new DOI, in practice, the same DOI is often reused
-//! for multiple versions of the same paper. This undermines their role as intrinsic identifiers tied to specific content.
-//!
-//! Since their creation is limited to select authoritative organizations for collision avoidance, they cannot
-//! be created cheaply and independently, as is possible with entropy-based abstract or intrinsic identifiers.  
-//!
-//! Despite their intent, DOIs lack direct association with content, as seen in intrinsic identifiers, meaning
-//! they cannot independently guarantee immutability or validation.  
-//!
-//! By combining these limitations, DOIs fail to fully align with any single category of identifiers, making
-//! them unsuitable for their primary use case.
-//!
 //! # High-Entropy Identifiers
 //!
 //! For a truly distributed system, the creation of identifiers must avoid the bottlenecks and overhead associated
@@ -107,6 +76,37 @@
 //! | Compression    | None                  | Low                   | High                  |
 //! | Predictability | None                  | Low                   | Mid                   |
 //!
+//! # Example: Scientific Publishing
+//!
+//! Consider the case of published scientific papers. Each artifact, such as a `.html` or `.pdf` file,
+//! should be identified by its intrinsic identifier, typically a cryptographic hash of its content.
+//! This ensures that any two entities referencing the same hash are referring to the exact same version
+//! of the artifact, providing immutability and validation.  
+//!
+//! Across different versions of the same paper, an abstract identifier can be used to tie these
+//! artifacts together as part of one logical entity. The abstract identifier provides continuity,
+//! regardless of changes to the paper’s content over time.  
+//!
+//! Human-readable names, such as abbreviations in citations or bibliographies, are scoped to
+//! individual papers and provide context-specific usability for readers. These names do not convey
+//! identity but serve as a way for humans to reference the persistent identifiers that underlie the system.
+//!
+//! Contrastingly, systems like DOIs conflate multiple concepts from this categorization. While they attempt to provide
+//! persistent intrinsic identity, they effectively reduce to poorly readable human-readable names when
+//! encoded as URLs.  
+//!
+//! Although each paper revision is theoretically assigned a new DOI, in practice, the same DOI is often reused
+//! for multiple versions of the same paper. This undermines their role as intrinsic identifiers tied to specific content.
+//!
+//! Since their creation is limited to select authoritative organizations for collision avoidance, they cannot
+//! be created cheaply and independently, as is possible with entropy-based abstract or intrinsic identifiers.  
+//!
+//! Despite their intent, DOIs lack direct association with content, as seen in intrinsic identifiers, meaning
+//! they cannot independently guarantee immutability or validation.  
+//!
+//! By combining these limitations, DOIs fail to fully align with any single category of identifiers, making
+//! them unsuitable for their primary use case.
+//! 
 //! # ID Ownership
 //!
 //! In distributed systems, consistency requires monotonicity due to the CALM principle.
@@ -118,7 +118,7 @@
 //! simultaneously. Since there can only be one owner for each ID at any given time, you can be
 //! confident that no other information has been written about the entities in question.
 //!
-//! By default, all minted `OwnedID`s are associated with the thread they are dropped from.
+//! By default, all minted `ExclusiveId`s are associated with the thread they are dropped from.
 //! These IDs can be found in queries via the `local_ids` function.
 //!
 //! ## Ownership and Eventual Consistency
@@ -161,7 +161,7 @@ use crate::{
     value::{RawValue, VALUE_LEN},
 };
 
-thread_local!(static OWNED_IDS: RefCell<IdOwner> = RefCell::new(IdOwner::new()));
+thread_local!(static OWNED_IDS: IdOwner = IdOwner::new());
 
 /// The length of a 128bit abstract identifier in bytes.
 pub const ID_LEN: usize = 16;
@@ -217,8 +217,8 @@ impl Id {
     /// Takes ownership of this Id from the current write context (i.e. thread).
     /// Returns `None` if this Id was not found, because it is not associated with this
     /// write context, or because it is currently aquired.
-    pub fn aquire(&self) -> Option<OwnedId> {
-        OWNED_IDS.with_borrow_mut(|owner| owner.take(self))
+    pub fn aquire(&self) -> Option<ExclusiveId> {
+        OWNED_IDS.with(|owner| owner.take(self))
     }
 }
 
@@ -259,8 +259,8 @@ impl Borrow<RawId> for Id {
     }
 }
 
-impl AsRef<[u8; 16]> for Id {
-    fn as_ref(&self) -> &[u8; 16] {
+impl AsRef<RawId> for Id {
+    fn as_ref(&self) -> &RawId {
         self
     }
 }
@@ -325,29 +325,29 @@ pub use id_hex;
 
 /// Represents an ID that can only be used by a single writer at a time.
 ///
-/// `OwnedId`s are associated with one owning context (typically a thread) at a time.
+/// `ExclusiveId`s are associated with one owning context (typically a thread) at a time.
 /// Because they are `Send` and `!Sync`, they can be passed between contexts, but not used concurrently.
 /// This makes use of Rust's borrow checker to enforce a weaker form of software transactional memory (STM) without rollbacks - as these are not an issue with the heavy use of copy-on-write data structures.
 ///
 /// They are automatically associated with the thread they are dropped from, which can be used in queries via the [local_ids] constraint.
 /// You can also make use of explicit [IdOwner] containers to store them when not actively used in a transaction.
 ///
-/// Most methods defined on [OwnedId] are low-level primitives meant to be used for the implementation of new ownership management strategies,
+/// Most methods defined on [ExclusiveId] are low-level primitives meant to be used for the implementation of new ownership management strategies,
 /// such as a transactional database that tracks checked out IDs for ownership, or distributed ledgers like blockchains.
 ///
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct OwnedId {
+pub struct ExclusiveId {
     pub id: Id,
     // Make sure that the type can't be syntactically initialized.
     // Also make sure that we don't get auto impl of Send and Sync
     _private: PhantomData<*const ()>,
 }
 
-unsafe impl Send for OwnedId {}
+unsafe impl Send for ExclusiveId {}
 
-impl OwnedId {
-    /// Forces a regular (read-only) `Id` to become a writable `OwnedId`.
+impl ExclusiveId {
+    /// Forces a regular (read-only) `Id` to become a writable `ExclusiveId`.
     ///
     /// This is a low-level primitive that is meant to be used for the implementation of new ownership management strategies,
     /// such as a transactional database that tracks checked out IDs for ownership, or distributed ledgers like blockchains.
@@ -357,7 +357,7 @@ impl OwnedId {
     ///
     /// # Arguments
     ///
-    /// * `id` - The `Id` to be forced into an `OwnedId`.
+    /// * `id` - The `Id` to be forced into an `ExclusiveId`.
     pub fn force(id: Id) -> Self {
         Self {
             id,
@@ -365,7 +365,7 @@ impl OwnedId {
         }
     }
 
-    /// Safely transmutes a reference to an `Id` into a reference to an `OwnedId`.
+    /// Safely transmutes a reference to an `Id` into a reference to an `ExclusiveId`.
     ///
     /// Similar caution should be applied when using the `force` method.
     ///
@@ -376,7 +376,7 @@ impl OwnedId {
         unsafe { std::mem::transmute(id) }
     }
 
-    /// Releases the `OwnedId`, returning the underlying `Id`.
+    /// Releases the `ExclusiveId`, returning the underlying `Id`.
     ///
     /// # Returns
     ///
@@ -387,9 +387,9 @@ impl OwnedId {
         id
     }
 
-    /// Forgets the `OwnedId`, leaking ownership of the underlying `Id`, while returning it.
+    /// Forgets the `ExclusiveId`, leaking ownership of the underlying `Id`, while returning it.
     ///
-    /// This is not as potentially problematic as [force](OwnedId::force), because it prevents further writes with the `OwnedId`, thus avoiding potential conflicts.
+    /// This is not as potentially problematic as [force](ExclusiveId::force), because it prevents further writes with the `ExclusiveId`, thus avoiding potential conflicts.
     ///
     /// # Returns
     ///
@@ -401,15 +401,15 @@ impl OwnedId {
     }
 }
 
-impl Drop for OwnedId {
+impl Drop for ExclusiveId {
     fn drop(&mut self) {
-        OWNED_IDS.with_borrow_mut(|ids| {
+        OWNED_IDS.with(|ids| {
             ids.force_insert(self);
         });
     }
 }
 
-impl Deref for OwnedId {
+impl Deref for ExclusiveId {
     type Target = Id;
 
     fn deref(&self) -> &Self::Target {
@@ -417,67 +417,74 @@ impl Deref for OwnedId {
     }
 }
 
-impl Borrow<RawId> for OwnedId {
+impl Borrow<RawId> for ExclusiveId {
     fn borrow(&self) -> &RawId {
         self
     }
 }
 
-impl Borrow<Id> for OwnedId {
+impl Borrow<Id> for ExclusiveId {
     fn borrow(&self) -> &Id {
         self
     }
 }
 
-impl AsRef<[u8; 16]> for OwnedId {
-    fn as_ref(&self) -> &[u8; 16] {
+impl AsRef<Id> for ExclusiveId {
+    fn as_ref(&self) -> &Id {
         self
     }
 }
 
-impl AsRef<[u8]> for OwnedId {
+impl AsRef<RawId> for ExclusiveId {
+    fn as_ref(&self) -> &RawId {
+        self
+    }
+}
+
+impl AsRef<[u8]> for ExclusiveId {
     fn as_ref(&self) -> &[u8] {
         &self[..]
     }
 }
 
-impl From<OwnedId> for RawId {
-    fn from(value: OwnedId) -> Self {
-        **value
-    }
-}
-
-impl Display for OwnedId {
+impl Display for ExclusiveId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let id: &Id = self;
-        write!(f, "OwnedId({id:X})")
+        write!(f, "ExclusiveId({id:X})")
     }
 }
 
-/// A constraint that checks if a variable is an `OwnedId` associated with the current write context (i.e. thread).
+/// A constraint that checks if a variable is an `ExclusiveId` associated with the current write context (i.e. thread).
 pub fn local_ids(v: Variable<GenId>) -> impl Constraint<'static> {
-    OWNED_IDS.with_borrow(|owner| owner.has(v))
+    OWNED_IDS.with(|owner| owner.has(v))
 }
 
-/// A container for [OwnedId]s, allowing for explicit ownership management.
-/// There is an implicit `IdOwner` for each thread, to which `OwnedId`s are associated when they are dropped,
+/// A container for [ExclusiveId]s, allowing for explicit ownership management.
+/// There is an implicit `IdOwner` for each thread, to which `ExclusiveId`s are associated when they are dropped,
 /// and which can be queried via the [local_ids] constraint.
 ///
 /// # Example
 ///
 /// ```
-/// use tribles::id::{IdOwner, OwnedId, fucid};
+/// use tribles::id::{IdOwner, ExclusiveId, fucid};
 /// let mut owner = IdOwner::new();
-/// let owned_id = fucid();
-/// let id = owner.insert(owned_id);
+/// let exclusive_id = fucid();
+/// let id = owner.insert(exclusive_id);
 ///
 /// assert!(owner.owns(&id));
-/// assert_eq!(owner.take(&id), Some(OwnedId::force(id)));
+/// assert_eq!(owner.take(&id), Some(ExclusiveId::force(id)));
 /// assert!(!owner.owns(&id));
 /// ```
 ///
 pub struct IdOwner {
-    owned_ids: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>,
+    owned_ids: RefCell<PATCH<ID_LEN, IdentityOrder, SingleSegmentation>>,
+}
+
+/// An `ExclusiveId` that is associated with an `IdOwner`.
+/// It is automatically returned to the `IdOwner` when dropped.
+pub struct OwnedId<'a> {
+    pub id: Id,
+    owner: &'a IdOwner,
 }
 
 impl IdOwner {
@@ -490,35 +497,66 @@ impl IdOwner {
     /// A new `IdOwner`.
     pub fn new() -> Self {
         Self {
-            owned_ids: PATCH::new(),
+            owned_ids: RefCell::new(PATCH::new()),
         }
     }
 
-    /// Inserts an `OwnedId` into the `IdOwner`, returning the underlying `Id`.
+    /// Inserts an `ExclusiveId` into the `IdOwner`, returning the underlying `Id`.
     ///
     /// # Arguments
     ///
-    /// * `owned_id` - The `OwnedId` to be inserted.
+    /// * `id` - The `ExclusiveId` to be inserted.
     ///
     /// # Returns
     ///
     /// The underlying `Id`.
-    pub fn insert(&mut self, owned_id: OwnedId) -> Id {
-        self.force_insert(&owned_id);
-        owned_id.forget()
+    pub fn insert(&mut self, id: ExclusiveId) -> Id {
+        self.force_insert(&id);
+        id.forget()
     }
 
-    /// Forces an `Id` into the `IdOwner` as an `OwnedId`.
+    /// Defers inserting an `ExclusiveId` into the `IdOwner`, returning an `OwnedId`.
+    /// The `OwnedId` will return the `ExclusiveId` to the `IdOwner` when dropped.
+    /// This is useful if you generated an `ExclusiveId` that you want to use temporarily,
+    /// but want to make sure it is returned to the `IdOwner` when you are done.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The `ExclusiveId` to be inserted.
+    /// 
+    /// # Returns
+    /// 
+    /// An `OwnedId` that will return the `ExclusiveId` to the `IdOwner` when dropped.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use tribles::prelude::*;
+    /// use valueschemas::ShortString;
+    /// use tribles::id_hex;
+    /// 
+    /// let mut owner = IdOwner::new();
+    /// let owned_id = owner.defer_insert(fucid());
+    /// let trible = Trible::new(&owned_id, &id_hex!("7830D7B3C2DCD44EB3FA68C93D06B973"), &ShortString::value_from("Hello, World!"));
+    /// ```
+    pub fn defer_insert(&self, id: ExclusiveId) -> OwnedId {
+        OwnedId {
+            id: id.forget(),
+            owner: self,
+        }
+    }
+
+    /// Forces an `Id` into the `IdOwner` as an `ExclusiveId`.
     ///
     /// # Arguments
     ///
-    /// * `id` - The `Id` to be forced into an `OwnedId`.
-    pub fn force_insert(&mut self, id: &Id) {
+    /// * `id` - The `Id` to be forced into an `ExclusiveId`.
+    pub fn force_insert(&self, id: &Id) {
         let entry = Entry::new(&id);
-        self.owned_ids.insert(&entry);
+        self.owned_ids.borrow_mut().insert(&entry);
     }
 
-    /// Takes an `Id` from the `IdOwner`, returning it as an `OwnedId`.
+    /// Takes an `Id` from the `IdOwner`, returning it as an `ExclusiveId`.
     ///
     /// # Arguments
     ///
@@ -526,14 +564,49 @@ impl IdOwner {
     ///
     /// # Returns
     ///
-    /// An `OwnedId` if the `Id` was found, otherwise `None`.
-    pub fn take(&mut self, id: &Id) -> Option<OwnedId> {
-        if self.owned_ids.has_prefix(id) {
-            self.owned_ids.remove(id);
-            Some(OwnedId::force(*id))
+    /// An `ExclusiveId` if the `Id` was found, otherwise `None`.
+    pub fn take(&self, id: &Id) -> Option<ExclusiveId> {
+        if self.owned_ids.borrow().has_prefix(id) {
+            self.owned_ids.borrow_mut().remove(id);
+            Some(ExclusiveId::force(*id))
         } else {
             None
         }
+    }
+
+    /// Get an `OwnedId` from the `IdOwner`.
+    /// The `OwnedId` will return the `ExclusiveId` to the `IdOwner` when dropped.
+    /// This is useful for temporary exclusive access to an `Id`.
+    /// If you want to keep the `Id` for longer, you can use the `take` method,
+    /// but you will have to manually return it to the `IdOwner` when you are done.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The `Id` to be taken.
+    /// 
+    /// # Returns
+    /// 
+    /// An `OwnedId` if the `Id` was found, otherwise `None`.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use tribles::id::{IdOwner, ExclusiveId, fucid};
+    /// let mut owner = IdOwner::new();
+    /// let exclusive_id = fucid();
+    /// let id = owner.insert(exclusive_id);
+    ///  {
+    ///     let mut owned_id = owner.borrow(&id).unwrap();
+    /// 
+    ///     assert_eq!(owned_id.id, id);
+    ///     assert!(!owner.owns(&id));
+    ///  }
+    /// assert!(owner.owns(&id));
+    /// ```
+    pub fn borrow<'a>(&'a self, id: &Id) -> Option<OwnedId<'a>> {
+        self.take(id).map(move |id| {
+            OwnedId { id: id.forget(), owner: self }
+        })
     }
 
     /// Checks if the `IdOwner` owns an `Id`.
@@ -545,8 +618,71 @@ impl IdOwner {
     /// # Returns
     ///
     /// `true` if the `Id` is owned by the `IdOwner`, otherwise `false`.
-    pub fn owns(&mut self, id: &Id) -> bool {
-        self.owned_ids.has_prefix(id)
+    pub fn owns(&self, id: &Id) -> bool {
+        self.owned_ids.borrow().has_prefix(id)
+    }
+}
+
+impl Deref for OwnedId<'_> {
+    type Target = ExclusiveId;
+
+    fn deref(&self) -> &Self::Target {
+        ExclusiveId::transmute_force(&self.id)
+    }
+}
+
+impl Borrow<RawId> for OwnedId<'_> {
+    fn borrow(&self) -> &RawId {
+        self
+    }
+}
+
+impl Borrow<Id> for OwnedId<'_> {
+    fn borrow(&self) -> &Id {
+        self
+    }
+}
+
+impl Borrow<ExclusiveId> for OwnedId<'_> {
+    fn borrow(&self) -> &ExclusiveId {
+        self
+    }
+}
+
+impl AsRef<ExclusiveId> for OwnedId<'_> {
+    fn as_ref(&self) -> &ExclusiveId {
+        self
+    }
+}
+
+impl AsRef<Id> for OwnedId<'_> {
+    fn as_ref(&self) -> &Id {
+        self
+    }
+}
+
+impl AsRef<RawId> for OwnedId<'_> {
+    fn as_ref(&self) -> &RawId {
+        self
+    }
+}
+
+impl AsRef<[u8]> for OwnedId<'_> {
+    fn as_ref(&self) -> &[u8] {
+        &self[..]
+    }
+}
+
+impl Display for OwnedId<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let id: &Id = self;
+        write!(f, "OwnedId({id:X})")
+    }
+}
+
+impl<'a> Drop for OwnedId<'a> {
+    fn drop(&mut self) {
+        self.owner.force_insert(&(self.id));
     }
 }
 
@@ -557,14 +693,14 @@ impl ContainsConstraint<'static, GenId> for &IdOwner {
     >>::Constraint;
 
     fn has(self, v: Variable<GenId>) -> Self::Constraint {
-        self.owned_ids.clone().has(v)
+        self.owned_ids.borrow().clone().has(v)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::examples::literature;
-    use crate::id::OwnedId;
+    use crate::id::ExclusiveId;
     use crate::prelude::*;
 
     #[test]
@@ -592,7 +728,7 @@ mod tests {
         }
 
         let mut r: Vec<_> = find!(
-            (author: OwnedId, name: String),
+            (author: ExclusiveId, name: String),
             and!(
                 local_ids(author),
                 literature::pattern!(&kb, [

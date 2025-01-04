@@ -70,7 +70,7 @@ fn std_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 HashSet::<Trible>::from_iter(black_box(&samples).iter().copied())
             });
         });
@@ -92,7 +92,7 @@ fn im_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied())
             });
         });
@@ -114,7 +114,7 @@ fn patch_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
                 for t in black_box(&samples) {
                     let entry: Entry<64> = Entry::new(&t.data);
@@ -164,7 +164,7 @@ fn patch_benchmark(c: &mut Criterion) {
                     patch
                 })
                 .collect();
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 black_box(&patchs).iter().fold(
                     PATCH::<64, IdentityOrder, SingleSegmentation>::new(),
                     |mut a, p| {
@@ -186,7 +186,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("add", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 //let before_mem = PEAK_ALLOC.current_usage_as_gb();
                 let mut set = TribleSet::new();
                 for t in black_box(&samples) {
@@ -203,7 +203,7 @@ fn tribleset_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("from_iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter_with_large_drop(|| TribleSet::from_iter(black_box(&samples).iter().copied()))
+            b.iter(|| TribleSet::from_iter(black_box(&samples).iter().copied()))
         });
     }
 
@@ -231,7 +231,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
                 });
             });
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
                 let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                 let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
@@ -291,7 +291,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let set: TribleSet = (&archive).into();
                 set
             });
@@ -303,7 +303,7 @@ fn archive_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("random/archive", i), &i, |b, &i| {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
                 let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                 let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
@@ -351,7 +351,7 @@ fn archive_benchmark(c: &mut Criterion) {
             let samples = random_tribles(i as usize);
             let set = TribleSet::from_iter(black_box(&samples).iter().copied());
             let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let set: TribleSet = (&archive).into();
                 set
             });
@@ -366,7 +366,7 @@ fn entities_benchmark(c: &mut Criterion) {
 
     group.throughput(Throughput::Elements(5));
     group.bench_function(BenchmarkId::new("entities", 5), |b| {
-        b.iter_with_large_drop(|| {
+        b.iter(|| {
             let mut kb = TribleSet::new();
             let author = fucid();
             let book = fucid();
@@ -388,7 +388,7 @@ fn entities_benchmark(c: &mut Criterion) {
         group.sample_size(10);
         group.throughput(Throughput::Elements(5 * i));
         group.bench_function(BenchmarkId::new("union", 5 * i), |b| {
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let kb = (0..i)
                     .flat_map(|_| {
                         let author = fucid();
@@ -434,7 +434,7 @@ fn entities_benchmark(c: &mut Criterion) {
                     ]
                 })
                 .collect();
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let mut kb = TribleSet::new();
                 for set in &sets {
                     kb += set.clone();
@@ -448,7 +448,7 @@ fn entities_benchmark(c: &mut Criterion) {
         group.sample_size(10);
         group.throughput(Throughput::Elements(5 * i));
         group.bench_function(BenchmarkId::new("union/parallel", 5 * i), |b| {
-            b.iter_with_large_drop(|| {
+            b.iter(|| {
                 let kb = (0..i)
                     .into_par_iter()
                     .flat_map(|_| {
@@ -502,7 +502,7 @@ fn entities_benchmark(c: &mut Criterion) {
                             .fold(TribleSet::new(), |kb, set| kb + set)
                     })
                     .collect();
-                b.iter_with_large_drop(|| {
+                b.iter(|| {
                     subsets
                         .iter()
                         .cloned()
@@ -640,13 +640,14 @@ fn query_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    std_benchmark,
-    im_benchmark,
+    //std_benchmark,
+    //im_benchmark,
+    
     patch_benchmark,
-    tribleset_benchmark,
-    archive_benchmark,
-    entities_benchmark,
-    query_benchmark,
+    //tribleset_benchmark,
+    //archive_benchmark,
+    //entities_benchmark,
+    //query_benchmark,
 );
 
 criterion_main!(benches);

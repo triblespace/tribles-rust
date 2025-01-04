@@ -1,4 +1,4 @@
-use crate::id::{Id, OwnedId, RawId};
+use crate::id::{Id, ExclusiveId, RawId};
 use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
@@ -119,39 +119,39 @@ impl ToValue<GenId> for Id {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum OwnedIdError {
+pub enum ExclusiveIdError {
     FailedParse(IdParseError),
     FailedAquire(),
 }
 
-impl From<IdParseError> for OwnedIdError {
+impl From<IdParseError> for ExclusiveIdError {
     fn from(e: IdParseError) -> Self {
-        OwnedIdError::FailedParse(e)
+        ExclusiveIdError::FailedParse(e)
     }
 }
 
-impl<'a> TryFromValue<'a, GenId> for OwnedId {
-    type Error = OwnedIdError;
+impl<'a> TryFromValue<'a, GenId> for ExclusiveId {
+    type Error = ExclusiveIdError;
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
         let id: Id = value.try_from_value()?;
-        id.aquire().ok_or(OwnedIdError::FailedAquire())
+        id.aquire().ok_or(ExclusiveIdError::FailedAquire())
     }
 }
 
-impl FromValue<'_, GenId> for OwnedId {
+impl FromValue<'_, GenId> for ExclusiveId {
     fn from_value(v: &Value<GenId>) -> Self {
         v.try_from_value().unwrap()
     }
 }
 
-impl ToValue<GenId> for OwnedId {
+impl ToValue<GenId> for ExclusiveId {
     fn to_value(self) -> Value<GenId> {
         self.id.to_value()
     }
 }
 
-impl ToValue<GenId> for &OwnedId {
+impl ToValue<GenId> for &ExclusiveId {
     fn to_value(self) -> Value<GenId> {
         self.id.to_value()
     }

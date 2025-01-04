@@ -136,7 +136,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::trible::TribleSet::new();
-                        let id: $crate::id::OwnedId = $crate::id::rngid();
+                        let id: $crate::id::ExclusiveId = $crate::id::rngid();
                         entity_inner!($mod_name, &mut set, &id, $entity);
                         set
                     }
@@ -145,7 +145,7 @@ macro_rules! NS {
                     {
                         use $crate::namespace::entity_inner;
                         let mut set = $crate::trible::TribleSet::new();
-                        let id: &$crate::id::OwnedId = $entity_id;
+                        let id: &$crate::id::ExclusiveId = $entity_id;
                         entity_inner!($mod_name, &mut set, id, $entity);
                         set
                     }

@@ -46,7 +46,7 @@ mod tribleset;
 use std::convert::TryInto;
 
 use crate::{
-    id::{Id, OwnedId},
+    id::{Id, ExclusiveId},
     patch::{KeyOrdering, KeySegmentation},
     value::{Value, ValueSchema},
 };
@@ -143,7 +143,7 @@ impl Trible {
     /// let v: Value<R256> = R256::value_from(42);
     /// let trible = Trible::new(&e, &a, &v);
     /// ```
-    pub fn new<V: ValueSchema>(e: &OwnedId, a: &Id, v: &Value<V>) -> Trible {
+    pub fn new<V: ValueSchema>(e: &ExclusiveId, a: &Id, v: &Value<V>) -> Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(&a[..]);
@@ -184,7 +184,7 @@ impl Trible {
     /// assert_eq!(trible.e(), &*e);
     /// ```
     pub fn force<V: ValueSchema>(e: &Id, a: &Id, v: &Value<V>) -> Trible {
-        Trible::new(&OwnedId::transmute_force(e), a, v)
+        Trible::new(&ExclusiveId::transmute_force(e), a, v)
     }
 
     /// Creates a new trible from a raw trible (a 64-byte array).

@@ -9,17 +9,17 @@
 > “Insufficient facts always invite danger.”  
 > — *Mr. Spock*
 
-**Trible Space** is a data space and knowledge graph standard. It offers metadata management capabilities similar to file- and version-control systems, combined with the queryability and convenience of an embedded database, tailored towards use with simple blob storage. It is designed to be a lightweight, self-contained, and distributed data storage solution that can be used in a variety of contexts, from embedded systems to cloud services.
+**Trible Space** is a data space and knowledge graph standard. It offers metadata management capabilities similar to file- and version-control systems, combined with the queryability and convenience of an embedded database, tailored towards use with simple blob storage. It is designed to be a holistic yet lightweight data storage solution that can be used in a variety of contexts, from embedded systems to distributed cloud services.
 
-Our goal is to re-invent data storage from first principles and overcome the shortcomings of prior semantic web/triple-store technologies. By focusing on simplicity, canonical data formats, cryptographic identifiers, and clean distributed semantics, we aim to provide a lean, lightweight yet powerful toolkit for knowledge representation, database management, and data exchange use cases.
+Our goal is to re-invent data storage from first principles and overcome the shortcomings of prior "Semantic Web"/triple-store technologies. By focusing on simplicity, canonical data formats, cryptographic identifiers, and clean distributed semantics, we aim to provide a lean, lightweight yet powerful toolkit for knowledge representation, database management, and data exchange use cases.
 
 ## Features
 
-- **Lean, Lightweight & Flexible**: Data storage should seamlessly scale from in-memory data organization to large-scale blob and metadata storage on S3.
+- **Lean, Lightweight & Flexible**: Data storage seamlessly scales from in-memory data organization to large-scale blob and metadata storage on S3 like services.
 - **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives (WIP), and built-in version control.
 - **Predictable Performance**: An optimizer-free design using novel algorithms and data structures removes the need for manual query-tuning and enables single-digit microsecond latency.  
 - **Fast In-Memory Datasets**: Enjoy cheap copy-on-write (COW) semantics and speedy set operations, allowing you to treat entire datasets as values.
-- **Compile-Time Typed Queries**: Safer data handling, plus handy features like delta queries.  
+- **Compile-Time Typed Queries**: Safer data handling, plus handy features like query diffs.
 - **Low Overall Complexity**: We aim for a design that feels obvious (in the best way) and makes good use of existing language facilities. A serverless design makes it completely self-sufficient for local use and requires only an S3-compatible service for distribution.
 - **Easy Implementation**: The spec is designed to be friendly to high- and low-level languages, or even hardware implementations.
 

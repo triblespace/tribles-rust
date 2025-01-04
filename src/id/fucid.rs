@@ -3,7 +3,7 @@ use rand::RngCore;
 use std::cell::RefCell;
 
 use super::Id;
-use super::OwnedId;
+use super::ExclusiveId;
 
 pub struct FUCIDsource {
     salt: u128,
@@ -24,11 +24,11 @@ impl FUCIDsource {
         }
     }
 
-    pub fn mint(&mut self) -> OwnedId {
+    pub fn mint(&mut self) -> ExclusiveId {
         let next_id = self.counter ^ self.salt;
         self.counter += 1;
         let id = next_id.to_be_bytes();
-        OwnedId::force(
+        ExclusiveId::force(
             Id::new(id).expect("The probability for counter ^ salt = 0 should be neglegible."),
         )
     }
@@ -87,7 +87,7 @@ thread_local!(static GEN_STATE: RefCell<FUCIDsource> = RefCell::new(FUCIDsource:
 /// Note that creating a new `FUCIDsource` for each ID is equivalent to the
 /// [RNGID](crate::id::rngid::rngid) scheme.
 
-pub fn fucid() -> OwnedId {
+pub fn fucid() -> ExclusiveId {
     GEN_STATE.with_borrow_mut(|gen| gen.mint())
 }
 

@@ -1,5 +1,6 @@
 //! Value type and conversion traits for schema types.
 //!
+//! # Portability & Common Formats
 //! In order to build a portable and extensible database, we need to be able to store and retrieve arbitrary Rust types.
 //! However, we can't just store the raw bytes of a type, because the bytes of a type are not portable across different platforms,
 //! programming languages, or even different versions of the same type.

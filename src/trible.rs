@@ -79,7 +79,7 @@ pub type RawTrible = [u8; TRIBLE_LEN];
 /// allowing for efficient querying and retrieval of data.
 ///
 /// On a high level, a trible is a triple consisting of an entity, an attribute, and a value.
-/// The entity and attribute are both 128-bit abstract identifiers as described in [crate::id],
+/// The entity and attribute are both 128-bit abstract extrinsic identifiers as described in [crate::id],
 /// while the value is an arbitrary 256-bit [crate::value::Value].
 /// The design of tribles is influenced by the need to minimize entropy while ensuring collision resistance.
 /// Entities are abstract because they might have additional facts associated with them in the form of new tribles.

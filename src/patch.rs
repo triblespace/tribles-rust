@@ -957,7 +957,7 @@ where
 
     /// Inserts a shared key into the PATCH.
     ///
-    /// Takes an [Entry](crate::Entry) object that can be created from a key,
+    /// Takes an [Entry] object that can be created from a key,
     /// and inserted into multiple PATCH instances.
     ///
     /// If the key is already present, this is a no-op.

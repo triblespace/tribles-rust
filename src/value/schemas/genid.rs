@@ -1,4 +1,4 @@
-use crate::id::{Id, ExclusiveId, RawId};
+use crate::id::{ExclusiveId, Id, OwnedId, RawId};
 use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
 
@@ -166,6 +166,18 @@ impl TryFromValue<'_, GenId> for String {
         s.push_str("genid:");
         s.push_str(&hex::encode(id));
         Ok(s)
+    }
+}
+
+impl ToValue<GenId> for OwnedId<'_> {
+    fn to_value(self) -> Value<GenId> {
+        self.id.to_value()
+    }
+}
+
+impl ToValue<GenId> for &OwnedId<'_> {
+    fn to_value(self) -> Value<GenId> {
+        self.id.to_value()
     }
 }
 

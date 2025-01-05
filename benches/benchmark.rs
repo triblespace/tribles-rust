@@ -42,19 +42,20 @@ NS! {
 }
 
 fn random_tribles(length: usize) -> Vec<Trible> {
+    let owner = IdOwner::new();
     let mut rng = thread_rng();
 
     let mut vec = Vec::new();
 
-    let mut e = fucid();
-    let mut a = fucid();
+    let mut e = owner.defer_insert(fucid());
+    let mut a = owner.defer_insert(fucid());
 
     for _i in 0..length {
         if rng.gen_bool(0.5) {
-            e = fucid();
+            e = owner.defer_insert(fucid());
         }
         if rng.gen_bool(0.5) {
-            a = fucid();
+            a = owner.defer_insert(fucid());
         }
 
         let v = fucid();
@@ -217,10 +218,11 @@ fn archive_benchmark(c: &mut Criterion) {
     for i in [1000000] {
         group.throughput(Throughput::Elements(5 * i));
         group.bench_function(BenchmarkId::new("structured/archive", 5 * i), |b| {
+            let owner = IdOwner::new();
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
-                let author = fucid();
-                let book = fucid();
+                let author = owner.defer_insert(fucid());
+                let book = owner.defer_insert(fucid());
                 set += literature::entity!(&author, {
                     firstname: FirstName(EN).fake::<String>(),
                     lastname: LastName(EN).fake::<String>(),
@@ -276,10 +278,11 @@ fn archive_benchmark(c: &mut Criterion) {
     for i in [1000000] {
         group.throughput(Throughput::Elements(5 * i));
         group.bench_function(BenchmarkId::new("structured/unarchive", 5 * i), |b| {
+            let owner = IdOwner::new();
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
-                let author = fucid();
-                let book = fucid();
+                let author = owner.defer_insert(fucid());
+                let book = owner.defer_insert(fucid());
                 set += literature::entity!(&author, {
                     firstname: FirstName(EN).fake::<String>(),
                     lastname: LastName(EN).fake::<String>(),
@@ -367,20 +370,22 @@ fn entities_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Elements(5));
     group.bench_function(BenchmarkId::new("entities", 5), |b| {
         b.iter(|| {
+            let owner = IdOwner::new();
             let mut kb = TribleSet::new();
-            let author = fucid();
-            let book = fucid();
-            kb += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
-            });
-            kb += literature::entity!(&book, {
-                author: &author,
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
-            });
-
-            kb
+            {
+                let author = owner.defer_insert(fucid());
+                let book = owner.defer_insert(fucid());
+                kb += literature::entity!(&author, {
+                    firstname: FirstName(EN).fake::<String>(),
+                    lastname: LastName(EN).fake::<String>(),
+                });
+                kb += literature::entity!(&book, {
+                    author: &author,
+                    title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                });
+            }
+            (kb, owner)
         })
     });
 
@@ -391,9 +396,9 @@ fn entities_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let kb = (0..i)
                     .flat_map(|_| {
-                        let author = fucid();
-                        let book = fucid();
-
+                        let owner = IdOwner::new();
+                        let author = owner.defer_insert(fucid());
+                        let book = owner.defer_insert(fucid());
                         [
                             literature::entity!(&author, {
                                 firstname: FirstName(EN).fake::<String>(),
@@ -418,8 +423,9 @@ fn entities_benchmark(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("union/prealloc", 5 * i), |b| {
             let sets: Vec<_> = (0..i)
                 .flat_map(|_| {
-                    let author = fucid();
-                    let book = fucid();
+                    let owner = IdOwner::new();
+                    let author = owner.defer_insert(fucid());
+                    let book = owner.defer_insert(fucid());
 
                     [
                         literature::entity!(&author, {
@@ -452,8 +458,9 @@ fn entities_benchmark(c: &mut Criterion) {
                 let kb = (0..i)
                     .into_par_iter()
                     .flat_map(|_| {
-                        let author = fucid();
-                        let book = fucid();
+                        let owner = IdOwner::new();
+                        let author = owner.defer_insert(fucid());
+                        let book = owner.defer_insert(fucid());
 
                         [
                             literature::entity!(&author, {
@@ -485,8 +492,9 @@ fn entities_benchmark(c: &mut Criterion) {
                     .map(|_| {
                         (0..total_unioned / i)
                             .flat_map(|_| {
-                                let author = fucid();
-                                let book = fucid();
+                                let owner = IdOwner::new();
+                                let author = owner.defer_insert(fucid());
+                                let book = owner.defer_insert(fucid());
                                 [
                                     literature::entity!(&author, {
                                         firstname: FirstName(EN).fake::<String>(),
@@ -518,10 +526,11 @@ fn entities_benchmark(c: &mut Criterion) {
 fn query_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("query");
 
+    let owner = IdOwner::new();
     let mut kb = TribleSet::new();
     (0..1000000).for_each(|_| {
-        let author = fucid();
-        let book = fucid();
+        let author = owner.defer_insert(fucid());
+        let book = owner.defer_insert(fucid());
         kb += literature::entity!(&author, {
             firstname: FirstName(EN).fake::<String>(),
             lastname: LastName(EN).fake::<String>(),
@@ -533,8 +542,8 @@ fn query_benchmark(c: &mut Criterion) {
         });
     });
 
-    let author = fucid();
-    let book = fucid();
+    let author = owner.defer_insert(fucid());
+    let book = owner.defer_insert(fucid());
     kb += literature::entity!(&author, {
         firstname: "Frank",
         lastname: "Herbert",
@@ -551,8 +560,8 @@ fn query_benchmark(c: &mut Criterion) {
     });
 
     (0..1000).for_each(|_| {
-        let author = fucid();
-        let book = fucid();
+        let author = owner.defer_insert(fucid());
+        let book = owner.defer_insert(fucid());
         kb += literature::entity!(&author, {
             firstname: "Fake",
             lastname: "Herbert",
@@ -642,12 +651,12 @@ criterion_group!(
     benches,
     //std_benchmark,
     //im_benchmark,
-    
+
     patch_benchmark,
-    //tribleset_benchmark,
-    //archive_benchmark,
-    //entities_benchmark,
-    //query_benchmark,
+    tribleset_benchmark,
+    archive_benchmark,
+    entities_benchmark,
+    query_benchmark,
 );
 
 criterion_main!(benches);

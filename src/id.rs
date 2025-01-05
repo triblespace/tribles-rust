@@ -110,9 +110,6 @@
 //! identity but serve as a way for humans to reference the persistent abstract identifiers that underlie the system.
 //!
 //! Sadly the identifiers used in practice, such as DOIs, fail to align with these principles and strengths.
-//! They only provide global extrinsic semantic identifiers for scientific papers, which lack the associated
-//! guarantees of intrinsic identifiers and are not suitable for validation and immutability.
-//! 
 //! They attempt to provide global extrinsic semantic identifiers for scientific papers,
 //! an ultimately flawed approach. They lack the associated guarantees of intrinsic identifiers
 //! and bring all the challenges of semantic identifiers. With their scope defined too broadly,

@@ -70,12 +70,12 @@
 //! for the relatively expensive process of generating embeddings to be done decoupled from the indexing and retrieval
 //! process. This allows for the embedding generation to be done once in a distributed manner, and then the embeddings
 //! can be used by any system that needs to compare entities. With the embeddings acting as a common language for
-//! comparing entities, different systems can be compared without needing to know about the specifics of each system.
+//! comparing entities, different embeddings can be compared without needing to know about the specifics of each system.
 //! 
 //! Contrastingly classic search and retrieval systems require a central authority to index and search the content,
 //! as the indexing process is tightly coupled with the indexed data. This makes it difficult to compare entities
 //! across different systems, as each system has its own index and retrieval process.
-//! It also makes merging indexes virtually impossible, as the indexes are tightly coupled with the data they index.
+//! It also makes merging indexes virtually impossible, as the indexes are tightly coupled with the structure of the data they index.
 //! 
 //! ## High-Entropy Identifiers
 //!

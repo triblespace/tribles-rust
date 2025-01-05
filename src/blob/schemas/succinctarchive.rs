@@ -73,9 +73,9 @@ where
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
 
-        let e_iter = set.eav.iter_prefix::<16>().map(|(e, _)| id_into_value(&e));
-        let a_iter = set.ave.iter_prefix::<16>().map(|(a, _)| id_into_value(&a));
-        let v_iter = set.vea.iter_prefix::<32>().map(|(v, _)| v);
+        let e_iter = set.eav.iter_prefix_count::<16>().map(|(e, _)| id_into_value(&e));
+        let a_iter = set.ave.iter_prefix_count::<16>().map(|(a, _)| id_into_value(&a));
+        let v_iter = set.vea.iter_prefix_count::<32>().map(|(v, _)| v);
 
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
         let alph_width = sucds::utils::needed_bits(domain.len() - 1);
@@ -85,7 +85,7 @@ where
         let mut last = 0;
         for (e, count) in set
             .eav
-            .iter_prefix::<16>()
+            .iter_prefix_count::<16>()
             .map(|(e, count)| (id_into_value(&e), count as usize))
             .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
         {
@@ -102,7 +102,7 @@ where
         let mut last = 0;
         for (a, count) in set
             .aev
-            .iter_prefix::<16>()
+            .iter_prefix_count::<16>()
             .map(|(a, count)| (id_into_value(&a), count as usize))
             .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
         {
@@ -119,7 +119,7 @@ where
         let mut last = 0;
         for (v, count) in set
             .vea
-            .iter_prefix::<32>()
+            .iter_prefix_count::<32>()
             .map(|(v, count)| (v, count as usize))
             .map(|(v, count)| (domain.search(&v).expect("v in domain"), count))
         {
@@ -136,7 +136,7 @@ where
         eav_c
             .extend(
                 set.eav
-                    .iter_prefix::<64>()
+                    .iter_prefix_count::<64>()
                     .map(|(t, _)| t[32..64].try_into().unwrap())
                     .map(|v| domain.search(&v).expect("v in domain")),
             )
@@ -148,7 +148,7 @@ where
         vea_c
             .extend(
                 set.vea
-                    .iter_prefix::<64>()
+                    .iter_prefix_count::<64>()
                     .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
                     .map(|a| domain.search(&a).expect("a in domain")),
             )
@@ -160,7 +160,7 @@ where
         ave_c
             .extend(
                 set.ave
-                    .iter_prefix::<64>()
+                    .iter_prefix_count::<64>()
                     .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
                     .map(|e| domain.search(&e).expect("e in domain")),
             )
@@ -172,7 +172,7 @@ where
         vae_c
             .extend(
                 set.vae
-                    .iter_prefix::<64>()
+                    .iter_prefix_count::<64>()
                     .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
                     .map(|e| domain.search(&e).expect("e in domain")),
             )
@@ -184,7 +184,7 @@ where
         eva_c
             .extend(
                 set.eva
-                    .iter_prefix::<64>()
+                    .iter_prefix_count::<64>()
                     .map(|(t, _)| id_into_value(t[48..64].try_into().unwrap()))
                     .map(|a| domain.search(&a).expect("a in domain")),
             )
@@ -196,7 +196,7 @@ where
         aev_c
             .extend(
                 set.aev
-                    .iter_prefix::<64>()
+                    .iter_prefix_count::<64>()
                     .map(|(t, _)| t[32..64].try_into().unwrap())
                     .map(|v| domain.search(&v).expect("v in domain")),
             )

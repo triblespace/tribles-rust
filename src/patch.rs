@@ -676,34 +676,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    /*
-    pub(crate) fn children<F>(&self, f: F)
-    where
-        F: FnMut(Self),
-    {
-        match self.body() {
-            BodyRef::Leaf(_) => panic!("children on leaf"),
-            BodyRef::Branch(branch) => {
-                if branch::Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::is_owned(
-                    branch,
-                ) {
-                    for child in &mut (*branch).child_table {
-                        if let Some(child) = child.take() {
-                            f(child);
-                        }
-                    }
-                } else {
-                    for child in &(*branch).child_table {
-                        if let Some(child) = child {
-                            f(child.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
-
     pub(crate) fn union(&mut self, mut other: Self, at_depth: usize) {
         let self_hash = self.hash();
         let other_hash = other.hash();
@@ -764,9 +736,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn intersect(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
-        todo!()
-        /*
+    pub(crate) fn intersect(&self, other: &Self, at_depth: usize) -> Option<Self> {
         let self_hash = self.hash();
         let other_hash = other.hash();
         if self_hash == other_hash {
@@ -783,38 +753,69 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 return None;
             }
         }
-        //>>>
+
         if self_depth < other_depth {
+            // This means that there can be at most one child in self
+            // that might intersect with other.
             match self.body() {
-                Body::Leaf(_) => unreachable!(),
-                Body::Branch(branch) => {
-                    if let Some(child) = unsafe { *branch }.child_table.table_get(other_key[O::key_index(self_depth)]) {
-                        return child.intersect(other, self_depth)
-                    } else {
-                        return None;
-                    }
+                BodyRef::Leaf(_) => unreachable!(),
+                // If the depth of self is less than the depth of other, then it can't be a leaf.
+                BodyRef::Branch(branch) => {
+                    return branch.child_table.table_get(other.leaf_key()[O::key_index(self_depth)])
+                        .and_then(|self_child| other.intersect(self_child, self_depth));
                 }
             }
         }
 
         if other_depth < self_depth {
-            let mut new_self = self.clone();
-            new_self.upsert(self.clone(), |child, inserted| {
-                child.intersect(&inserted, other_depth);
-            });
-            return Some(new_self);
-        }
-
-        let mut new_self = self.clone();
-        new_self.take_or_clone_children(|self_child| {
-            if let Some(other_child) = other.iter_children().next() {
-                if let Some(intersected) = self_child.intersect(other_child, self_depth) {
-                    new_self.insert_child(intersected);
+            // This means that there can be at most one child in other
+            // that might intersect with self.
+            match other.body() {
+                BodyRef::Leaf(_) => unreachable!(),
+                // If the depth of other is less than the depth of self, then it can't be a leaf.
+                BodyRef::Branch(other_branch) => {
+                    return other_branch.child_table.table_get(self.leaf_key()[O::key_index(other_depth)])
+                        .and_then(|other_child| self.intersect(other_child, other_depth));
                 }
             }
-        });
-        Some(new_self)
-        */
+        }
+
+        match (self.body(), other.body()) {
+            (BodyRef::Branch(self_branch), BodyRef::Branch(other_branch)) => {
+                let mut intersected_children = self_branch.child_table.iter()
+                .filter_map(Option::as_ref)
+                .cloned()
+                .filter_map(|self_child| {
+                    let other_child = other_branch.child_table.table_get(self_child.key())?;
+                    self_child.intersect(other_child, self_depth)
+                });
+                let first_child = intersected_children.next()?;
+                let Some(second_child) = intersected_children.next() else {
+                    return Some(first_child);
+                };
+                let mut new_self = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::new2(
+                    // This will be set later, because we don't know the key yet.
+                    // The intersection might remove multiple levels of branches,
+                    // so we can't just take the key from self or other.
+                    0,
+                    self_depth,
+                    first_child.with_start(self_depth),
+                    second_child.with_start(self_depth),
+                );
+                for child in intersected_children {
+                    new_self.upsert(
+               child.with_start(self_depth),
+                 |_, _| unreachable!());
+                }
+                Some(new_self)
+            }
+            _ => unreachable!(),
+            // If we reached this point then the depths are equal. The only way to have a leaf
+            // is if the other is a leaf as well, which is already handled by the hash check if they are equal,
+            // and by the key check if they are not equal.
+            // If one of them is a leaf and the other is a branch, then they would also have different depths,
+            // which is already handled by the above code.
+        }
     }
 
     pub(crate) fn difference(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
@@ -1045,12 +1046,15 @@ where
     }
 
     /// Iterates over all keys in the PATCH.
+    /// The keys are returned in key order.
     pub fn iter<'a>(&'a self) -> PATCHIterator<'a, KEY_LEN, O, S> {
         PATCHIterator::new(self)
     }
 
-    /// Iterates over all keys in the PATCH that have a given prefix.
-    pub fn iter_prefix<'a, const PREFIX_LEN: usize>(
+    /// Iterate over all prefixes of the given length in the PATCH.
+    /// The prefixes are naturally returned in tree order.
+    /// A count of the number of elements for the given prefix is also returned.
+    pub fn iter_prefix_count<'a, const PREFIX_LEN: usize>(
         &'a self,
     ) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S> {
         PATCHPrefixIterator::new(self)
@@ -1076,7 +1080,7 @@ where
         if let Some(root) = &self.root {
             if let Some(other_root) = &other.root {
                 return Self {
-                    root: root.intersect(other_root, 0),
+                    root: root.intersect(other_root, 0).map(|root| root.with_start(0)),
                 };
             }
         }
@@ -1124,7 +1128,7 @@ where
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
 {
-    type Item = [u8; KEY_LEN];
+    type Item = &'a [u8; KEY_LEN];
     type IntoIter = PATCHIterator<'a, KEY_LEN, O, S>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -1133,6 +1137,7 @@ where
 }
 
 /// An iterator over all keys in a PATCH.
+/// The keys are returned in key order.s
 pub struct PATCHIterator<
     'a,
     const KEY_LEN: usize,
@@ -1159,7 +1164,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
 impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Iterator
     for PATCHIterator<'a, KEY_LEN, O, S>
 {
-    type Item = [u8; KEY_LEN];
+    type Item = &'a [u8; KEY_LEN];
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut iter = self.stack.pop()?;
@@ -1168,9 +1173,8 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
                 if let Some(child) = child {
                     match child.body() {
                         BodyRef::Leaf(leaf) => {
-                            let key = O::tree_ordered(&leaf.key);
                             self.stack.push(iter);
-                            return Some(key);
+                            return Some(&leaf.key);
                         },
                         BodyRef::Branch(branch) => {
                             self.stack.push(iter);
@@ -1186,6 +1190,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
 }
 
 /// An iterator over all keys in a PATCH that have a given prefix.
+/// The keys are returned in tree order.
 pub struct PATCHPrefixIterator<
     'a,
     const KEY_LEN: usize,
@@ -1410,6 +1415,21 @@ mod tests {
         );
     }
 
+    /// Checks what happens if we join two PATCHes that
+    /// only contain a single element each, that differs in the last byte.
+    #[test]
+    fn tree_union_single() {
+        const KEY_SIZE: usize = 8;
+        let mut left = PATCH::<KEY_SIZE, IdentityOrder, SingleSegmentation>::new();
+        let mut right = PATCH::<KEY_SIZE, IdentityOrder, SingleSegmentation>::new();
+        let left_entry = Entry::new(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        let right_entry = Entry::new(&[0, 0, 0, 0, 0, 0, 0, 1]);
+        left.insert(&left_entry);
+        right.insert(&right_entry);
+        left.union(right);
+        assert_eq!(left.len(), 2);
+    }
+
     proptest! {
     #[test]
     fn tree_insert(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
@@ -1468,7 +1488,7 @@ mod tests {
         let mut set_vec = Vec::from_iter(set.into_iter());
         let mut tree_vec = vec![];
         for key in &tree {
-            tree_vec.push(key);
+            tree_vec.push(*key);
         }
 
         set_vec.sort();

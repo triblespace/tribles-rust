@@ -17,7 +17,7 @@ impl BlobSchema for SimpleArchive {
 impl ToBlob<SimpleArchive> for &TribleSet {
     fn to_blob(self) -> Blob<SimpleArchive> {
         let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
-        tribles.extend(self.eav.iter_prefix::<64>().map(|p| p.0));
+        tribles.extend(self.eav.iter());
         let bytes: Bytes = tribles.into();
         Blob::new(bytes)
     }

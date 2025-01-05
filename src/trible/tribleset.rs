@@ -42,7 +42,7 @@ pub struct TribleSet {
 pub struct TribleSetIterator<'a> {
     inner: Map<
         crate::patch::PATCHIterator<'a, 64, EAVOrder, TribleSegmentation>,
-        fn([u8; 64]) -> Trible,
+        fn(&[u8; 64]) -> &Trible,
     >,
 }
 
@@ -59,22 +59,26 @@ impl TribleSet {
         self.vae.union(other.vae);
     }
 
-    pub fn intersect(&self, other: &Self) {
-        self.eav.intersect(&other.eav);
-        self.eva.intersect(&other.eva);
-        self.aev.intersect(&other.aev);
-        self.ave.intersect(&other.ave);
-        self.vea.intersect(&other.vea);
-        self.vae.intersect(&other.vae);
+    pub fn intersect(&self, other: &Self) -> Self {
+        Self {
+            eav: self.eav.intersect(&other.eav),
+            eva: self.eva.intersect(&other.eva),
+            aev: self.aev.intersect(&other.aev),
+            ave: self.ave.intersect(&other.ave),
+            vea: self.vea.intersect(&other.vea),
+            vae: self.vae.intersect(&other.vae),
+        }
     }
 
-    pub fn difference(&self, other: &Self) {
-        self.eav.difference(&other.eav);
-        self.eva.difference(&other.eva);
-        self.aev.difference(&other.aev);
-        self.ave.difference(&other.ave);
-        self.vea.difference(&other.vea);
-        self.vae.difference(&other.vae);
+    pub fn difference(&self, other: &Self) -> Self {
+        Self {
+            eav: self.eav.difference(&other.eav),
+            eva: self.eva.difference(&other.eva),
+            aev: self.aev.difference(&other.aev),
+            ave: self.ave.difference(&other.ave),
+            vea: self.vea.difference(&other.vea),
+            vae: self.vae.difference(&other.vae),
+        }
     }
 
     pub fn new() -> TribleSet {
@@ -111,7 +115,7 @@ impl TribleSet {
             inner: self
                 .eav
                 .iter()
-                .map(|data| Trible::force_raw(data).expect("only valid Tribles in TribleSet")),
+                .map(|data| Trible::transmute_raw_unchecked(data)),
         }
     }
 }
@@ -165,7 +169,7 @@ impl TriblePattern for TribleSet {
 }
 
 impl<'a> Iterator for TribleSetIterator<'a> {
-    type Item = Trible;
+    type Item = &'a Trible;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
@@ -173,7 +177,7 @@ impl<'a> Iterator for TribleSetIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a TribleSet {
-    type Item = Trible;
+    type Item = &'a Trible;
     type IntoIter = TribleSetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -235,39 +239,40 @@ mod tests {
             .reduce(|| TribleSet::new(), |a, b| a + b);
         assert_eq!(kb.len(), 4000000);
     }
-    /*
-        #[test]
-        fn intersection() {
-            let mut kb1 = TribleSet::new();
-            let mut kb2 = TribleSet::new();
-            for _i in 0..1000 {
-                let author = ufoid();
-                let book = ufoid();
-                kb1 += literature::entity!(&author, {
-                    firstname: FirstName(EN).fake::<String>(),
-                    lastname: LastName(EN).fake::<String>(),
-                });
-                kb1 += literature::entity!(&book, {
-                    title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    author: &author
-                });
-                kb2 += literature::entity!(&author, {
-                    firstname: FirstName(EN).fake::<String>(),
-                    lastname: LastName(EN).fake::<String>(),
-                });
-                kb2 += literature::entity!(&book, {
-                    title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    author: &author
-                });
-            }
-            let intersection = kb1.intersection(&kb2);
-            // Verify that the intersection contains only elements present in both kb1 and kb2
-            for trible in &intersection {
-                assert!(kb1.contains(trible));
-                assert!(kb2.contains(trible));
-            }
-        }
 
+    #[test]
+    fn intersection() {
+        let mut kb1 = TribleSet::new();
+        let mut kb2 = TribleSet::new();
+        for _i in 0..1000 {
+            let author = ufoid();
+            let book = ufoid();
+            kb1 += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb1 += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
+            });
+            kb2 += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb2 += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
+            });
+        }
+        let intersection = kb1.intersect(&kb2);
+        // Verify that the intersection contains only elements present in both kb1 and kb2
+        for trible in &intersection {
+            assert!(kb1.contains(&trible));
+            assert!(kb2.contains(&trible));
+        }
+    }
+
+        /*
         #[test]
         fn difference() {
             let mut kb1 = TribleSet::new();

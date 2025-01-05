@@ -222,6 +222,36 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
         }
     }
+
+    pub(super) fn new2(
+        head_key: u8,
+        end_depth: usize,
+        lchild: Head<KEY_LEN, O, S>,
+        rchild: Head<KEY_LEN, O, S>,
+    ) -> Head<KEY_LEN, O, S> {
+        unsafe {
+            let layout = Layout::new::<Self>();
+            if let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) {
+                ptr.write(
+                    Self {
+                        key_ordering: PhantomData,
+                        key_segments: PhantomData,
+                        rc: atomic::AtomicU32::new(1),
+                        end_depth: end_depth as u32,
+                        childleaf: lchild.childleaf(),
+                        leaf_count: lchild.count() + rchild.count(),
+                        segment_count: lchild.count_segment(end_depth) + rchild.count_segment(end_depth),
+                        hash: lchild.hash() ^ rchild.hash(),
+                        child_table: [Some(lchild), Some(rchild)],
+                    },
+                );
+    
+                Head::new(head_key, ptr)
+            } else {
+                panic!("Allocation failed!");
+            }
+        }
+    }
 }
 
 impl<

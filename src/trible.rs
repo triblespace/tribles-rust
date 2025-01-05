@@ -265,6 +265,13 @@ impl Trible {
         Some(unsafe { std::mem::transmute(data) })
     }
 
+    /// Transmutes a raw trible reference into a trible reference.
+    /// Circumvents the ownership system, and does not check if the entity and attribute are nil.
+    /// Should only be used if it it certain that the `RawTrible` is actually valid.
+    pub fn transmute_raw_unchecked(data: &RawTrible) -> &Self {
+        unsafe { std::mem::transmute(data) }
+    }
+
     /// Returns the entity of the trible.
     ///
     /// # Returns

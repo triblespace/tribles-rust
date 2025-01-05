@@ -3,7 +3,7 @@
 //! 
 //! |                | **Abstract**        | **Semantic**        |
 //! |----------------|---------------------|---------------------|
-//! | **Intrinsic**  | Hash, Signature     |                     |
+//! | **Intrinsic**  | Hash, Signature     | embeddings          |
 //! | **Extrinsic**  | UUID, UFOID, FUCID  | names, DOI, URL     |
 //! 
 //! ## Abstract vs. Semantic Identifiers
@@ -53,6 +53,13 @@
 //! For example, in the ship of Theseus thought experiment, both the original ship and the reconstructed ship  
 //! would share the same extrinsic identity but have different intrinsic identities.
 //! 
+//! ## Embeddings as Semantic Intrinsic Identifiers
+//! Note that embeddings are the somewhat curious case of semantic intrinsic identifiers.
+//! They are intrinsic in that they are tied to the content they represent, but they are also semantic in that they
+//! carry meaning about the content. Embeddings are used to represent the content of an entity in a way that can be
+//! compared to other entities, such as for similarity search or classification.
+//! This makes them especially interesting for search and retrieval systems, where they can be used to find similar
+//! entities based on a reference entity. But less useful for identity, as they are not necessarily unique.
 //! 
 //! ## High-Entropy Identifiers
 //!

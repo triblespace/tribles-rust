@@ -15,7 +15,9 @@ pub(crate) struct Leaf<const KEY_LEN: usize> {
 }
 
 impl<const KEY_LEN: usize> Body for Leaf<KEY_LEN> {
-    const TAG: HeadTag = HeadTag::Leaf;
+    fn tag(_body: NonNull<Self>) -> HeadTag {
+        HeadTag::Leaf
+    }
 }
 
 impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
@@ -23,16 +25,16 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         unsafe {
             let layout = Layout::new::<Self>();
             if let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) {
-                let hash = SipHasher24::new_with_key(&*addr_of!(SIP_KEY)).hash(&key[..]).into();
+                let hash = SipHasher24::new_with_key(&*addr_of!(SIP_KEY))
+                    .hash(&key[..])
+                    .into();
 
-                ptr.write(
-                    Self {
-                        key: *key,
-                        hash,
-                        rc: atomic::AtomicU32::new(1),
-                    },
-                );
-    
+                ptr.write(Self {
+                    key: *key,
+                    hash,
+                    rc: atomic::AtomicU32::new(1),
+                });
+
                 ptr
             } else {
                 panic!("Allocation failed!");

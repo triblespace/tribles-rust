@@ -1,39 +1,44 @@
 //! # Identifiers for Distributed Systems
 //! We found it useful to categorize identifiers along two axes:
-//! 
-//! |                | **Abstract**        | **Semantic**        |
-//! |----------------|---------------------|---------------------|
-//! | **Intrinsic**  | Hash, Signature     | embeddings          |
-//! | **Extrinsic**  | UUID, UFOID, FUCID  | names, DOI, URL     |
-//! 
+//!
+//! |                | **Abstract**            | **Semantic**        |
+//! |----------------|-------------------------|---------------------|
+//! | **Intrinsic**  | Hash, Signature, PubKey | embeddings          |
+//! | **Extrinsic**  | UUID, UFOID, FUCID      | names, DOI, URL     |
+//!
 //! ## Abstract vs. Semantic Identifiers
-//! 
-//! - **Semantic Identifiers (e.g., human-readable names, URLs, attribute names, head labels)**  
-//!   These identifiers act as a bridge between human users and the system, offering clarity
-//!   and familiarity. However, they do not work well as an identity; their purpose is to aid
-//!   interpretation rather than define persistence.
-//!   They have a high chance of collisions without some form of centralized authority or coordination.
+//!
+//! - **Semantic Identifiers (e.g., human-readable names, URLs, embeddings)**
+//!   These identifiers carry meaning and context about the entity they represent.
+//!   This can make them them useful for human users,
+//!   as they can convey information about the entity without requiring additional lookups.
+//!   For example, a URL can provide information about the location of a resource,
+//!   or a human readable name can provide information about the entity itself.
+//!   Embeddings are a special case of semantic identifiers,
+//!   as they represent the content of an entity in a way that can be compared to other entities.
+//!   They are also more likely to change over time, as the context of the entity changes.
+//!   This makes them less useful for identity, as they are not necessarily unique;
+//!   their strength is to aid interpretation rather than define persistence.
+//!   To avoid ambiguities and conflicts or the need for a central authority to manage them,
+//!   semantic identifiers should always be explicitly scoped to a context,
+//!   such as a namespace or system environment. This ensures that the
+//!   same name can coexist in different contexts without collision or confusion.
+//!   This scoping also addresses social challenges inherent in human-readable names:
+//!   different users may prefer different names for the same entity.
+//!   By allowing local names to reference persistent identifiers (extrinsic or intrinsic),
+//!   each user can adopt their preferred naming conventions while maintaining
+//!   a shared understanding of the underlying identity.
 //!
 //! - **Abstract Identifiers (e.g., UUIDs, UFOIDs, FUCIDs, hashes, signatures)**  
 //!   These identifiers provide abstract identity without imposing any semantic meaning or cultural connotations.
 //!   They can be generated cheaply and without coordination, relying on high entropy to make collisions
 //!   practically impossible, uniquely, globally, and persistently addressing an entity, regardless of its content or context.
-//! 
-//! Abstract identifiers, when used to reference entities in a system, provide a stable and unique identity that is
-//! independent of the content or context of the entity. They are particularly useful in distributed systems, where
-//! they can be used to address entities across different nodes without requiring a central authority.
-//! 
-//! To avoid ambiguities and conflicts, semantic identifiers should always be explicitly
-//! scoped to a context, such as a namespace or system environment. This ensures that the
-//! same name can coexist in different contexts without collision or confusion.
-//! This scoping also addresses social challenges inherent in semantic identifiers:
-//! different users may prefer different names for the same entity.
-//! By allowing local names to reference persistent identifiers (extrinsic or intrinsic),
-//! each user can adopt their preferred naming conventions while maintaining
-//! a shared understanding of the underlying identity.
-//! 
+//!   Abstract identifiers, when used to reference entities in a system, provide a stable and unique identity that is
+//!   independent of the content or context of the entity. They are particularly useful in distributed systems, where
+//!   they can be used to address entities across different nodes without requiring a central authority.
+//!
 //! ## Intrinsic vs. Extrinsic Identifiers
-//! 
+//!
 //! - **Intrinsic Identifiers (e.g., hashes, signatures)**  
 //!   These identifiers provide intrinsic identity by acting as unique fingerprints of the exact content they represent.
 //!   Unlike abstract identifiers, intrinsic identifiers are directly tied to the data itself, ensuring immutability
@@ -42,7 +47,7 @@
 //!   Intrinsic identifiers are generated by applying cryptographic functions to the content. Their entropy requirements
 //!   are higher than those of abstract identifiers, as they must not only prevent accidental collisions but also
 //!   withstand adversarial scenarios, such as deliberate attempts to forge data.
-//! 
+//!
 //! - **Extrinsic Identifiers (e.g., human-readable names, URLs, DOIs, UUIDs, UFOIDs, FUCIDs)**
 //!   These identifiers provide identity that is not tied to the content itself,
 //!   but only by association. They are used to reference entities in a system, but do not
@@ -52,7 +57,7 @@
 //! Extrinsic identifiers and intrinsic identifiers represent different kinds of metaphysical identity.  
 //! For example, in the ship of Theseus thought experiment, both the original ship and the reconstructed ship  
 //! would share the same extrinsic identity but have different intrinsic identities.
-//! 
+//!
 //! ## Embeddings as Semantic Intrinsic Identifiers
 //! Note that embeddings are the somewhat curious case of semantic intrinsic identifiers.
 //! They are intrinsic in that they are tied to the content they represent, but they are also semantic in that they
@@ -60,32 +65,32 @@
 //! compared to other entities, such as for similarity search or classification.
 //! This makes them especially interesting for search and retrieval systems, where they can be used to find similar
 //! entities based on a reference entity. But less useful for identity, as they are not necessarily unique.
-//! 
+//!
 //! One thing that makes them especially interesting is that they can be used to compare entities across different
 //! systems or contexts, even if the entities themselves are not directly comparable. For example, you could compare
 //! the embeddings of a text document and an image to find similar content, even though the two entities are of
 //! different types.
-//! 
+//!
 //! Furthermore they aid in the decentralization and commoditization of search and retrieval systems, as they allow
 //! for the relatively expensive process of generating embeddings to be done decoupled from the indexing and retrieval
 //! process. This allows for the embedding generation to be done once in a distributed manner, and then the embeddings
 //! can be used by any system that needs to compare entities. With the embeddings acting as a common language for
 //! comparing entities, different embeddings can be compared without needing to know about the specifics of each system.
-//! 
+//!
 //! Contrastingly classic search and retrieval systems require a central authority to index and search the content,
 //! as the indexing process is tightly coupled with the indexed data. This makes it difficult to compare entities
 //! across different systems, as each system has its own index and retrieval process.
 //! It also makes merging indexes virtually impossible, as the indexes are tightly coupled with the structure of the data they index.
-//! 
+//!
 //! ## High-Entropy Identifiers
 //!
 //! For a truly distributed system, the creation of identifiers must avoid the bottlenecks and overhead associated
 //! with a central coordinating authority. At the same time, we must ensure that these identifiers are unique.  
 //!
-//! To guarantee uniqueness, we use identifiers containing a large amount of entropy, making collisions
+//! To guarantee uniqueness, we use abstract identifiers containing a large amount of entropy, making collisions
 //! statistically irrelevant. However, the entropy requirements differ based on the type of identifier:
-//! - **Extrinsic identifiers** need enough entropy to prevent accidental collisions in normal operation.
-//! - **Intrinsic identifiers** must also resist adversarial forging attempts, requiring significantly higher entropy.  
+//! - **Extrinsic abstract identifiers** need enough entropy to prevent accidental collisions in normal operation.
+//! - **Intrinsic abstract identifiers** must also resist adversarial forging attempts, requiring significantly higher entropy.  
 //!
 //! From an information-theoretic perspective, the length of an identifier determines the maximum amount of
 //! entropy it can encode. For example, a 128-bit identifier can represent \( 2^{128} \) unique values, which is
@@ -137,7 +142,7 @@
 //! an ultimately flawed approach. They lack the associated guarantees of intrinsic identifiers
 //! and bring all the challenges of semantic identifiers. With their scope defined too broadly,
 //! and their authority centralized, they fail to live up to the potential of distributed systems.
-//! 
+//!
 //! # ID Ownership
 //!
 //! In distributed systems, consistency requires monotonicity due to the CALM principle.
@@ -550,22 +555,22 @@ impl IdOwner {
     /// The `OwnedId` will return the `ExclusiveId` to the `IdOwner` when dropped.
     /// This is useful if you generated an `ExclusiveId` that you want to use temporarily,
     /// but want to make sure it is returned to the `IdOwner` when you are done.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - The `ExclusiveId` to be inserted.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// An `OwnedId` that will return the `ExclusiveId` to the `IdOwner` when dropped.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use tribles::prelude::*;
     /// use valueschemas::ShortString;
     /// use tribles::id_hex;
-    /// 
+    ///
     /// let mut owner = IdOwner::new();
     /// let owned_id = owner.defer_insert(fucid());
     /// let trible = Trible::new(&owned_id, &id_hex!("7830D7B3C2DCD44EB3FA68C93D06B973"), &ShortString::value_from("Hello, World!"));
@@ -610,17 +615,17 @@ impl IdOwner {
     /// This is useful for temporary exclusive access to an `Id`.
     /// If you want to keep the `Id` for longer, you can use the `take` method,
     /// but you will have to manually return it to the `IdOwner` when you are done.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `id` - The `Id` to be taken.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// An `OwnedId` if the `Id` was found, otherwise `None`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use tribles::id::{IdOwner, ExclusiveId, fucid};
     /// let mut owner = IdOwner::new();
@@ -628,15 +633,16 @@ impl IdOwner {
     /// let id = owner.insert(exclusive_id);
     ///  {
     ///     let mut owned_id = owner.borrow(&id).unwrap();
-    /// 
+    ///
     ///     assert_eq!(owned_id.id, id);
     ///     assert!(!owner.owns(&id));
     ///  }
     /// assert!(owner.owns(&id));
     /// ```
     pub fn borrow<'a>(&'a self, id: &Id) -> Option<OwnedId<'a>> {
-        self.take(id).map(move |id| {
-            OwnedId { id: id.forget(), owner: self }
+        self.take(id).map(move |id| OwnedId {
+            id: id.forget(),
+            owner: self,
         })
     }
 

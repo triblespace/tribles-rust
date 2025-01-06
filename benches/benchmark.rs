@@ -71,9 +71,7 @@ fn std_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| {
-                HashSet::<Trible>::from_iter(black_box(&samples).iter().copied())
-            });
+            b.iter(|| HashSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
@@ -93,9 +91,7 @@ fn im_benchmark(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*i));
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            b.iter(|| {
-                OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied())
-            });
+            b.iter(|| OrdSet::<Trible>::from_iter(black_box(&samples).iter().copied()));
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
@@ -651,7 +647,6 @@ criterion_group!(
     benches,
     //std_benchmark,
     //im_benchmark,
-
     patch_benchmark,
     tribleset_benchmark,
     archive_benchmark,

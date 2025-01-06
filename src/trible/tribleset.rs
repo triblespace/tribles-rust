@@ -272,7 +272,7 @@ mod tests {
         }
     }
 
-        /*
+    /*
         #[test]
         fn difference() {
             let mut kb1 = TribleSet::new();

@@ -2,8 +2,8 @@ use rand::thread_rng;
 use rand::RngCore;
 use std::cell::RefCell;
 
-use super::Id;
 use super::ExclusiveId;
+use super::Id;
 
 pub struct FUCIDsource {
     salt: u128,

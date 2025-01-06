@@ -73,8 +73,14 @@ where
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
 
-        let e_iter = set.eav.iter_prefix_count::<16>().map(|(e, _)| id_into_value(&e));
-        let a_iter = set.ave.iter_prefix_count::<16>().map(|(a, _)| id_into_value(&a));
+        let e_iter = set
+            .eav
+            .iter_prefix_count::<16>()
+            .map(|(e, _)| id_into_value(&e));
+        let a_iter = set
+            .ave
+            .iter_prefix_count::<16>()
+            .map(|(a, _)| id_into_value(&a));
         let v_iter = set.vea.iter_prefix_count::<32>().map(|(v, _)| v);
 
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());

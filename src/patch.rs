@@ -128,19 +128,32 @@ impl<const KEY_LEN: usize> KeySegmentation<KEY_LEN> for SingleSegmentation {
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub(crate) enum HeadTag {
-    Leaf = 1,
-    Branch2 = 2,
-    Branch4 = 3,
-    Branch8 = 4,
-    Branch16 = 5,
-    Branch32 = 6,
-    Branch64 = 7,
-    Branch128 = 8,
-    Branch256 = 9,
+    // Bit 0-3: Branching factor
+    Branch2 = 1,
+    Branch4 = 2,
+    Branch8 = 3,
+    Branch16 = 4,
+    Branch32 = 5,
+    Branch64 = 6,
+    Branch128 = 7,
+    Branch256 = 8,
+    // Bit 4 indicates that the node is a leaf.
+    Leaf = 16,
+}
+
+pub(crate) enum BodyPtr<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+{
+    Leaf(NonNull<Leaf<KEY_LEN>>),
+    Branch(NonNull<BranchN<KEY_LEN, O, S>>),
 }
 
 #[derive(Debug)]
-pub(crate) enum BodyRef<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> {
+pub(crate) enum BodyRef<
+    'a,
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+> {
     Leaf(&'a Leaf<KEY_LEN>),
     Branch(&'a BranchN<KEY_LEN, O, S>),
 }
@@ -157,7 +170,7 @@ pub(crate) enum BodyMut<
 }
 
 pub(crate) trait Body {
-    const TAG: HeadTag;
+    fn tag(body: NonNull<Self>) -> HeadTag;
 }
 
 #[repr(C)]
@@ -179,13 +192,13 @@ unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KE
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Head<KEY_LEN, O, S>
 {
-    pub(crate) fn new<T: Body>(key: u8, body: NonNull<T>) -> Self {
+    pub(crate) fn new<T: Body + ?Sized>(key: u8, body: NonNull<T>) -> Self {
         unsafe {
             Self {
                 tptr: std::ptr::NonNull::new_unchecked((body.as_ptr()).map_addr(|addr| {
                     ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
                         | ((key as u64) << 48)
-                        | ((T::TAG as u64) << 56)) as usize
+                        | ((<T as Body>::tag(body) as u64) << 56)) as usize
                 }) as *mut u8),
                 key_ordering: PhantomData,
                 key_segments: PhantomData,
@@ -212,24 +225,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     #[inline]
-    unsafe fn ptr<T: Body>(&self) -> NonNull<T> {
-        debug_assert_eq!(T::TAG, self.tag());
-
-        NonNull::new_unchecked(
-            self.tptr
-                .as_ptr()
-                .map_addr(|addr| ((((addr as u64) << 16) as i64) >> 16) as usize)
-                as *mut T,
-        )
-    }
-
-    #[inline]
-    pub(crate) fn set_body<T: Body>(&mut self, ptr: NonNull<T>) {
+    pub(crate) fn set_body<T: Body + ?Sized>(&mut self, body: NonNull<T>) {
         unsafe {
-            self.tptr = NonNull::new_unchecked(ptr.as_ptr().map_addr(|addr| {
+            self.tptr = NonNull::new_unchecked(body.as_ptr().map_addr(|addr| {
                 ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
                     | (self.tptr.as_ptr() as u64 & 0x00_ff_00_00_00_00_00_00u64)
-                    | ((T::TAG as u64) << 56)) as usize
+                    | ((<T as Body>::tag(body) as u64) << 56)) as usize
             }) as *mut u8)
         }
     }
@@ -242,138 +243,45 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         self
     }
 
-    pub(crate) fn body<'a>(&'a self) -> BodyRef<'a, KEY_LEN, O, S> {
+    pub(crate) fn body(&self) -> BodyPtr<KEY_LEN, O, S> {
         unsafe {
+            let ptr = NonNull::new_unchecked(
+                self.tptr
+                    .as_ptr()
+                    .map_addr(|addr| ((((addr as u64) << 16) as i64) >> 16) as usize),
+            );
             match self.tag() {
-                HeadTag::Leaf => BodyRef::Leaf(self.ptr().as_ref()),
-                HeadTag::Branch2 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch4 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch8 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch16 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch32 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch64 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch128 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>>()
-                        .as_ref(),
-                ),
-                HeadTag::Branch256 => BodyRef::Branch(
-                    self.ptr::<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>>()
-                        .as_ref(),
-                ),
+                HeadTag::Leaf => BodyPtr::Leaf(ptr.cast()),
+                branch_tag => {
+                    let count = branch_tag as usize;
+                    BodyPtr::Branch(NonNull::new_unchecked(std::ptr::slice_from_raw_parts(
+                        ptr.as_ptr(),
+                        count,
+                    ) as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>))
+                }
             }
+        }
+    }
+
+    pub(crate) fn body_ref<'a>(&'a self) -> BodyRef<'a, KEY_LEN, O, S> {
+        match self.body() {
+            BodyPtr::Leaf(leaf) => BodyRef::Leaf(unsafe { leaf.as_ref() }),
+            BodyPtr::Branch(branch) => BodyRef::Branch(unsafe { branch.as_ref() }),
         }
     }
 
     pub(crate) fn body_mut<'a>(&'a mut self) -> BodyMut<'a, KEY_LEN, O, S> {
         unsafe {
-            match self.tag() {
-                HeadTag::Leaf => BodyMut::Leaf(self.ptr::<Leaf<KEY_LEN>>().as_ref()),
-                HeadTag::Branch2 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>,
-                    > = self.ptr();
+            match self.body() {
+                BodyPtr::Leaf(leaf) => BodyMut::Leaf(leaf.as_ref()),
+                BodyPtr::Branch(mut branch) => {
                     if let Some(mut copy) = Branch::rc_cow(branch) {
                         self.set_body(copy);
                         BodyMut::Branch(copy.as_mut())
                     } else {
                         BodyMut::Branch(branch.as_mut())
                     }
-                }
-                HeadTag::Branch4 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
-                HeadTag::Branch8 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
-                HeadTag::Branch16 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
-                HeadTag::Branch32 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
-                HeadTag::Branch64 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
-                HeadTag::Branch128 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
-                HeadTag::Branch256 => {
-                    let mut branch: NonNull<
-                        Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>,
-                    > = self.ptr();
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
-                    } else {
-                        BodyMut::Branch(branch.as_mut())
-                    }
-                }
+                },
             }
         }
     }
@@ -399,93 +307,25 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                         + child.count_segment(branch.end_depth as usize);
                     branch.leaf_count = (branch.leaf_count - old_child_leaf_count) + child.count();
                 } else {
-                    let end_depth = branch.end_depth as usize;
-                    branch.leaf_count += inserted.count();
-                    branch.segment_count += inserted.count_segment(end_depth);
-                    branch.hash ^= inserted.hash();
-
-                    let mut branch: *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]> = branch;
-                    let mut inserted = inserted;
-                    unsafe {
-                        if (*branch).child_table.len() == 2 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch2::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 4 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch4::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch4::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 8 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch8::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch8::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 16 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch16::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch16::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 32 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch32::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch32::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 64 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch64::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch64::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 128 {
-                            let Some(displaced) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch128::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            inserted = displaced;
-                            branch = Branch128::<KEY_LEN, O, S>::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-                        }
-                        if (*branch).child_table.len() == 256 {
-                            let Some(_) = (*branch).child_table.table_insert(inserted) else {
-                                self.set_body(NonNull::new_unchecked(branch as *mut Branch256::<KEY_LEN, O, S>));
-                                return;
-                            };
-                            panic!("failed to insert on Branch256");
-                        }
-    
-                        panic!("failed to insert on non branch");
-                    }
+                    let branch: NonNull<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>> =
+                        unsafe { NonNull::new_unchecked(branch as *mut _) };
+                    let branch: NonNull<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>> =
+                        branch::BranchN::insert_child(branch, inserted);
+                    self.set_body(branch);
                 }
             }
         }
     }
 
     pub(crate) fn count(&self) -> u64 {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(_) => 1,
             BodyRef::Branch(branch) => (*branch).leaf_count,
         }
     }
 
     pub(crate) fn count_segment(&self, at_depth: usize) -> u64 {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(_) => 1,
             BodyRef::Branch(branch) => {
                 branch::Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::count_segment(
@@ -496,28 +336,28 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     pub(crate) fn hash(&self) -> u128 {
-            match self.body() {
-                BodyRef::Leaf(leaf) => leaf.hash(),
-                BodyRef::Branch(branch) => branch.hash,
-            }
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf.hash(),
+            BodyRef::Branch(branch) => branch.hash,
+        }
     }
 
     pub(crate) fn end_depth(&self) -> usize {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(_) => KEY_LEN as usize,
             BodyRef::Branch(branch) => (*branch).end_depth as usize,
         }
     }
 
     pub(crate) fn childleaf(&self) -> *const Leaf<KEY_LEN> {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(leaf) => leaf,
             BodyRef::Branch(branch) => (*branch).childleaf,
         }
     }
 
     pub(crate) fn leaf_key<'a>(&'a self) -> &'a [u8; KEY_LEN] {
-        unsafe{ &(*self.childleaf()).key }
+        unsafe { &(*self.childleaf()).key }
     }
 
     pub(crate) fn remove_leaf(
@@ -548,7 +388,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                             let old_child_segment_count =
                                 child.count_segment(branch.end_depth as usize);
                             let old_child_leaf_count = child.count();
-                            
+
                             Self::remove_leaf(child_slot, leaf_key, end_depth);
                             if let Some(child) = child_slot {
                                 if removed_leafchild {
@@ -578,7 +418,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                                     }
                                     _ => {
                                         if removed_leafchild {
-                                            let child = branch.child_table.iter().find_map(|s| s.as_ref()).expect("child should exist");
+                                            let child = branch
+                                                .child_table
+                                                .iter()
+                                                .find_map(|s| s.as_ref())
+                                                .expect("child should exist");
                                             branch.childleaf = child.childleaf();
                                         }
                                         branch.hash = branch.hash ^ old_child_hash;
@@ -602,7 +446,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         for depth in start_depth..end_depth {
             let i = O::key_index(depth);
             if head_key[i] != leaf_key[i] {
-                let new_head = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::new(
+                let new_head = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::new(
                     self.key(),
                     depth,
                     leaf.with_start(depth),
@@ -630,7 +474,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(leaf) => Leaf::<KEY_LEN>::infixes::<PREFIX_LEN, INFIX_LEN, O, S, F>(
                 leaf, prefix, at_depth, f,
             ),
@@ -647,7 +491,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(leaf) => {
                 Leaf::<KEY_LEN>::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix)
             }
@@ -664,7 +508,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        match self.body() {
+        match self.body_ref() {
             BodyRef::Leaf(leaf) => {
                 leaf::Leaf::<KEY_LEN>::segmented_len::<O, PREFIX_LEN>(leaf, at_depth, prefix)
             }
@@ -690,7 +534,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         for depth in at_depth..std::cmp::min(self_depth, other_depth) {
             let i = O::key_index(depth);
             if self_key[i] != other_key[i] {
-                let new_head = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::new(
+                let new_head = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::new(
                     self.key(),
                     depth,
                     other.with_start(depth),
@@ -723,16 +567,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             // already handled by the above code.
             BodyMut::Leaf(_) => unreachable!(),
             BodyMut::Branch(other_branch) => {
-                for other_child in other_branch
-                    .child_table
-                    .iter_mut()
-                    .filter_map(Option::take)
-                {
+                for other_child in other_branch.child_table.iter_mut().filter_map(Option::take) {
                     self.upsert(other_child, |child, inserted| {
                         child.union(inserted, self_depth)
                     });
                 }
-            },
+            }
         }
     }
 
@@ -757,11 +597,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         if self_depth < other_depth {
             // This means that there can be at most one child in self
             // that might intersect with other.
-            match self.body() {
+            match self.body_ref() {
                 BodyRef::Leaf(_) => unreachable!(),
                 // If the depth of self is less than the depth of other, then it can't be a leaf.
                 BodyRef::Branch(branch) => {
-                    return branch.child_table.table_get(other.leaf_key()[O::key_index(self_depth)])
+                    return branch
+                        .child_table
+                        .table_get(other.leaf_key()[O::key_index(self_depth)])
                         .and_then(|self_child| other.intersect(self_child, self_depth));
                 }
             }
@@ -770,30 +612,34 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         if other_depth < self_depth {
             // This means that there can be at most one child in other
             // that might intersect with self.
-            match other.body() {
+            match other.body_ref() {
                 BodyRef::Leaf(_) => unreachable!(),
                 // If the depth of other is less than the depth of self, then it can't be a leaf.
                 BodyRef::Branch(other_branch) => {
-                    return other_branch.child_table.table_get(self.leaf_key()[O::key_index(other_depth)])
+                    return other_branch
+                        .child_table
+                        .table_get(self.leaf_key()[O::key_index(other_depth)])
                         .and_then(|other_child| self.intersect(other_child, other_depth));
                 }
             }
         }
 
-        match (self.body(), other.body()) {
+        match (self.body_ref(), other.body_ref()) {
             (BodyRef::Branch(self_branch), BodyRef::Branch(other_branch)) => {
-                let mut intersected_children = self_branch.child_table.iter()
-                .filter_map(Option::as_ref)
-                .cloned()
-                .filter_map(|self_child| {
-                    let other_child = other_branch.child_table.table_get(self_child.key())?;
-                    self_child.intersect(other_child, self_depth)
-                });
+                let mut intersected_children = self_branch
+                    .child_table
+                    .iter()
+                    .filter_map(Option::as_ref)
+                    .cloned()
+                    .filter_map(|self_child| {
+                        let other_child = other_branch.child_table.table_get(self_child.key())?;
+                        self_child.intersect(other_child, self_depth)
+                    });
                 let first_child = intersected_children.next()?;
                 let Some(second_child) = intersected_children.next() else {
                     return Some(first_child);
                 };
-                let mut new_self = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::new2(
+                let mut new_self = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::new2(
                     // This will be set later, because we don't know the key yet.
                     // The intersection might remove multiple levels of branches,
                     // so we can't just take the key from self or other.
@@ -803,9 +649,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     second_child.with_start(self_depth),
                 );
                 for child in intersected_children {
-                    new_self.upsert(
-               child.with_start(self_depth),
-                 |_, _| unreachable!());
+                    new_self.upsert(child.with_start(self_depth), |_, _| unreachable!());
                 }
                 Some(new_self)
             }
@@ -818,8 +662,54 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn difference(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
+    /// Returns the difference between self and other.
+    /// This is the set of elements that are in self but not in other.
+    /// If the difference is empty, None is returned.
+    pub(crate) fn difference(&self, other: &Self, at_depth: usize) -> Option<Self> {
         todo!()
+        /*
+        let self_hash = self.hash();
+        let other_hash = other.hash();
+        if self_hash == other_hash {
+            return None;
+        }
+        let self_depth = self.end_depth();
+        let other_depth = other.end_depth();
+
+        let self_key = self.leaf_key();
+        let other_key = other.leaf_key();
+        for depth in at_depth..std::cmp::min(self_depth, other_depth) {
+            let i = O::key_index(depth);
+            if self_key[i] != other_key[i] {
+                return Some(self.clone());
+            }
+        }
+        if self_depth < other_depth {
+            // This means that there can be at most one child in self
+            // that might intersect with other. It's the only child that may not be in the difference.
+            // The other children are definitely in the difference, as they have no corresponding byte in other.
+            // Thus the cheapest way to compute the difference is compute the difference of the only child
+            // that might intersect with other, copy self with it's correctly filled byte table, then
+            // remove the old child, and insert the new child.
+            match self.body() {
+                BodyRef::Leaf(_) => unreachable!(),
+                // If the depth of self is less than the depth of other, then it can't be a leaf.
+                BodyRef::Branch(branch) => {
+                    let self_child = branch
+                        .child_table
+                        .table_get(other.leaf_key()[O::key_index(self_depth)]);
+                    let difference =
+                        self_child.and_then(|self_child| self_child.difference(other, self_depth));
+                    let mut new_self = self.clone();
+                    new_self.remove_leaf(&mut new_self, other.leaf_key(), self_depth);
+                    if let Some(self_child) = self_child {
+                        new_self.upsert(self_child, |_, _| unreachable!());
+                    }
+                    return Some(new_self);
+                }
+            }
+        }
+        */
     }
 }
 
@@ -844,42 +734,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 {
     fn clone(&self) -> Self {
         unsafe {
-            match self.tag() {
-                HeadTag::Leaf => {
-                    Self::new(self.key(), Leaf::<KEY_LEN>::rc_inc(self.ptr()))
-                }
-                HeadTag::Branch2 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch4 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch8 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch16 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch32 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch64 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch128 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>::rc_inc(self.ptr()),
-                ),
-                HeadTag::Branch256 => Self::new(
-                    self.key(),
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>::rc_inc(self.ptr()),
-                ),
+            match self.body_ref() {
+                BodyRef::Leaf(leaf) => Self::new(self.key(), Leaf::<KEY_LEN>::rc_inc(leaf.into())),
+                BodyRef::Branch(branch) => Self::new(self.key(), Branch::rc_inc(branch.into())),
             }
         }
     }
@@ -890,32 +747,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 {
     fn drop(&mut self) {
         unsafe {
-            match self.tag() {
-                HeadTag::Leaf => Leaf::<KEY_LEN>::rc_dec(self.ptr()),
-                HeadTag::Branch2 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 2]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch4 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 4]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch8 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 8]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch16 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 16]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch32 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 32]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch64 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 64]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch128 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 128]>::rc_dec(self.ptr())
-                }
-                HeadTag::Branch256 => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>; 256]>::rc_dec(self.ptr())
-                }
+            match self.body() {
+                BodyPtr::Leaf(leaf) => Leaf::<KEY_LEN>::rc_dec(leaf),
+                BodyPtr::Branch(branch) => Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::rc_dec(branch),
             }
         }
     }
@@ -1171,15 +1005,15 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
         loop {
             if let Some(child) = iter.next() {
                 if let Some(child) = child {
-                    match child.body() {
+                    match child.body_ref() {
                         BodyRef::Leaf(leaf) => {
                             self.stack.push(iter);
                             return Some(&leaf.key);
-                        },
+                        }
                         BodyRef::Branch(branch) => {
                             self.stack.push(iter);
                             iter = branch.child_table.iter();
-                        },
+                        }
                     }
                 }
             } else {
@@ -1246,12 +1080,16 @@ impl<
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
                     self.stack.push(level);
-                    match child.body() {
+                    match child.body_ref() {
                         BodyRef::Leaf(_) => panic!("iter_children on leaf"),
                         BodyRef::Branch(branch) => {
-                            level = branch.child_table.iter().filter_map(|c| c.as_ref()).collect();
+                            level = branch
+                                .child_table
+                                .iter()
+                                .filter_map(|c| c.as_ref())
+                                .collect();
                             level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                        },
+                        }
                     }
                 }
             } else {
@@ -1273,10 +1111,8 @@ mod tests {
 
     #[test]
     fn head_tag() {
-        let head = Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(
-                0,
-                NonNull::dangling(),
-            );
+        let head =
+            Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(0, NonNull::dangling());
         assert_eq!(head.tag(), HeadTag::Leaf);
         mem::forget(head);
     }
@@ -1285,9 +1121,9 @@ mod tests {
     fn head_key() {
         for k in 0..=255 {
             let head = Head::<64, IdentityOrder, SingleSegmentation>::new::<Leaf<64>>(
-                    k,
-                    NonNull::dangling(),
-                );
+                k,
+                NonNull::dangling(),
+            );
             assert_eq!(head.key(), k);
             mem::forget(head);
         }

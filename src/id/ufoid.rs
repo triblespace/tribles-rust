@@ -1,7 +1,7 @@
 use rand::{thread_rng, RngCore};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{Id, ExclusiveId};
+use super::{ExclusiveId, Id};
 
 /// # Universal Forgettable Ordered IDs (UFOIDs)
 ///

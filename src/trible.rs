@@ -46,7 +46,7 @@ mod tribleset;
 use std::convert::TryInto;
 
 use crate::{
-    id::{Id, ExclusiveId},
+    id::{ExclusiveId, Id},
     patch::{KeyOrdering, KeySegmentation},
     value::{Value, ValueSchema},
 };

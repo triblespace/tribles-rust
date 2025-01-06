@@ -6,7 +6,7 @@ use ed25519::signature::Signer;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
-    id::{Id, ExclusiveId},
+    id::{ExclusiveId, Id},
     namespace::NS,
     query::find,
     trible::TribleSet,

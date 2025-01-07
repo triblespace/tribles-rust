@@ -124,7 +124,7 @@ impl<const KEY_LEN: usize> KeySegmentation<KEY_LEN> for SingleSegmentation {
         0
     }
 }
-
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub(crate) enum HeadTag {
@@ -158,6 +158,7 @@ pub(crate) enum BodyRef<
     Branch(&'a BranchN<KEY_LEN, O, S>),
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum BodyMut<
     'a,
@@ -194,12 +195,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 {
     pub(crate) fn new<T: Body + ?Sized>(key: u8, body: NonNull<T>) -> Self {
         unsafe {
-            Self {
-                tptr: std::ptr::NonNull::new_unchecked((body.as_ptr()).map_addr(|addr| {
+            let tptr =
+                std::ptr::NonNull::new_unchecked((body.as_ptr() as *mut u8).map_addr(|addr| {
                     ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
                         | ((key as u64) << 48)
                         | ((<T as Body>::tag(body) as u64) << 56)) as usize
-                }) as *mut u8),
+                }));
+            Self {
+                tptr,
                 key_ordering: PhantomData,
                 key_segments: PhantomData,
             }
@@ -227,11 +230,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     #[inline]
     pub(crate) fn set_body<T: Body + ?Sized>(&mut self, body: NonNull<T>) {
         unsafe {
-            self.tptr = NonNull::new_unchecked(body.as_ptr().map_addr(|addr| {
+            self.tptr = NonNull::new_unchecked((body.as_ptr() as *mut u8).map_addr(|addr| {
                 ((addr as u64 & 0x00_00_ff_ff_ff_ff_ff_ffu64)
                     | (self.tptr.as_ptr() as u64 & 0x00_ff_00_00_00_00_00_00u64)
                     | ((<T as Body>::tag(body) as u64) << 56)) as usize
-            }) as *mut u8)
+            }))
         }
     }
 
@@ -253,11 +256,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             match self.tag() {
                 HeadTag::Leaf => BodyPtr::Leaf(ptr.cast()),
                 branch_tag => {
-                    let count = branch_tag as usize;
+                    let count = 1 << (branch_tag as usize);
                     BodyPtr::Branch(NonNull::new_unchecked(std::ptr::slice_from_raw_parts(
                         ptr.as_ptr(),
                         count,
-                    ) as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>))
+                    )
+                        as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>))
                 }
             }
         }
@@ -281,7 +285,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     } else {
                         BodyMut::Branch(branch.as_mut())
                     }
-                },
+                }
             }
         }
     }
@@ -665,7 +669,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     /// Returns the difference between self and other.
     /// This is the set of elements that are in self but not in other.
     /// If the difference is empty, None is returned.
-    pub(crate) fn difference(&self, other: &Self, at_depth: usize) -> Option<Self> {
+    pub(crate) fn difference(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
         todo!()
         /*
         let self_hash = self.hash();
@@ -749,7 +753,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         unsafe {
             match self.body() {
                 BodyPtr::Leaf(leaf) => Leaf::<KEY_LEN>::rc_dec(leaf),
-                BodyPtr::Branch(branch) => Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::rc_dec(branch),
+                BodyPtr::Branch(branch) => {
+                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::rc_dec(branch)
+                }
             }
         }
     }

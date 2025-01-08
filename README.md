@@ -5,7 +5,9 @@
 🚧🚧🚧 Please note that this is work in progress, so while a lot of things have settled by now, we still favour breaking backwards compatiblity for seeminly minor improvements. 🚧🚧🚧
 
 
-![The mascot of the trible.space a cute fluffy trible with three eyes.](https://github.com/triblespace/tribles-rust/blob/master/sticker.png?raw=true)
+<img src="https://github.com/triblespace/tribles-rust/blob/master/sticker.png?raw=true" width="300"
+ alt="The mascot of the trible.space a cute fluffy trible with three eyes."/>
+
 
 # About
 

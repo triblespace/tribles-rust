@@ -213,7 +213,7 @@ fn archive_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.throughput(Throughput::Elements(5 * i));
-        group.bench_function(BenchmarkId::new("structured/archive", 5 * i), |b| {
+        group.bench_function(BenchmarkId::new("simple/structured/archive", 5 * i), |b| {
             let owner = IdOwner::new();
             let mut set: TribleSet = TribleSet::new();
             (0..i).for_each(|_| {
@@ -230,42 +230,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
             });
             b.iter(|| {
-                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
-                let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
-                let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
-                let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
-                let size_av = archive.v_a.size_in_bytes() as f64 / set.len() as f64;
-                let size_ceav = archive.eav_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_cvea = archive.vea_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_cave = archive.ave_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_cvae = archive.vae_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_ceva = archive.eva_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_caev = archive.aev_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_total = size_domain
-                    + size_ae
-                    + size_aa
-                    + size_av
-                    + size_ceav
-                    + size_cvea
-                    + size_cave
-                    + size_cvae
-                    + size_ceva
-                    + size_caev;
-
-                println!(
-                    "Archived trible size: {size_total}\n\
-                       Domain:{size_domain}\n\
-                       A_e:{size_ae}\n\
-                       A_a:{size_aa}\n\
-                       A_v:{size_av}\n\
-                       C_eav:{size_ceav}\n\
-                       C_vea:{size_cvea}\n\
-                       C_ave:{size_cave}\n\
-                       C_vae:{size_cvae}\n\
-                       C_eva:{size_ceva}\n\
-                       C_aev:{size_caev}",
-                );
-
+                let archive: Blob<SimpleArchive> = SimpleArchive::blob_from(&set);
                 archive
             });
         });
@@ -273,60 +238,78 @@ fn archive_benchmark(c: &mut Criterion) {
 
     for i in [1000000] {
         group.throughput(Throughput::Elements(5 * i));
-        group.bench_function(BenchmarkId::new("structured/unarchive", 5 * i), |b| {
-            let owner = IdOwner::new();
-            let mut set: TribleSet = TribleSet::new();
-            (0..i).for_each(|_| {
-                let author = owner.defer_insert(fucid());
-                let book = owner.defer_insert(fucid());
-                set += literature::entity!(&author, {
-                    firstname: FirstName(EN).fake::<String>(),
-                    lastname: LastName(EN).fake::<String>(),
+        group.bench_function(
+            BenchmarkId::new("simple/structured/unarchive", 5 * i),
+            |b| {
+                let owner = IdOwner::new();
+                let mut set: TribleSet = TribleSet::new();
+                (0..i).for_each(|_| {
+                    let author = owner.defer_insert(fucid());
+                    let book = owner.defer_insert(fucid());
+                    set += literature::entity!(&author, {
+                        firstname: FirstName(EN).fake::<String>(),
+                        lastname: LastName(EN).fake::<String>(),
+                    });
+                    set += literature::entity!(&book, {
+                        author: &author,
+                        title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                    });
                 });
-                set += literature::entity!(&book, {
-                    author: &author,
-                    title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                let archive: Blob<SimpleArchive> = SimpleArchive::blob_from(&set);
+                b.iter(|| {
+                    let set: TribleSet = archive.try_from_blob().unwrap();
+                    set
                 });
-            });
-            let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
-            b.iter(|| {
-                let set: TribleSet = (&archive).into();
-                set
-            });
-        });
+            },
+        );
     }
 
     for i in [1000000] {
-        group.throughput(Throughput::Elements(i));
-        group.bench_with_input(BenchmarkId::new("random/archive", i), &i, |b, &i| {
-            let samples = random_tribles(i as usize);
-            let set = TribleSet::from_iter(black_box(&samples).iter().copied());
-            b.iter(|| {
-                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
-                let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
-                let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
-                let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
-                let size_av = archive.v_a.size_in_bytes() as f64 / set.len() as f64;
-                let size_ceav = archive.eav_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_cvea = archive.vea_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_cave = archive.ave_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_cvae = archive.vae_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_ceva = archive.eva_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_caev = archive.aev_c.size_in_bytes() as f64 / set.len() as f64;
-                let size_total = size_domain
-                    + size_ae
-                    + size_aa
-                    + size_av
-                    + size_ceav
-                    + size_cvea
-                    + size_cave
-                    + size_cvae
-                    + size_ceva
-                    + size_caev;
+        group.throughput(Throughput::Elements(5 * i));
+        group.bench_function(
+            BenchmarkId::new("succinct/structured/archive", 5 * i),
+            |b| {
+                let owner = IdOwner::new();
+                let mut set: TribleSet = TribleSet::new();
+                (0..i).for_each(|_| {
+                    let author = owner.defer_insert(fucid());
+                    let book = owner.defer_insert(fucid());
+                    set += literature::entity!(&author, {
+                        firstname: FirstName(EN).fake::<String>(),
+                        lastname: LastName(EN).fake::<String>(),
+                    });
+                    set += literature::entity!(&book, {
+                        author: &author,
+                        title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                    });
+                });
+                b.iter(|| {
+                    let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                    let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
+                    let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
+                    let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
+                    let size_av = archive.v_a.size_in_bytes() as f64 / set.len() as f64;
+                    let size_ceav = archive.eav_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_cvea = archive.vea_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_cave = archive.ave_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_cvae = archive.vae_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_ceva = archive.eva_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_caev = archive.aev_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_total = size_domain
+                        + size_ae
+                        + size_aa
+                        + size_av
+                        + size_ceav
+                        + size_cvea
+                        + size_cave
+                        + size_cvae
+                        + size_ceva
+                        + size_caev;
 
-                println!(
-                    "Archived trible size: {size_total}\n\
+                    println!(
+                        "Archived trible size: {size_total}\n\
                        Domain:{size_domain}\n\
                        A_e:{size_ae}\n\
                        A_a:{size_aa}\n\
@@ -337,24 +320,109 @@ fn archive_benchmark(c: &mut Criterion) {
                        C_vae:{size_cvae}\n\
                        C_eva:{size_ceva}\n\
                        C_aev:{size_caev}",
-                );
+                    );
 
-                archive
-            });
-        });
+                    archive
+                });
+            },
+        );
+    }
+
+    for i in [1000000] {
+        group.throughput(Throughput::Elements(5 * i));
+        group.bench_function(
+            BenchmarkId::new("succinct/structured/unarchive", 5 * i),
+            |b| {
+                let owner = IdOwner::new();
+                let mut set: TribleSet = TribleSet::new();
+                (0..i).for_each(|_| {
+                    let author = owner.defer_insert(fucid());
+                    let book = owner.defer_insert(fucid());
+                    set += literature::entity!(&author, {
+                        firstname: FirstName(EN).fake::<String>(),
+                        lastname: LastName(EN).fake::<String>(),
+                    });
+                    set += literature::entity!(&book, {
+                        author: &author,
+                        title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                    });
+                });
+                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                b.iter(|| {
+                    let set: TribleSet = (&archive).into();
+                    set
+                });
+            },
+        );
     }
 
     for i in [1000000] {
         group.throughput(Throughput::Elements(i));
-        group.bench_with_input(BenchmarkId::new("random/unarchive", i), &i, |b, &i| {
-            let samples = random_tribles(i as usize);
-            let set = TribleSet::from_iter(black_box(&samples).iter().copied());
-            let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
-            b.iter(|| {
-                let set: TribleSet = (&archive).into();
-                set
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("succinct/random/archive", i),
+            &i,
+            |b, &i| {
+                let samples = random_tribles(i as usize);
+                let set = TribleSet::from_iter(black_box(&samples).iter().copied());
+                b.iter(|| {
+                    let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                    let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
+                    let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
+                    let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
+                    let size_av = archive.v_a.size_in_bytes() as f64 / set.len() as f64;
+                    let size_ceav = archive.eav_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_cvea = archive.vea_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_cave = archive.ave_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_cvae = archive.vae_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_ceva = archive.eva_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_caev = archive.aev_c.size_in_bytes() as f64 / set.len() as f64;
+                    let size_total = size_domain
+                        + size_ae
+                        + size_aa
+                        + size_av
+                        + size_ceav
+                        + size_cvea
+                        + size_cave
+                        + size_cvae
+                        + size_ceva
+                        + size_caev;
+
+                    println!(
+                        "Archived trible size: {size_total}\n\
+                       Domain:{size_domain}\n\
+                       A_e:{size_ae}\n\
+                       A_a:{size_aa}\n\
+                       A_v:{size_av}\n\
+                       C_eav:{size_ceav}\n\
+                       C_vea:{size_cvea}\n\
+                       C_ave:{size_cave}\n\
+                       C_vae:{size_cvae}\n\
+                       C_eva:{size_ceva}\n\
+                       C_aev:{size_caev}",
+                    );
+
+                    archive
+                });
+            },
+        );
+    }
+
+    for i in [1000000] {
+        group.throughput(Throughput::Elements(i));
+        group.bench_with_input(
+            BenchmarkId::new("succinct/random/unarchive", i),
+            &i,
+            |b, &i| {
+                let samples = random_tribles(i as usize);
+                let set = TribleSet::from_iter(black_box(&samples).iter().copied());
+                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                b.iter(|| {
+                    let set: TribleSet = (&archive).into();
+                    set
+                });
+            },
+        );
     }
 
     group.finish();

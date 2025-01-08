@@ -13,6 +13,7 @@ mod bytetable;
 mod entry;
 mod leaf;
 
+use arrayvec::ArrayVec;
 use sptr::Strict;
 
 use branch::*;
@@ -886,13 +887,19 @@ where
     }
 
     /// Iterates over all keys in the PATCH.
-    /// The keys are returned in key order.
+    /// The keys are returned in key ordering but random order.
     pub fn iter<'a>(&'a self) -> PATCHIterator<'a, KEY_LEN, O, S> {
         PATCHIterator::new(self)
     }
 
+    /// Iterates over all keys in the PATCH.
+    /// The keys are returned in key ordering and tree order.
+    pub fn iter_ordered<'a>(&'a self) -> PATCHOrderedIterator<'a, KEY_LEN, O, S> {
+        PATCHOrderedIterator::new(self)
+    }
+
     /// Iterate over all prefixes of the given length in the PATCH.
-    /// The prefixes are naturally returned in tree order.
+    /// The prefixes are naturally returned in tree ordering and tree order.
     /// A count of the number of elements for the given prefix is also returned.
     pub fn iter_prefix_count<'a, const PREFIX_LEN: usize>(
         &'a self,
@@ -977,15 +984,14 @@ where
 }
 
 /// An iterator over all keys in a PATCH.
-/// The keys are returned in key order.s
+/// The keys are returned in key ordering but in random order.
 pub struct PATCHIterator<
     'a,
     const KEY_LEN: usize,
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
 > {
-    patch: PhantomData<&'a PATCH<KEY_LEN, O, S>>,
-    stack: Vec<std::slice::Iter<'a, Option<Head<KEY_LEN, O, S>>>>,
+    stack: ArrayVec<std::slice::Iter<'a, Option<Head<KEY_LEN, O, S>>>, KEY_LEN>,
 }
 
 impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
@@ -993,8 +999,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
 {
     fn new(patch: &'a PATCH<KEY_LEN, O, S>) -> Self {
         let mut r = PATCHIterator {
-            patch: PhantomData,
-            stack: Vec::new(),
+            stack: ArrayVec::new(),
         };
         r.stack.push(std::slice::from_ref(&patch.root).iter());
         r
@@ -1007,30 +1012,93 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
     type Item = &'a [u8; KEY_LEN];
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut iter = self.stack.pop()?;
+        let mut iter = self.stack.last_mut()?;
         loop {
             if let Some(child) = iter.next() {
                 if let Some(child) = child {
                     match child.body_ref() {
                         BodyRef::Leaf(leaf) => {
-                            self.stack.push(iter);
                             return Some(&leaf.key);
                         }
                         BodyRef::Branch(branch) => {
-                            self.stack.push(iter);
-                            iter = branch.child_table.iter();
+                            self.stack.push(branch.child_table.iter());
+                            iter = self.stack.last_mut()?;
                         }
                     }
                 }
             } else {
-                iter = self.stack.pop()?;
+                self.stack.pop();
+                iter = self.stack.last_mut()?;
             }
         }
     }
 }
 
 /// An iterator over all keys in a PATCH that have a given prefix.
-/// The keys are returned in tree order.
+/// The keys are returned in tree ordering and in tree order.
+pub struct PATCHOrderedIterator<
+    'a,
+    const KEY_LEN: usize,
+    O: KeyOrdering<KEY_LEN>,
+    S: KeySegmentation<KEY_LEN>,
+> {
+    stack: Vec<ArrayVec<&'a Head<KEY_LEN, O, S>, 256>>,
+}
+
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    PATCHOrderedIterator<'a, KEY_LEN, O, S>
+{
+    fn new(patch: &'a PATCH<KEY_LEN, O, S>) -> Self {
+        let mut r = PATCHOrderedIterator {
+            stack: Vec::with_capacity(KEY_LEN),
+        };
+        if let Some(root) = &patch.root {
+            r.stack.push(ArrayVec::new());
+            match root.body_ref() {
+                BodyRef::Leaf(_) => {
+                    r.stack[0].push(root);
+                }
+                BodyRef::Branch(branch) => {
+                    let first_level = &mut r.stack[0];
+                    first_level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                    first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                }
+            }
+        }
+        r
+    }
+}
+
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Iterator
+    for PATCHOrderedIterator<'a, KEY_LEN, O, S>
+{
+    type Item = &'a [u8; KEY_LEN];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut level = self.stack.last_mut()?;
+        loop {
+            if let Some(child) = level.pop() {
+                match child.body_ref() {
+                    BodyRef::Leaf(leaf) => {
+                        return Some(&leaf.key);
+                    }
+                    BodyRef::Branch(branch) => {
+                        self.stack.push(ArrayVec::new());
+                        level = self.stack.last_mut()?;
+                        level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                        level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                    }
+                }
+            } else {
+                self.stack.pop();
+                level = self.stack.last_mut()?;
+            }
+        }
+    }
+}
+
+/// An iterator over all keys in a PATCH that have a given prefix.
+/// The keys are returned in tree ordering and in tree order.
 pub struct PATCHPrefixIterator<
     'a,
     const KEY_LEN: usize,
@@ -1038,8 +1106,7 @@ pub struct PATCHPrefixIterator<
     O: KeyOrdering<KEY_LEN>,
     S: KeySegmentation<KEY_LEN>,
 > {
-    patch: PhantomData<&'a PATCH<KEY_LEN, O, S>>,
-    stack: Vec<Vec<&'a Head<KEY_LEN, O, S>>>,
+    stack: Vec<ArrayVec<&'a Head<KEY_LEN, O, S>, 256>>,
 }
 
 impl<
@@ -1053,13 +1120,22 @@ impl<
     fn new(patch: &'a PATCH<KEY_LEN, O, S>) -> Self {
         assert!(PREFIX_LEN <= KEY_LEN);
         let mut r = PATCHPrefixIterator {
-            patch: PhantomData,
             stack: Vec::with_capacity(PREFIX_LEN),
         };
         if let Some(root) = &patch.root {
-            let mut level = Vec::with_capacity(256);
-            level.push(root);
-            r.stack.push(level);
+            r.stack.push(ArrayVec::new());
+            if root.end_depth() >= PREFIX_LEN {
+                r.stack[0].push(root);
+            } else {
+                match root.body_ref() {
+                    BodyRef::Leaf(_) => unreachable!(),
+                    BodyRef::Branch(branch) => {
+                        let first_level = &mut r.stack[0];
+                        first_level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                        first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                    }
+                }
+            }
         }
         r
     }
@@ -1076,30 +1152,27 @@ impl<
     type Item = ([u8; PREFIX_LEN], u64);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut level = self.stack.pop()?;
+        let mut level = self.stack.last_mut()?;
         loop {
             if let Some(child) = level.pop() {
                 if child.end_depth() >= PREFIX_LEN {
                     let key = O::tree_ordered(child.leaf_key());
                     let suffix_count = child.count();
-                    self.stack.push(level);
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
-                    self.stack.push(level);
                     match child.body_ref() {
-                        BodyRef::Leaf(_) => panic!("iter_children on leaf"),
+                        BodyRef::Leaf(_) => unreachable!(),
                         BodyRef::Branch(branch) => {
-                            level = branch
-                                .child_table
-                                .iter()
-                                .filter_map(|c| c.as_ref())
-                                .collect();
+                            self.stack.push(ArrayVec::new());
+                            level = self.stack.last_mut()?;
+                            level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
                             level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                         }
                     }
                 }
             } else {
-                level = self.stack.pop()?;
+                self.stack.pop();
+                level = self.stack.last_mut()?;
             }
         }
     }

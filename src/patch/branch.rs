@@ -1,7 +1,7 @@
 use super::*;
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::alloc::{alloc, alloc_zeroed, dealloc, Layout};
+use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::ptr::addr_of_mut;
 
 const BRANCH_ALIGN: usize = 16;

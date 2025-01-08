@@ -104,10 +104,12 @@ fn main() -> std::io::Result<()> {
 
 The best way to get started is to read the module documentation of the `tribles` crate. The following links provide an overview of the most important modules, in an order where you can start with the most basic concepts and work your way up to more advanced topics:
 
-- [Identifiers](https://docs.rs/tribles/latest/tribles/id/index.html)
-- [Values](https://docs.rs/tribles/latest/tribles/value/index.html)
-- [Blobs](https://docs.rs/tribles/latest/tribles/blob/index.html)
-- [Tribles](https://docs.rs/tribles/latest/tribles/trible/index.html)
-- [Namespaces](https://docs.rs/tribles/latest/tribles/namespace/index.html)
-- [Queries](https://docs.rs/tribles/latest/tribles/query/index.html)
-- [Remotes](https://docs.rs/tribles/latest/tribles/remote/index.html)
+1. [Identifiers](https://docs.rs/tribles/latest/tribles/id/index.html)
+2. [Values](https://docs.rs/tribles/latest/tribles/value/index.html)
+3. [Blobs](https://docs.rs/tribles/latest/tribles/blob/index.html)
+4. [Tribles](https://docs.rs/tribles/latest/tribles/trible/index.html)
+5. [Namespaces](https://docs.rs/tribles/latest/tribles/namespace/index.html)
+6. [Queries](https://docs.rs/tribles/latest/tribles/query/index.html)
+6. [Remotes](https://docs.rs/tribles/latest/tribles/remote/index.html)
+7. [Predefined Value Schemas](https://docs.rs/tribles/latest/tribles/value/schemas/index.html)
+8. [Predefined Blob Schemas](https://docs.rs/tribles/latest/tribles/blob/schemas/index.html)

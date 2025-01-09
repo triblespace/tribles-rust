@@ -1,6 +1,15 @@
 //! The `trible` module contains the definition of the `Trible` struct, which is the fundamental unit of knowledge in the knowledge graph.
 //! Instance of `Trible`s are stored in `TribleSet`s which index the trible in various ways, allowing for efficient querying and retrieval of data.
 //!
+//! ``` text
+//! ┌────────────────────────────64 byte───────────────────────────┐
+//! ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
+//! │  entity-id   ││ attribute-id ││        inlined value         │
+//! └──────────────┘└──────────────┘└──────────────────────────────┘
+//! └────16 byte───┘└────16 byte───┘└────────────32 byte───────────┘
+//! ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▶
+//! ```
+//!
 //! # Direction and Consistency
 //!
 //! In other triple stores the direction of the edge drawn by a triple is often
@@ -77,6 +86,15 @@ pub type RawTrible = [u8; TRIBLE_LEN];
 /// The trible is the fundamental unit of storage in the knowledge graph,
 /// and is stored in [crate::trible::TribleSet]s which index the trible in various ways,
 /// allowing for efficient querying and retrieval of data.
+///
+/// ``` text
+/// ┌────────────────────────────64 byte───────────────────────────┐
+/// ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
+/// │  entity-id   ││ attribute-id ││        inlined value         │
+/// └──────────────┘└──────────────┘└──────────────────────────────┘
+/// └────16 byte───┘└────16 byte───┘└────────────32 byte───────────┘
+/// ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▶
+/// ```
 ///
 /// On a high level, a trible is a triple consisting of an entity, an attribute, and a value.
 /// The entity and attribute are both 128-bit abstract extrinsic identifiers as described in [crate::id],

@@ -40,9 +40,6 @@ impl<
     }
 }
 
-pub(crate) type BranchN<const KEY_LEN: usize, O, S> =
-    Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>;
-
 impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>> Body
     for Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>
 {
@@ -55,40 +52,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>
 {
     pub(super) fn new(
-        head_key: u8,
-        end_depth: usize,
-        child: Head<KEY_LEN, O, S>,
-    ) -> Head<KEY_LEN, O, S> {
-        unsafe {
-            let size = 2;
-            let layout =
-                Layout::from_size_align(BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size), BRANCH_ALIGN)
-                    .unwrap(); // TODO use unchecked if this doesn't fail immedaitately
-            if let Some(ptr) =
-                NonNull::new(std::ptr::slice_from_raw_parts(alloc_zeroed(layout), size)
-                    as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>)
-            {
-                addr_of_mut!((*ptr.as_ptr()).rc).write(atomic::AtomicU32::new(1));
-                addr_of_mut!((*ptr.as_ptr()).end_depth).write(end_depth as u32);
-                addr_of_mut!((*ptr.as_ptr()).childleaf).write(child.childleaf());
-                addr_of_mut!((*ptr.as_ptr()).leaf_count).write(child.count());
-                addr_of_mut!((*ptr.as_ptr()).segment_count).write(child.count_segment(end_depth));
-                addr_of_mut!((*ptr.as_ptr()).hash).write(child.hash());
-                (*ptr.as_ptr()).child_table[0] = Some(child);
-
-                Head::new(head_key, ptr)
-            } else {
-                panic!("Allocation failed!");
-            }
-        }
-    }
-
-    pub(super) fn new2(
-        head_key: u8,
         end_depth: usize,
         lchild: Head<KEY_LEN, O, S>,
         rchild: Head<KEY_LEN, O, S>,
-    ) -> Head<KEY_LEN, O, S> {
+    ) -> NonNull<Self> {
         unsafe {
             let size = 2;
             let layout =
@@ -108,7 +75,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 (*ptr.as_ptr()).child_table[0] = Some(lchild);
                 (*ptr.as_ptr()).child_table[1] = Some(rchild);
 
-                Head::new(head_key, ptr)
+                ptr
             } else {
                 panic!("Allocation failed!");
             }
@@ -245,6 +212,36 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 };
                 displaced = new_displaced;
                 branch = Self::grow(NonNull::new_unchecked(branch as _)).as_ptr();
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn upsert_child<F>(branch: NonNull<Self>, inserted: Head<KEY_LEN, O, S>, update: F) -> NonNull<Self>
+    where
+        F: FnOnce(&mut Option<Head<KEY_LEN, O, S>>, Head<KEY_LEN, O, S>),
+    {
+        unsafe {
+            let ptr = branch.as_ptr();
+            let inserted = inserted.with_start((*ptr).end_depth as usize);
+            let key = inserted.key();
+            if let Some(slot) = (*ptr).child_table.table_get_slot(key) {
+                let child = slot.as_ref().unwrap();
+                let old_child_hash = child.hash();
+                let old_child_segment_count = child.count_segment((*ptr).end_depth as usize);
+                let old_child_leaf_count = child.count();
+    
+                update(slot, inserted);
+    
+                let child = slot.as_ref().expect("update may not remove child");
+    
+                (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ child.hash();
+                (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)
+                    + child.count_segment((*ptr).end_depth as usize);
+                    (*ptr).leaf_count = ((*ptr).leaf_count - old_child_leaf_count) + child.count();
+                branch
+            } else {
+                branch::Branch::insert_child(branch, inserted)
             }
         }
     }

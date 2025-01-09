@@ -90,12 +90,11 @@ pub unsafe trait ByteEntry {
 /// `BUCKET_ENTRY_COUNT` elements to share the same colliding hash values.
 /// This is what allows for the table's compression by reshuffling entries.
 pub trait ByteBucket<T: ByteEntry + Clone + Debug> {
-    fn get_slot(&self, byte_key: u8) -> Option<&T>;
-    fn get_mut_slot(&mut self, byte_key: u8) -> Option<&mut T>;
-    fn take_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
-    fn shove_empty_slot(&mut self, shoved_entry: T) -> Option<T>;
-    fn shove_random_slot(&mut self, shoved_entry: T) -> Option<T>;
-    fn shove_expensive_slot(
+    fn bucket_get(&self, byte_key: u8) -> Option<&T>;
+    fn bucket_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
+    fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T>;
+    fn bucket_shove_random_slot(&mut self, shoved_entry: T) -> Option<T>;
+    fn bucket_shove_expensive_slot(
         &mut self,
         slot_count: usize,
         bucket_index: u8,
@@ -106,7 +105,7 @@ pub trait ByteBucket<T: ByteEntry + Clone + Debug> {
 impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return a non-exclusive reference to it or `None` otherwise.
-    fn get_slot(&self, byte_key: u8) -> Option<&T> {
+    fn bucket_get(&self, byte_key: u8) -> Option<&T> {
         for entry in self {
             if let Some(entry) = entry {
                 if entry.key() == byte_key {
@@ -117,22 +116,9 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
         return None;
     }
 
-    /// Find the entry associated with the provided byte key if it is stored in
-    /// the table and return an exclusive reference to it or `None` otherwise.
-    fn get_mut_slot(&mut self, byte_key: u8) -> Option<&mut T> {
-        for entry in self {
-            if let Some(entry) = entry {
-                if entry.key() == byte_key {
-                    return Some(entry);
-                }
-            }
-        }
-        return None;
-    }
-
-    /// Find the entry associated with the provided byte key if it is stored in
+    /// Find the slot associated with the provided byte key if it is stored in
     /// the table and return it or `None` otherwise.
-    fn take_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
+    fn bucket_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
         for slot in self {
             if let Some(entry) = slot {
                 if entry.key() == byte_key {
@@ -145,7 +131,7 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
 
     /// Move the provided `entry` into the bucket, displacing an empty slot,
     /// returns the entry if none is found.
-    fn shove_empty_slot(&mut self, shoved_entry: T) -> Option<T> {
+    fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T> {
         for entry in self {
             if entry.is_none() {
                 return entry.replace(shoved_entry);
@@ -156,14 +142,14 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
 
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning a random existing entry.
-    fn shove_random_slot(&mut self, shoved_entry: T) -> Option<T> {
+    fn bucket_shove_random_slot(&mut self, shoved_entry: T) -> Option<T> {
         let index = unsafe { RAND as usize & (BUCKET_ENTRY_COUNT - 1) };
         return self[index].replace(shoved_entry);
     }
 
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning an existing entry that was using the non-cheap random hash.
-    fn shove_expensive_slot(
+    fn bucket_shove_expensive_slot(
         &mut self,
         slot_count: usize,
         bucket_index: u8,
@@ -209,7 +195,6 @@ pub trait ByteTable<T: ByteEntry + Clone + Debug> {
     fn table_bucket(&self, bucket_index: usize) -> &[Option<T>];
     fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [Option<T>];
     fn table_get(&self, byte_key: u8) -> Option<&T>;
-    fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T>;
     fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn table_insert(&mut self, entry: T) -> Option<T>;
     fn table_grow(&mut self, grown: &mut Self);
@@ -227,21 +212,9 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
     fn table_get(&self, byte_key: u8) -> Option<&T> {
         let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
         let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        let cheap_entry = self.table_bucket(cheap).get_slot(byte_key);
-        let rand_entry = self.table_bucket(rand).get_slot(byte_key);
+        let cheap_entry = self.table_bucket(cheap).bucket_get(byte_key);
+        let rand_entry = self.table_bucket(rand).bucket_get(byte_key);
         cheap_entry.or(rand_entry)
-    }
-
-    fn table_get_mut(&mut self, byte_key: u8) -> Option<&mut T> {
-        let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
-        let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        if let Some(_) = self.table_bucket_mut(cheap).get_mut_slot(byte_key) {
-            return self.table_bucket_mut(cheap).get_mut_slot(byte_key); //TODO check if still needed
-        }
-        if let Some(entry) = self.table_bucket_mut(rand).get_mut_slot(byte_key) {
-            return Some(entry);
-        }
-        return None;
     }
 
     fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
@@ -249,11 +222,11 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
         let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
         if let Some(_) = self
             .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
-            .take_slot(byte_key)
+            .bucket_get_slot(byte_key)
         {
-            return self.table_bucket_mut(cheap).take_slot(byte_key); //TODO check if still needed
+            return self.table_bucket_mut(cheap).bucket_get_slot(byte_key); //TODO check if still needed
         }
-        if let Some(entry) = self.table_bucket_mut(rand).take_slot(byte_key) {
+        if let Some(entry) = self.table_bucket_mut(rand).bucket_get_slot(byte_key) {
             return Some(entry);
         }
         return None;
@@ -285,7 +258,7 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
 
             inserted = self
                 .table_bucket_mut(bucket_index as usize)
-                .shove_empty_slot(inserted)?;
+                .bucket_shove_empty_slot(inserted)?;
 
             if min_grown || retries == MAX_RETRIES {
                 return Some(inserted);
@@ -294,13 +267,13 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
             if max_grown {
                 inserted = self
                     .table_bucket_mut(bucket_index as usize)
-                    .shove_expensive_slot(table_size, bucket_index, inserted)?;
+                    .bucket_shove_expensive_slot(table_size, bucket_index, inserted)?;
                 byte_key = inserted.key();
             } else {
                 retries += 1;
                 inserted = self
                     .table_bucket_mut(bucket_index as usize)
-                    .shove_random_slot(inserted)?;
+                    .bucket_shove_random_slot(inserted)?;
                 byte_key = inserted.key();
                 use_cheap_hash = bucket_index != compress_hash(table_size, cheap_hash(byte_key));
             }
@@ -322,11 +295,11 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
                     if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
                         _ = lower_portion[bucket_index * BUCKET_ENTRY_COUNT
                             ..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-                            .shove_empty_slot(entry);
+                            .bucket_shove_empty_slot(entry);
                     } else {
                         _ = upper_portion[bucket_index * BUCKET_ENTRY_COUNT
                             ..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-                            .shove_empty_slot(entry);
+                            .bucket_shove_empty_slot(entry);
                     }
                 }
             }

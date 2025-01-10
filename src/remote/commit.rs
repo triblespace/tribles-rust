@@ -5,15 +5,13 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    blob::schemas::simplearchive::SimpleArchive,
-    id::{ExclusiveId, Id},
+    blob::{schemas::simplearchive::SimpleArchive, Blob, ToBlob},
     namespace::NS,
     query::find,
     trible::TribleSet,
     value::{
-        schemas::{
-            ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
-            hash::{Blake3, Handle},
+        schemas::{ed25519 as ed,
+                  hash::{Blake3, Handle},
             shortstring::ShortString,
         },
         ToValue, Value,
@@ -70,39 +68,39 @@ impl From<SignatureError> for ValidationError {
 }
 
 pub fn sign(
+    set: &TribleSet,
     signing_key: SigningKey,
-    handle: Value<Handle<Blake3, SimpleArchive>>,
-    commit_id: ExclusiveId,
-) -> Result<TribleSet, ValidationError> {
-    let hash = handle.bytes;
-    let signature = signing_key.sign(&hash);
-    let r = ED25519RComponent::from_signature(signature);
-    let s = ED25519SComponent::from_signature(signature);
-    let tribles = commits::entity!(&commit_id,
+) -> (Blob<SimpleArchive>, TribleSet) {
+    let data  = set.to_blob();
+    let handle = data.get_handle();
+    let signature = signing_key.sign(&data.bytes);
+    
+    let metadata= commits::entity!(
     {
         tribles: handle,
         authored_by: signing_key.verifying_key(),
-        signature_r: r,
-        signature_s: s,
+        signature_r: signature,
+        signature_s: signature,
     });
-    Ok(tribles)
+
+    (data, metadata)
 }
 
-pub fn verify(tribles: TribleSet, commit_id: Id) -> Result<(), ValidationError> {
-    let (payload, verifying_key, r, s) = find!(
-    (payload: Value<_>, key: Value<_>, r, s),
-    commits::pattern!(&tribles, [
-    {(commit_id) @
-        tribles: payload,
-        authored_by: key,
+pub fn verify(data: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), ValidationError> {
+    let handle = data.get_handle();
+    let (pubkey, r, s) = find!(
+    (pubkey: Value<_>, r, s),
+    commits::pattern!(&metadata, [
+    {
+        tribles: (handle),
+        authored_by: pubkey,
         signature_r: r,
         signature_s: s
     }]))
     .exactly_one()?;
 
-    let hash = payload.bytes;
+    let pubkey: VerifyingKey = pubkey.try_from_value()?;
     let signature = Signature::from_components(r, s);
-    let verifying_key: VerifyingKey = verifying_key.try_from_value()?;
-    verifying_key.verify(&hash, &signature)?;
+    pubkey.verify(&data.bytes, &signature)?;
     Ok(())
 }

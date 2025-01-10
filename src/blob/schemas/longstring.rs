@@ -67,8 +67,8 @@ mod tests {
     #[test]
     fn string_handle() {
         let s: PackedStr = String::from("hello world!").into();
-        let h: Value<Handle<Blake3, LongString>> = s.clone().to_blob().as_handle();
-        let h2: Value<Handle<Blake3, LongString>> = s.clone().to_blob().as_handle();
+        let h: Value<Handle<Blake3, LongString>> = s.clone().to_blob().get_handle();
+        let h2: Value<Handle<Blake3, LongString>> = s.clone().to_blob().get_handle();
 
         assert!(h == h2);
     }

@@ -42,7 +42,7 @@ impl<H: HashProtocol> BlobSet<H> {
         T: ToBlob<S>,
     {
         let blob: Blob<S> = ToBlob::to_blob(item);
-        let handle = blob.as_handle();
+        let handle = blob.get_handle();
         let unknown_handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
         let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
         self.blobs.insert(unknown_handle, blob);
@@ -76,7 +76,7 @@ impl<H: HashProtocol> BlobSet<H> {
     where
         S: BlobSchema,
     {
-        let handle: Value<Handle<H, S>> = blob.as_handle();
+        let handle: Value<Handle<H, S>> = blob.get_handle();
         let unknown_handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
         let blob: Blob<UnknownBlob> = blob.transmute();
         self.blobs.insert(unknown_handle, blob);

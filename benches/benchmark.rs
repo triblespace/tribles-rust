@@ -226,7 +226,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 set += literature::entity!(&book, {
                     author: &author,
                     title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                    quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                 });
             });
             b.iter(|| {
@@ -253,7 +253,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     set += literature::entity!(&book, {
                         author: &author,
                         title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
                 let archive: Blob<SimpleArchive> = SimpleArchive::blob_from(&set);
@@ -282,7 +282,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     set += literature::entity!(&book, {
                         author: &author,
                         title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
                 b.iter(|| {
@@ -345,7 +345,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     set += literature::entity!(&book, {
                         author: &author,
                         title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
                 let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
@@ -446,7 +446,7 @@ fn entities_benchmark(c: &mut Criterion) {
                 kb += literature::entity!(&book, {
                     author: &author,
                     title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                    quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                 });
             }
             (kb, owner)
@@ -471,7 +471,7 @@ fn entities_benchmark(c: &mut Criterion) {
                             literature::entity!(&book, {
                                 author: &author,
                                 title: Words(1..3).fake::<Vec<String>>().join(" "),
-                                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                             }),
                         ]
                     })
@@ -499,7 +499,7 @@ fn entities_benchmark(c: &mut Criterion) {
                         literature::entity!(&book, {
                             author: &author,
                             title: Words(1..3).fake::<Vec<String>>().join(" "),
-                            quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                            quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                         }),
                     ]
                 })
@@ -534,7 +534,7 @@ fn entities_benchmark(c: &mut Criterion) {
                             literature::entity!(&book, {
                                 author: &author,
                                 title: Words(1..3).fake::<Vec<String>>().join(" "),
-                                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                             }),
                         ]
                     })
@@ -567,7 +567,7 @@ fn entities_benchmark(c: &mut Criterion) {
                                     literature::entity!(&book, {
                                         author: &author,
                                         title: Words(1..3).fake::<Vec<String>>().join(" "),
-                                        quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                                     }),
                                 ]
                             })
@@ -602,7 +602,7 @@ fn query_benchmark(c: &mut Criterion) {
         kb += literature::entity!(&book, {
             author: &author,
             title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+            quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
         });
     });
 
@@ -620,7 +620,7 @@ fn query_benchmark(c: &mut Criterion) {
                 obliteration. I will face my fear. I will permit it to \
                 pass over me and through me. And when it has gone past I \
                 will turn the inner eye to see its path. Where the fear \
-                has gone there will be nothing. Only I will remain.".to_blob().as_handle()
+                has gone there will be nothing. Only I will remain.".to_blob().get_handle()
     });
 
     (0..1000).for_each(|_| {
@@ -633,7 +633,7 @@ fn query_benchmark(c: &mut Criterion) {
         kb += literature::entity!(&book, {
             author: &author,
             title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+            quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
         });
     });
 

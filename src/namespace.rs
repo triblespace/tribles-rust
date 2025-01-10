@@ -192,7 +192,7 @@ mod tests {
         tribles += literature::entity!(&book, {
             title: "Hamlet",
             author: &author,
-            quote: "To be, or not to be, that is the question.".to_blob().as_handle()
+            quote: "To be, or not to be, that is the question.".to_blob().get_handle()
         });
 
         assert_eq!(tribles.len(), 5);
@@ -212,7 +212,7 @@ mod tests {
         kb += literature::entity!(&book, {
             title: "Hamlet",
             author: &author,
-            quote: "To be, or not to be, that is the question.".to_blob().as_handle()
+            quote: "To be, or not to be, that is the question.".to_blob().get_handle()
         });
 
         let r: Vec<_> = find!(
@@ -259,7 +259,7 @@ mod tests {
         data_kb += literature::entity!(&hamlet, {
             title: "Hamlet",
             author: &shakespeare,
-            quote: "To be, or not to be, that is the question.".to_blob().as_handle()
+            quote: "To be, or not to be, that is the question.".to_blob().get_handle()
         });
 
         kb += data_kb;

@@ -114,7 +114,7 @@ impl<S: BlobSchema> Blob<S> {
     }
 
     /// Hashes the blob with the given hash protocol and returns the hash as a handle.
-    pub fn as_handle<H>(&self) -> Value<Handle<H, S>>
+    pub fn get_handle<H>(&self) -> Value<Handle<H, S>>
     where
         H: HashProtocol,
         Handle<H, S>: ValueSchema,

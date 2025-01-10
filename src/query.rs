@@ -538,6 +538,14 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 /// - A tuple of variables and their concrete result types, e.g., `(a: Value<ShortString>, b: Ratio)`.
 /// - A constraint that describes the pattern you are looking for, e.g., `and!(a.is("Hello World!"), b.is(42))`.
 ///
+/// Note that concrete type declarations for variables, e.g., `a: Value<ShortString>`, `a: String`, or `a: _`,
+/// are optional, and can be omitted if the type can be inferred from context.
+/// Variable schema types are automatically inferred from the constraint, if possible.
+/// The query will automatically perform the necessary conversions between the schema types
+/// and the concrete types of the variables. If the conversion fails, the query will panic.
+/// For more control over the conversion, you can use a `Value<_>` type for the variable, and use
+/// the `TryFromValue` trait to convert the values manually and handle the errors explicitly. 
+/// 
 /// The macro expands to a call to the [Query::new] constructor, which takes the variables and the constraint
 /// as arguments, and returns a [Query] object that can be used to iterate over the results of the query.
 ///
@@ -635,7 +643,7 @@ mod tests {
             kb += literature::entity!(&book, {
                 author: &author,
                 title: Words(1..3).fake::<Vec<String>>().join(" "),
-                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
             });
         });
 
@@ -653,7 +661,7 @@ mod tests {
                     obliteration. I will face my fear. I will permit it to \
                     pass over me and through me. And when it has gone past I \
                     will turn the inner eye to see its path. Where the fear \
-                    has gone there will be nothing. Only I will remain.".to_blob().as_handle()
+                    has gone there will be nothing. Only I will remain.".to_blob().get_handle()
         });
 
         (0..1000).for_each(|_| {
@@ -666,7 +674,7 @@ mod tests {
             kb += literature::entity!(&book, {
                 author: &author,
                 title: Words(1..3).fake::<Vec<String>>().join(" "),
-                quote: Sentence(5..25).fake::<String>().to_blob().as_handle()
+                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
             });
         });
 

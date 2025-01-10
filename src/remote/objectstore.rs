@@ -109,7 +109,7 @@ where
         Handle<H, T>: ValueSchema,
     {
         async move {
-            let handle = blob.as_handle();
+            let handle = blob.get_handle();
             let path = self.prefix.child(hex::encode(handle.bytes));
             let put_result = self
                 .store

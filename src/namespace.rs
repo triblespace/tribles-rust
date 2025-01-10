@@ -98,7 +98,8 @@ pub use hex_literal;
 /// The `namespace` block maps human-readable names to attribute IDs and type schemas.
 #[macro_export]
 macro_rules! NS {
-    ($visibility:vis namespace $mod_name:ident {$($FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
+    ($(#[doc = $ns_doc:literal])* $visibility:vis namespace $mod_name:ident {$($(#[doc = $field_doc:literal])* $FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
+        $(#[doc=$ns_doc])*
         $visibility mod $mod_name {
             #![allow(unused)]
             use super::*;
@@ -122,12 +123,12 @@ macro_rules! NS {
             pub mod ids {
                 #![allow(non_upper_case_globals, unused)]
                 use super::*;
-                $(pub const $FieldName:$crate::id::Id = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();)*
+                $($(#[doc = $field_doc])* pub const $FieldName:$crate::id::Id = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();)*
             }
             pub mod schemas {
                 #![allow(non_camel_case_types, unused)]
                 use super::*;
-                $(pub type $FieldName = $FieldType;)*
+                $($(#[doc = $field_doc])* pub type $FieldName = $FieldType;)*
             }
 
             #[macro_pub::macro_pub]

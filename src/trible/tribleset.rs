@@ -115,7 +115,7 @@ impl TribleSet {
             inner: self
                 .eav
                 .iter()
-                .map(|data| Trible::transmute_raw_unchecked(data)),
+                .map(|data| Trible::as_transmute_raw_unchecked(data)),
         }
     }
 }

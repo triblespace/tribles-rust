@@ -202,7 +202,7 @@ impl Trible {
     /// assert_eq!(trible.e(), &*e);
     /// ```
     pub fn force<V: ValueSchema>(e: &Id, a: &Id, v: &Value<V>) -> Trible {
-        Trible::new(&ExclusiveId::transmute_force(e), a, v)
+        Trible::new(&ExclusiveId::as_transmute_force(e), a, v)
     }
 
     /// Creates a new trible from a raw trible (a 64-byte array).
@@ -271,10 +271,10 @@ impl Trible {
     ///   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
     ///   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
     /// ];
-    /// let trible = Trible::transmute_force_raw(&data);
+    /// let trible = Trible::as_transmute_force_raw(&data);
     /// assert!(trible.is_some());
     /// ```
-    pub fn transmute_force_raw(data: &RawTrible) -> Option<&Self> {
+    pub fn as_transmute_force_raw(data: &RawTrible) -> Option<&Self> {
         if data[E_START..=E_END].iter().all(|&x| x == 0)
             || data[A_START..=A_END].iter().all(|&x| x == 0)
         {
@@ -286,7 +286,7 @@ impl Trible {
     /// Transmutes a raw trible reference into a trible reference.
     /// Circumvents the ownership system, and does not check if the entity and attribute are nil.
     /// Should only be used if it it certain that the `RawTrible` is actually valid.
-    pub fn transmute_raw_unchecked(data: &RawTrible) -> &Self {
+    pub fn as_transmute_raw_unchecked(data: &RawTrible) -> &Self {
         unsafe { std::mem::transmute(data) }
     }
 
@@ -315,7 +315,7 @@ impl Trible {
     /// assert_eq!(entity, &Id::new([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).unwrap());
     /// ```
     pub fn e(&self) -> &Id {
-        Id::transmute_raw(self.data[E_START..=E_END].try_into().unwrap()).unwrap()
+        Id::as_transmute_raw(self.data[E_START..=E_END].try_into().unwrap()).unwrap()
     }
 
     /// Returns the attribute of the trible.
@@ -343,7 +343,7 @@ impl Trible {
     /// assert_eq!(attribute, &Id::new([16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]).unwrap());
     /// ```
     pub fn a(&self) -> &Id {
-        Id::transmute_raw(self.data[A_START..=A_END].try_into().unwrap()).unwrap()
+        Id::as_transmute_raw(self.data[A_START..=A_END].try_into().unwrap()).unwrap()
     }
 
     /// Returns the value of the trible.
@@ -373,7 +373,7 @@ impl Trible {
     /// 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]));
     /// ```
     pub fn v<V: ValueSchema>(&self) -> &Value<V> {
-        Value::transmute_raw(self.data[V_START..=V_END].try_into().unwrap())
+        Value::as_transmute_raw(self.data[V_START..=V_END].try_into().unwrap())
     }
 }
 

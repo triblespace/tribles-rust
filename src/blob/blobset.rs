@@ -43,7 +43,7 @@ impl<H: HashProtocol> BlobSet<H> {
     {
         let blob: Blob<S> = ToBlob::to_blob(item);
         let handle = blob.as_handle();
-        let unknown_handle: Value<Handle<H, UnknownBlob>> = Value::new(handle.bytes);
+        let unknown_handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
         let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
         self.blobs.insert(unknown_handle, blob);
         handle
@@ -60,7 +60,26 @@ impl<H: HashProtocol> BlobSet<H> {
             return None;
         };
 
-        Some(FromBlob::from_blob(blob.transmute()))
+        Some(FromBlob::from_blob(blob.as_transmute()))
+    }
+
+    pub fn get_blob<'a, S>(&'a self, handle: Value<Handle<H, S>>) -> Option<&'a Blob<S>>
+    where
+        S: BlobSchema + 'a,
+    {
+        let hash: Value<Hash<_>> = handle.into();
+        let handle: Value<Handle<H, UnknownBlob>> = hash.into();
+        self.blobs.get(&handle).map(Blob::as_transmute)
+    }
+
+    pub fn insert_blob<S>(&mut self, blob: Blob<S>)
+    where
+        S: BlobSchema,
+    {
+        let handle: Value<Handle<H, S>> = blob.as_handle();
+        let unknown_handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
+        let blob: Blob<UnknownBlob> = blob.transmute();
+        self.blobs.insert(unknown_handle, blob);
     }
 
     pub fn iter<'a>(

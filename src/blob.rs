@@ -17,13 +17,14 @@
 //! use tribles::remote::commit::commits;
 //! use valueschemas::{Handle, Blake3};
 //! use blobschemas::{SimpleArchive, LongString};
+//! use rand::rngs::OsRng;
+//! use ed25519_dalek::{Signature, Signer, SigningKey};
 //!
 //! // Let's build a BlobSet and fill it with some data.
 //! // Note that we are using the Blake3 hash protocol here.
 //! let mut blobset: BlobSet<Blake3> = BlobSet::new();
 //!
-//! let author_id = ufoid();
-//!
+//! let book_author_id = fucid();
 //! let quote_a: Value<Handle<Blake3, LongString>> = blobset.insert("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.");
 //! // Note how the type is inferred from it's usage in the [entity!](crate::namespace::entity!) macro.
 //! let quote_b = blobset.insert("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and
@@ -31,19 +32,25 @@
 //!
 //! let set = literature::entity!({
 //!    title: "Dune",
-//!    author: &author_id,
+//!    author: &book_author_id,
 //!    quote: quote_a,
 //!    quote: quote_b
 //! });
 //!
 //! // Now we can serialize the TribleSet and store it in the BlobSet too.
-//! let archived_set: Value<Handle<Blake3, SimpleArchive>> = blobset.insert(&set);
+//! let archived_set_handle: Value<Handle<Blake3, SimpleArchive>> = blobset.insert(&set);
+//!
+//! let mut csprng = OsRng;
+//! let commit_author_key: SigningKey = SigningKey::generate(&mut csprng);
+//! let signature: Signature = commit_author_key.sign(&blobset.get_blob(archived_set_handle).unwrap().bytes);
 //!
 //! // And store the handle in another TribleSet.
 //! let meta_set = commits::entity!({
-//!    tribles: archived_set,
-//!    authored_by: ufoid(),
-//!    short_message: "Initial commit"
+//!    tribles: archived_set_handle,
+//!    short_message: "Initial commit",
+//!    authored_by: commit_author_key.verifying_key(),
+//!    signature_r: signature,
+//!    signature_s: signature,
 //! });
 //! ```
 
@@ -88,6 +95,13 @@ impl<S: BlobSchema> Blob<S> {
         }
     }
 
+    pub fn transmute<T: BlobSchema>(self) -> Blob<T> {
+        Blob {
+            bytes: self.bytes,
+            _schema: PhantomData,
+        }
+    }
+
     /// Transmutes the blob to a blob of a different schema.
     /// This is a zero-cost operation.
     /// If the schema types are not compatible, this will not cause undefined behavior,
@@ -95,7 +109,7 @@ impl<S: BlobSchema> Blob<S> {
     ///
     /// This is primarily used to give blobs with an [UnknownBlob](crate::blob::schemas::UnknownBlob) schema a more specific schema.
     /// Use with caution.
-    pub fn transmute<T: BlobSchema>(&self) -> &Blob<T> {
+    pub fn as_transmute<T: BlobSchema>(&self) -> &Blob<T> {
         unsafe { std::mem::transmute(self) }
     }
 

@@ -37,6 +37,18 @@ impl ED25519SComponent {
     }
 }
 
+impl ToValue<ED25519RComponent> for Signature {
+    fn to_value(self) -> Value<ED25519RComponent> {
+        ED25519RComponent::from_signature(self)
+    }
+}
+
+impl ToValue<ED25519SComponent> for Signature {
+    fn to_value(self) -> Value<ED25519SComponent> {
+        ED25519SComponent::from_signature(self)
+    }
+}
+
 impl ToValue<ED25519RComponent> for ComponentBytes {
     fn to_value(self) -> Value<ED25519RComponent> {
         Value::new(self)

@@ -17,7 +17,7 @@
 //! Forgetting does not propagate to other parties,
 //! is reversible should the forgotten information be rediscovered,
 //! and does not invalidate any derived statements or facts.
-//! 
+//!
 //! The property that distinguishes forgetting from deletion is called _monotonicity_,
 //! and it has a deep relationship with _consistency_, as laid out by the [CALM theorem](https://arxiv.org/abs/1901.01930)
 //! (Consistency as Logical Monotonicity). The CALM theorem states that a distributed

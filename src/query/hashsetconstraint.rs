@@ -48,7 +48,7 @@ where
     fn confirm(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
         if self.variable.index == variable {
             proposals.retain(|v| {
-                let t = FromValue::from_value(Value::<S>::transmute_raw(v));
+                let t = FromValue::from_value(Value::<S>::as_transmute_raw(v));
                 self.set.contains(&t)
             });
         }

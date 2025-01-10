@@ -75,7 +75,7 @@ impl<'a> TryFromValue<'a, GenId> for &'a Id {
         if value.bytes[0..16] != [0; 16] {
             return Err(IdParseError::BadFormat);
         }
-        if let Some(id) = Id::transmute_raw(value.bytes[16..32].try_into().unwrap()) {
+        if let Some(id) = Id::as_transmute_raw(value.bytes[16..32].try_into().unwrap()) {
             return Ok(id);
         } else {
             return Err(IdParseError::IsNil);

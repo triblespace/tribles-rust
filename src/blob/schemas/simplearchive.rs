@@ -42,7 +42,7 @@ impl TryFromBlob<'_, SimpleArchive> for TribleSet {
             return Err(UnarchiveError::BadArchive);
         };
         for t in packed_tribles.iter() {
-            if let Some(trible) = Trible::transmute_force_raw(t) {
+            if let Some(trible) = Trible::as_transmute_force_raw(t) {
                 if let Some(prev) = prev_trible {
                     if prev == t {
                         return Err(UnarchiveError::BadCanonicalizationRedundancy);

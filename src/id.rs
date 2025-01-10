@@ -242,7 +242,7 @@ impl Id {
 
     /// Transmutes a reference to a [RawId] into a reference to an `Id`.
     /// Returns `None` if the referenced RawId is nil (all zero).
-    pub fn transmute_raw(id: &RawId) -> Option<&Self> {
+    pub fn as_transmute_raw(id: &RawId) -> Option<&Self> {
         if *id == [0; 16] {
             None
         } else {
@@ -408,7 +408,7 @@ impl ExclusiveId {
     /// # Arguments
     ///
     /// * `id` - A reference to the `Id` to be transmuted.
-    pub fn transmute_force<'a>(id: &'a Id) -> &'a Self {
+    pub fn as_transmute_force<'a>(id: &'a Id) -> &'a Self {
         unsafe { std::mem::transmute(id) }
     }
 
@@ -664,7 +664,7 @@ impl Deref for OwnedId<'_> {
     type Target = ExclusiveId;
 
     fn deref(&self) -> &Self::Target {
-        ExclusiveId::transmute_force(&self.id)
+        ExclusiveId::as_transmute_force(&self.id)
     }
 }
 

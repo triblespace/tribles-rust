@@ -13,7 +13,6 @@ use crate::{
     value::{
         schemas::{
             ed25519::{self as ed, ED25519RComponent, ED25519SComponent},
-            genid::GenId,
             hash::{Blake3, Handle},
             shortstring::ShortString,
         },
@@ -22,13 +21,26 @@ use crate::{
 };
 
 NS! {
+    /// The `commits` namespace contains attributes describing commits in a repository.
+    /// Commits are a fundamental building block of version control systems.
+    /// They represent a snapshot of the repository at a specific point in time.
+    /// Commits are immutable, append-only, and form a chain of history.
+    /// Each commit is identified by a unique hash, and contains a reference to the previous commit.
+    /// Commits are signed by the author, and can be verified by anyone with the author's public key.
     pub namespace commits {
+        /// The actual data of the commit.
         "4DD4DDD05CC31734B03ABB4E43188B1F" as tribles: Handle<Blake3, SimpleArchive>;
+        /// A commit that this commit is based on.
+        "317044B612C690000D798CA660ECFD2A" as parent: Handle<Blake3, SimpleArchive>;
+        /// The author of the commit identified by their ed25519 public key.
+        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: ed::ED25519PublicKey;
+        /// The `r` part of the ed25519 signature of the commit.
+        "9DF34F84959928F93A3C40AEB6E9E499" as signature_r: ed::ED25519RComponent;
+        /// The `s` part of the ed25519 signature of the commit.
+        "1ACE03BF70242B289FDF00E4327C3BC6" as signature_s: ed::ED25519SComponent;
+        /// A short message describing the commit.
+        /// Used by tools displaying the commit history.
         "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
-        "ADB4FFAD247C886848161297EFF5A05B" as authored_by: GenId;
-        "9DF34F84959928F93A3C40AEB6E9E499" as ed25519_signature_r: ed::ED25519RComponent;
-        "1ACE03BF70242B289FDF00E4327C3BC6" as ed25519_signature_s: ed::ED25519SComponent;
-        "B57D92D4630F8F1B697DAF49CDFA3757" as ed25519_pubkey: ed::ED25519PublicKey;
     }
 }
 
@@ -69,9 +81,9 @@ pub fn sign(
     let tribles = commits::entity!(&commit_id,
     {
         tribles: handle,
-        ed25519_pubkey: signing_key.verifying_key(),
-        ed25519_signature_r: r,
-        ed25519_signature_s: s,
+        authored_by: signing_key.verifying_key(),
+        signature_r: r,
+        signature_s: s,
     });
     Ok(tribles)
 }
@@ -82,9 +94,9 @@ pub fn verify(tribles: TribleSet, commit_id: Id) -> Result<(), ValidationError> 
     commits::pattern!(&tribles, [
     {(commit_id) @
         tribles: payload,
-        ed25519_pubkey: key,
-        ed25519_signature_r: r,
-        ed25519_signature_s: s
+        authored_by: key,
+        signature_r: r,
+        signature_s: s
     }]))
     .exactly_one()?;
 

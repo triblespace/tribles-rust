@@ -201,7 +201,7 @@ impl<T: ValueSchema> Variable<T> {
     }
 
     pub fn extract(self, binding: &Binding) -> &Value<T> {
-        Value::transmute_raw(binding.get(self.index).unwrap())
+        Value::as_transmute_raw(binding.get(self.index).unwrap())
     }
 }
 

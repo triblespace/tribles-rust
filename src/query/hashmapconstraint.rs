@@ -53,7 +53,7 @@ where
         if self.variable.index == variable {
             proposals.retain(|v| {
                 self.map
-                    .contains_key(&FromValue::from_value(Value::<S>::transmute_raw(v)))
+                    .contains_key(&FromValue::from_value(Value::<S>::as_transmute_raw(v)))
             });
         }
     }

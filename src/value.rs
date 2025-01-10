@@ -155,6 +155,13 @@ impl<S: ValueSchema> Value<S> {
         }
     }
 
+    /// Transmute a value from one schema type to another.
+    pub fn transmute<O>(self) -> Value<O>
+    where
+        O: ValueSchema,
+    {
+        Value::new(self.bytes)
+    }
     /// Transmute a raw value reference to a value reference.
     ///
     /// # Example
@@ -168,10 +175,10 @@ impl<S: ValueSchema> Value<S> {
     /// let value: Value<UnknownValue> = Value::new(bytes);
     /// let value_ref: &Value<UnknownValue> = &value;
     /// let raw_value_ref: &[u8; 32] = value_ref.borrow();
-    /// let value_ref2: &Value<UnknownValue> = Value::transmute_raw(raw_value_ref);
+    /// let value_ref2: &Value<UnknownValue> = Value::as_transmute_raw(raw_value_ref);
     /// assert_eq!(&value, value_ref2);
     /// ```
-    pub fn transmute_raw(value: &RawValue) -> &Self {
+    pub fn as_transmute_raw(value: &RawValue) -> &Self {
         unsafe { std::mem::transmute(value) }
     }
 

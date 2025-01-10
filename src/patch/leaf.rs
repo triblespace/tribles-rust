@@ -10,7 +10,7 @@ use super::*;
 #[repr(C)]
 pub(crate) struct Leaf<const KEY_LEN: usize> {
     pub key: [u8; KEY_LEN],
-    hash: u128,
+    pub hash: u128,
     rc: atomic::AtomicU32,
 }
 
@@ -78,10 +78,6 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
     }
 
-    pub(crate) fn hash(&self) -> u128 {
-        self.hash
-    }
-
     pub(crate) fn infixes<
         const PREFIX_LEN: usize,
         const INFIX_LEN: usize,
@@ -89,14 +85,15 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         S: KeySegmentation<KEY_LEN>,
         F,
     >(
-        &self,
+        leaf: NonNull<Self>,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        let leaf_key = &self.key;
+        let leaf = unsafe { leaf.as_ref() };
+        let leaf_key = (*leaf).key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return;
@@ -104,16 +101,16 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
 
         let infix: [u8; INFIX_LEN] =
-            core::array::from_fn(|i| self.key[O::key_index(PREFIX_LEN + i)]);
+            core::array::from_fn(|i| (*leaf).key[O::key_index(PREFIX_LEN + i)]);
         f(&infix);
     }
 
     pub(crate) fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
-        &self,
+        leaf: NonNull<Self>,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        let leaf_key: &[u8; KEY_LEN] = &self.key;
+        let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {
                 return false;
@@ -123,11 +120,11 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     }
 
     pub(crate) fn segmented_len<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
-        &self,
+        leaf: NonNull<Self>,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        let leaf_key: &[u8; KEY_LEN] = &self.key;
+        let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
         for depth in at_depth..PREFIX_LEN {
             let key_depth = O::key_index(depth);
             if leaf_key[key_depth] != prefix[depth] {

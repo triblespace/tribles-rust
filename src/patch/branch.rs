@@ -217,7 +217,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     #[must_use]
-    pub fn upsert_child<F>(branch: NonNull<Self>, inserted: Head<KEY_LEN, O, S>, update: F) -> NonNull<Self>
+    pub fn upsert_child<F>(
+        branch: NonNull<Self>,
+        inserted: Head<KEY_LEN, O, S>,
+        update: F,
+    ) -> NonNull<Self>
     where
         F: FnOnce(&mut Option<Head<KEY_LEN, O, S>>, Head<KEY_LEN, O, S>),
     {
@@ -230,15 +234,15 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 let old_child_hash = child.hash();
                 let old_child_segment_count = child.count_segment((*ptr).end_depth as usize);
                 let old_child_leaf_count = child.count();
-    
+
                 update(slot, inserted);
-    
+
                 let child = slot.as_ref().expect("update may not remove child");
-    
+
                 (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ child.hash();
                 (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)
                     + child.count_segment((*ptr).end_depth as usize);
-                    (*ptr).leaf_count = ((*ptr).leaf_count - old_child_leaf_count) + child.count();
+                (*ptr).leaf_count = ((*ptr).leaf_count - old_child_leaf_count) + child.count();
                 branch
             } else {
                 branch::Branch::insert_child(branch, inserted)
@@ -246,106 +250,118 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub fn count_segment(&self, at_depth: usize) -> u64 {
-        if S::segment(O::key_index(at_depth)) != S::segment(O::key_index(self.end_depth as usize)) {
-            1
-        } else {
-            self.segment_count
+    pub fn count_segment(branch: NonNull<Self>, at_depth: usize) -> u64 {
+        unsafe {
+            let branch = branch.as_ptr();
+            if S::segment(O::key_index(at_depth))
+                != S::segment(O::key_index((*branch).end_depth as usize))
+            {
+                1
+            } else {
+                (*branch).segment_count
+            }
         }
     }
 
-    pub fn childleaf_key(&self) -> &[u8; KEY_LEN] {
-        unsafe { &(*self.childleaf).key }
-    }
-
     pub(super) fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
-        &self,
+        branch: NonNull<Self>,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        let node_end_depth = self.end_depth as usize;
-        let leaf_key: &[u8; KEY_LEN] = self.childleaf_key();
-        for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-            if leaf_key[O::key_index(depth)] != prefix[depth] {
+        unsafe {
+            let branch = branch.as_ptr();
+            let node_end_depth = (*branch).end_depth as usize;
+            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
+            for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
+                if leaf_key[O::key_index(depth)] != prefix[depth] {
+                    return;
+                }
+            }
+
+            // The infix ends within the current node.
+            if PREFIX_LEN + INFIX_LEN <= node_end_depth {
+                let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| {
+                    (*(*branch).childleaf).key[O::key_index(PREFIX_LEN + i)]
+                });
+                f(&infix);
                 return;
             }
-        }
-
-        // The infix ends within the current node.
-        if PREFIX_LEN + INFIX_LEN <= node_end_depth {
-            let infix: [u8; INFIX_LEN] =
-                core::array::from_fn(|i| self.childleaf_key()[O::key_index(PREFIX_LEN + i)]);
-            f(&infix);
-            return;
-        }
-        // The prefix ends in a child of this node.
-        if PREFIX_LEN > node_end_depth {
-            if let Some(child) = self.child_table.table_get(prefix[node_end_depth]) {
-                child.infixes(prefix, node_end_depth, f);
+            // The prefix ends in a child of this node.
+            if PREFIX_LEN > node_end_depth {
+                if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
+                    child.infixes(prefix, node_end_depth, f);
+                }
+                return;
             }
-            return;
-        }
 
-        // The prefix ends in this node, but the infix ends in a child.
-        for entry in &self.child_table {
-            if let Some(entry) = entry {
-                entry.infixes(prefix, node_end_depth, f);
+            // The prefix ends in this node, but the infix ends in a child.
+            for entry in &(*branch).child_table {
+                if let Some(entry) = entry {
+                    entry.infixes(prefix, node_end_depth, f);
+                }
             }
         }
     }
 
     pub(super) fn has_prefix<const PREFIX_LEN: usize>(
-        &self,
+        branch: NonNull<Self>,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        let node_end_depth = self.end_depth as usize;
-        let leaf_key: &[u8; KEY_LEN] = self.childleaf_key();
-        for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-            if leaf_key[O::key_index(depth)] != prefix[depth] {
-                return false;
+        unsafe {
+            let branch = branch.as_ptr();
+            let node_end_depth = (*branch).end_depth as usize;
+            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
+            for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
+                if leaf_key[O::key_index(depth)] != prefix[depth] {
+                    return false;
+                }
             }
-        }
 
-        // The prefix ends in this node.
-        if PREFIX_LEN <= node_end_depth {
-            return true;
-        }
+            // The prefix ends in this node.
+            if PREFIX_LEN <= node_end_depth {
+                return true;
+            }
 
-        //The prefix ends in a child of this node.
-        if let Some(child) = self.child_table.table_get(prefix[node_end_depth]) {
-            return child.has_prefix(node_end_depth, prefix);
+            //The prefix ends in a child of this node.
+            if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
+                return child.has_prefix(node_end_depth, prefix);
+            }
+            // This node doesn't have a child matching the prefix.
+            return false;
         }
-        // This node doesn't have a child matching the prefix.
-        return false;
     }
 
     pub(super) fn segmented_len<const PREFIX_LEN: usize>(
-        &self,
+        branch: NonNull<Self>,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        let node_end_depth = self.end_depth as usize;
-        let leaf_key: &[u8; KEY_LEN] = self.childleaf_key();
-        for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-            let key_depth = O::key_index(depth);
-            if leaf_key[key_depth] != prefix[depth] {
-                return 0;
+        unsafe {
+            let branch = branch.as_ptr();
+            let node_end_depth = (*branch).end_depth as usize;
+            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
+            for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
+                let key_depth = O::key_index(depth);
+                if leaf_key[key_depth] != prefix[depth] {
+                    return 0;
+                }
             }
-        }
-        if PREFIX_LEN <= node_end_depth {
-            if S::segment(O::key_index(PREFIX_LEN)) != S::segment(O::key_index(node_end_depth)) {
-                return 1;
-            } else {
-                return self.segment_count;
+            if PREFIX_LEN <= node_end_depth {
+                if S::segment(O::key_index(PREFIX_LEN)) != S::segment(O::key_index(node_end_depth))
+                {
+                    return 1;
+                } else {
+                    return (*branch).segment_count;
+                }
             }
+            if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
+                return child.segmented_len(node_end_depth, prefix);
+            }
+            return 0;
         }
-        if let Some(child) = self.child_table.table_get(prefix[node_end_depth]) {
-            return child.segmented_len(node_end_depth, prefix);
-        }
-        return 0;
     }
 }

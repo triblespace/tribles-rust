@@ -148,29 +148,6 @@ pub(crate) enum BodyPtr<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySeg
     Branch(NonNull<Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>>),
 }
 
-#[derive(Debug)]
-pub(crate) enum BodyRef<
-    'a,
-    const KEY_LEN: usize,
-    O: KeyOrdering<KEY_LEN>,
-    S: KeySegmentation<KEY_LEN>,
-> {
-    Leaf(&'a Leaf<KEY_LEN>),
-    Branch(&'a Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>),
-}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-pub(crate) enum BodyMut<
-    'a,
-    const KEY_LEN: usize,
-    O: KeyOrdering<KEY_LEN>,
-    S: KeySegmentation<KEY_LEN>,
-> {
-    Leaf(&'a Leaf<KEY_LEN>),
-    Branch(&'a mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>),
-}
-
 pub(crate) trait Body {
     fn tag(body: NonNull<Self>) -> HeadTag;
 }
@@ -241,7 +218,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     pub(crate) fn with_start(self, new_start_depth: usize) -> Head<KEY_LEN, O, S> {
-        let leaf_key = self.leaf_key();
+        let leaf_key = self.childleaf_key();
         let i = O::key_index(new_start_depth);
         let key = leaf_key[i];
         self.with_key(key)
@@ -268,23 +245,16 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
     }
 
-    pub(crate) fn body_ref<'a>(&'a self) -> BodyRef<'a, KEY_LEN, O, S> {
-        match self.body() {
-            BodyPtr::Leaf(leaf) => BodyRef::Leaf(unsafe { leaf.as_ref() }),
-            BodyPtr::Branch(branch) => BodyRef::Branch(unsafe { branch.as_ref() }),
-        }
-    }
-
-    pub(crate) fn body_mut<'a>(&'a mut self) -> BodyMut<'a, KEY_LEN, O, S> {
+    pub(crate) fn body_mut(&mut self) -> BodyPtr<KEY_LEN, O, S> {
         unsafe {
             match self.body() {
-                BodyPtr::Leaf(leaf) => BodyMut::Leaf(leaf.as_ref()),
-                BodyPtr::Branch(mut branch) => {
-                    if let Some(mut copy) = Branch::rc_cow(branch) {
+                BodyPtr::Leaf(leaf) => BodyPtr::Leaf(leaf),
+                BodyPtr::Branch(branch) => {
+                    if let Some(copy) = Branch::rc_cow(branch) {
                         self.set_body(copy);
-                        BodyMut::Branch(copy.as_mut())
+                        BodyPtr::Branch(copy)
                     } else {
-                        BodyMut::Branch(branch.as_mut())
+                        BodyPtr::Branch(branch)
                     }
                 }
             }
@@ -292,45 +262,41 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     }
 
     pub(crate) fn count(&self) -> u64 {
-        match self.body_ref() {
-            BodyRef::Leaf(_) => 1,
-            BodyRef::Branch(branch) => (*branch).leaf_count,
+        match self.body() {
+            BodyPtr::Leaf(_) => 1,
+            BodyPtr::Branch(branch) => unsafe { branch.as_ref().leaf_count },
         }
     }
 
     pub(crate) fn count_segment(&self, at_depth: usize) -> u64 {
-        match self.body_ref() {
-            BodyRef::Leaf(_) => 1,
-            BodyRef::Branch(branch) => {
-                branch::Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::count_segment(
-                    branch, at_depth,
-                )
-            }
+        match self.body() {
+            BodyPtr::Leaf(_) => 1,
+            BodyPtr::Branch(branch) => Branch::count_segment(branch, at_depth),
         }
     }
 
     pub(crate) fn hash(&self) -> u128 {
-        match self.body_ref() {
-            BodyRef::Leaf(leaf) => leaf.hash(),
-            BodyRef::Branch(branch) => branch.hash,
+        match self.body() {
+            BodyPtr::Leaf(leaf) => unsafe { leaf.as_ref().hash },
+            BodyPtr::Branch(branch) => unsafe { branch.as_ref().hash },
         }
     }
 
     pub(crate) fn end_depth(&self) -> usize {
-        match self.body_ref() {
-            BodyRef::Leaf(_) => KEY_LEN as usize,
-            BodyRef::Branch(branch) => (*branch).end_depth as usize,
+        match self.body() {
+            BodyPtr::Leaf(_) => KEY_LEN as usize,
+            BodyPtr::Branch(branch) => unsafe { branch.as_ref().end_depth as usize },
         }
     }
 
     pub(crate) fn childleaf(&self) -> *const Leaf<KEY_LEN> {
-        match self.body_ref() {
-            BodyRef::Leaf(leaf) => leaf,
-            BodyRef::Branch(branch) => (*branch).childleaf,
+        match self.body() {
+            BodyPtr::Leaf(leaf) => leaf.as_ptr(),
+            BodyPtr::Branch(branch) => unsafe { branch.as_ref().childleaf },
         }
     }
 
-    pub(crate) fn leaf_key<'a>(&'a self) -> &'a [u8; KEY_LEN] {
+    pub(crate) fn childleaf_key<'a>(&'a self) -> &'a [u8; KEY_LEN] {
         unsafe { &(*self.childleaf()).key }
     }
 
@@ -340,7 +306,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         start_depth: usize,
     ) {
         if let Some(this) = slot {
-            let head_key = this.leaf_key();
+            let head_key = this.childleaf_key();
 
             let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
             for depth in start_depth..end_depth {
@@ -350,58 +316,65 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 }
             }
             match this.body_mut() {
-                BodyMut::Leaf(_) => {
+                BodyPtr::Leaf(_) => {
                     slot.take();
                 }
-                BodyMut::Branch(branch) => {
-                    let key = leaf_key[end_depth];
-                    let removed_leafchild = leaf_key == branch.childleaf_key();
-                    if let Some(child_slot) = branch.child_table.table_get_slot(key) {
-                        if let Some(child) = child_slot {
-                            let old_child_hash = child.hash();
-                            let old_child_segment_count =
-                                child.count_segment(branch.end_depth as usize);
-                            let old_child_leaf_count = child.count();
+                BodyPtr::Branch(branch) => {
+                    unsafe {
+                        let branch = branch.as_ptr();
 
-                            Self::remove_leaf(child_slot, leaf_key, end_depth);
+                        let key = leaf_key[end_depth];
+                        let removed_leafchild = leaf_key == &(*(*branch).childleaf).key;
+                        if let Some(child_slot) = (*branch).child_table.table_get_slot(key) {
                             if let Some(child) = child_slot {
-                                if removed_leafchild {
-                                    branch.childleaf = child.childleaf();
-                                }
-                                branch.hash = (branch.hash ^ old_child_hash) ^ child.hash();
-                                branch.segment_count = (branch.segment_count
-                                    - old_child_segment_count)
-                                    + child.count_segment(branch.end_depth as usize);
-                                branch.leaf_count =
-                                    (branch.leaf_count - old_child_leaf_count) + child.count();
-                                // ^ Note that the leaf_count can never be <= 1 here, because we're in a branch
-                                // at least one other child must exist.
-                            } else {
-                                branch.leaf_count = branch.leaf_count - old_child_leaf_count;
-                                match branch.leaf_count {
-                                    0 => {
-                                        panic!("branch should have been collected previously")
+                                let old_child_hash = child.hash();
+                                let old_child_segment_count =
+                                    child.count_segment((*branch).end_depth as usize);
+                                let old_child_leaf_count = child.count();
+
+                                Self::remove_leaf(child_slot, leaf_key, end_depth);
+                                if let Some(child) = child_slot {
+                                    if removed_leafchild {
+                                        (*branch).childleaf = child.childleaf();
                                     }
-                                    1 => {
-                                        for child in &mut branch.child_table {
-                                            if let Some(child) = child.take() {
-                                                slot.replace(child.with_start(start_depth));
-                                                return;
+                                    (*branch).hash =
+                                        ((*branch).hash ^ old_child_hash) ^ child.hash();
+                                    (*branch).segment_count = ((*branch).segment_count
+                                        - old_child_segment_count)
+                                        + child.count_segment((*branch).end_depth as usize);
+                                    (*branch).leaf_count = ((*branch).leaf_count
+                                        - old_child_leaf_count)
+                                        + child.count();
+                                    // ^ Note that the leaf_count can never be <= 1 here, because we're in a branch
+                                    // at least one other child must exist.
+                                } else {
+                                    (*branch).leaf_count =
+                                        (*branch).leaf_count - old_child_leaf_count;
+                                    match (*branch).leaf_count {
+                                        0 => {
+                                            panic!("branch should have been collected previously")
+                                        }
+                                        1 => {
+                                            for child in &mut (*branch).child_table {
+                                                if let Some(child) = child.take() {
+                                                    slot.replace(child.with_start(start_depth));
+                                                    return;
+                                                }
                                             }
                                         }
-                                    }
-                                    _ => {
-                                        if removed_leafchild {
-                                            let child = branch
-                                                .child_table
-                                                .iter()
-                                                .find_map(|s| s.as_ref())
-                                                .expect("child should exist");
-                                            branch.childleaf = child.childleaf();
+                                        _ => {
+                                            if removed_leafchild {
+                                                let child = (*branch)
+                                                    .child_table
+                                                    .iter()
+                                                    .find_map(|s| s.as_ref())
+                                                    .expect("child should exist");
+                                                (*branch).childleaf = child.childleaf();
+                                            }
+                                            (*branch).hash = (*branch).hash ^ old_child_hash;
+                                            (*branch).segment_count =
+                                                (*branch).segment_count - old_child_segment_count;
                                         }
-                                        branch.hash = branch.hash ^ old_child_hash;
-                                        branch.segment_count =
-                                            branch.segment_count - old_child_segment_count;
                                     }
                                 }
                             }
@@ -414,8 +387,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
     pub(crate) fn insert_leaf(slot: &mut Option<Self>, leaf: Self, start_depth: usize) {
         let this = slot.as_mut().expect("slot should not be empty");
-        let this_key = this.leaf_key();
-        let leaf_key = leaf.leaf_key();
+        let this_key = this.childleaf_key();
+        let leaf_key = leaf.childleaf_key();
 
         let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
         for depth in start_depth..end_depth {
@@ -427,9 +400,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 let new_body = Branch::new(
                     depth,
                     slot.take().unwrap().with_key(this_byte_key),
-                    leaf.with_key(leaf_byte_key)
+                    leaf.with_key(leaf_byte_key),
                 );
-                
+
                 if slot.replace(Head::new(old_key, new_body)).is_some() {
                     unreachable!();
                 }
@@ -439,15 +412,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
 
         if end_depth != KEY_LEN {
-            match this.body() {
-                BodyPtr::Leaf(_) => unreachable!(),
-                BodyPtr::Branch(body) => {
-                    let new_body = Branch::upsert_child(body, leaf, |slot, inserted| {
-                        Head::insert_leaf(slot, inserted, end_depth)
-                    });
-                    this.set_body(new_body);
-                },
-            }
+            let BodyPtr::Branch(body) = this.body_mut() else {
+                unreachable!();
+            };
+            let new_body = Branch::upsert_child(body, leaf, |slot, inserted| {
+                Head::insert_leaf(slot, inserted, end_depth)
+            });
+            this.set_body(new_body);
         }
     }
 
@@ -459,15 +430,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        match self.body_ref() {
-            BodyRef::Leaf(leaf) => Leaf::<KEY_LEN>::infixes::<PREFIX_LEN, INFIX_LEN, O, S, F>(
-                leaf, prefix, at_depth, f,
-            ),
-            BodyRef::Branch(branch) => {
-                Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::infixes(
-                    branch, prefix, at_depth, f,
-                )
+        match self.body() {
+            BodyPtr::Leaf(leaf) => {
+                Leaf::infixes::<PREFIX_LEN, INFIX_LEN, O, S, F>(leaf, prefix, at_depth, f)
             }
+            BodyPtr::Branch(branch) => Branch::infixes(branch, prefix, at_depth, f),
         }
     }
 
@@ -476,15 +443,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
-        match self.body_ref() {
-            BodyRef::Leaf(leaf) => {
-                Leaf::<KEY_LEN>::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix)
-            }
-            BodyRef::Branch(branch) => {
-                branch::Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::has_prefix(
-                    branch, at_depth, prefix,
-                )
-            }
+        match self.body() {
+            BodyPtr::Leaf(leaf) => Leaf::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix),
+            BodyPtr::Branch(branch) => branch::Branch::has_prefix(branch, at_depth, prefix),
         }
     }
 
@@ -493,15 +454,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        match self.body_ref() {
-            BodyRef::Leaf(leaf) => {
-                leaf::Leaf::<KEY_LEN>::segmented_len::<O, PREFIX_LEN>(leaf, at_depth, prefix)
-            }
-            BodyRef::Branch(branch) => {
-                Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::segmented_len(
-                    branch, at_depth, prefix,
-                )
-            }
+        match self.body() {
+            BodyPtr::Leaf(leaf) => Leaf::segmented_len::<O, PREFIX_LEN>(leaf, at_depth, prefix),
+            BodyPtr::Branch(branch) => Branch::segmented_len(branch, at_depth, prefix),
         }
     }
 
@@ -515,8 +470,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         let this_depth = this.end_depth();
         let other_depth = other.end_depth();
 
-        let this_key = this.leaf_key();
-        let other_key = other.leaf_key();
+        let this_key = this.childleaf_key();
+        let other_key = other.childleaf_key();
         for depth in at_depth..std::cmp::min(this_depth, other_depth) {
             let i = O::key_index(depth);
             let this_byte_key = this_key[i];
@@ -526,9 +481,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 let new_body = Branch::new(
                     depth,
                     slot.take().unwrap().with_key(this_byte_key),
-                    other.with_key(other_byte_key)
+                    other.with_key(other_byte_key),
                 );
-                
+
                 if slot.replace(Head::new(old_key, new_body)).is_some() {
                     unreachable!();
                 }
@@ -538,13 +493,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         }
 
         if this_depth < other_depth {
-            match this.body() {
+            match this.body_mut() {
                 BodyPtr::Leaf(_) => unreachable!(),
                 BodyPtr::Branch(body) => {
-                    let new_body = Branch::upsert_child(body, other, |slot, inserted|
-                        Head::union(slot, inserted, this_depth));
+                    let new_body = Branch::upsert_child(body, other, |slot, inserted| {
+                        Head::union(slot, inserted, this_depth)
+                    });
                     this.set_body(new_body);
-                },
+                }
             }
 
             return;
@@ -553,13 +509,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         if other_depth < this_depth {
             let old_key = this.key();
             let this = slot.take().unwrap();
-            match other.body() {
+            match other.body_mut() {
                 BodyPtr::Leaf(_) => unreachable!(),
                 BodyPtr::Branch(body) => {
-                    let new_body = Branch::upsert_child(body, this, |slot, inserted|
-                        Head::union(slot, inserted, other_depth));
+                    let new_body = Branch::upsert_child(body, this, |slot, inserted| {
+                        Head::union(slot, inserted, other_depth)
+                    });
                     other.set_body(new_body);
-                },
+                }
             }
 
             if slot.replace(other.with_key(old_key)).is_some() {
@@ -568,22 +525,27 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             return;
         }
 
-        let BodyPtr::Branch(mut this_body) = this.body() else {
+        // we already checked for equality by comparing the hashes,
+        // if they are not equal, the keys must be different which is
+        // already handled by the above code.
+        let BodyPtr::Branch(mut this_body) = this.body_mut() else {
             unreachable!();
         };
-        match other.body_mut() {
-            // we already checked for equality by comparing the hashes,
-            // if they are not equal, the keys must be different which is
-            // already handled by the above code.
-            BodyMut::Leaf(_) => unreachable!(),
-            BodyMut::Branch(other_branch) => {
-                for other_child in other_branch.child_table.iter_mut().filter_map(Option::take) {
-                    this_body = Branch::upsert_child(this_body, other_child, |slot, inserted| {
-                        Head::union(slot, inserted, this_depth)
-                    });
-                }
-                this.set_body(this_body);
+        let BodyPtr::Branch(mut other_branch) = other.body_mut() else {
+            unreachable!();
+        };
+        unsafe {
+            for other_child in other_branch
+                .as_mut()
+                .child_table
+                .iter_mut()
+                .filter_map(Option::take)
+            {
+                this_body = Branch::upsert_child(this_body, other_child, |slot, inserted| {
+                    Head::union(slot, inserted, this_depth)
+                });
             }
+            this.set_body(this_body);
         }
     }
 
@@ -596,8 +558,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         let self_depth = self.end_depth();
         let other_depth = other.end_depth();
 
-        let self_key = self.leaf_key();
-        let other_key = other.leaf_key();
+        let self_key = self.childleaf_key();
+        let other_key = other.childleaf_key();
         for depth in at_depth..std::cmp::min(self_depth, other_depth) {
             let i = O::key_index(depth);
             if self_key[i] != other_key[i] {
@@ -608,67 +570,76 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         if self_depth < other_depth {
             // This means that there can be at most one child in self
             // that might intersect with other.
-            match self.body_ref() {
-                BodyRef::Leaf(_) => unreachable!(),
-                // If the depth of self is less than the depth of other, then it can't be a leaf.
-                BodyRef::Branch(branch) => {
-                    return branch
-                        .child_table
-                        .table_get(other.leaf_key()[O::key_index(self_depth)])
-                        .and_then(|self_child| other.intersect(self_child, self_depth));
-                }
+            let BodyPtr::Branch(branch) = self.body() else {
+                unreachable!();
+            };
+            unsafe {
+                return branch
+                    .as_ref()
+                    .child_table
+                    .table_get(other.childleaf_key()[O::key_index(self_depth)])
+                    .and_then(|self_child| other.intersect(self_child, self_depth));
             }
         }
 
         if other_depth < self_depth {
             // This means that there can be at most one child in other
             // that might intersect with self.
-            match other.body_ref() {
-                BodyRef::Leaf(_) => unreachable!(),
-                // If the depth of other is less than the depth of self, then it can't be a leaf.
-                BodyRef::Branch(other_branch) => {
-                    return other_branch
-                        .child_table
-                        .table_get(self.leaf_key()[O::key_index(other_depth)])
-                        .and_then(|other_child| self.intersect(other_child, other_depth));
-                }
+            // If the depth of other is less than the depth of self, then it can't be a leaf.
+            let BodyPtr::Branch(other_branch) = other.body() else {
+                unreachable!();
+            };
+            unsafe {
+                return other_branch
+                    .as_ref()
+                    .child_table
+                    .table_get(self.childleaf_key()[O::key_index(other_depth)])
+                    .and_then(|other_child| self.intersect(other_child, other_depth));
             }
         }
 
-        match (self.body_ref(), other.body_ref()) {
-            (BodyRef::Branch(self_branch), BodyRef::Branch(other_branch)) => {
-                let mut intersected_children = self_branch
-                    .child_table
-                    .iter()
-                    .filter_map(Option::as_ref)
-                    .cloned()
-                    .filter_map(|self_child| {
-                        let other_child = other_branch.child_table.table_get(self_child.key())?;
-                        self_child.intersect(other_child, self_depth)
-                    });
-                let first_child = intersected_children.next()?;
-                let Some(second_child) = intersected_children.next() else {
-                    return Some(first_child);
-                };
-                let mut new_branch = Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::new(
-                    self_depth,
-                    first_child.with_start(self_depth),
-                    second_child.with_start(self_depth),
-                );
-                for child in intersected_children {
-                    new_branch = Branch::insert_child(new_branch, child.with_start(self_depth));
-                }
-                // The key will be set later, because we don't know it yet.
-                // The intersection might remove multiple levels of branches,
-                // so we can't just take the key from self or other.
-                Some(Head::new(0, new_branch))
+        // If we reached this point then the depths are equal. The only way to have a leaf
+        // is if the other is a leaf as well, which is already handled by the hash check if they are equal,
+        // and by the key check if they are not equal.
+        // If one of them is a leaf and the other is a branch, then they would also have different depths,
+        // which is already handled by the above code.
+        let BodyPtr::Branch(self_branch) = self.body() else {
+            unreachable!();
+        };
+        let BodyPtr::Branch(other_branch) = other.body() else {
+            unreachable!();
+        };
+
+        unsafe {
+            let mut intersected_children = self_branch
+                .as_ref()
+                .child_table
+                .iter()
+                .filter_map(Option::as_ref)
+                .cloned()
+                .filter_map(|self_child| {
+                    let other_child = other_branch
+                        .as_ref()
+                        .child_table
+                        .table_get(self_child.key())?;
+                    self_child.intersect(other_child, self_depth)
+                });
+            let first_child = intersected_children.next()?;
+            let Some(second_child) = intersected_children.next() else {
+                return Some(first_child);
+            };
+            let mut new_branch = Branch::new(
+                self_depth,
+                first_child.with_start(self_depth),
+                second_child.with_start(self_depth),
+            );
+            for child in intersected_children {
+                new_branch = Branch::insert_child(new_branch, child.with_start(self_depth));
             }
-            _ => unreachable!(),
-            // If we reached this point then the depths are equal. The only way to have a leaf
-            // is if the other is a leaf as well, which is already handled by the hash check if they are equal,
-            // and by the key check if they are not equal.
-            // If one of them is a leaf and the other is a branch, then they would also have different depths,
-            // which is already handled by the above code.
+            // The key will be set later, because we don't know it yet.
+            // The intersection might remove multiple levels of branches,
+            // so we can't just take the key from self or other.
+            Some(Head::new(0, new_branch))
         }
     }
 
@@ -744,9 +715,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 {
     fn clone(&self) -> Self {
         unsafe {
-            match self.body_ref() {
-                BodyRef::Leaf(leaf) => Self::new(self.key(), Leaf::<KEY_LEN>::rc_inc(leaf.into())),
-                BodyRef::Branch(branch) => Self::new(self.key(), Branch::rc_inc(branch.into())),
+            match self.body() {
+                BodyPtr::Leaf(leaf) => Self::new(self.key(), Leaf::rc_inc(leaf)),
+                BodyPtr::Branch(branch) => Self::new(self.key(), Branch::rc_inc(branch)),
             }
         }
     }
@@ -758,10 +729,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     fn drop(&mut self) {
         unsafe {
             match self.body() {
-                BodyPtr::Leaf(leaf) => Leaf::<KEY_LEN>::rc_dec(leaf),
-                BodyPtr::Branch(branch) => {
-                    Branch::<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>::rc_dec(branch)
-                }
+                BodyPtr::Leaf(leaf) => Leaf::rc_dec(leaf),
+                BodyPtr::Branch(branch) => Branch::rc_dec(branch),
             }
         }
     }
@@ -1021,14 +990,14 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
         loop {
             if let Some(child) = iter.next() {
                 if let Some(child) = child {
-                    match child.body_ref() {
-                        BodyRef::Leaf(leaf) => {
-                            return Some(&leaf.key);
-                        }
-                        BodyRef::Branch(branch) => {
-                            self.stack.push(branch.child_table.iter());
+                    match child.body() {
+                        BodyPtr::Leaf(leaf) => unsafe {
+                            return Some(&leaf.as_ref().key);
+                        },
+                        BodyPtr::Branch(branch) => unsafe {
+                            self.stack.push(branch.as_ref().child_table.iter());
                             iter = self.stack.last_mut()?;
-                        }
+                        },
                     }
                 }
             } else {
@@ -1059,15 +1028,21 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
         };
         if let Some(root) = &patch.root {
             r.stack.push(ArrayVec::new());
-            match root.body_ref() {
-                BodyRef::Leaf(_) => {
+            match root.body() {
+                BodyPtr::Leaf(_) => {
                     r.stack[0].push(root);
                 }
-                BodyRef::Branch(branch) => {
+                BodyPtr::Branch(branch) => unsafe {
                     let first_level = &mut r.stack[0];
-                    first_level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                    first_level.extend(
+                        branch
+                            .as_ref()
+                            .child_table
+                            .iter()
+                            .filter_map(|c| c.as_ref()),
+                    );
                     first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                }
+                },
             }
         }
         r
@@ -1083,16 +1058,22 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
         let mut level = self.stack.last_mut()?;
         loop {
             if let Some(child) = level.pop() {
-                match child.body_ref() {
-                    BodyRef::Leaf(leaf) => {
-                        return Some(&leaf.key);
-                    }
-                    BodyRef::Branch(branch) => {
+                match child.body() {
+                    BodyPtr::Leaf(leaf) => unsafe {
+                        return Some(&leaf.as_ref().key);
+                    },
+                    BodyPtr::Branch(branch) => unsafe {
                         self.stack.push(ArrayVec::new());
                         level = self.stack.last_mut()?;
-                        level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                        level.extend(
+                            branch
+                                .as_ref()
+                                .child_table
+                                .iter()
+                                .filter_map(|c| c.as_ref()),
+                        );
                         level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                    }
+                    },
                 }
             } else {
                 self.stack.pop();
@@ -1132,13 +1113,19 @@ impl<
             if root.end_depth() >= PREFIX_LEN {
                 r.stack[0].push(root);
             } else {
-                match root.body_ref() {
-                    BodyRef::Leaf(_) => unreachable!(),
-                    BodyRef::Branch(branch) => {
-                        let first_level = &mut r.stack[0];
-                        first_level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
-                        first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                    }
+                let BodyPtr::Branch(branch) = root.body() else {
+                    unreachable!();
+                };
+                unsafe {
+                    let first_level = &mut r.stack[0];
+                    first_level.extend(
+                        branch
+                            .as_ref()
+                            .child_table
+                            .iter()
+                            .filter_map(|c| c.as_ref()),
+                    );
+                    first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                 }
             }
         }
@@ -1161,18 +1148,24 @@ impl<
         loop {
             if let Some(child) = level.pop() {
                 if child.end_depth() >= PREFIX_LEN {
-                    let key = O::tree_ordered(child.leaf_key());
+                    let key = O::tree_ordered(child.childleaf_key());
                     let suffix_count = child.count();
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
-                    match child.body_ref() {
-                        BodyRef::Leaf(_) => unreachable!(),
-                        BodyRef::Branch(branch) => {
-                            self.stack.push(ArrayVec::new());
-                            level = self.stack.last_mut()?;
-                            level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
-                            level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                        }
+                    let BodyPtr::Branch(branch) = child.body() else {
+                        unreachable!();
+                    };
+                    unsafe {
+                        self.stack.push(ArrayVec::new());
+                        level = self.stack.last_mut()?;
+                        level.extend(
+                            branch
+                                .as_ref()
+                                .child_table
+                                .iter()
+                                .filter_map(|c| c.as_ref()),
+                        );
+                        level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                     }
                 }
             } else {
@@ -1351,131 +1344,190 @@ mod tests {
     }
 
     proptest! {
-    #[test]
-    fn tree_insert(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        for key in keys {
-            let key: [u8; 64] = key.try_into().unwrap();
-            let entry = Entry::new(&key);
-            tree.insert(&entry);
-        }
-    }
-
-    #[test]
-    fn tree_len(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        let mut set = HashSet::new();
-        for key in keys {
-            let key: [u8; 64] = key.try_into().unwrap();
-            let entry = Entry::new(&key);
-            tree.insert(&entry);
-            set.insert(key);
-        }
-
-        prop_assert_eq!(set.len() as u64, tree.len())
-    }
-
-    #[test]
-    fn tree_infixes(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        let mut set = HashSet::new();
-        for key in keys {
-            let key: [u8; 64] = key.try_into().unwrap();
-            let entry = Entry::new(&key);
-            tree.insert(&entry);
-            set.insert(key);
-        }
-        let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = vec![];
-        tree.infixes(&[0; 0], &mut |&x: &[u8; 64]| tree_vec.push(x));
-
-        set_vec.sort();
-        tree_vec.sort();
-
-        prop_assert_eq!(set_vec, tree_vec);
-    }
-
-    #[test]
-    fn tree_iter(keys in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
-        let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        let mut set = HashSet::new();
-        for key in keys {
-            let key: [u8; 64] = key.try_into().unwrap();
-            let entry = Entry::new(&key);
-            tree.insert(&entry);
-            set.insert(key);
-        }
-        let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = vec![];
-        for key in &tree {
-            tree_vec.push(*key);
-        }
-
-        set_vec.sort();
-        tree_vec.sort();
-
-        prop_assert_eq!(set_vec, tree_vec);
-    }
-
-    #[test]
-    fn tree_union(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2000),
-                    right in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2000)) {
-        let mut set = HashSet::new();
-
-        let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        for entry in left {
-            let mut key = [0; 64];
-            key.iter_mut().set_from(entry.iter().cloned());
-            let entry = Entry::new(&key);
-            left_tree.insert(&entry);
-            set.insert(key);
-        }
-
-        let mut right_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        for entry in right {
-            let mut key = [0; 64];
-            key.iter_mut().set_from(entry.iter().cloned());
-            let entry = Entry::new(&key);
-            right_tree.insert(&entry);
-            set.insert(key);
-        }
-
-        left_tree.union(right_tree);
-
-        let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = vec![];
-        left_tree.infixes(&[0; 0], &mut |&x: &[u8;64]| tree_vec.push(x));
-
-        set_vec.sort();
-        tree_vec.sort();
-
-        prop_assert_eq!(set_vec, tree_vec);
-        }
         #[test]
-    fn tree_union_empty(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2)) {
-        let mut set = HashSet::new();
-
-        let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
-        for entry in left {
-            let mut key = [0; 64];
-            key.iter_mut().set_from(entry.iter().cloned());
-            let entry = Entry::new(&key);
-            left_tree.insert(&entry);
-            set.insert(key);
+        fn tree_insert(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            for key in keys {
+                let key: [u8; 64] = key.try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree.insert(&entry);
+            }
         }
 
-        let right_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+        #[test]
+        fn tree_len(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut set = HashSet::new();
+            for key in keys {
+                let key: [u8; 64] = key.try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree.insert(&entry);
+                set.insert(key);
+            }
 
-        left_tree.union(right_tree);
+            prop_assert_eq!(set.len() as u64, tree.len())
+        }
 
-        let mut set_vec = Vec::from_iter(set.into_iter());
-        let mut tree_vec = vec![];
-        left_tree.infixes(&[0; 0], &mut |&x: &[u8;64]| tree_vec.push(x));
+        #[test]
+        fn tree_infixes(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut set = HashSet::new();
+            for key in keys {
+                let key: [u8; 64] = key.try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree.insert(&entry);
+                set.insert(key);
+            }
+            let mut set_vec = Vec::from_iter(set.into_iter());
+            let mut tree_vec = vec![];
+            tree.infixes(&[0; 0], &mut |&x: &[u8; 64]| tree_vec.push(x));
 
-        set_vec.sort();
-        tree_vec.sort();
+            set_vec.sort();
+            tree_vec.sort();
 
-        prop_assert_eq!(set_vec, tree_vec);
+            prop_assert_eq!(set_vec, tree_vec);
+        }
+
+        #[test]
+        fn tree_iter(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
+            let mut tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            let mut set = HashSet::new();
+            for key in keys {
+                let key: [u8; 64] = key.try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree.insert(&entry);
+                set.insert(key);
+            }
+            let mut set_vec = Vec::from_iter(set.into_iter());
+            let mut tree_vec = vec![];
+            for key in &tree {
+                tree_vec.push(*key);
+            }
+
+            set_vec.sort();
+            tree_vec.sort();
+
+            prop_assert_eq!(set_vec, tree_vec);
+        }
+
+        #[test]
+        fn tree_union(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2000),
+                        right in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2000)) {
+            let mut set = HashSet::new();
+
+            let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            for entry in left {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                let entry = Entry::new(&key);
+                left_tree.insert(&entry);
+                set.insert(key);
+            }
+
+            let mut right_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            for entry in right {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                let entry = Entry::new(&key);
+                right_tree.insert(&entry);
+                set.insert(key);
+            }
+
+            left_tree.union(right_tree);
+
+            let mut set_vec = Vec::from_iter(set.into_iter());
+            let mut tree_vec = vec![];
+            left_tree.infixes(&[0; 0], &mut |&x: &[u8;64]| tree_vec.push(x));
+
+            set_vec.sort();
+            tree_vec.sort();
+
+            prop_assert_eq!(set_vec, tree_vec);
+            }
+
+        #[test]
+        fn tree_union_empty(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2)) {
+            let mut set = HashSet::new();
+
+            let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+            for entry in left {
+                let mut key = [0; 64];
+                key.iter_mut().set_from(entry.iter().cloned());
+                let entry = Entry::new(&key);
+                left_tree.insert(&entry);
+                set.insert(key);
+            }
+
+            let right_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+
+            left_tree.union(right_tree);
+
+            let mut set_vec = Vec::from_iter(set.into_iter());
+            let mut tree_vec = vec![];
+            left_tree.infixes(&[0; 0], &mut |&x: &[u8;64]| tree_vec.push(x));
+
+            set_vec.sort();
+            tree_vec.sort();
+
+            prop_assert_eq!(set_vec, tree_vec);
+            }
+
+        // I got a feeling that we're not testing COW properly.
+        // We should check if a tree remains the same after a clone of it
+        // is modified by inserting new keys.
+
+        #[test]
+        fn cow_on_insert(base_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024),
+                         new_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024)) {
+            // Note that we can't compare the trees directly, as that uses the hash,
+            // which might not be affected by nodes in lower levels being changed accidentally.
+            // Instead we need to iterate over the keys and check if they are the same.
+
+            let mut tree = PATCH::<8, IdentityOrder, SingleSegmentation>::new();
+            for key in base_keys {
+                let key: [u8; 8] = key[..].try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree.insert(&entry);
+            }
+            let base_tree_content: Vec<[u8; 8]> = tree.iter().copied().collect();
+
+            let mut tree_clone = tree.clone();
+            for key in new_keys {
+                let key: [u8; 8] = key[..].try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree_clone.insert(&entry);
+            }
+
+            let new_tree_content: Vec<[u8; 8]> = tree.iter().copied().collect();
+            prop_assert_eq!(base_tree_content, new_tree_content);
+        }
+
+        #[test]
+        fn cow_on_union(base_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024),
+                         new_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024)) {
+            // Note that we can't compare the trees directly, as that uses the hash,
+            // which might not be affected by nodes in lower levels being changed accidentally.
+            // Instead we need to iterate over the keys and check if they are the same.
+
+            let mut tree = PATCH::<8, IdentityOrder, SingleSegmentation>::new();
+            for key in base_keys {
+                let key: [u8; 8] = key[..].try_into().unwrap();
+                let entry = Entry::new(&key);
+                tree.insert(&entry);
+            }
+            let base_tree_content: Vec<[u8; 8]> = tree.iter().copied().collect();
+
+            let mut tree_clone = tree.clone();
+            let mut new_tree = PATCH::<8, IdentityOrder, SingleSegmentation>::new();
+            for key in new_keys {
+                let key: [u8; 8] = key[..].try_into().unwrap();
+                let entry = Entry::new(&key);
+                new_tree.insert(&entry);
+            }
+            tree_clone.union(new_tree);
+
+            let new_tree_content: Vec<[u8; 8]> = tree.iter().copied().collect();
+            prop_assert_eq!(base_tree_content, new_tree_content);
         }
     }
 }

@@ -272,41 +272,40 @@ mod tests {
         }
     }
 
-    /*
-        #[test]
-        fn difference() {
-            let mut kb1 = TribleSet::new();
-            let mut kb2 = TribleSet::new();
-            for _i in 0..1000 {
-                let author = ufoid();
-                let book = ufoid();
-                kb1 += literature::entity!(&author, {
+    #[test]
+    fn difference() {
+        let mut kb1 = TribleSet::new();
+        let mut kb2 = TribleSet::new();
+        for _i in 0..1000 {
+            let author = ufoid();
+            let book = ufoid();
+            kb1 += literature::entity!(&author, {
+                firstname: FirstName(EN).fake::<String>(),
+                lastname: LastName(EN).fake::<String>(),
+            });
+            kb1 += literature::entity!(&book, {
+                title: Words(1..3).fake::<Vec<String>>().join(" "),
+                author: &author
+            });
+            if _i % 2 == 0 {
+                kb2 += literature::entity!(&author, {
                     firstname: FirstName(EN).fake::<String>(),
                     lastname: LastName(EN).fake::<String>(),
                 });
-                kb1 += literature::entity!(&book, {
+                kb2 += literature::entity!(&book, {
                     title: Words(1..3).fake::<Vec<String>>().join(" "),
                     author: &author
                 });
-                if _i % 2 == 0 {
-                    kb2 += literature::entity!(&author, {
-                        firstname: FirstName(EN).fake::<String>(),
-                        lastname: LastName(EN).fake::<String>(),
-                    });
-                    kb2 += literature::entity!(&book, {
-                        title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        author: &author
-                    });
-                }
-            }
-            let difference = kb1.difference(&kb2);
-            // Verify that the difference contains only elements present in kb1 but not in kb2
-            for trible in &difference {
-                assert!(kb1.contains(trible));
-                assert!(!kb2.contains(trible));
             }
         }
-    */
+        let difference = kb1.difference(&kb2);
+        // Verify that the difference contains only elements present in kb1 but not in kb2
+        for trible in &difference {
+            assert!(kb1.contains(trible));
+            assert!(!kb2.contains(trible));
+        }
+    }
+
     #[test]
     fn test_contains() {
         let mut kb = TribleSet::new();

@@ -237,7 +237,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
                 update(slot, inserted);
 
-                let child = slot.as_ref().expect("update may not remove child");
+                let child = slot.as_ref().expect("upsert may not remove child");
 
                 (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ child.hash();
                 (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)
@@ -246,6 +246,37 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 branch
             } else {
                 branch::Branch::insert_child(branch, inserted)
+            }
+        }
+    }
+
+    pub fn update_child<F>(branch: NonNull<Self>, key: u8, update: F)
+    where
+        F: FnOnce(Head<KEY_LEN, O, S>) -> Option<Head<KEY_LEN, O, S>>,
+    {
+        unsafe {
+            let ptr = branch.as_ptr();
+            if let Some(slot) = (*ptr).child_table.table_get_slot(key) {
+                let child = slot.take().unwrap();
+                let old_child_hash = child.hash();
+                let old_child_segment_count = child.count_segment((*ptr).end_depth as usize);
+                let old_child_leaf_count = child.count();
+
+                if let Some(new_child) = update(child) {
+                    (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ new_child.hash();
+                    (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)
+                        + new_child.count_segment((*ptr).end_depth as usize);
+                    (*ptr).leaf_count =
+                        ((*ptr).leaf_count - old_child_leaf_count) + new_child.count();
+
+                    if slot.replace(new_child.with_key(key)).is_some() {
+                        unreachable!();
+                    }
+                } else {
+                    (*ptr).hash ^= old_child_hash;
+                    (*ptr).segment_count -= old_child_segment_count;
+                    (*ptr).leaf_count -= old_child_leaf_count;
+                }
             }
         }
     }

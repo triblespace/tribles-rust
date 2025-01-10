@@ -319,62 +319,57 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 BodyPtr::Leaf(_) => {
                     slot.take();
                 }
-                BodyPtr::Branch(branch) => {
-                    unsafe {
-                        let branch = branch.as_ptr();
+                BodyPtr::Branch(mut branch) => {
+                    let branch = unsafe { branch.as_mut() };
 
-                        let key = leaf_key[end_depth];
-                        let removed_leafchild = leaf_key == &(*(*branch).childleaf).key;
-                        if let Some(child_slot) = (*branch).child_table.table_get_slot(key) {
+                    let key = leaf_key[end_depth];
+                    let removed_leafchild = leaf_key == unsafe { &(*branch.childleaf).key };
+                    if let Some(child_slot) = branch.child_table.table_get_slot(key) {
+                        if let Some(child) = child_slot {
+                            let old_child_hash = child.hash();
+                            let old_child_segment_count =
+                                child.count_segment(branch.end_depth as usize);
+                            let old_child_leaf_count = child.count();
+
+                            Self::remove_leaf(child_slot, leaf_key, end_depth);
                             if let Some(child) = child_slot {
-                                let old_child_hash = child.hash();
-                                let old_child_segment_count =
-                                    child.count_segment((*branch).end_depth as usize);
-                                let old_child_leaf_count = child.count();
-
-                                Self::remove_leaf(child_slot, leaf_key, end_depth);
-                                if let Some(child) = child_slot {
-                                    if removed_leafchild {
-                                        (*branch).childleaf = child.childleaf();
+                                if removed_leafchild {
+                                    branch.childleaf = child.childleaf();
+                                }
+                                branch.hash = (branch.hash ^ old_child_hash) ^ child.hash();
+                                branch.segment_count = (branch.segment_count
+                                    - old_child_segment_count)
+                                    + child.count_segment(branch.end_depth as usize);
+                                branch.leaf_count =
+                                    (branch.leaf_count - old_child_leaf_count) + child.count();
+                                // ^ Note that the leaf_count can never be <= 1 here, because we're in a branch
+                                // at least one other child must exist.
+                            } else {
+                                branch.leaf_count = branch.leaf_count - old_child_leaf_count;
+                                match branch.leaf_count {
+                                    0 => {
+                                        panic!("branch should have been collected previously")
                                     }
-                                    (*branch).hash =
-                                        ((*branch).hash ^ old_child_hash) ^ child.hash();
-                                    (*branch).segment_count = ((*branch).segment_count
-                                        - old_child_segment_count)
-                                        + child.count_segment((*branch).end_depth as usize);
-                                    (*branch).leaf_count = ((*branch).leaf_count
-                                        - old_child_leaf_count)
-                                        + child.count();
-                                    // ^ Note that the leaf_count can never be <= 1 here, because we're in a branch
-                                    // at least one other child must exist.
-                                } else {
-                                    (*branch).leaf_count =
-                                        (*branch).leaf_count - old_child_leaf_count;
-                                    match (*branch).leaf_count {
-                                        0 => {
-                                            panic!("branch should have been collected previously")
-                                        }
-                                        1 => {
-                                            for child in &mut (*branch).child_table {
-                                                if let Some(child) = child.take() {
-                                                    slot.replace(child.with_start(start_depth));
-                                                    return;
-                                                }
+                                    1 => {
+                                        for child in &mut branch.child_table {
+                                            if let Some(child) = child.take() {
+                                                slot.replace(child.with_start(start_depth));
+                                                return;
                                             }
                                         }
-                                        _ => {
-                                            if removed_leafchild {
-                                                let child = (*branch)
-                                                    .child_table
-                                                    .iter()
-                                                    .find_map(|s| s.as_ref())
-                                                    .expect("child should exist");
-                                                (*branch).childleaf = child.childleaf();
-                                            }
-                                            (*branch).hash = (*branch).hash ^ old_child_hash;
-                                            (*branch).segment_count =
-                                                (*branch).segment_count - old_child_segment_count;
+                                    }
+                                    _ => {
+                                        if removed_leafchild {
+                                            let child = branch
+                                                .child_table
+                                                .iter()
+                                                .find_map(|s| s.as_ref())
+                                                .expect("child should exist");
+                                            branch.childleaf = child.childleaf();
                                         }
+                                        branch.hash = branch.hash ^ old_child_hash;
+                                        branch.segment_count =
+                                            branch.segment_count - old_child_segment_count;
                                     }
                                 }
                             }
@@ -616,7 +611,6 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 .child_table
                 .iter()
                 .filter_map(Option::as_ref)
-                .cloned()
                 .filter_map(|self_child| {
                     let other_child = other_branch
                         .as_ref()
@@ -646,9 +640,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     /// Returns the difference between self and other.
     /// This is the set of elements that are in self but not in other.
     /// If the difference is empty, None is returned.
-    pub(crate) fn difference(&self, _other: &Self, _at_depth: usize) -> Option<Self> {
-        todo!()
-        /*
+    pub(crate) fn difference(&self, other: &Self, at_depth: usize) -> Option<Self> {
         let self_hash = self.hash();
         let other_hash = other.hash();
         if self_hash == other_hash {
@@ -657,14 +649,15 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         let self_depth = self.end_depth();
         let other_depth = other.end_depth();
 
-        let self_key = self.leaf_key();
-        let other_key = other.leaf_key();
+        let self_key = self.childleaf_key();
+        let other_key = other.childleaf_key();
         for depth in at_depth..std::cmp::min(self_depth, other_depth) {
             let i = O::key_index(depth);
             if self_key[i] != other_key[i] {
                 return Some(self.clone());
             }
         }
+
         if self_depth < other_depth {
             // This means that there can be at most one child in self
             // that might intersect with other. It's the only child that may not be in the difference.
@@ -672,25 +665,84 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             // Thus the cheapest way to compute the difference is compute the difference of the only child
             // that might intersect with other, copy self with it's correctly filled byte table, then
             // remove the old child, and insert the new child.
-            match self.body() {
-                BodyRef::Leaf(_) => unreachable!(),
-                // If the depth of self is less than the depth of other, then it can't be a leaf.
-                BodyRef::Branch(branch) => {
-                    let self_child = branch
-                        .child_table
-                        .table_get(other.leaf_key()[O::key_index(self_depth)]);
-                    let difference =
-                        self_child.and_then(|self_child| self_child.difference(other, self_depth));
-                    let mut new_self = self.clone();
-                    new_self.remove_leaf(&mut new_self, other.leaf_key(), self_depth);
-                    if let Some(self_child) = self_child {
-                        new_self.upsert(self_child, |_, _| unreachable!());
-                    }
-                    return Some(new_self);
-                }
+            let mut new_branch = self.clone();
+            let BodyPtr::Branch(branch) = new_branch.body_mut() else {
+                unreachable!();
+            };
+            let other_byte_key = other.childleaf_key()[O::key_index(self_depth)];
+            Branch::update_child(branch, other_byte_key, |child| {
+                child.difference(other, self_depth)
+            });
+            return Some(new_branch);
+        }
+
+        if other_depth < self_depth {
+            // This means that we need to check if there is a child in other
+            // that matches the path at the current depth of self.
+            // There is no such child, then then self must be in the difference.
+            // If there is such a child, then we have to compute the difference
+            // between self and that child.
+            // We know that other must be a branch.
+            let BodyPtr::Branch(other_branch) = other.body() else {
+                unreachable!();
+            };
+            let self_byte_key = self.childleaf_key()[O::key_index(self_depth)];
+
+            if let Some(other_child) =
+                unsafe { other_branch.as_ref().child_table.table_get(self_byte_key) }
+            {
+                return self.difference(other_child, at_depth);
+            } else {
+                return Some(self.clone());
             }
         }
-        */
+
+        // If we reached this point then the depths are equal. The only way to have a leaf
+        // is if the other is a leaf as well, which is already handled by the hash check if they are equal,
+        // and by the key check if they are not equal.
+        // If one of them is a leaf and the other is a branch, then they would also have different depths,
+        // which is already handled by the above code.
+        let BodyPtr::Branch(self_branch) = self.body() else {
+            unreachable!();
+        };
+        let BodyPtr::Branch(other_branch) = other.body() else {
+            unreachable!();
+        };
+
+        unsafe {
+            let mut differenced_children = self_branch
+                .as_ref()
+                .child_table
+                .iter()
+                .filter_map(Option::as_ref)
+                .filter_map(|self_child| {
+                    if let Some(other_child) = other_branch
+                        .as_ref()
+                        .child_table
+                        .table_get(self_child.key())
+                    {
+                        self_child.difference(other_child, self_depth)
+                    } else {
+                        Some(self_child.clone())
+                    }
+                });
+            let first_child = differenced_children.next()?;
+            let Some(second_child) = differenced_children.next() else {
+                return Some(first_child);
+            };
+            let mut new_branch = Branch::new(
+                self_depth,
+                first_child.with_start(self_depth),
+                second_child.with_start(self_depth),
+            );
+            for child in differenced_children {
+                new_branch = Branch::insert_child(new_branch, child.with_start(self_depth));
+            }
+            // The key will be set later, because we don't know it yet.
+            // The difference might remove multiple levels of branches,
+            // so we can't just take the key from self or other.
+            Some(Head::new(0, new_branch))
+        }
     }
 }
 

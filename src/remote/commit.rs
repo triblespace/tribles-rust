@@ -5,7 +5,7 @@ use itertools::{ExactlyOneError, Itertools};
 use ed25519::signature::Signer;
 
 use crate::{
-    blob::{schemas::simplearchive::SimpleArchive, Blob, ToBlob},
+    blob::{schemas::simplearchive::SimpleArchive, Blob},
     namespace::NS,
     query::find,
     trible::TribleSet,
@@ -68,12 +68,11 @@ impl From<SignatureError> for ValidationError {
 }
 
 pub fn sign(
-    set: &TribleSet,
+    archive: Blob<SimpleArchive>,
     signing_key: SigningKey,
-) -> (Blob<SimpleArchive>, TribleSet) {
-    let data  = set.to_blob();
-    let handle = data.get_handle();
-    let signature = signing_key.sign(&data.bytes);
+) -> TribleSet {
+    let handle = archive.get_handle();
+    let signature = signing_key.sign(&archive.bytes);
     
     let metadata= commits::entity!(
     {
@@ -83,11 +82,11 @@ pub fn sign(
         signature_s: signature,
     });
 
-    (data, metadata)
+    metadata
 }
 
-pub fn verify(data: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), ValidationError> {
-    let handle = data.get_handle();
+pub fn verify(archive: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), ValidationError> {
+    let handle = archive.get_handle();
     let (pubkey, r, s) = find!(
     (pubkey: Value<_>, r, s),
     commits::pattern!(&metadata, [
@@ -101,6 +100,6 @@ pub fn verify(data: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), Vali
 
     let pubkey: VerifyingKey = pubkey.try_from_value()?;
     let signature = Signature::from_components(r, s);
-    pubkey.verify(&data.bytes, &signature)?;
+    pubkey.verify(&archive.bytes, &signature)?;
     Ok(())
 }

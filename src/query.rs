@@ -544,8 +544,8 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 /// The query will automatically perform the necessary conversions between the schema types
 /// and the concrete types of the variables. If the conversion fails, the query will panic.
 /// For more control over the conversion, you can use a `Value<_>` type for the variable, and use
-/// the `TryFromValue` trait to convert the values manually and handle the errors explicitly. 
-/// 
+/// the `TryFromValue` trait to convert the values manually and handle the errors explicitly.
+///
 /// The macro expands to a call to the [Query::new] constructor, which takes the variables and the constraint
 /// as arguments, and returns a [Query] object that can be used to iterate over the results of the query.
 ///

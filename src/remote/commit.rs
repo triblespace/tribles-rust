@@ -10,8 +10,9 @@ use crate::{
     query::find,
     trible::TribleSet,
     value::{
-        schemas::{ed25519 as ed,
-                  hash::{Blake3, Handle},
+        schemas::{
+            ed25519 as ed,
+            hash::{Blake3, Handle},
             shortstring::ShortString,
         },
         ToValue, Value,
@@ -67,14 +68,11 @@ impl From<SignatureError> for ValidationError {
     }
 }
 
-pub fn sign(
-    archive: Blob<SimpleArchive>,
-    signing_key: SigningKey,
-) -> TribleSet {
+pub fn sign(archive: Blob<SimpleArchive>, signing_key: SigningKey) -> TribleSet {
     let handle = archive.get_handle();
     let signature = signing_key.sign(&archive.bytes);
-    
-    let metadata= commits::entity!(
+
+    let metadata = commits::entity!(
     {
         tribles: handle,
         authored_by: signing_key.verifying_key(),

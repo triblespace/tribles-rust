@@ -146,14 +146,14 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        blob::{schemas::longstring::LongString, ToBlob},
+        blob::schemas::longstring::LongString,
         trible::TribleSet,
         value::schemas::hash::{Blake3, Handle},
         NS,
     };
 
     use super::*;
-    use anybytes::PackedStr;
+    use anybytes::Bytes;
     use fake::{faker::name::raw::Name, locales::EN, Fake};
 
     NS! {
@@ -168,10 +168,10 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.insert(PackedStr::from(Name(EN).fake::<String>()));
+            blobs_a.insert(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap());
         }
         for _i in 0..1000 {
-            blobs_b.insert(PackedStr::from(Name(EN).fake::<String>()));
+            blobs_b.insert(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap());
         }
 
         blobs_a.union(blobs_b);
@@ -183,7 +183,7 @@ mod tests {
         let mut blobs = BlobSet::new();
         for _i in 0..2000 {
             kb.union(knights2::entity!({
-                description: blobs.insert(PackedStr::from(Name(EN).fake::<String>()).to_blob())
+                description: blobs.insert(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap())
             }));
         }
         blobs.keep(kb);

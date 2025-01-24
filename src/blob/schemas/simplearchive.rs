@@ -5,8 +5,7 @@ use crate::{
     trible::{Trible, TribleSet},
 };
 
-use anybytes::{Bytes, PackedSlice};
-use std::convert::TryInto;
+use anybytes::{Bytes, View};
 
 pub struct SimpleArchive;
 
@@ -38,7 +37,7 @@ impl TryFromBlob<'_, SimpleArchive> for TribleSet {
         let mut tribles = TribleSet::new();
 
         let mut prev_trible = None;
-        let Ok(packed_tribles): Result<PackedSlice<[u8; 64]>, _> = (&blob.bytes).try_into() else {
+        let Ok(packed_tribles): Result<View<[[u8; 64]]>, _> = blob.bytes.clone().view() else {
             return Err(UnarchiveError::BadArchive);
         };
         for t in packed_tribles.iter() {

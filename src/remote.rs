@@ -20,7 +20,7 @@
 //! trible commit histories are an append-only chain of TribleSet metadata,
 //! the hash of the head is sufficient to represent the entire history of a branch.
 //!
-//! 
+//!
 pub mod commit;
 pub mod head;
 pub mod objectstore;

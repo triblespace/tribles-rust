@@ -2,14 +2,16 @@
 name = "tribles"
 version = "0.5.1"
 authors = ["Jan Bramkamp <crest@rlwinm.de>", "⚫️ <jp@bultmann.eu>", "Vanja Sophie Cangalovic <vanja@bultmann.eu>"]
-edition = "2018"
+edition = "2021"
 description = "The tribles knowledge base implementation for rust."
 homepage = "https://tribles.space"
 license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anybytes = {version = "0.11.0", features = ["bytes", "zerocopy"]}
+memmap2 = "0.9.5"
+zerocopy = { version = "0.8.14", features = ["derive"] }
+anybytes = {version = "0.19.2", features = ["bytes", "zerocopy"]}
 rand = "0.8.5"
 digest = "0.10.7"
 ux = "0.1.5"
@@ -26,7 +28,6 @@ blake3 = { version = "1.5.0", features = ["traits-preview"] }
 futures = "0.3.30"
 signature = "2.2.0"
 anyhow = "1.0"
-zerocopy = { version = "0.7.34", features = ["derive"] }
 bytes = "1.6.0"
 bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
 proptest = { version = "1.6.0", optional = true }
@@ -43,12 +44,13 @@ quick_cache = "0.6.9"
 macro_pub = "0.1.0"
 
 #[dev-dependencies]
-criterion = "0.3"
 im = "15.1.0"
 peak_alloc = "0.1.0"
 fake = "2.8"
 coz = "0.1"
 rayon = "1.7"
+tempfile = "3.15.0"
+criterion = "0.5.1"
 
 [build-dependencies]
 rustversion = "1.0"

@@ -46,7 +46,7 @@ where
     }
 
     pub fn to_hex(value: &Value<Self>) -> String {
-        hex::encode_upper(value.bytes)
+        hex::encode_upper(value.raw)
     }
 }
 
@@ -58,7 +58,7 @@ where
         let mut out = String::new();
         out.push_str(<H as HashProtocol>::NAME);
         out.push(':');
-        out.push_str(&hex::encode(v.bytes));
+        out.push_str(&hex::encode(v.raw));
         out
     }
 }
@@ -107,7 +107,7 @@ where
 
 impl<H: HashProtocol, T: BlobSchema> From<Value<Hash<H>>> for Value<Handle<H, T>> {
     fn from(value: Value<Hash<H>>) -> Self {
-        Value::new(value.bytes)
+        Value::new(value.raw)
     }
 }
 
@@ -142,7 +142,7 @@ pub struct Handle<H, T: BlobSchema> {
 
 impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>> {
     fn from(value: Value<Handle<H, T>>) -> Self {
-        Value::new(value.bytes)
+        Value::new(value.raw)
     }
 }
 

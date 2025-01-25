@@ -45,7 +45,7 @@ impl ToValue<U256BE> for ethnum::U256 {
 
 impl FromValue<'_, U256BE> for ethnum::U256 {
     fn from_value(v: &Value<U256BE>) -> Self {
-        ethnum::U256::from_be_bytes(v.bytes)
+        ethnum::U256::from_be_bytes(v.raw)
     }
 }
 
@@ -57,7 +57,7 @@ impl ToValue<U256LE> for ethnum::U256 {
 
 impl FromValue<'_, U256LE> for ethnum::U256 {
     fn from_value(v: &Value<U256LE>) -> Self {
-        ethnum::U256::from_le_bytes(v.bytes)
+        ethnum::U256::from_le_bytes(v.raw)
     }
 }
 
@@ -69,7 +69,7 @@ impl ToValue<I256BE> for ethnum::I256 {
 
 impl FromValue<'_, I256BE> for ethnum::I256 {
     fn from_value(v: &Value<I256BE>) -> Self {
-        ethnum::I256::from_be_bytes(v.bytes)
+        ethnum::I256::from_be_bytes(v.raw)
     }
 }
 
@@ -81,7 +81,7 @@ impl ToValue<I256LE> for ethnum::I256 {
 
 impl FromValue<'_, I256LE> for ethnum::I256 {
     fn from_value(v: &Value<I256LE>) -> Self {
-        ethnum::I256::from_le_bytes(v.bytes)
+        ethnum::I256::from_le_bytes(v.raw)
     }
 }
 

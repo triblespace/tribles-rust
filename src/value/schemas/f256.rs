@@ -24,7 +24,7 @@ impl ValueSchema for F256BE {
 
 impl FromValue<'_, F256BE> for f256 {
     fn from_value(v: &Value<F256BE>) -> Self {
-        f256::from_be_bytes(v.bytes)
+        f256::from_be_bytes(v.raw)
     }
 }
 
@@ -36,7 +36,7 @@ impl ToValue<F256BE> for f256 {
 
 impl FromValue<'_, F256LE> for f256 {
     fn from_value(v: &Value<F256LE>) -> Self {
-        f256::from_le_bytes(v.bytes)
+        f256::from_le_bytes(v.raw)
     }
 }
 

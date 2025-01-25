@@ -96,7 +96,7 @@ impl<H: HashProtocol> BlobSet<H> {
     // allowed to write non-handle typed triples, otherwise they might as well
     // introduce blobs directly.
     pub fn keep(&mut self, tribles: TribleSet) {
-        self.blobs.retain(|k, _| tribles.vae.has_prefix(&k.bytes));
+        self.blobs.retain(|k, _| tribles.vae.has_prefix(&k.raw));
     }
 }
 

@@ -9,7 +9,7 @@ impl ConstantConstraint {
     pub fn new<T: ValueSchema>(variable: Variable<T>, constant: Value<T>) -> Self {
         ConstantConstraint {
             variable: variable.index,
-            constant: constant.bytes,
+            constant: constant.raw,
         }
     }
 }

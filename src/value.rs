@@ -107,6 +107,7 @@ use core::fmt;
 use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
+use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes, Unaligned};
 
 /// The length of a value in bytes.
 pub const VALUE_LEN: usize = 32;
@@ -130,9 +131,10 @@ pub type RawValue = [u8; VALUE_LEN];
 /// let ratio2: Ratio<i128> = value.from_value();
 /// assert_eq!(ratio, ratio2);
 /// ```
+#[derive(TryFromBytes, IntoBytes, Unaligned, Immutable, KnownLayout)]
 #[repr(transparent)]
 pub struct Value<T: ValueSchema> {
-    pub bytes: RawValue,
+    pub raw: RawValue,
     _schema: PhantomData<T>,
 }
 
@@ -150,7 +152,7 @@ impl<S: ValueSchema> Value<S> {
     /// ```
     pub fn new(value: RawValue) -> Self {
         Self {
-            bytes: value,
+            raw: value,
             _schema: PhantomData,
         }
     }
@@ -160,7 +162,7 @@ impl<S: ValueSchema> Value<S> {
     where
         O: ValueSchema,
     {
-        Value::new(self.bytes)
+        Value::new(self.raw)
     }
     /// Transmute a raw value reference to a value reference.
     ///
@@ -241,7 +243,7 @@ impl<T: ValueSchema> Copy for Value<T> {}
 impl<T: ValueSchema> Clone for Value<T> {
     fn clone(&self) -> Self {
         Self {
-            bytes: self.bytes.clone(),
+            raw: self.raw.clone(),
             _schema: PhantomData,
         }
     }
@@ -249,7 +251,7 @@ impl<T: ValueSchema> Clone for Value<T> {
 
 impl<T: ValueSchema> PartialEq for Value<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.bytes == other.bytes
+        self.raw == other.raw
     }
 }
 
@@ -257,13 +259,13 @@ impl<T: ValueSchema> Eq for Value<T> {}
 
 impl<T: ValueSchema> Hash for Value<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.bytes.hash(state);
+        self.raw.hash(state);
     }
 }
 
 impl<T: ValueSchema> Ord for Value<T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.bytes.cmp(&other.bytes)
+        self.raw.cmp(&other.raw)
     }
 }
 
@@ -275,7 +277,7 @@ impl<T: ValueSchema> PartialOrd for Value<T> {
 
 impl<S: ValueSchema> Borrow<RawValue> for Value<S> {
     fn borrow(&self) -> &RawValue {
-        &self.bytes
+        &self.raw
     }
 }
 
@@ -285,7 +287,7 @@ impl<T: ValueSchema> Debug for Value<T> {
             f,
             "Value<{}>({})",
             std::any::type_name::<T>(),
-            ToHex::encode_hex::<String>(&self.bytes)
+            ToHex::encode_hex::<String>(&self.raw)
         )
     }
 }

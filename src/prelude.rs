@@ -41,3 +41,4 @@ pub use crate::query::{
 };
 pub use crate::trible::{Trible, TribleSet};
 pub use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
+pub use crate::pile::Pile;

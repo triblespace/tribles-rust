@@ -57,7 +57,7 @@ impl ToValue<ED25519RComponent> for ComponentBytes {
 
 impl FromValue<'_, ED25519RComponent> for ComponentBytes {
     fn from_value(v: &Value<ED25519RComponent>) -> Self {
-        v.bytes
+        v.raw
     }
 }
 
@@ -69,7 +69,7 @@ impl ToValue<ED25519SComponent> for ComponentBytes {
 
 impl FromValue<'_, ED25519SComponent> for ComponentBytes {
     fn from_value(v: &Value<ED25519SComponent>) -> Self {
-        v.bytes
+        v.raw
     }
 }
 
@@ -83,6 +83,6 @@ impl TryFromValue<'_, ED25519PublicKey> for VerifyingKey {
     type Error = SignatureError;
 
     fn try_from_value(v: &Value<ED25519PublicKey>) -> Result<Self, Self::Error> {
-        VerifyingKey::from_bytes(&v.bytes)
+        VerifyingKey::from_bytes(&v.raw)
     }
 }

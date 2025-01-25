@@ -49,8 +49,8 @@ impl TryFromValue<'_, R256BE> for Ratio<i128> {
     type Error = RatioError;
 
     fn try_from_value(v: &Value<R256BE>) -> Result<Self, Self::Error> {
-        let n = i128::from_be_bytes(v.bytes[0..16].try_into().unwrap());
-        let d = i128::from_be_bytes(v.bytes[16..32].try_into().unwrap());
+        let n = i128::from_be_bytes(v.raw[0..16].try_into().unwrap());
+        let d = i128::from_be_bytes(v.raw[16..32].try_into().unwrap());
 
         if d == 0 {
             return Err(RatioError::ZeroDenominator);
@@ -108,8 +108,8 @@ impl TryFromValue<'_, R256LE> for Ratio<i128> {
     type Error = RatioError;
 
     fn try_from_value(v: &Value<R256LE>) -> Result<Self, Self::Error> {
-        let n = i128::from_le_bytes(v.bytes[0..16].try_into().unwrap());
-        let d = i128::from_le_bytes(v.bytes[16..32].try_into().unwrap());
+        let n = i128::from_le_bytes(v.raw[0..16].try_into().unwrap());
+        let d = i128::from_le_bytes(v.raw[16..32].try_into().unwrap());
 
         if d == 0 {
             return Err(RatioError::ZeroDenominator);

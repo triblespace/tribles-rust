@@ -1,6 +1,4 @@
 use anybytes::Bytes;
-pub use blake3::Hasher as Blake3;
-use digest::Digest;
 use hex_literal::hex;
 use memmap2::MmapOptions;
 use std::fs::{File, OpenOptions};
@@ -11,9 +9,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{collections::HashMap, io::Write};
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
-use crate::id::RawId;
-
-pub type Hash = [u8; 32];
+use crate::id::{Id, RawId};
+use crate::value::{RawValue, Value};
+use crate::value::schemas::hash::{Hash, HashProtocol, Blake3};
 
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
@@ -40,15 +38,15 @@ struct IndexEntry {
 struct BranchHeader {
     magic_marker: RawId,
     branch_id: RawId,
-    hash: Hash,
+    hash: RawValue,
 }
 
 impl BranchHeader {
-    fn new(branch_id: RawId, hash: Hash) -> Self {
+    fn new<H: HashProtocol>(branch_id: Id, hash: Value<Hash<H>>) -> Self {
         Self {
             magic_marker: MAGIC_MARKER_BRANCH,
-            branch_id,
-            hash,
+            branch_id: *branch_id,
+            hash: hash.raw,
         }
     }
 }
@@ -59,25 +57,25 @@ struct BlobHeader {
     magic_marker: RawId,
     timestamp: u64,
     length: u64,
-    hash: Hash,
+    hash: RawValue,
 }
 
 impl BlobHeader {
-    fn new(timestamp: u64, length: u64, hash: Hash) -> Self {
+    fn new<H: HashProtocol>(timestamp: u64, length: u64, hash: Value<Hash<H>>) -> Self {
         Self {
             magic_marker: MAGIC_MARKER_BLOB,
             timestamp,
             length,
-            hash,
+            hash: hash.raw,
         }
     }
 }
 
-pub struct Pile<const MAX_PILE_SIZE: usize> {
+pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
     file: Mutex<AppendFile>,
     mmap: Arc<memmap2::MmapRaw>,
-    index: RwLock<HashMap<Hash, Mutex<IndexEntry>>>,
-    branches: RwLock<HashMap<RawId, Hash>>,
+    index: RwLock<HashMap<Value<Hash<H>>, Mutex<IndexEntry>>>,
+    branches: RwLock<HashMap<Id, Value<Hash<H>>>>,
 }
 
 #[derive(Debug)]
@@ -147,7 +145,7 @@ impl<T> From<PoisonError<T>> for FlushError {
 
 //TODO Handle incomplete writes by truncating the file
 //TODO Add the ability to skip corrupted blobs
-impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
+impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     pub fn load(path: &Path) -> Result<Self, LoadError> {
         let file = OpenOptions::new()
             .read(true)
@@ -185,7 +183,7 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
                     let Ok(header) = bytes.view_prefix::<BlobHeader>() else {
                         return Err(LoadError::HeaderError);
                     };
-                    let hash = header.hash;
+                    let hash = Value::new(header.hash);
                     let length = header.length as usize;
                     let Some(blob_bytes) = bytes.take_prefix(length) else {
                         return Err(LoadError::UnexpectedEndOfFile);
@@ -205,8 +203,10 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
                     let Ok(header) = bytes.view_prefix::<BranchHeader>() else {
                         return Err(LoadError::HeaderError);
                     };
-                    let branch_id = header.branch_id;
-                    let hash = header.hash;
+                    let Some(branch_id) = Id::new(header.branch_id) else {
+                        return Err(LoadError::HeaderError);
+                    };
+                    let hash = Value::new(header.hash);
                     branches.insert(branch_id, hash);
                 }
                 _ => return Err(LoadError::MagicMarkerError),
@@ -232,7 +232,7 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
     #[must_use]
     fn insert_blob_raw(
         &mut self,
-        hash: Hash,
+        hash: Value<Hash<H>>,
         validation: ValidationState,
         value: &Bytes,
     ) -> Result<Bytes, InsertError> {
@@ -280,8 +280,8 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
         Ok(written_bytes)
     }
 
-    pub fn insert_blob(&mut self, value: &Bytes) -> Result<Hash, InsertError> {
-        let hash: Hash = Blake3::digest(&value).into();
+    pub fn insert_blob(&mut self, value: &Bytes) -> Result<Value<Hash<H>>, InsertError> {
+        let hash = Hash::<H>::digest(&value);
 
         let _bytes = self.insert_blob_raw(hash, ValidationState::Validated, value)?;
 
@@ -290,7 +290,7 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
 
     pub fn insert_blob_validated(
         &mut self,
-        hash: Hash,
+        hash: Value<Hash<H>>,
         value: &Bytes,
     ) -> Result<Bytes, InsertError> {
         self.insert_blob_raw(hash, ValidationState::Validated, value)
@@ -298,13 +298,13 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
 
     pub fn insert_blob_unvalidated(
         &mut self,
-        hash: Hash,
+        hash: Value<Hash<H>>,
         value: &Bytes,
     ) -> Result<Bytes, InsertError> {
         self.insert_blob_raw(hash, ValidationState::Unvalidated, value)
     }
 
-    pub fn get_blob(&self, hash: &Hash) -> Result<Option<Bytes>, GetError> {
+    pub fn get_blob(&self, hash: &Value<Hash<H>>) -> Result<Option<Bytes>, GetError> {
         let index = self.index.read().unwrap();
         let Some(blob) = index.get(hash) else {
             return Ok(None);
@@ -318,7 +318,7 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
                 return Err(GetError::ValidationError(entry.bytes.clone()));
             }
             ValidationState::Unvalidated => {
-                let computed_hash: Hash = Blake3::digest(&entry.bytes).into();
+                let computed_hash = Hash::<H>::digest(&entry.bytes);
                 if computed_hash != *hash {
                     entry.state = ValidationState::Invalid;
                     return Err(GetError::ValidationError(entry.bytes.clone()));
@@ -330,7 +330,7 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
         }
     }
 
-    pub fn commit_branch(&mut self, branch_id: RawId, hash: Hash) -> Result<(), InsertError> {
+    pub fn commit_branch(&mut self, branch_id: Id, hash: Value<Hash<H>>) -> Result<(), InsertError> {
         let mut append = self.file.lock().unwrap();
 
         let new_length = append.length + 64;
@@ -350,7 +350,7 @@ impl<const MAX_PILE_SIZE: usize> Pile<MAX_PILE_SIZE> {
         Ok(())
     }
 
-    pub fn get_branch(&self, branch_id: RawId) -> Option<Hash> {
+    pub fn get_branch(&self, branch_id: Id) -> Option<Value<Hash<H>>> {
         let branches = self.branches.read().unwrap();
         branches.get(&branch_id).copied()
     }

@@ -165,7 +165,7 @@ impl Trible {
         let mut data = [0; TRIBLE_LEN];
         data[E_START..=E_END].copy_from_slice(&e[..]);
         data[A_START..=A_END].copy_from_slice(&a[..]);
-        data[V_START..=V_END].copy_from_slice(&v.bytes[..]);
+        data[V_START..=V_END].copy_from_slice(&v.raw[..]);
 
         Self { data }
     }

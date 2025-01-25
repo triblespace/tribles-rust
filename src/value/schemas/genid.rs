@@ -31,10 +31,10 @@ impl<'a> TryFromValue<'a, GenId> for &'a RawId {
     type Error = IdParseError;
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
-        if value.bytes[0..16] != [0; 16] {
+        if value.raw[0..16] != [0; 16] {
             return Err(IdParseError::BadFormat);
         }
-        Ok(value.bytes[16..32].try_into().unwrap())
+        Ok(value.raw[16..32].try_into().unwrap())
     }
 }
 
@@ -72,10 +72,10 @@ impl<'a> TryFromValue<'a, GenId> for &'a Id {
     type Error = IdParseError;
 
     fn try_from_value(value: &'a Value<GenId>) -> Result<Self, Self::Error> {
-        if value.bytes[0..16] != [0; 16] {
+        if value.raw[0..16] != [0; 16] {
             return Err(IdParseError::BadFormat);
         }
-        if let Some(id) = Id::as_transmute_raw(value.bytes[16..32].try_into().unwrap()) {
+        if let Some(id) = Id::as_transmute_raw(value.raw[16..32].try_into().unwrap()) {
             return Ok(id);
         } else {
             return Err(IdParseError::IsNil);

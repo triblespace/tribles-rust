@@ -41,7 +41,7 @@ where
 
     fn propose(&self, variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
         if self.variable.index == variable {
-            proposals.extend(self.set.iter().map(|v| ToValue::to_value(v).bytes));
+            proposals.extend(self.set.iter().map(|v| ToValue::to_value(v).raw));
         }
     }
 

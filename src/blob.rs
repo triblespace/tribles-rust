@@ -56,6 +56,7 @@
 
 mod blobset;
 pub mod schemas;
+pub mod pile;
 
 use crate::{
     id::Id,

@@ -7,7 +7,6 @@ pub mod id;
 pub mod metadata;
 pub mod namespace;
 pub mod patch;
-pub mod pile;
 pub mod prelude;
 pub mod query;
 pub mod remote;

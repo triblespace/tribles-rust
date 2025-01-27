@@ -20,7 +20,7 @@ use crate::value::{
     RawValue, Value, ValueSchema,
 };
 
-use super::head::{CommitResult, Head};
+use super::branch::{CommitResult, Branch};
 use super::repo::{List, Pull, Push};
 
 pub struct ObjectRepo<H> {
@@ -127,16 +127,16 @@ where
     }
 }
 
-pub struct ObjectHead<H> {
+pub struct ObjectBranch<H> {
     store: Box<dyn ObjectStore>,
     path: Path,
     _hasher: PhantomData<H>,
 }
 
-impl<H> ObjectHead<H> {
-    pub fn with_url(url: &Url) -> Result<ObjectHead<H>, object_store::Error> {
+impl<H> ObjectBranch<H> {
+    pub fn with_url(url: &Url) -> Result<ObjectBranch<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;
-        Ok(ObjectHead {
+        Ok(ObjectBranch {
             store,
             path,
             _hasher: PhantomData,
@@ -202,7 +202,7 @@ impl From<TryFromSliceError> for CommitErr {
     }
 }
 
-impl<H> Head<H> for ObjectHead<H>
+impl<H> Branch<H> for ObjectBranch<H>
 where
     H: HashProtocol,
 {

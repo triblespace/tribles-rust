@@ -12,7 +12,7 @@ where
     Conflict(Option<Value<Hash<H>>>),
 }
 
-pub trait Head<H: HashProtocol> {
+pub trait Branch<H: HashProtocol> {
     type CheckoutErr;
     type CommitErr;
 

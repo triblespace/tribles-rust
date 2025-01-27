@@ -9,7 +9,7 @@ pub mod namespace;
 pub mod patch;
 pub mod prelude;
 pub mod query;
-pub mod remote;
+pub mod repo;
 pub mod trible;
 pub mod value;
 

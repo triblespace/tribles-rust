@@ -9,9 +9,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{collections::HashMap, io::Write};
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
+use crate::blob::schemas::UnknownBlob;
+use crate::blob::{Blob, BlobSchema};
 use crate::id::{Id, RawId};
+use crate::prelude::valueschemas::Handle;
+use crate::value::schemas::hash::{Blake3, Hash, HashProtocol};
 use crate::value::{RawValue, Value};
-use crate::value::schemas::hash::{Hash, HashProtocol, Blake3};
 
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
@@ -114,12 +117,33 @@ impl<T> From<PoisonError<T>> for InsertError {
 }
 
 #[derive(Debug)]
-pub enum GetError {
+pub enum UpdateBranchError<H: HashProtocol> {
+    PreviousHashMismatch(Option<Value<Hash<H>>>),
+    IoError(std::io::Error),
+    PoisonError,
+    PileTooLarge,
+}
+
+impl<H: HashProtocol> From<std::io::Error> for UpdateBranchError<H> {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
+impl<T, H: HashProtocol> From<PoisonError<T>> for UpdateBranchError<H> {
+    fn from(_err: PoisonError<T>) -> Self {
+        Self::PoisonError
+    }
+}
+
+#[derive(Debug)]
+pub enum GetBlobError {
+    BlobNotFound,
     PoisonError,
     ValidationError(Bytes),
 }
 
-impl<T> From<PoisonError<T>> for GetError {
+impl<T> From<PoisonError<T>> for GetBlobError {
     fn from(_err: PoisonError<T>) -> Self {
         Self::PoisonError
     }
@@ -231,17 +255,17 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
 
     #[must_use]
     fn insert_blob_raw(
-        &mut self,
+        &self,
         hash: Value<Hash<H>>,
         validation: ValidationState,
-        value: &Bytes,
+        bytes: &Bytes,
     ) -> Result<Bytes, InsertError> {
         let mut append = self.file.lock().unwrap();
 
         let old_length = append.length;
-        let padding = 64 - (value.len() % 64);
+        let padding = 64 - (bytes.len() % 64);
 
-        let new_length = old_length + 64 + value.len() + padding;
+        let new_length = old_length + 64 + bytes.len() + padding;
         if new_length > MAX_PILE_SIZE {
             return Err(InsertError::PileTooLarge);
         }
@@ -254,15 +278,15 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             .expect("time went backwards");
         let now_in_ms = now_since_epoch.as_millis();
 
-        let header = BlobHeader::new(now_in_ms as u64, value.len() as u64, hash);
+        let header = BlobHeader::new(now_in_ms as u64, bytes.len() as u64, hash);
 
         append.file.write_all(header.as_bytes())?;
-        append.file.write_all(&value)?;
+        append.file.write_all(bytes)?;
         append.file.write_all(&[0; 64][0..padding])?;
 
         let written_bytes = unsafe {
             let written_slice =
-                slice_from_raw_parts(self.mmap.as_ptr().offset(old_length as _), value.len())
+                slice_from_raw_parts(self.mmap.as_ptr().offset(old_length as _), bytes.len())
                     .as_ref()
                     .unwrap();
             Bytes::from_raw_parts(written_slice, self.mmap.clone())
@@ -280,10 +304,12 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         Ok(written_bytes)
     }
 
-    pub fn insert_blob(&mut self, value: &Bytes) -> Result<Value<Hash<H>>, InsertError> {
-        let hash = Hash::<H>::digest(&value);
+    pub fn insert_blob<T: BlobSchema>(&self, blob: Blob<T>) -> Result<Value<Hash<H>>, InsertError> {
+        let handle: Value<Handle<H, T>> = blob.get_handle();
+        let hash = handle.into();
 
-        let _bytes = self.insert_blob_raw(hash, ValidationState::Validated, value)?;
+        let bytes = &blob.bytes;
+        let _on_disk_bytes = self.insert_blob_raw(hash, ValidationState::Validated, bytes)?;
 
         Ok(hash)
     }
@@ -304,33 +330,72 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         self.insert_blob_raw(hash, ValidationState::Unvalidated, value)
     }
 
-    pub fn get_blob(&self, hash: &Value<Hash<H>>) -> Result<Option<Bytes>, GetError> {
+    pub fn get_blob<T: BlobSchema>(
+        &self,
+        handle: &Value<Handle<H, T>>,
+    ) -> Result<Blob<T>, GetBlobError> {
+        let hash: &Value<Hash<H>> = handle.as_transmute();
         let index = self.index.read().unwrap();
         let Some(blob) = index.get(hash) else {
-            return Ok(None);
+            return Err(GetBlobError::BlobNotFound);
         };
         let mut entry = blob.lock().unwrap();
         match entry.state {
             ValidationState::Validated => {
-                return Ok(Some(entry.bytes.clone()));
+                return Ok(Blob::new(entry.bytes.clone()));
             }
             ValidationState::Invalid => {
-                return Err(GetError::ValidationError(entry.bytes.clone()));
+                return Err(GetBlobError::ValidationError(entry.bytes.clone()));
             }
             ValidationState::Unvalidated => {
                 let computed_hash = Hash::<H>::digest(&entry.bytes);
                 if computed_hash != *hash {
                     entry.state = ValidationState::Invalid;
-                    return Err(GetError::ValidationError(entry.bytes.clone()));
+                    return Err(GetBlobError::ValidationError(entry.bytes.clone()));
                 } else {
                     entry.state = ValidationState::Validated;
-                    return Ok(Some(entry.bytes.clone()));
+                    return Ok(Blob::new(entry.bytes.clone()));
                 }
             }
         }
     }
 
-    pub fn commit_branch(&mut self, branch_id: Id, hash: Value<Hash<H>>) -> Result<(), InsertError> {
+    pub fn update_branch(
+        &self,
+        branch_id: Id,
+        old_hash: Option<Value<Hash<H>>>,
+        new_hash: Value<Hash<H>>,
+    ) -> Result<(), UpdateBranchError<H>> {
+        let mut append = self.file.lock().unwrap();
+
+        {
+            let branches = self.branches.read().unwrap();
+            let current_hash = branches.get(&branch_id);
+            if current_hash != old_hash.as_ref() {
+                return Err(UpdateBranchError::PreviousHashMismatch(
+                    current_hash.cloned(),
+                ));
+            }
+        }
+
+        let new_length = append.length + 64;
+        if new_length > MAX_PILE_SIZE {
+            return Err(UpdateBranchError::PileTooLarge);
+        }
+
+        append.length = new_length;
+
+        let header = BranchHeader::new(branch_id, new_hash);
+
+        append.file.write_all(header.as_bytes())?;
+
+        let mut branches = self.branches.write()?;
+        branches.insert(branch_id, new_hash);
+
+        Ok(())
+    }
+
+    pub fn set_branch(&self, branch_id: Id, hash: Value<Hash<H>>) -> Result<(), InsertError> {
         let mut append = self.file.lock().unwrap();
 
         let new_length = append.length + 64;
@@ -362,6 +427,123 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     }
 }
 
+impl<const MAX_PILE_SIZE: usize, H> Drop for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    fn drop(&mut self) {
+        self.flush().unwrap();
+    }
+}
+
+use super::{ListBlobs, ListBranches, PullBlob, PullBranch, PushBlob, PushBranch, PushResult};
+
+impl<const MAX_PILE_SIZE: usize, H> ListBlobs<H> for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    type Err = std::convert::Infallible;
+
+    fn list<'a>(
+        &'a self,
+    ) -> impl futures::stream::Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>> {
+        let index = self.index.read().unwrap();
+        let keys: Vec<Result<Value<Handle<H, UnknownBlob>>, _>> = index
+            .keys()
+            .copied()
+            .map(|hash| Ok(hash.transmute()))
+            .collect();
+        futures::stream::iter(keys)
+    }
+}
+
+impl<const MAX_PILE_SIZE: usize, H> PullBlob<H> for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    type Err = GetBlobError;
+
+    fn pull<T>(
+        &self,
+        hash: Value<crate::prelude::valueschemas::Handle<H, T>>,
+    ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
+    where
+        T: crate::prelude::BlobSchema + 'static,
+    {
+        async move { self.get_blob(&hash) }
+    }
+}
+
+impl<const MAX_PILE_SIZE: usize, H> PushBlob<H> for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    type Err = InsertError;
+
+    fn push<T: BlobSchema>(
+        &self,
+        blob: Blob<T>,
+    ) -> impl futures::Future<Output = Result<Value<Handle<H, T>>, <Self as PushBlob<H>>::Err>>
+    where
+        T: crate::prelude::BlobSchema + 'static,
+    {
+        async move {
+            let hash = self.insert_blob(blob)?;
+            Ok(hash.transmute())
+        }
+    }
+}
+
+impl<const MAX_PILE_SIZE: usize, H> ListBranches<H> for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    type Err = std::convert::Infallible;
+
+    fn list<'a>(&'a self) -> impl futures::stream::Stream<Item = Result<Id, Self::Err>> {
+        let branches = self.branches.read().unwrap();
+        let keys: Vec<Result<Id, _>> = branches.keys().copied().map(|id| Ok(id)).collect();
+        futures::stream::iter(keys)
+    }
+}
+
+impl<const MAX_PILE_SIZE: usize, H> PullBranch<H> for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    type Err = std::convert::Infallible;
+
+    fn pull(
+        &self,
+        id: Id,
+    ) -> impl std::future::Future<Output = Result<Option<Value<Hash<H>>>, Self::Err>> {
+        Box::pin(async move { Ok(self.get_branch(id)) })
+    }
+}
+
+impl<const MAX_PILE_SIZE: usize, H> PushBranch<H> for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    type Err = UpdateBranchError<H>;
+
+    fn push(
+        &self,
+        id: Id,
+        old: Option<Value<Hash<H>>>,
+        new: Value<Hash<H>>,
+    ) -> impl std::future::Future<Output = Result<super::PushResult<H>, Self::Err>> {
+        async move {
+            let result = self.update_branch(id, old, new);
+            match result {
+                Ok(()) => Ok(PushResult::Success()),
+                Err(UpdateBranchError::PreviousHashMismatch(old)) => Ok(PushResult::Conflict(old)),
+                Err(err) => Err(err),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -378,14 +560,14 @@ mod tests {
         let mut rng = rand::thread_rng();
         let tmp_dir = tempfile::tempdir().unwrap();
         let tmp_pile = tmp_dir.path().join("test.pile");
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
+        let pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
 
         (0..RECORD_COUNT).for_each(|_| {
             let mut record = Vec::with_capacity(RECORD_LEN);
             rng.fill_bytes(&mut record);
 
-            let data = Bytes::from_source(record);
-            pile.insert_blob(&data).unwrap();
+            let data: Blob<UnknownBlob> = Blob::new(Bytes::from_source(record));
+            pile.insert_blob(data).unwrap();
         });
 
         pile.flush().unwrap();

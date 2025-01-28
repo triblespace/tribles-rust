@@ -15,24 +15,27 @@ use hex::FromHex;
 
 use crate::blob::schemas::UnknownBlob;
 use crate::blob::{Blob, BlobSchema};
+use crate::id::{Id, RawId};
 use crate::value::{
     schemas::hash::{Handle, Hash, HashProtocol},
     RawValue, Value, ValueSchema,
 };
 
-use super::branch::{CommitResult, Branch};
-use super::repo::{List, Pull, Push};
+use super::{ListBlobs, ListBranches, PullBlob, PullBranch, PushBlob, PushBranch, PushResult};
 
-pub struct ObjectRepo<H> {
+const BRANCH_INFIX: &str = "branches";
+const BLOB_INFIX: &str = "blobs";
+
+pub struct ObjectStoreRepo<H> {
     store: Box<dyn ObjectStore>,
     prefix: Path,
     _hasher: PhantomData<H>,
 }
 
-impl<H> ObjectRepo<H> {
-    pub fn with_url(url: &Url) -> Result<ObjectRepo<H>, object_store::Error> {
+impl<H> ObjectStoreRepo<H> {
+    pub fn with_url(url: &Url) -> Result<ObjectStoreRepo<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;
-        Ok(ObjectRepo {
+        Ok(ObjectStoreRepo {
             store,
             prefix: path,
             _hasher: PhantomData,
@@ -40,38 +43,45 @@ impl<H> ObjectRepo<H> {
     }
 }
 
-pub enum ListErr {
+pub enum ListBlobsErr {
     List(object_store::Error),
     NotAFile(&'static str),
     BadNameHex(<RawValue as FromHex>::Error),
 }
 
-impl<H> List<H> for ObjectRepo<H>
+pub enum ListBranchesErr {
+    List(object_store::Error),
+    NotAFile(&'static str),
+    BadNameHex(<RawId as FromHex>::Error),
+    BadId,
+}
+
+impl<H> ListBlobs<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
-    type Err = ListErr;
+    type Err = ListBlobsErr;
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>> {
         self.store
-            .list(Some(&self.prefix))
+            .list(Some(&self.prefix.child(BLOB_INFIX)))
             .map(|r| match r {
                 Ok(meta) => {
                     let blob_name = meta
                         .location
                         .filename()
-                        .ok_or(ListErr::NotAFile("no filename"))?;
+                        .ok_or(ListBlobsErr::NotAFile("no filename"))?;
                     let digest =
-                        RawValue::from_hex(blob_name).map_err(|e| ListErr::BadNameHex(e))?;
+                        RawValue::from_hex(blob_name).map_err(|e| ListBlobsErr::BadNameHex(e))?;
                     Ok(Value::new(digest))
                 }
-                Err(e) => Err(ListErr::List(e)),
+                Err(e) => Err(ListBlobsErr::List(e)),
             })
             .boxed()
     }
 }
 
-impl<H> Pull<H> for ObjectRepo<H>
+impl<H> PullBlob<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
@@ -85,7 +95,7 @@ where
         T: BlobSchema,
     {
         async move {
-            let path = self.prefix.child(hex::encode(handle.raw));
+            let path = self.prefix.child(BLOB_INFIX).child(hex::encode(handle.raw));
             let result = self.store.get(&path).await?;
             let object = result.bytes().await?;
             let bytes: Bytes = object.into();
@@ -94,7 +104,7 @@ where
     }
 }
 
-impl<H> Push<H> for ObjectRepo<H>
+impl<H> PushBlob<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
@@ -110,7 +120,7 @@ where
     {
         async move {
             let handle = blob.get_handle();
-            let path = self.prefix.child(hex::encode(handle.raw));
+            let path = self.prefix.child(BLOB_INFIX).child(hex::encode(handle.raw));
             let put_result = self
                 .store
                 .put_opts(
@@ -127,30 +137,13 @@ where
     }
 }
 
-pub struct ObjectBranch<H> {
-    store: Box<dyn ObjectStore>,
-    path: Path,
-    _hasher: PhantomData<H>,
-}
-
-impl<H> ObjectBranch<H> {
-    pub fn with_url(url: &Url) -> Result<ObjectBranch<H>, object_store::Error> {
-        let (store, path) = parse_url(&url)?;
-        Ok(ObjectBranch {
-            store,
-            path,
-            _hasher: PhantomData,
-        })
-    }
-}
-
 #[derive(Debug)]
-pub enum CheckoutErr {
+pub enum PullBranchErr {
     ValidationErr(TryFromSliceError),
     StoreErr(object_store::Error),
 }
 
-impl fmt::Display for CheckoutErr {
+impl fmt::Display for PullBranchErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::StoreErr(e) => write!(f, "checkout failed: {}", e),
@@ -159,27 +152,27 @@ impl fmt::Display for CheckoutErr {
     }
 }
 
-impl Error for CheckoutErr {}
+impl Error for PullBranchErr {}
 
-impl From<object_store::Error> for CheckoutErr {
+impl From<object_store::Error> for PullBranchErr {
     fn from(err: object_store::Error) -> Self {
         Self::StoreErr(err)
     }
 }
 
-impl From<TryFromSliceError> for CheckoutErr {
+impl From<TryFromSliceError> for PullBranchErr {
     fn from(err: TryFromSliceError) -> Self {
         Self::ValidationErr(err)
     }
 }
 
 #[derive(Debug)]
-pub enum CommitErr {
+pub enum PushBranchErr {
     ValidationErr(TryFromSliceError),
     StoreErr(object_store::Error),
 }
 
-impl fmt::Display for CommitErr {
+impl fmt::Display for PushBranchErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::ValidationErr(e) => write!(f, "commit failed: {}", e),
@@ -188,29 +181,30 @@ impl fmt::Display for CommitErr {
     }
 }
 
-impl Error for CommitErr {}
+impl Error for PushBranchErr {}
 
-impl From<object_store::Error> for CommitErr {
+impl From<object_store::Error> for PushBranchErr {
     fn from(err: object_store::Error) -> Self {
         Self::StoreErr(err)
     }
 }
 
-impl From<TryFromSliceError> for CommitErr {
+impl From<TryFromSliceError> for PushBranchErr {
     fn from(err: TryFromSliceError) -> Self {
         Self::ValidationErr(err)
     }
 }
 
-impl<H> Branch<H> for ObjectBranch<H>
+impl<H> PullBranch<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
-    type CheckoutErr = CheckoutErr;
-    type CommitErr = CommitErr;
+    type Err = PullBranchErr;
 
-    async fn checkout(&self) -> Result<Option<Value<Hash<H>>>, Self::CheckoutErr> {
-        let result = self.store.get(&self.path).await;
+    async fn pull(&self, branch: Id) -> Result<Option<Value<Hash<H>>>, Self::Err> {
+        let branch_name = hex::encode(&branch);
+        let path = self.prefix.child(BRANCH_INFIX).child(branch_name);
+        let result = self.store.get(&path).await;
         match result {
             Ok(result) => {
                 let bytes = result.bytes().await?;
@@ -221,16 +215,27 @@ where
             Err(e) => Err(e)?,
         }
     }
+}
 
-    async fn commit(
+impl<H> PushBranch<H> for ObjectStoreRepo<H>
+where
+    H: HashProtocol,
+{
+    type Err = PushBranchErr;
+
+    async fn push(
         &self,
+        branch_id: Id,
         old_hash: Option<Value<Hash<H>>>,
         new_hash: Value<Hash<H>>,
-    ) -> Result<CommitResult<H>, Self::CommitErr> {
+    ) -> Result<PushResult<H>, Self::Err> {
+        let branch_name = hex::encode(&branch_id);
+        let path = &self.prefix.child(BRANCH_INFIX).child(branch_name);
+
         let new_bytes = bytes::Bytes::copy_from_slice(&new_hash.raw);
 
         if let Some(old_hash) = old_hash {
-            let mut result = self.store.get(&self.path).await;
+            let mut result = self.store.get(path).await;
             loop {
                 // Attempt to commit
                 match result {
@@ -244,27 +249,27 @@ where
                         let stored_value = (&stored_bytes[..]).try_into()?;
                         let stored_hash = Value::new(stored_value);
                         if old_hash != stored_hash {
-                            return Ok(CommitResult::Conflict(Some(stored_hash)));
+                            return Ok(PushResult::Conflict(Some(stored_hash)));
                         }
                         match self
                             .store
                             .put_opts(
-                                &self.path,
+                                &path,
                                 new_bytes.clone().into(),
                                 PutMode::Update(version).into(),
                             )
                             .await
                         {
-                            Ok(_) => return Ok(CommitResult::Success()), // Successfully committed
+                            Ok(_) => return Ok(PushResult::Success()), // Successfully committed
                             Err(object_store::Error::Precondition { .. }) => {
-                                result = self.store.get(&self.path).await;
+                                result = self.store.get(&path).await;
                                 continue;
                             }
                             Err(e) => return Err(e.into()),
                         }
                     }
                     Err(object_store::Error::NotFound { .. }) => {
-                        return Ok(CommitResult::Conflict(None));
+                        return Ok(PushResult::Conflict(None));
                     }
                     Err(e) => return Err(e.into()),
                 }
@@ -274,17 +279,17 @@ where
                 // Attempt to commit
                 match self
                     .store
-                    .put_opts(&self.path, new_bytes.clone().into(), PutMode::Create.into())
+                    .put_opts(&path, new_bytes.clone().into(), PutMode::Create.into())
                     .await
                 {
-                    Ok(_) => return Ok(CommitResult::Success()), // Successfully committed
+                    Ok(_) => return Ok(PushResult::Success()), // Successfully committed
                     Err(object_store::Error::AlreadyExists { .. }) => {
-                        let result = self.store.get(&self.path).await;
+                        let result = self.store.get(path).await;
                         match result {
                             Ok(result) => {
                                 let stored_bytes = result.bytes().await?;
                                 let stored_value = (&stored_bytes[..]).try_into()?;
-                                return Ok(CommitResult::Conflict(Some(Value::new(stored_value))));
+                                return Ok(PushResult::Conflict(Some(Value::new(stored_value))));
                             }
                             Err(object_store::Error::NotFound { .. }) => {
                                 continue; // Object no longer exists try again
@@ -296,5 +301,33 @@ where
                 }
             }
         }
+    }
+}
+
+impl<H> ListBranches<H> for ObjectStoreRepo<H>
+where
+    H: HashProtocol,
+{
+    type Err = ListBranchesErr;
+
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Id, Self::Err>> {
+        self.store
+            .list(Some(&self.prefix.child(BRANCH_INFIX)))
+            .map(|r| match r {
+                Ok(meta) => {
+                    let branch_name = meta
+                        .location
+                        .filename()
+                        .ok_or(ListBranchesErr::NotAFile("no filename"))?;
+                    let digest =
+                        RawId::from_hex(branch_name).map_err(|e| ListBranchesErr::BadNameHex(e))?;
+                    let Some(new_id) = Id::new(digest) else {
+                        return Err(ListBranchesErr::BadId);
+                    };
+                    Ok(new_id)
+                }
+                Err(e) => Err(ListBranchesErr::List(e)),
+            })
+            .boxed()
     }
 }

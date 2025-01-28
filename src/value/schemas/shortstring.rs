@@ -28,13 +28,7 @@ impl<'a> TryFromValue<'a, ShortString> for &'a str {
     type Error = Utf8Error;
 
     fn try_from_value(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
-        std::str::from_utf8(
-            &v.raw[0..v
-                .raw
-                .iter()
-                .position(|&b| b == 0)
-                .unwrap_or(v.raw.len())],
-        )
+        std::str::from_utf8(&v.raw[0..v.raw.iter().position(|&b| b == 0).unwrap_or(v.raw.len())])
     }
 }
 

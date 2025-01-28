@@ -22,8 +22,197 @@
 //!
 //!
 pub mod commit;
-pub mod branch;
 pub mod objectstore;
-pub mod repo;
+pub mod pile;
 
-pub use branch::Branch;
+use std::{
+    convert::Infallible,
+    error::Error,
+    fmt::{self, Debug},
+};
+
+use futures::{stream, Stream, StreamExt};
+
+use crate::{
+    blob::{schemas::UnknownBlob, Blob, BlobSchema, BlobSet},
+    id::Id,
+    value::{
+        schemas::hash::{Handle, Hash, HashProtocol},
+        Value, ValueSchema,
+    },
+};
+
+#[derive(Debug)]
+pub enum TransferError<ListErr, LoadErr, StoreErr> {
+    List(ListErr),
+    Load(LoadErr),
+    Store(StoreErr),
+}
+
+impl<ListErr, LoadErr, StoreErr> fmt::Display for TransferError<ListErr, LoadErr, StoreErr> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to transfer blob")
+    }
+}
+
+impl<ListErr, LoadErr, StoreErr> Error for TransferError<ListErr, LoadErr, StoreErr>
+where
+    ListErr: Debug + Error + 'static,
+    LoadErr: Debug + Error + 'static,
+    StoreErr: Debug + Error + 'static,
+{
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::List(e) => Some(e),
+            Self::Load(e) => Some(e),
+            Self::Store(e) => Some(e),
+        }
+    }
+}
+
+pub async fn transfer<'a, BS, BT, HS, HT, S>(
+    source: &'a BS,
+    target: &'a BT,
+) -> impl Stream<
+    Item = Result<
+        (
+            Value<Handle<HS, UnknownBlob>>,
+            Value<Handle<HT, UnknownBlob>>,
+        ),
+        TransferError<
+            <BS as ListBlobs<HS>>::Err,
+            <BS as PullBlob<HS>>::Err,
+            <BT as PushBlob<HT>>::Err,
+        >,
+    >,
+> + 'a
+where
+    BS: ListBlobs<HS> + PullBlob<HS>,
+    BT: PushBlob<HT>,
+    HS: 'static + HashProtocol,
+    HT: 'static + HashProtocol,
+{
+    let l = source.list();
+    let r =
+        l.then(
+            move |source_handle: Result<
+                Value<Handle<HS, UnknownBlob>>,
+                <BS as ListBlobs<HS>>::Err,
+            >| async move {
+                let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
+                let blob = source
+                    .pull(source_handle)
+                    .await
+                    .map_err(|e| TransferError::Load(e))?;
+                let target_handle = target
+                    .push(blob)
+                    .await
+                    .map_err(|e| TransferError::Store(e))?;
+                Ok((source_handle, target_handle))
+            },
+        );
+    r
+}
+
+pub trait ListBlobs<H: HashProtocol> {
+    type Err;
+
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>>;
+}
+pub trait PullBlob<H: HashProtocol> {
+    type Err;
+
+    fn pull<T>(
+        &self,
+        handle: Value<Handle<H, T>>,
+    ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
+    where
+        T: BlobSchema + 'static;
+}
+
+pub trait PushBlob<H> {
+    type Err;
+
+    fn push<T>(
+        &self,
+        blob: Blob<T>,
+    ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
+    where
+        T: BlobSchema + 'static,
+        Handle<H, T>: ValueSchema;
+}
+
+pub trait BlobRepo<H: HashProtocol>: ListBlobs<H> + PullBlob<H> + PushBlob<H> {}
+
+#[derive(Debug)]
+pub struct NotFoundErr();
+
+impl fmt::Display for NotFoundErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "no blob for hash in blobset")
+    }
+}
+
+impl Error for NotFoundErr {}
+
+impl<H> ListBlobs<H> for BlobSet<H>
+where
+    H: HashProtocol,
+{
+    type Err = Infallible;
+
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>> {
+        stream::iter((&self).into_iter().map(|(&hash, _)| Ok(hash)))
+    }
+}
+
+impl<H> PullBlob<H> for BlobSet<H>
+where
+    H: HashProtocol,
+{
+    type Err = NotFoundErr;
+
+    async fn pull<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    where
+        T: BlobSchema,
+    {
+        self.get(handle).ok_or(NotFoundErr())
+    }
+}
+
+#[derive(Debug)]
+pub enum PushResult<H>
+where
+    H: HashProtocol,
+{
+    Success(),
+    Conflict(Option<Value<Hash<H>>>),
+}
+
+pub trait ListBranches<H: HashProtocol> {
+    type Err;
+
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Id, Self::Err>>;
+}
+
+pub trait PullBranch<H: HashProtocol> {
+    type Err;
+
+    fn pull(
+        &self,
+        id: Id,
+    ) -> impl std::future::Future<Output = Result<Option<Value<Hash<H>>>, Self::Err>>;
+}
+
+pub trait PushBranch<H: HashProtocol> {
+    type Err;
+
+    fn push(
+        &self,
+        id: Id,
+        old: Option<Value<Hash<H>>>,
+        new: Value<Hash<H>>,
+    ) -> impl std::future::Future<Output = Result<PushResult<H>, Self::Err>>;
+}
+
+pub trait BranchRepo<H: HashProtocol>: ListBranches<H> + PullBranch<H> + PushBranch<H> {}

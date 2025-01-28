@@ -158,12 +158,31 @@ impl<S: ValueSchema> Value<S> {
     }
 
     /// Transmute a value from one schema type to another.
+    /// This is a safe operation, as the bytes are not changed.
+    /// The schema type is only changed in the type system.
+    /// This is a zero-cost operation.
+    /// This is useful when you have a value with an abstract schema type,
+    /// but you know the concrete schema type.
     pub fn transmute<O>(self) -> Value<O>
     where
         O: ValueSchema,
     {
         Value::new(self.raw)
     }
+
+    /// Transmute a value reference from one schema type to another.
+    /// This is a safe operation, as the bytes are not changed.
+    /// The schema type is only changed in the type system.
+    /// This is a zero-cost operation.
+    /// This is useful when you have a value reference with an abstract schema type,
+    /// but you know the concrete schema type.
+    pub fn as_transmute<O>(&self) -> &Value<O>
+    where
+        O: ValueSchema,
+    {
+        unsafe { std::mem::transmute(self) }
+    }
+
     /// Transmute a raw value reference to a value reference.
     ///
     /// # Example

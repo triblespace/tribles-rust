@@ -4,7 +4,7 @@ use crate::id_hex;
 
 use std::str::Utf8Error;
 
-use anybytes::{View, view::ViewError};
+use anybytes::{view::ViewError, View};
 
 pub struct LongString {}
 

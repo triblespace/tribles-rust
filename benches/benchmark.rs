@@ -9,6 +9,7 @@ use sucds::Serializable;
 use tribles::blob::schemas::succinctarchive::{
     CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
 };
+use tribles::blob::schemas::UnknownBlob;
 
 use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
@@ -742,9 +743,10 @@ fn pile_benchmark(c: &mut Criterion) {
             |data: Vec<Bytes>| {
                 let tmp_dir = tempfile::tempdir().unwrap();
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
+                let pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
-                    pile.insert_blob(data).unwrap();
+                    pile.insert_blob(UnknownBlob::blob_from(data.clone()))
+                        .unwrap();
                 });
             },
             BatchSize::PerIteration,
@@ -799,9 +801,10 @@ fn pile_benchmark(c: &mut Criterion) {
             |data: Vec<Bytes>| {
                 let tmp_dir = tempfile::tempdir().unwrap();
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
+                let pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
-                    pile.insert_blob(data).unwrap();
+                    pile.insert_blob(UnknownBlob::blob_from(data.clone()))
+                        .unwrap();
                     pile.flush().unwrap();
                 });
             },
@@ -816,14 +819,15 @@ fn pile_benchmark(c: &mut Criterion) {
                 let mut rng = rand::thread_rng();
                 let tmp_dir = tempfile::tempdir().unwrap();
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
+                let pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
 
                 (0..RECORD_COUNT).for_each(|_| {
                     let mut record = vec![0u8; RECORD_LEN];
                     rng.fill_bytes(&mut record);
 
                     let data = Bytes::from_source(record);
-                    pile.insert_blob(&data).unwrap();
+                    pile.insert_blob(UnknownBlob::blob_from(data.clone()))
+                        .unwrap();
                 });
 
                 pile.flush().unwrap();
@@ -904,7 +908,6 @@ fn pile_benchmark(c: &mut Criterion) {
 
     */
 }
-
 
 criterion_group!(
     benches,

@@ -168,10 +168,18 @@ mod tests {
         let mut blobs_b: BlobSet<Blake3> = BlobSet::new();
 
         for _i in 0..1000 {
-            blobs_a.insert(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap());
+            blobs_a.insert(
+                Bytes::from_source(Name(EN).fake::<String>())
+                    .view()
+                    .unwrap(),
+            );
         }
         for _i in 0..1000 {
-            blobs_b.insert(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap());
+            blobs_b.insert(
+                Bytes::from_source(Name(EN).fake::<String>())
+                    .view()
+                    .unwrap(),
+            );
         }
 
         blobs_a.union(blobs_b);

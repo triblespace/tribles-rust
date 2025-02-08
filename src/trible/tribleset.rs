@@ -185,6 +185,12 @@ impl<'a> IntoIterator for &'a TribleSet {
     }
 }
 
+impl Default for TribleSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::examples::literature;

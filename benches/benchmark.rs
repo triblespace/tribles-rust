@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
-use sucds::int_vectors::DacsByte;
+use sucds::int_vectors::{DacsByte, DacsOpt};
 use sucds::Serializable;
 use tribles::blob::schemas::succinctarchive::{
     CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
@@ -25,7 +25,7 @@ use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 
-type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse<DacsByte>>;
+type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse<DacsOpt>>;
 
 //use peak_alloc::PeakAlloc;
 //#[global_allocator]

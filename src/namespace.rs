@@ -41,8 +41,8 @@ macro_rules! pattern_inner {
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $ctx.next_variable();
-            let v: $crate::value::Value<ns::schemas::$FieldName> = $Value.to_value();
-            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.to_value())));
+            let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
+            $constraints.push(Box::new(a_var.is($crate::value::ToValue::to_value(ns::ids::$FieldName))));
             $constraints.push(Box::new(v_var.is(v)));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
@@ -54,7 +54,7 @@ macro_rules! pattern_inner {
             use $Namespace as ns;
             let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
             let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $Value;
-            $constraints.push(Box::new(a_var.is(ns::ids::$FieldName.to_value())));
+            $constraints.push(Box::new(a_var.is($crate::value::ToValue::to_value(ns::ids::$FieldName))));
             $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
         }
 
@@ -63,7 +63,7 @@ macro_rules! pattern_inner {
     (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            $constraints.push({ let e: $crate::id::Id = $EntityId; Box::new(e_var.is(e.to_value()))});
+            $constraints.push({ let e: $crate::id::Id = $EntityId; Box::new(e_var.is($crate::value::ToValue::to_value(e)))});
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
         }
     };
@@ -75,7 +75,7 @@ macro_rules! pattern_inner {
         }
     };
 
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),*})) => {
+    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),* $(,)?})) => {
         {
             let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
             $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*

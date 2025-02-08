@@ -1,3 +1,34 @@
+//! A Pile is a collection of Blobs and Branches stored in a single file,
+//! it is designed to be used as a local storage for a repository.
+//! It is append-only for durability and memory-mapped for fast access.
+//! Blobs are stored in the file as-is, and are identified by their hash.
+//! Branches are stored in the file as a mapping from a branch id to a blob hash.
+//! It can safely be shared between threads.
+//! 
+//! # File Format
+//! ## Blob Storage
+//! ```text
+//!                              8 byte  8 byte
+//!             ┌────16 byte───┐┌──────┐┌──────┐┌────────────32 byte───────────┐
+//!           ┌ ┌──────────────┐┌──────┐┌──────┐┌──────────────────────────────┐
+//!  header   │ │magic number A││ time ││length││             hash             │
+//!           └ └──────────────┘└──────┘└──────┘└──────────────────────────────┘
+//!             ┌────────────────────────────64 byte───────────────────────────┐
+//!           ┌ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
+//!           │ │                                                              │
+//!  payload  │ │              bytes (64byte aligned and padded)               │
+//!           │ │                                                              │
+//!           └ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
+//! ```
+//! 
+//! ## Branch Storage
+//! ```text
+//!             ┌────16 byte───┐┌────16 byte───┐┌────────────32 byte───────────┐
+//!           ┌ ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
+//!  header   │ │magic number B││  branch id   ││             hash             │
+//!           └ └──────────────┘└──────────────┘└──────────────────────────────┘
+//! ```
+
 use anybytes::Bytes;
 use hex_literal::hex;
 use memmap2::MmapOptions;

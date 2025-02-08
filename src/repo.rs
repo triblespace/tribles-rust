@@ -22,6 +22,7 @@
 //!
 //!
 pub mod commit;
+pub mod branch;
 pub mod objectstore;
 pub mod pile;
 
@@ -39,79 +40,44 @@ use crate::{
     value::{
         schemas::hash::{Handle, Hash, HashProtocol},
         Value, ValueSchema,
-    },
+    }, NS,
+};
+use crate::prelude::valueschemas::GenId;
+
+use crate::{
+    blob::schemas::simplearchive::SimpleArchive, value::schemas::{
+            ed25519 as ed, hash::Blake3, shortstring::ShortString
+        }
 };
 
-#[derive(Debug)]
-pub enum TransferError<ListErr, LoadErr, StoreErr> {
-    List(ListErr),
-    Load(LoadErr),
-    Store(StoreErr),
-}
-
-impl<ListErr, LoadErr, StoreErr> fmt::Display for TransferError<ListErr, LoadErr, StoreErr> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "failed to transfer blob")
+NS! {
+    /// The `commits` namespace contains attributes describing commits in a repository.
+    /// Commits are a fundamental building block of version control systems.
+    /// They represent a snapshot of the repository at a specific point in time.
+    /// Commits are immutable, append-only, and form a chain of history.
+    /// Each commit is identified by a unique hash, and contains a reference to the previous commit.
+    /// Commits are signed by the author, and can be verified by anyone with the author's public key.
+    pub namespace repo {
+        /// The actual data of the commit.
+        "4DD4DDD05CC31734B03ABB4E43188B1F" as content: Handle<Blake3, SimpleArchive>;
+        /// A commit that this commit is based on.
+        "317044B612C690000D798CA660ECFD2A" as parent: Handle<Blake3, SimpleArchive>;
+        /// A short message describing the commit.
+        /// Used by tools displaying the commit history.
+        "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
+        /// The hash of the first commit in the commit chain of the branch.
+        "272FBC56108F336C4D2E17289468C35F" as head: Handle<Blake3, SimpleArchive>;
+        /// An id used to track the branch.
+        /// This id is unique to the branch, and is used to identify the branch in the repository.
+        "8694CC73AF96A5E1C7635C677D1B928A" as branch: GenId;
+        //"723C45065E7FCF1D52E86AD8D856A20D" as cached_rollup: Handle<Blake3, SuccinctArchive<CachedUniverse<1024, 1024, CompressedUniverse<DacsOpt>>, Rank9Sel>>;
+        /// The author of the signature identified by their ed25519 public key.
+        "ADB4FFAD247C886848161297EFF5A05B" as signed_by: ed::ED25519PublicKey;
+        /// The `r` part of a ed25519 signature.
+        "9DF34F84959928F93A3C40AEB6E9E499" as signature_r: ed::ED25519RComponent;
+        /// The `s` part of a ed25519 signature.
+        "1ACE03BF70242B289FDF00E4327C3BC6" as signature_s: ed::ED25519SComponent;
     }
-}
-
-impl<ListErr, LoadErr, StoreErr> Error for TransferError<ListErr, LoadErr, StoreErr>
-where
-    ListErr: Debug + Error + 'static,
-    LoadErr: Debug + Error + 'static,
-    StoreErr: Debug + Error + 'static,
-{
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::List(e) => Some(e),
-            Self::Load(e) => Some(e),
-            Self::Store(e) => Some(e),
-        }
-    }
-}
-
-pub async fn transfer<'a, BS, BT, HS, HT, S>(
-    source: &'a BS,
-    target: &'a BT,
-) -> impl Stream<
-    Item = Result<
-        (
-            Value<Handle<HS, UnknownBlob>>,
-            Value<Handle<HT, UnknownBlob>>,
-        ),
-        TransferError<
-            <BS as ListBlobs<HS>>::Err,
-            <BS as PullBlob<HS>>::Err,
-            <BT as PushBlob<HT>>::Err,
-        >,
-    >,
-> + 'a
-where
-    BS: ListBlobs<HS> + PullBlob<HS>,
-    BT: PushBlob<HT>,
-    HS: 'static + HashProtocol,
-    HT: 'static + HashProtocol,
-{
-    let l = source.list();
-    let r =
-        l.then(
-            move |source_handle: Result<
-                Value<Handle<HS, UnknownBlob>>,
-                <BS as ListBlobs<HS>>::Err,
-            >| async move {
-                let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
-                let blob = source
-                    .pull(source_handle)
-                    .await
-                    .map_err(|e| TransferError::Load(e))?;
-                let target_handle = target
-                    .push(blob)
-                    .await
-                    .map_err(|e| TransferError::Store(e))?;
-                Ok((source_handle, target_handle))
-            },
-        );
-    r
 }
 
 pub trait ListBlobs<H: HashProtocol> {
@@ -216,3 +182,106 @@ pub trait PushBranch<H: HashProtocol> {
 }
 
 pub trait BranchRepo<H: HashProtocol>: ListBranches<H> + PullBranch<H> + PushBranch<H> {}
+
+#[derive(Debug)]
+pub enum TransferError<ListErr, LoadErr, StoreErr> {
+    List(ListErr),
+    Load(LoadErr),
+    Store(StoreErr),
+}
+
+impl<ListErr, LoadErr, StoreErr> fmt::Display for TransferError<ListErr, LoadErr, StoreErr> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "failed to transfer blob")
+    }
+}
+
+impl<ListErr, LoadErr, StoreErr> Error for TransferError<ListErr, LoadErr, StoreErr>
+where
+    ListErr: Debug + Error + 'static,
+    LoadErr: Debug + Error + 'static,
+    StoreErr: Debug + Error + 'static,
+{
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::List(e) => Some(e),
+            Self::Load(e) => Some(e),
+            Self::Store(e) => Some(e),
+        }
+    }
+}
+
+pub async fn transfer<'a, BS, BT, HS, HT, S>(
+    source: &'a BS,
+    target: &'a BT,
+) -> impl Stream<
+    Item = Result<
+        (
+            Value<Handle<HS, UnknownBlob>>,
+            Value<Handle<HT, UnknownBlob>>,
+        ),
+        TransferError<
+            <BS as ListBlobs<HS>>::Err,
+            <BS as PullBlob<HS>>::Err,
+            <BT as PushBlob<HT>>::Err,
+        >,
+    >,
+> + 'a
+where
+    BS: ListBlobs<HS> + PullBlob<HS>,
+    BT: PushBlob<HT>,
+    HS: 'static + HashProtocol,
+    HT: 'static + HashProtocol,
+{
+    let l = source.list();
+    let r =
+        l.then(
+            move |source_handle: Result<
+                Value<Handle<HS, UnknownBlob>>,
+                <BS as ListBlobs<HS>>::Err,
+            >| async move {
+                let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
+                let blob = source
+                    .pull(source_handle)
+                    .await
+                    .map_err(|e| TransferError::Load(e))?;
+                let target_handle = target
+                    .push(blob)
+                    .await
+                    .map_err(|e| TransferError::Store(e))?;
+                Ok((source_handle, target_handle))
+            },
+        );
+    r
+}
+/*
+/// Merges the contents of a source branch into a target branch.
+/// The merge is performed by creating a new merge commit that has both the source and target branch as parents.
+/// The target branch is then updated to point to the new merge commit.
+pub async fn merge<H: HashProtocol>(
+    source: &impl PullBranch<H>,
+    target: &impl BranchRepo<H>,
+    source_id: Id,
+    target_id: Id,
+) -> Result<(), TransferError<NotFoundErr, NotFoundErr, NotFoundErr>> {
+    let source_hash = source.pull(source_id).await?;
+    let target_hash = source.pull(target_id).await?;
+
+    let source_hash = source_hash.ok_or(NotFoundErr())?;
+    let target_hash = target_hash.ok_or(NotFoundErr())?;
+
+    let source_set = source.pull(source_hash).await?;
+    let target_set = source.pull(target_hash).await?;
+
+    let source_set = source_set.ok_or(NotFoundErr())?;
+    let target_set = target_set.ok_or(NotFoundErr())?;
+
+    let merge_set = source_set.merge(target_set);
+
+    let merge_hash = target.push(merge_set).await?;
+
+    target.push(target_id, Some(target_hash), merge_hash).await?;
+
+    Ok(())
+}
+*/

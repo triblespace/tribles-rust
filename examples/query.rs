@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Words;
 use tribles::prelude::blobschemas::*;
@@ -7,6 +9,7 @@ use tribles::prelude::*;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
+use tribles::query::ContainsConstraint;
 
 NS! {
     pub namespace literature {
@@ -36,15 +39,20 @@ fn main() {
         });
     });
 
+    let author_names: HashSet<String, _> = HashSet::from_iter(["Frank", "Bob"].iter().map(|s| s.to_string()));
+
     let _result: Vec<_> = find!(
-    (author: Value<_>, title: Value<_>, quote: Value<_>),
-    literature::pattern!(&kb, [
-    {author @
-        firstname: ("Frank"),
-        lastname: ("Herbert")},
-    { author: author,
-        title: title,
-        quote: quote
-    }]))
+    (firstname: Value<_>, title: Value<_>, author: Value<_>, quote: Value<_>),
+    and!(
+        author_names.has(firstname),
+        literature::pattern!(&kb, [
+        {author @
+            firstname: firstname,
+            lastname: ("Herbert")},
+        { author: author,
+            title: title,
+            quote: quote
+        }]))
+    )
     .collect();
 }

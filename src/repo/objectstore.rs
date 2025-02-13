@@ -16,12 +16,16 @@ use hex::FromHex;
 use crate::blob::schemas::UnknownBlob;
 use crate::blob::{Blob, BlobSchema};
 use crate::id::{Id, RawId};
+use crate::prelude::blobschemas::SimpleArchive;
 use crate::value::{
-    schemas::hash::{Handle, Hash, HashProtocol},
+    schemas::hash::{Handle, HashProtocol},
     RawValue, Value, ValueSchema,
 };
 
-use super::{ListBlobs, ListBranches, PullBlob, PullBranch, PushBlob, PushBranch, PushResult};
+use super::{
+    BlobRepo, BranchRepo, GetBlob, ListBlobs, ListBranches, PullBranch, PushBranch, PushResult,
+    PutBlob, Repo,
+};
 
 const BRANCH_INFIX: &str = "branches";
 const BLOB_INFIX: &str = "blobs";
@@ -42,6 +46,10 @@ impl<H> ObjectStoreRepo<H> {
         })
     }
 }
+
+impl<H: HashProtocol> BlobRepo<H> for ObjectStoreRepo<H> {}
+impl<H: HashProtocol> BranchRepo<H> for ObjectStoreRepo<H> {}
+impl<H: HashProtocol> Repo<H> for ObjectStoreRepo<H> {}
 
 pub enum ListBlobsErr {
     List(object_store::Error),
@@ -81,13 +89,13 @@ where
     }
 }
 
-impl<H> PullBlob<H> for ObjectStoreRepo<H>
+impl<H> GetBlob<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
     type Err = object_store::Error;
 
-    fn pull<T>(
+    fn get<T>(
         &self,
         handle: Value<Handle<H, T>>,
     ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
@@ -104,13 +112,13 @@ where
     }
 }
 
-impl<H> PushBlob<H> for ObjectStoreRepo<H>
+impl<H> PutBlob<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
     type Err = object_store::Error;
 
-    fn push<T>(
+    fn put<T>(
         &self,
         blob: Blob<T>,
     ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
@@ -201,7 +209,7 @@ where
 {
     type Err = PullBranchErr;
 
-    async fn pull(&self, branch: Id) -> Result<Option<Value<Hash<H>>>, Self::Err> {
+    async fn pull(&self, branch: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::Err> {
         let branch_name = hex::encode(&branch);
         let path = self.prefix.child(BRANCH_INFIX).child(branch_name);
         let result = self.store.get(&path).await;
@@ -226,8 +234,8 @@ where
     async fn push(
         &self,
         branch_id: Id,
-        old_hash: Option<Value<Hash<H>>>,
-        new_hash: Value<Hash<H>>,
+        old_hash: Option<Value<Handle<H, SimpleArchive>>>,
+        new_hash: Value<Handle<H, SimpleArchive>>,
     ) -> Result<PushResult<H>, Self::Err> {
         let branch_name = hex::encode(&branch_id);
         let path = &self.prefix.child(BRANCH_INFIX).child(branch_name);

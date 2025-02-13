@@ -39,7 +39,8 @@ fn main() {
         });
     });
 
-    let author_names: HashSet<String, _> = HashSet::from_iter(["Frank", "Bob"].iter().map(|s| s.to_string()));
+    let author_names: HashSet<String, _> =
+        HashSet::from_iter(["Frank", "Bob"].iter().map(|s| s.to_string()));
 
     let _result: Vec<_> = find!(
     (firstname: Value<_>, title: Value<_>, author: Value<_>, quote: Value<_>),

@@ -4,7 +4,7 @@
 //! Blobs are stored in the file as-is, and are identified by their hash.
 //! Branches are stored in the file as a mapping from a branch id to a blob hash.
 //! It can safely be shared between threads.
-//! 
+//!
 //! # File Format
 //! ## Blob Storage
 //! ```text
@@ -20,7 +20,7 @@
 //!           │ │                                                              │
 //!           └ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
 //! ```
-//! 
+//!
 //! ## Branch Storage
 //! ```text
 //!             ┌────16 byte───┐┌────16 byte───┐┌────────────32 byte───────────┐
@@ -43,6 +43,7 @@ use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 use crate::blob::schemas::UnknownBlob;
 use crate::blob::{Blob, BlobSchema};
 use crate::id::{Id, RawId};
+use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::valueschemas::Handle;
 use crate::value::schemas::hash::{Blake3, Hash, HashProtocol};
 use crate::value::{RawValue, Value};
@@ -76,7 +77,7 @@ struct BranchHeader {
 }
 
 impl BranchHeader {
-    fn new<H: HashProtocol>(branch_id: Id, hash: Value<Hash<H>>) -> Self {
+    fn new<H: HashProtocol>(branch_id: Id, hash: Value<Handle<H, SimpleArchive>>) -> Self {
         Self {
             magic_marker: MAGIC_MARKER_BRANCH,
             branch_id: *branch_id,
@@ -109,7 +110,7 @@ pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
     file: Mutex<AppendFile>,
     mmap: Arc<memmap2::MmapRaw>,
     index: RwLock<HashMap<Value<Hash<H>>, Mutex<IndexEntry>>>,
-    branches: RwLock<HashMap<Id, Value<Hash<H>>>>,
+    branches: RwLock<HashMap<Id, Value<Handle<H, SimpleArchive>>>>,
 }
 
 #[derive(Debug)]
@@ -149,7 +150,7 @@ impl<T> From<PoisonError<T>> for InsertError {
 
 #[derive(Debug)]
 pub enum UpdateBranchError<H: HashProtocol> {
-    PreviousHashMismatch(Option<Value<Hash<H>>>),
+    PreviousHashMismatch(Option<Value<Handle<H, SimpleArchive>>>),
     IoError(std::io::Error),
     PoisonError,
     PileTooLarge,
@@ -394,15 +395,15 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     pub fn update_branch(
         &self,
         branch_id: Id,
-        old_hash: Option<Value<Hash<H>>>,
-        new_hash: Value<Hash<H>>,
+        old: Option<Value<Handle<H, SimpleArchive>>>,
+        new: Value<Handle<H, SimpleArchive>>,
     ) -> Result<(), UpdateBranchError<H>> {
         let mut append = self.file.lock().unwrap();
 
         {
             let branches = self.branches.read().unwrap();
             let current_hash = branches.get(&branch_id);
-            if current_hash != old_hash.as_ref() {
+            if current_hash != old.as_ref() {
                 return Err(UpdateBranchError::PreviousHashMismatch(
                     current_hash.cloned(),
                 ));
@@ -416,17 +417,21 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
 
         append.length = new_length;
 
-        let header = BranchHeader::new(branch_id, new_hash);
+        let header = BranchHeader::new(branch_id, new);
 
         append.file.write_all(header.as_bytes())?;
 
         let mut branches = self.branches.write()?;
-        branches.insert(branch_id, new_hash);
+        branches.insert(branch_id, new);
 
         Ok(())
     }
 
-    pub fn set_branch(&self, branch_id: Id, hash: Value<Hash<H>>) -> Result<(), InsertError> {
+    pub fn set_branch(
+        &self,
+        branch_id: Id,
+        hash: Value<Handle<H, SimpleArchive>>,
+    ) -> Result<(), InsertError> {
         let mut append = self.file.lock().unwrap();
 
         let new_length = append.length + 64;
@@ -446,7 +451,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         Ok(())
     }
 
-    pub fn get_branch(&self, branch_id: Id) -> Option<Value<Hash<H>>> {
+    pub fn get_branch(&self, branch_id: Id) -> Option<Value<Handle<H, SimpleArchive>>> {
         let branches = self.branches.read().unwrap();
         branches.get(&branch_id).copied()
     }
@@ -467,7 +472,7 @@ where
     }
 }
 
-use super::{ListBlobs, ListBranches, PullBlob, PullBranch, PushBlob, PushBranch, PushResult};
+use super::{GetBlob, ListBlobs, ListBranches, PullBranch, PushBranch, PushResult, PutBlob};
 
 impl<const MAX_PILE_SIZE: usize, H> ListBlobs<H> for Pile<MAX_PILE_SIZE, H>
 where
@@ -488,13 +493,13 @@ where
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H> PullBlob<H> for Pile<MAX_PILE_SIZE, H>
+impl<const MAX_PILE_SIZE: usize, H> GetBlob<H> for Pile<MAX_PILE_SIZE, H>
 where
     H: HashProtocol,
 {
     type Err = GetBlobError;
 
-    fn pull<T>(
+    fn get<T>(
         &self,
         hash: Value<crate::prelude::valueschemas::Handle<H, T>>,
     ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
@@ -505,16 +510,16 @@ where
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H> PushBlob<H> for Pile<MAX_PILE_SIZE, H>
+impl<const MAX_PILE_SIZE: usize, H> PutBlob<H> for Pile<MAX_PILE_SIZE, H>
 where
     H: HashProtocol,
 {
     type Err = InsertError;
 
-    fn push<T: BlobSchema>(
+    fn put<T: BlobSchema>(
         &self,
         blob: Blob<T>,
-    ) -> impl futures::Future<Output = Result<Value<Handle<H, T>>, <Self as PushBlob<H>>::Err>>
+    ) -> impl futures::Future<Output = Result<Value<Handle<H, T>>, <Self as PutBlob<H>>::Err>>
     where
         T: crate::prelude::BlobSchema + 'static,
     {
@@ -547,7 +552,8 @@ where
     fn pull(
         &self,
         id: Id,
-    ) -> impl std::future::Future<Output = Result<Option<Value<Hash<H>>>, Self::Err>> {
+    ) -> impl std::future::Future<Output = Result<Option<Value<Handle<H, SimpleArchive>>>, Self::Err>>
+    {
         Box::pin(async move { Ok(self.get_branch(id)) })
     }
 }
@@ -561,8 +567,8 @@ where
     fn push(
         &self,
         id: Id,
-        old: Option<Value<Hash<H>>>,
-        new: Value<Hash<H>>,
+        old: Option<Value<Handle<H, SimpleArchive>>>,
+        new: Value<Handle<H, SimpleArchive>>,
     ) -> impl std::future::Future<Output = Result<super::PushResult<H>, Self::Err>> {
         async move {
             let result = self.update_branch(id, old, new);

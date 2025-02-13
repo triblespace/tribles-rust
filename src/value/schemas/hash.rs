@@ -105,12 +105,6 @@ where
     }
 }
 
-impl<H: HashProtocol, T: BlobSchema> From<Value<Hash<H>>> for Value<Handle<H, T>> {
-    fn from(value: Value<Hash<H>>) -> Self {
-        Value::new(value.raw)
-    }
-}
-
 use blake2::Blake2b as Blake2bUnsized;
 pub type Blake2b = Blake2bUnsized<U32>;
 
@@ -140,9 +134,25 @@ pub struct Handle<H, T: BlobSchema> {
     _type: PhantomData<T>,
 }
 
+impl<H: HashProtocol, T: BlobSchema> Handle<H, T> {
+    pub fn from_hash(hash: Value<Hash<H>>) -> Value<Self> {
+        hash.transmute()
+    }
+
+    pub fn to_hash(handle: Value<Self>) -> Value<Hash<H>> {
+        handle.transmute()
+    }
+}
+
+impl<H: HashProtocol, T: BlobSchema> From<Value<Hash<H>>> for Value<Handle<H, T>> {
+    fn from(value: Value<Hash<H>>) -> Self {
+        value.transmute()
+    }
+}
+
 impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>> {
     fn from(value: Value<Handle<H, T>>) -> Self {
-        Value::new(value.raw)
+        value.transmute()
     }
 }
 

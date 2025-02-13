@@ -21,8 +21,8 @@
 //! the hash of the head is sufficient to represent the entire history of a branch.
 //!
 //!
-pub mod commit;
 pub mod branch;
+pub mod commit;
 pub mod objectstore;
 pub mod pile;
 
@@ -32,22 +32,30 @@ use std::{
     fmt::{self, Debug},
 };
 
+use commit::commit;
+use ed25519_dalek::SigningKey;
 use futures::{stream, Stream, StreamExt};
+use itertools::Itertools;
 
-use crate::{
-    blob::{schemas::UnknownBlob, Blob, BlobSchema, BlobSet},
-    id::Id,
-    value::{
-        schemas::hash::{Handle, Hash, HashProtocol},
-        Value, ValueSchema,
-    }, NS,
-};
 use crate::prelude::valueschemas::GenId;
+use crate::repo::branch::branch;
+use crate::{
+    and,
+    blob::{schemas::UnknownBlob, Blob, BlobSchema, BlobSet, ToBlob},
+    find,
+    id::Id,
+    metadata::metadata,
+    trible::TribleSet,
+    value::{
+        schemas::hash::{Handle, HashProtocol},
+        Value, ValueSchema,
+    },
+    NS,
+};
 
 use crate::{
-    blob::schemas::simplearchive::SimpleArchive, value::schemas::{
-            ed25519 as ed, hash::Blake3, shortstring::ShortString
-        }
+    blob::schemas::simplearchive::SimpleArchive,
+    value::schemas::{ed25519 as ed, hash::Blake3, shortstring::ShortString},
 };
 
 NS! {
@@ -85,10 +93,10 @@ pub trait ListBlobs<H: HashProtocol> {
 
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>>;
 }
-pub trait PullBlob<H: HashProtocol> {
+pub trait GetBlob<H: HashProtocol> {
     type Err;
 
-    fn pull<T>(
+    fn get<T>(
         &self,
         handle: Value<Handle<H, T>>,
     ) -> impl std::future::Future<Output = Result<Blob<T>, Self::Err>>
@@ -96,10 +104,10 @@ pub trait PullBlob<H: HashProtocol> {
         T: BlobSchema + 'static;
 }
 
-pub trait PushBlob<H> {
+pub trait PutBlob<H> {
     type Err;
 
-    fn push<T>(
+    fn put<T>(
         &self,
         blob: Blob<T>,
     ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
@@ -108,7 +116,9 @@ pub trait PushBlob<H> {
         Handle<H, T>: ValueSchema;
 }
 
-pub trait BlobRepo<H: HashProtocol>: ListBlobs<H> + PullBlob<H> + PushBlob<H> {}
+pub trait BlobRepo<H: HashProtocol>: ListBlobs<H> + GetBlob<H> + PutBlob<H> {}
+
+pub trait Repo<H: HashProtocol>: BlobRepo<H> + BranchRepo<H> {}
 
 #[derive(Debug)]
 pub struct NotFoundErr();
@@ -132,13 +142,13 @@ where
     }
 }
 
-impl<H> PullBlob<H> for BlobSet<H>
+impl<H> GetBlob<H> for BlobSet<H>
 where
     H: HashProtocol,
 {
     type Err = NotFoundErr;
 
-    async fn pull<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    async fn get<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
     where
         T: BlobSchema,
     {
@@ -152,7 +162,7 @@ where
     H: HashProtocol,
 {
     Success(),
-    Conflict(Option<Value<Hash<H>>>),
+    Conflict(Option<Value<Handle<H, SimpleArchive>>>),
 }
 
 pub trait ListBranches<H: HashProtocol> {
@@ -167,7 +177,7 @@ pub trait PullBranch<H: HashProtocol> {
     fn pull(
         &self,
         id: Id,
-    ) -> impl std::future::Future<Output = Result<Option<Value<Hash<H>>>, Self::Err>>;
+    ) -> impl std::future::Future<Output = Result<Option<Value<Handle<H, SimpleArchive>>>, Self::Err>>;
 }
 
 pub trait PushBranch<H: HashProtocol> {
@@ -176,8 +186,8 @@ pub trait PushBranch<H: HashProtocol> {
     fn push(
         &self,
         id: Id,
-        old: Option<Value<Hash<H>>>,
-        new: Value<Hash<H>>,
+        old: Option<Value<Handle<H, SimpleArchive>>>,
+        new: Value<Handle<H, SimpleArchive>>,
     ) -> impl std::future::Future<Output = Result<PushResult<H>, Self::Err>>;
 }
 
@@ -222,14 +232,14 @@ pub async fn transfer<'a, BS, BT, HS, HT, S>(
         ),
         TransferError<
             <BS as ListBlobs<HS>>::Err,
-            <BS as PullBlob<HS>>::Err,
-            <BT as PushBlob<HT>>::Err,
+            <BS as GetBlob<HS>>::Err,
+            <BT as PutBlob<HT>>::Err,
         >,
     >,
 > + 'a
 where
-    BS: ListBlobs<HS> + PullBlob<HS>,
-    BT: PushBlob<HT>,
+    BS: ListBlobs<HS> + GetBlob<HS>,
+    BT: PutBlob<HT>,
     HS: 'static + HashProtocol,
     HT: 'static + HashProtocol,
 {
@@ -242,11 +252,11 @@ where
             >| async move {
                 let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
                 let blob = source
-                    .pull(source_handle)
+                    .get(source_handle)
                     .await
                     .map_err(|e| TransferError::Load(e))?;
                 let target_handle = target
-                    .push(blob)
+                    .put(blob)
                     .await
                     .map_err(|e| TransferError::Store(e))?;
                 Ok((source_handle, target_handle))
@@ -254,34 +264,108 @@ where
         );
     r
 }
-/*
+
+pub struct MergeError();
+
 /// Merges the contents of a source branch into a target branch.
 /// The merge is performed by creating a new merge commit that has both the source and target branch as parents.
 /// The target branch is then updated to point to the new merge commit.
-pub async fn merge<H: HashProtocol>(
-    source: &impl PullBranch<H>,
-    target: &impl BranchRepo<H>,
-    source_id: Id,
-    target_id: Id,
-) -> Result<(), TransferError<NotFoundErr, NotFoundErr, NotFoundErr>> {
-    let source_hash = source.pull(source_id).await?;
-    let target_hash = source.pull(target_id).await?;
+pub async fn merge(
+    signing_key: SigningKey,
+    msg: Option<&str>,
+    source: &impl Repo<Blake3>,
+    target: &impl Repo<Blake3>,
+    source_branch: Id,
+    target_branch: Id,
+) -> Result<(), MergeError> {
+    let Ok(mut old_target_branch) = target.pull(target_branch).await else {
+        return Err(MergeError());
+    };
 
-    let source_hash = source_hash.ok_or(NotFoundErr())?;
-    let target_hash = target_hash.ok_or(NotFoundErr())?;
+    loop {
+        let Ok(source_branch_handle) = source.pull(source_branch).await else {
+            return Err(MergeError());
+        };
 
-    let source_set = source.pull(source_hash).await?;
-    let target_set = source.pull(target_hash).await?;
+        let Some(target_branch_handle) = old_target_branch else {
+            return Err(MergeError());
+        };
 
-    let source_set = source_set.ok_or(NotFoundErr())?;
-    let target_set = target_set.ok_or(NotFoundErr())?;
+        let Some(source_branch_handle) = source_branch_handle else {
+            return Err(MergeError());
+        };
 
-    let merge_set = source_set.merge(target_set);
+        let Ok(source_branch_blob) = source.get(source_branch_handle).await else {
+            return Err(MergeError());
+        };
 
-    let merge_hash = target.push(merge_set).await?;
+        let Ok(target_branch_blob) = target.get(target_branch_handle).await else {
+            return Err(MergeError());
+        };
 
-    target.push(target_id, Some(target_hash), merge_hash).await?;
+        let Ok(source_branch_set): Result<TribleSet, _> = source_branch_blob.try_from_blob() else {
+            return Err(MergeError());
+        };
 
-    Ok(())
+        let Ok(target_branch_set): Result<TribleSet, _> = target_branch_blob.try_from_blob() else {
+            return Err(MergeError());
+        };
+
+        let source_head = match find!(
+            (head: Value<_>),
+            repo::pattern!(&source_branch_set, [{ head: head }])
+        )
+        .at_most_one()
+        {
+            Ok(Some((result,))) => result,
+            Ok(None) => return Err(MergeError()),
+            Err(_) => return Err(MergeError()),
+        };
+
+        let (target_head, target_name) = match find!(
+            (head: Value<_>, name: Value<_>),
+            and!{
+                repo::pattern!(&target_branch_set, [{ head: head }]),
+                metadata::pattern!(&target_branch_set, [{ name: name }])
+            }
+        )
+        .at_most_one()
+        {
+            Ok(Some(result)) => result,
+            Ok(None) => return Err(MergeError()),
+            Err(_) => return Err(MergeError()),
+        };
+
+        let parents = [source_head, target_head];
+
+        let commit = commit(&signing_key, parents, msg, None).to_blob();
+
+        let branch = branch(
+            &signing_key,
+            target_branch,
+            target_name.from_value(),
+            commit.clone(),
+        )
+        .to_blob();
+
+        let Ok(_) = target.put(commit).await else {
+            return Err(MergeError());
+        };
+
+        let Ok(branch_handle) = target.put(branch).await else {
+            return Err(MergeError());
+        };
+
+        match target
+            .push(target_branch, Some(target_branch_handle), branch_handle)
+            .await
+        {
+            Ok(PushResult::Success()) => return Ok(()),
+            Ok(PushResult::Conflict(conflicting_handle)) =>  {
+                old_target_branch = conflicting_handle;
+                continue;
+            },
+            Err(_) => return Err(MergeError()),
+        };
+    }
 }
-*/

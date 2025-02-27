@@ -361,6 +361,9 @@ impl TryFrom<uuid::Uuid> for Id {
     }
 }
 
+#[doc(hidden)]
+pub use hex_literal::hex as _hex_literal_hex;
+
 /// Creates an `Id` from a hex string literal.
 ///
 /// # Example
@@ -371,7 +374,7 @@ impl TryFrom<uuid::Uuid> for Id {
 #[macro_export]
 macro_rules! id_hex {
     ( $data:expr ) => {
-        $crate::id::Id::new(hex_literal::hex!($data)).unwrap()
+        $crate::id::Id::new($crate::id::_hex_literal_hex!($data)).unwrap()
     };
 }
 

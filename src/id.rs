@@ -343,6 +343,24 @@ impl UpperHex for Id {
     }
 }
 
+impl From<Id> for uuid::Uuid {
+    fn from(id: Id) -> Self {
+        let id: &RawId = &id;
+        uuid::Uuid::from_slice(id).unwrap()
+    }
+}
+
+pub struct NilUuidError;
+
+impl TryFrom<uuid::Uuid> for Id {
+    type Error = NilUuidError;
+
+    fn try_from(id: uuid::Uuid) -> Result<Self, NilUuidError> {
+        let bytes = id.into_bytes();
+        Id::new(bytes).ok_or(NilUuidError)
+    }
+}
+
 /// Creates an `Id` from a hex string literal.
 ///
 /// # Example

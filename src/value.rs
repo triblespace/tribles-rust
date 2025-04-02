@@ -56,7 +56,7 @@
 //! impl FromValue<'_, MyNumber> for u32 {
 //!    fn from_value(v: &Value<MyNumber>) -> Self {
 //!      // Convert the schema type to the Rust type.
-//!     u32::from_le_bytes(v.bytes[0..4].try_into().unwrap())
+//!     u32::from_le_bytes(v.raw[0..4].try_into().unwrap())
 //!  }
 //! }
 //!
@@ -77,7 +77,7 @@
 //! // You can also implement conversion functions for other Rust types.
 //! impl FromValue<'_, MyNumber> for u64 {
 //!   fn from_value(v: &Value<MyNumber>) -> Self {
-//!    u64::from_le_bytes(v.bytes[0..8].try_into().unwrap())
+//!    u64::from_le_bytes(v.raw[0..8].try_into().unwrap())
 //!   }
 //! }
 //!

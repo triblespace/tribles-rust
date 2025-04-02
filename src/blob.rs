@@ -14,7 +14,7 @@
 //! ```
 //! use tribles::prelude::*;
 //! use tribles::examples::literature;
-//! use tribles::remote::commit::commits;
+//! use tribles::repo::repo;
 //! use valueschemas::{Handle, Blake3};
 //! use blobschemas::{SimpleArchive, LongString};
 //! use rand::rngs::OsRng;
@@ -45,10 +45,10 @@
 //! let signature: Signature = commit_author_key.sign(&blobset.get_blob(archived_set_handle).unwrap().bytes);
 //!
 //! // And store the handle in another TribleSet.
-//! let meta_set = commits::entity!({
-//!    tribles: archived_set_handle,
+//! let meta_set = repo::entity!({
+//!    content: archived_set_handle,
 //!    short_message: "Initial commit",
-//!    authored_by: commit_author_key.verifying_key(),
+//!    signed_by: commit_author_key.verifying_key(),
 //!    signature_r: signature,
 //!    signature_s: signature,
 //! });

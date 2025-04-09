@@ -114,7 +114,7 @@ pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
 }
 
 #[derive(Debug)]
-pub enum LoadError {
+pub enum OpenError {
     IoError(std::io::Error),
     MagicMarkerError,
     HeaderError,
@@ -123,7 +123,7 @@ pub enum LoadError {
     PileTooLarge,
 }
 
-impl From<std::io::Error> for LoadError {
+impl From<std::io::Error> for OpenError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
     }
@@ -202,7 +202,7 @@ impl<T> From<PoisonError<T>> for FlushError {
 //TODO Handle incomplete writes by truncating the file
 //TODO Add the ability to skip corrupted blobs
 impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
-    pub fn load(path: &Path) -> Result<Self, LoadError> {
+    pub fn open(path: &Path) -> Result<Self, OpenError> {
         let file = OpenOptions::new()
             .read(true)
             .append(true)
@@ -210,7 +210,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             .open(&path)?;
         let file_len = file.metadata()?.len() as usize;
         if file_len > MAX_PILE_SIZE {
-            return Err(LoadError::PileTooLarge);
+            return Err(OpenError::PileTooLarge);
         }
         let mmap = MmapOptions::new()
             .len(MAX_PILE_SIZE)
@@ -223,7 +223,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             Bytes::from_raw_parts(written_slice, mmap.clone())
         };
         if bytes.len() % 64 != 0 {
-            return Err(LoadError::FileLengthError);
+            return Err(OpenError::FileLengthError);
         }
 
         let mut index = HashMap::new();
@@ -231,22 +231,22 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
 
         while bytes.len() > 0 {
             if bytes.len() < 16 {
-                return Err(LoadError::UnexpectedEndOfFile);
+                return Err(OpenError::UnexpectedEndOfFile);
             }
             let magic = bytes[0..16].try_into().unwrap();
             match magic {
                 MAGIC_MARKER_BLOB => {
                     let Ok(header) = bytes.view_prefix::<BlobHeader>() else {
-                        return Err(LoadError::HeaderError);
+                        return Err(OpenError::HeaderError);
                     };
                     let hash = Value::new(header.hash);
                     let length = header.length as usize;
                     let Some(blob_bytes) = bytes.take_prefix(length) else {
-                        return Err(LoadError::UnexpectedEndOfFile);
+                        return Err(OpenError::UnexpectedEndOfFile);
                     };
 
                     let Some(_) = bytes.take_prefix(64 - (length % 64)) else {
-                        return Err(LoadError::UnexpectedEndOfFile);
+                        return Err(OpenError::UnexpectedEndOfFile);
                     };
 
                     let blob = IndexEntry {
@@ -257,15 +257,15 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                 }
                 MAGIC_MARKER_BRANCH => {
                     let Ok(header) = bytes.view_prefix::<BranchHeader>() else {
-                        return Err(LoadError::HeaderError);
+                        return Err(OpenError::HeaderError);
                     };
                     let Some(branch_id) = Id::new(header.branch_id) else {
-                        return Err(LoadError::HeaderError);
+                        return Err(OpenError::HeaderError);
                     };
                     let hash = Value::new(header.hash);
                     branches.insert(branch_id, hash);
                 }
-                _ => return Err(LoadError::MagicMarkerError),
+                _ => return Err(OpenError::MagicMarkerError),
             };
         }
 
@@ -589,7 +589,7 @@ mod tests {
     use tempfile;
 
     #[test]
-    fn load() {
+    fn open() {
         const RECORD_LEN: usize = 1 << 10; // 1k
         const RECORD_COUNT: usize = 1 << 20; // 1M
         const MAX_PILE_SIZE: usize = 1 << 30; // 100GB
@@ -597,7 +597,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let tmp_dir = tempfile::tempdir().unwrap();
         let tmp_pile = tmp_dir.path().join("test.pile");
-        let pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
+        let pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
 
         (0..RECORD_COUNT).for_each(|_| {
             let mut record = Vec::with_capacity(RECORD_LEN);
@@ -611,6 +611,6 @@ mod tests {
 
         drop(pile);
 
-        let _pile: Pile<MAX_PILE_SIZE> = Pile::load(&tmp_pile).unwrap();
+        let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
     }
 }

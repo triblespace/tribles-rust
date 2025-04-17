@@ -88,14 +88,26 @@ NS! {
     }
 }
 
+/// The `ListBlobs` trait is used to list all blobs in a repository.
 pub trait ListBlobs<H: HashProtocol> {
-    type Err;
+    type Err: std::error::Error;
 
+    /// Lists all blobs in the repository.
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Value<Handle<H, UnknownBlob>>, Self::Err>>;
 }
-pub trait GetBlob<H: HashProtocol> {
-    type Err;
 
+/// The `GetBlob` trait is used to retrieve blobs from a repository.
+pub trait GetBlob<H: HashProtocol> {
+    type Err: std::error::Error;
+
+    /// Retrieves a blob from the repository by its handle.
+    /// The handle is a unique identifier for the blob, and is used to retrieve it from the repository.
+    /// The blob is returned as a `Blob` object, which contains the raw bytes of the blob,
+    /// which can be deserialized via the appropriate schema type, which is specified by the `T` type parameter.
+    ///
+    /// # Errors
+    /// Returns an error if the blob could not be found in the repository.
+    /// The error type is specified by the `Err` associated type.
     fn get<T>(
         &self,
         handle: Value<Handle<H, T>>,
@@ -104,8 +116,9 @@ pub trait GetBlob<H: HashProtocol> {
         T: BlobSchema + 'static;
 }
 
+/// The `PutBlob` trait is used to store blobs in a repository.
 pub trait PutBlob<H> {
-    type Err;
+    type Err: std::error::Error;
 
     fn put<T>(
         &self,
@@ -118,7 +131,192 @@ pub trait PutBlob<H> {
 
 pub trait BlobRepo<H: HashProtocol>: ListBlobs<H> + GetBlob<H> + PutBlob<H> {}
 
-pub trait Repo<H: HashProtocol>: BlobRepo<H> + BranchRepo<H> {}
+#[derive(Debug)]
+pub struct MergeError();
+
+pub struct Repo<H: HashProtocol, Blobs: BlobRepo<H>, Branches: BranchRepo<H>> {
+    blobs: Blobs,
+    branches: Branches,
+    hash_protocol: H,
+}
+
+impl<H, Blobs, Branches> Repo<H, Blobs, Branches>
+where
+    H: HashProtocol,
+    Blobs: BlobRepo<H>,
+    Branches: BranchRepo<H> {
+    async fn commit(
+        &self,
+        branch_id: Id,
+        msg: Option<&str>,
+        content: TribleSet,
+        commit_signing_key: SigningKey,
+        branch_signing_key: SigningKey,
+    ) {
+        let mut current_branch_handle = self
+            .branches
+            .pull(branch_id)
+            .await
+            .expect("failed to pull branch")
+            .expect("branch not found");
+
+        loop {
+            let current_branch_blob = self
+                .blobs
+                .get(current_branch_handle)
+                .await
+                .expect("failed to get current head blob");
+            let current_head: TribleSet = current_branch_blob
+                .try_from_blob()
+                .expect("failed to convert blob");
+            let (parent,) = find!(
+                (head: Value<_>),
+                repo::pattern!(&current_head, [{ head: head }])
+            ).exactly_one().expect("failed to find head");
+
+            let content: Blob<SimpleArchive> = content.to_blob();
+            let content_put_progress = self
+                .blobs
+                .put(content.clone());
+
+            let commit = commit(&commit_signing_key, [parent], msg, Some(content)).to_blob();
+            let commit_put_progress = self.blobs.put(commit.clone());
+
+            let (branch_name,) = find!(
+                (name: Value<_>),
+                metadata::pattern!(&current_head, [{ name: name }])
+            ).exactly_one().expect("failed to find branch name");
+
+            let branch = branch(&branch_signing_key, branch_id, branch_name.from_value(), commit).to_blob();
+            let branch_put_progres = self.blobs.put(branch);
+
+            content_put_progress.await.expect("failed to put content");
+            commit_put_progress.await.expect("failed to put commit");
+            let branch_handle = branch_put_progres.await.expect("failed to put branch");
+
+            let push_result = self
+                .branches
+                .push(branch_id, Some(current_branch_handle), branch_handle)
+                .await
+                .expect("failed to push branch");
+
+            
+            current_branch_handle = match push_result {
+                PushResult::Success() => return,
+                PushResult::Conflict(conflicting_handle) => conflicting_handle.expect("branch doesn't exist"),
+            }
+        }
+    }
+
+    /// Merges the contents of a source branch into a target branch.
+    /// The merge is performed by creating a new merge commit that has both the source and target branch as parents.
+    /// The target branch is then updated to point to the new merge commit.
+    async fn merge<OtherBlobs, OtherBranches>(
+        &self,
+        self_branch: Id,
+        source: Repo<H, OtherBlobs, OtherBranches>,
+        source_branch: Id,
+        msg: Option<&str>,
+        commit_signing_key: SigningKey,
+        branch_signing_key: SigningKey,
+    ) -> Result<(), MergeError>
+    where OtherBlobs: BlobRepo<H>,
+          OtherBranches: BranchRepo<H>,{
+        let Ok(mut old_target_branch) = self.branches.pull(self_branch).await else {
+            return Err(MergeError());
+        };
+
+        loop {
+            let Ok(source_branch_handle) = source.branches.pull(source_branch).await else {
+                return Err(MergeError());
+            };
+
+            let Some(target_branch_handle) = old_target_branch else {
+                return Err(MergeError());
+            };
+
+            let Some(source_branch_handle) = source_branch_handle else {
+                return Err(MergeError());
+            };
+
+            let Ok(source_branch_blob) = source.blobs.get(source_branch_handle).await else {
+                return Err(MergeError());
+            };
+
+            let Ok(target_branch_blob) = self.blobs.get(target_branch_handle).await else {
+                return Err(MergeError());
+            };
+
+            let Ok(source_branch_set): Result<TribleSet, _> = source_branch_blob.try_from_blob()
+            else {
+                return Err(MergeError());
+            };
+
+            let Ok(target_branch_set): Result<TribleSet, _> = target_branch_blob.try_from_blob()
+            else {
+                return Err(MergeError());
+            };
+
+            let source_head = match find!(
+                (head: Value<_>),
+                repo::pattern!(&source_branch_set, [{ head: head }])
+            )
+            .at_most_one()
+            {
+                Ok(Some((result,))) => result,
+                Ok(None) => return Err(MergeError()),
+                Err(_) => return Err(MergeError()),
+            };
+
+            let (target_head, target_name) = match find!(
+                (head: Value<_>, name: Value<_>),
+                and!{
+                    repo::pattern!(&target_branch_set, [{ head: head }]),
+                    metadata::pattern!(&target_branch_set, [{ name: name }])
+                }
+            )
+            .at_most_one()
+            {
+                Ok(Some(result)) => result,
+                Ok(None) => return Err(MergeError()),
+                Err(_) => return Err(MergeError()),
+            };
+
+            let parents = [source_head, target_head];
+
+            let commit = commit(&commit_signing_key, parents, msg, None).to_blob();
+
+            let branch = branch(
+                &branch_signing_key,
+                self_branch,
+                target_name.from_value(),
+                commit.clone(),
+            )
+            .to_blob();
+
+            let Ok(_) = self.blobs.put(commit).await else {
+                return Err(MergeError());
+            };
+
+            let Ok(branch_handle) = self.blobs.put(branch).await else {
+                return Err(MergeError());
+            };
+
+            match self
+                .branches
+                .push(self_branch, Some(target_branch_handle), branch_handle)
+                .await
+            {
+                Ok(PushResult::Success()) => return Ok(()),
+                Ok(PushResult::Conflict(conflicting_handle)) => {
+                    old_target_branch = conflicting_handle;
+                    continue;
+                }
+                Err(_) => return Err(MergeError()),
+            };
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct NotFoundErr();
@@ -165,15 +363,19 @@ where
     Conflict(Option<Value<Handle<H, SimpleArchive>>>),
 }
 
+/// The `ListBranches` trait is used to list all branches in a repository.
 pub trait ListBranches<H: HashProtocol> {
-    type Err;
+    type Err: std::error::Error;
 
+    /// Lists all branches in the repository.
     fn list<'a>(&'a self) -> impl Stream<Item = Result<Id, Self::Err>>;
 }
 
+/// The `PullBranch` trait is used to retrieve a branch from a repository.
 pub trait PullBranch<H: HashProtocol> {
-    type Err;
+    type Err: std::error::Error;
 
+    /// Retrieves a branch from the repository by its id.
     fn pull(
         &self,
         id: Id,
@@ -181,8 +383,17 @@ pub trait PullBranch<H: HashProtocol> {
 }
 
 pub trait PushBranch<H: HashProtocol> {
-    type Err;
-
+    type Err: std::error::Error;
+    /// Pushes a branch to the repository, creating or updating it.
+    ///
+    /// # Parameters
+    /// * `old` - Expected current value of the branch (None if creating new)
+    /// * `new` - Value to update the branch to
+    ///
+    /// # Returns
+    /// * `Success` - Push completed successfully
+    /// * `Conflict(current)` - Failed because the branch's current value doesn't match `old`
+    ///   (contains the actual current value for conflict resolution)
     fn push(
         &self,
         id: Id,
@@ -263,109 +474,4 @@ where
             },
         );
     r
-}
-
-pub struct MergeError();
-
-/// Merges the contents of a source branch into a target branch.
-/// The merge is performed by creating a new merge commit that has both the source and target branch as parents.
-/// The target branch is then updated to point to the new merge commit.
-pub async fn merge(
-    signing_key: SigningKey,
-    msg: Option<&str>,
-    source: &impl Repo<Blake3>,
-    target: &impl Repo<Blake3>,
-    source_branch: Id,
-    target_branch: Id,
-) -> Result<(), MergeError> {
-    let Ok(mut old_target_branch) = target.pull(target_branch).await else {
-        return Err(MergeError());
-    };
-
-    loop {
-        let Ok(source_branch_handle) = source.pull(source_branch).await else {
-            return Err(MergeError());
-        };
-
-        let Some(target_branch_handle) = old_target_branch else {
-            return Err(MergeError());
-        };
-
-        let Some(source_branch_handle) = source_branch_handle else {
-            return Err(MergeError());
-        };
-
-        let Ok(source_branch_blob) = source.get(source_branch_handle).await else {
-            return Err(MergeError());
-        };
-
-        let Ok(target_branch_blob) = target.get(target_branch_handle).await else {
-            return Err(MergeError());
-        };
-
-        let Ok(source_branch_set): Result<TribleSet, _> = source_branch_blob.try_from_blob() else {
-            return Err(MergeError());
-        };
-
-        let Ok(target_branch_set): Result<TribleSet, _> = target_branch_blob.try_from_blob() else {
-            return Err(MergeError());
-        };
-
-        let source_head = match find!(
-            (head: Value<_>),
-            repo::pattern!(&source_branch_set, [{ head: head }])
-        )
-        .at_most_one()
-        {
-            Ok(Some((result,))) => result,
-            Ok(None) => return Err(MergeError()),
-            Err(_) => return Err(MergeError()),
-        };
-
-        let (target_head, target_name) = match find!(
-            (head: Value<_>, name: Value<_>),
-            and!{
-                repo::pattern!(&target_branch_set, [{ head: head }]),
-                metadata::pattern!(&target_branch_set, [{ name: name }])
-            }
-        )
-        .at_most_one()
-        {
-            Ok(Some(result)) => result,
-            Ok(None) => return Err(MergeError()),
-            Err(_) => return Err(MergeError()),
-        };
-
-        let parents = [source_head, target_head];
-
-        let commit = commit(&signing_key, parents, msg, None).to_blob();
-
-        let branch = branch(
-            &signing_key,
-            target_branch,
-            target_name.from_value(),
-            commit.clone(),
-        )
-        .to_blob();
-
-        let Ok(_) = target.put(commit).await else {
-            return Err(MergeError());
-        };
-
-        let Ok(branch_handle) = target.put(branch).await else {
-            return Err(MergeError());
-        };
-
-        match target
-            .push(target_branch, Some(target_branch_handle), branch_handle)
-            .await
-        {
-            Ok(PushResult::Success()) => return Ok(()),
-            Ok(PushResult::Conflict(conflicting_handle)) =>  {
-                old_target_branch = conflicting_handle;
-                continue;
-            },
-            Err(_) => return Err(MergeError()),
-        };
-    }
 }

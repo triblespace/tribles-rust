@@ -23,8 +23,8 @@ use crate::value::{
 };
 
 use super::{
-    BlobRepo, BranchRepo, GetBlob, ListBlobs, ListBranches, PullBranch, PushBranch, PushResult,
-    PutBlob, Repo,
+    BlobRepo, BranchRepo, GetBlob, ListBlobs, ListBranches, PullBranch, PushBranch,
+    PushResult, PutBlob,
 };
 
 const BRANCH_INFIX: &str = "branches";
@@ -49,20 +49,44 @@ impl<H> ObjectStoreRepo<H> {
 
 impl<H: HashProtocol> BlobRepo<H> for ObjectStoreRepo<H> {}
 impl<H: HashProtocol> BranchRepo<H> for ObjectStoreRepo<H> {}
-impl<H: HashProtocol> Repo<H> for ObjectStoreRepo<H> {}
 
+#[derive(Debug)]
 pub enum ListBlobsErr {
     List(object_store::Error),
     NotAFile(&'static str),
     BadNameHex(<RawValue as FromHex>::Error),
 }
 
+impl fmt::Display for ListBlobsErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::List(e) => write!(f, "list failed: {}", e),
+            Self::NotAFile(e) => write!(f, "list failed: {}", e),
+            Self::BadNameHex(e) => write!(f, "list failed: {}", e),
+        }
+    }
+}
+impl Error for ListBlobsErr {}
+
+#[derive(Debug)]
 pub enum ListBranchesErr {
     List(object_store::Error),
     NotAFile(&'static str),
     BadNameHex(<RawId as FromHex>::Error),
     BadId,
 }
+
+impl fmt::Display for ListBranchesErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::List(e) => write!(f, "list failed: {}", e),
+            Self::NotAFile(e) => write!(f, "list failed: {}", e),
+            Self::BadNameHex(e) => write!(f, "list failed: {}", e),
+            Self::BadId => write!(f, "list failed: bad id"),
+        }
+    }
+}
+impl Error for ListBranchesErr {}
 
 impl<H> ListBlobs<H> for ObjectStoreRepo<H>
 where

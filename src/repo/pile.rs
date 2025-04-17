@@ -136,6 +136,17 @@ pub enum InsertError {
     PileTooLarge,
 }
 
+impl std::fmt::Display for InsertError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InsertError::IoError(err) => write!(f, "IO error: {}", err),
+            InsertError::PoisonError => write!(f, "Poison error"),
+            InsertError::PileTooLarge => write!(f, "Pile too large"),
+        }
+    }
+}
+impl std::error::Error for InsertError {}
+
 impl From<std::io::Error> for InsertError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
@@ -148,13 +159,40 @@ impl<T> From<PoisonError<T>> for InsertError {
     }
 }
 
-#[derive(Debug)]
 pub enum UpdateBranchError<H: HashProtocol> {
     PreviousHashMismatch(Option<Value<Handle<H, SimpleArchive>>>),
     IoError(std::io::Error),
     PoisonError,
     PileTooLarge,
 }
+
+impl<H: HashProtocol> std::fmt::Debug for UpdateBranchError<H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UpdateBranchError::PreviousHashMismatch(old) => {
+                write!(f, "Previous hash mismatch: {:?}", old)
+            }
+            UpdateBranchError::IoError(err) => write!(f, "IO error: {}", err),
+            UpdateBranchError::PoisonError => write!(f, "Poison error"),
+            UpdateBranchError::PileTooLarge => write!(f, "Pile too large"),
+        }
+    }
+}
+
+impl<H: HashProtocol> std::fmt::Display for UpdateBranchError<H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UpdateBranchError::PreviousHashMismatch(old) => {
+                write!(f, "Previous hash mismatch: {:?}", old)
+            }
+            UpdateBranchError::IoError(err) => write!(f, "IO error: {}", err),
+            UpdateBranchError::PoisonError => write!(f, "Poison error"),
+            UpdateBranchError::PileTooLarge => write!(f, "Pile too large"),
+        }
+    }
+}
+
+impl<H: HashProtocol> std::error::Error for UpdateBranchError<H> {}
 
 impl<H: HashProtocol> From<std::io::Error> for UpdateBranchError<H> {
     fn from(err: std::io::Error) -> Self {
@@ -174,6 +212,18 @@ pub enum GetBlobError {
     PoisonError,
     ValidationError(Bytes),
 }
+
+impl std::fmt::Display for GetBlobError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GetBlobError::BlobNotFound => write!(f, "Blob not found"),
+            GetBlobError::PoisonError => write!(f, "Poison error"),
+            GetBlobError::ValidationError(_) => write!(f, "Validation error"),
+        }
+    }
+}
+
+impl std::error::Error for GetBlobError {}
 
 impl<T> From<PoisonError<T>> for GetBlobError {
     fn from(_err: PoisonError<T>) -> Self {

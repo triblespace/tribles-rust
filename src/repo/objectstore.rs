@@ -23,8 +23,7 @@ use crate::value::{
 };
 
 use super::{
-    BlobRepo, BranchRepo, GetBlob, ListBlobs, ListBranches, PullBranch, PushBranch,
-    PushResult, PutBlob,
+    BlobRepo, BranchRepo, BlobRepoGetOp, BlobRepoListOp, PushResult, BlobRepoPutOp,
 };
 
 const BRANCH_INFIX: &str = "branches";
@@ -48,7 +47,6 @@ impl<H> ObjectStoreRepo<H> {
 }
 
 impl<H: HashProtocol> BlobRepo<H> for ObjectStoreRepo<H> {}
-impl<H: HashProtocol> BranchRepo<H> for ObjectStoreRepo<H> {}
 
 #[derive(Debug)]
 pub enum ListBlobsErr {
@@ -88,7 +86,7 @@ impl fmt::Display for ListBranchesErr {
 }
 impl Error for ListBranchesErr {}
 
-impl<H> ListBlobs<H> for ObjectStoreRepo<H>
+impl<H> BlobRepoListOp<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
@@ -113,7 +111,7 @@ where
     }
 }
 
-impl<H> GetBlob<H> for ObjectStoreRepo<H>
+impl<H> BlobRepoGetOp<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
@@ -136,7 +134,7 @@ where
     }
 }
 
-impl<H> PutBlob<H> for ObjectStoreRepo<H>
+impl<H> BlobRepoPutOp<H> for ObjectStoreRepo<H>
 where
     H: HashProtocol,
 {
@@ -145,7 +143,7 @@ where
     fn put<T>(
         &self,
         blob: Blob<T>,
-    ) -> impl std::future::Future<Output = Result<Value<Handle<H, T>>, Self::Err>>
+    ) -> Result<Value<Handle<H, T>>, Self::Err>
     where
         T: BlobSchema,
         Handle<H, T>: ValueSchema,
@@ -227,13 +225,33 @@ impl From<TryFromSliceError> for PushBranchErr {
     }
 }
 
-impl<H> PullBranch<H> for ObjectStoreRepo<H>
-where
-    H: HashProtocol,
-{
-    type Err = PullBranchErr;
+impl<H: HashProtocol> BranchRepo<H> for ObjectStoreRepo<H> {
+    type ListErr = ListBranchesErr;
+    type PushErr = PushBranchErr;
+    type PullErr = PullBranchErr;
 
-    async fn pull(&self, branch: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::Err> {
+    fn list<'a>(&'a self) -> impl Stream<Item = Result<Id, Self::ListErr>> {
+        self.store
+            .list(Some(&self.prefix.child(BRANCH_INFIX)))
+            .map(|r| match r {
+                Ok(meta) => {
+                    let branch_name = meta
+                        .location
+                        .filename()
+                        .ok_or(ListBranchesErr::NotAFile("no filename"))?;
+                    let digest =
+                        RawId::from_hex(branch_name).map_err(|e| ListBranchesErr::BadNameHex(e))?;
+                    let Some(new_id) = Id::new(digest) else {
+                        return Err(ListBranchesErr::BadId);
+                    };
+                    Ok(new_id)
+                }
+                Err(e) => Err(ListBranchesErr::List(e)),
+            })
+            .boxed()
+    }
+
+    async fn pull(&self, branch: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::PullErr> {
         let branch_name = hex::encode(&branch);
         let path = self.prefix.child(BRANCH_INFIX).child(branch_name);
         let result = self.store.get(&path).await;
@@ -247,20 +265,13 @@ where
             Err(e) => Err(e)?,
         }
     }
-}
-
-impl<H> PushBranch<H> for ObjectStoreRepo<H>
-where
-    H: HashProtocol,
-{
-    type Err = PushBranchErr;
 
     async fn push(
         &self,
         branch_id: Id,
         old_hash: Option<Value<Handle<H, SimpleArchive>>>,
         new_hash: Value<Handle<H, SimpleArchive>>,
-    ) -> Result<PushResult<H>, Self::Err> {
+    ) -> Result<PushResult<H>, Self::PushErr> {
         let branch_name = hex::encode(&branch_id);
         let path = &self.prefix.child(BRANCH_INFIX).child(branch_name);
 
@@ -333,33 +344,5 @@ where
                 }
             }
         }
-    }
-}
-
-impl<H> ListBranches<H> for ObjectStoreRepo<H>
-where
-    H: HashProtocol,
-{
-    type Err = ListBranchesErr;
-
-    fn list<'a>(&'a self) -> impl Stream<Item = Result<Id, Self::Err>> {
-        self.store
-            .list(Some(&self.prefix.child(BRANCH_INFIX)))
-            .map(|r| match r {
-                Ok(meta) => {
-                    let branch_name = meta
-                        .location
-                        .filename()
-                        .ok_or(ListBranchesErr::NotAFile("no filename"))?;
-                    let digest =
-                        RawId::from_hex(branch_name).map_err(|e| ListBranchesErr::BadNameHex(e))?;
-                    let Some(new_id) = Id::new(digest) else {
-                        return Err(ListBranchesErr::BadId);
-                    };
-                    Ok(new_id)
-                }
-                Err(e) => Err(ListBranchesErr::List(e)),
-            })
-            .boxed()
     }
 }

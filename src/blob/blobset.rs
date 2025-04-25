@@ -1,10 +1,14 @@
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::blob::{FromBlob, ToBlob};
+use crate::repo::{BlobStorage, BlobStoreGetOp, BlobStoreListOp, BlobStorePutOp};
 use crate::trible::TribleSet;
 use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
 use crate::value::Value;
 
 use std::collections::HashMap;
+use std::convert::Infallible;
+use std::error::Error;
+use std::fmt;
 use std::iter::FromIterator;
 
 /// A mapping from [Handle]s to [Blob]s.
@@ -142,6 +146,79 @@ where
         (&self.blobs).into_iter()
     }
 }
+
+#[derive(Debug)]
+pub struct NotFoundErr();
+
+impl fmt::Display for NotFoundErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "no blob for hash in blobset")
+    }
+}
+
+impl Error for NotFoundErr {}
+
+pub struct BlobSetListIter<'a, H>
+where H: HashProtocol {
+    iter: std::collections::hash_map::Iter<'a, Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>,
+}
+
+impl<'a, H> Iterator for BlobSetListIter<'a, H>
+where
+    H: HashProtocol,
+{
+    type Item = Result<Value<Handle<H, UnknownBlob>>, Infallible>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|(k, _)| Ok(k.clone()))
+    }
+}
+
+impl<H> BlobStoreListOp<H> for BlobSet<H>
+where
+    H: HashProtocol,
+{
+    type Iter<'a> = BlobSetListIter<'a, H>;
+    type Err = Infallible;
+
+    fn list<'a>(&'a self) -> Self::Iter<'a> {
+        BlobSetListIter {
+            iter: self.blobs.iter()
+        }
+    }
+}
+
+impl<H> BlobStoreGetOp<H> for BlobSet<H>
+where
+    H: HashProtocol,
+{
+    type Err = NotFoundErr;
+
+    fn get<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    where
+        T: BlobSchema,
+    {
+        self.get(handle).ok_or(NotFoundErr())
+    }
+}
+
+impl<H> BlobStorePutOp<H> for BlobSet<H>
+where
+    H: HashProtocol,
+{
+    type Err = Infallible;
+
+    fn put<T>(&mut self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
+    where
+        T: BlobSchema,
+    {
+        let handle = blob.get_handle();
+        self.insert_blob(blob);
+        Ok(handle)
+    }
+}
+
+impl<H: HashProtocol> BlobStorage<H> for BlobSet<H> {}
 
 #[cfg(test)]
 mod tests {

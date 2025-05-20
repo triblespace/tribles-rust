@@ -54,7 +54,7 @@
 //! });
 //! ```
 
-mod blobset;
+mod memoryblobstore;
 pub mod schemas;
 
 use crate::{
@@ -71,7 +71,7 @@ use std::{
     marker::PhantomData,
 };
 
-pub use blobset::BlobSet;
+pub use memoryblobstore::MemoryBlobStore;
 
 pub use anybytes::Bytes;
 
@@ -131,19 +131,19 @@ impl<S: BlobSchema> Blob<S> {
     /// Use [try_from_blob](Blob::try_from_blob) to explicitly handle the error.
     pub fn from_blob<'a, T>(&'a self) -> T
     where
-        T: FromBlob<'a, S>,
+        T: FromBlob<S>,
     {
-        <T as FromBlob<'a, S>>::from_blob(self)
+        <T as FromBlob<S>>::from_blob(self)
     }
 
     /// Tries to convert the blob to a concrete Rust type.
     /// If the conversion fails, an error is returned.
     /// Use [from_blob](Blob::from_blob) if you are sure that the conversion will succeed.
-    pub fn try_from_blob<'a, T>(&'a self) -> Result<T, <T as TryFromBlob<'a, S>>::Error>
+    pub fn try_from_blob<T>(&self) -> Result<T, <T as TryFromBlob<S>>::Error>
     where
-        T: TryFromBlob<'a, S>,
+        T: TryFromBlob<S>,
     {
-        <T as TryFromBlob<'a, S>>::try_from_blob(self)
+        <T as TryFromBlob<S>>::try_from_blob(self)
     }
 }
 
@@ -220,8 +220,8 @@ pub trait ToBlob<S: BlobSchema> {
 /// This is the counterpart to the [ToBlob] trait.
 ///
 /// See [FromValue](crate::value::FromValue) for the counterpart trait for values.
-pub trait FromBlob<'a, S: BlobSchema> {
-    fn from_blob(b: &'a Blob<S>) -> Self;
+pub trait FromBlob<S: BlobSchema> {
+    fn from_blob(b: &Blob<S>) -> Self;
 }
 
 /// A trait for converting a Rust type to a [Blob] with a specific schema.
@@ -247,9 +247,9 @@ pub trait TryToBlob<S: BlobSchema> {
 /// This is the counterpart to the [TryToBlob] trait.
 ///
 /// See [TryFromValue](crate::value::TryFromValue) for the counterpart trait for values.
-pub trait TryFromBlob<'a, S: BlobSchema>: Sized {
+pub trait TryFromBlob<S: BlobSchema>: Sized {
     type Error;
-    fn try_from_blob(b: &'a Blob<S>) -> Result<Self, Self::Error>;
+    fn try_from_blob(b: &Blob<S>) -> Result<Self, Self::Error>;
 }
 
 impl<S: BlobSchema> ToBlob<S> for Blob<S> {
@@ -258,8 +258,8 @@ impl<S: BlobSchema> ToBlob<S> for Blob<S> {
     }
 }
 
-impl<'a, S: BlobSchema> FromBlob<'a, S> for Blob<S> {
-    fn from_blob(b: &'a Blob<S>) -> Self {
+impl<S: BlobSchema> FromBlob<S> for Blob<S> {
+    fn from_blob(b: &Blob<S>) -> Self {
         b.clone()
     }
 }

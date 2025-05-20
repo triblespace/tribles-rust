@@ -1,8 +1,6 @@
-use crate::blob::{Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob};
+use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
 use crate::id::Id;
 use crate::id_hex;
-
-use std::str::Utf8Error;
 
 use anybytes::{view::ViewError, View};
 
@@ -12,25 +10,11 @@ impl BlobSchema for LongString {
     const BLOB_SCHEMA_ID: Id = id_hex!("8B173C65B7DB601A11E8A190BD774A79");
 }
 
-impl TryFromBlob<'_, LongString> for View<str> {
+impl TryFromBlob<LongString> for View<str> {
     type Error = ViewError;
 
     fn try_from_blob(b: &Blob<LongString>) -> Result<Self, Self::Error> {
         (&b.bytes).clone().view()
-    }
-}
-
-impl<'a> TryFromBlob<'a, LongString> for &'a str {
-    type Error = Utf8Error;
-
-    fn try_from_blob(b: &'a Blob<LongString>) -> Result<Self, Self::Error> {
-        std::str::from_utf8(&b.bytes[..])
-    }
-}
-
-impl<'a> FromBlob<'a, LongString> for &'a str {
-    fn from_blob(b: &'a Blob<LongString>) -> Self {
-        std::str::from_utf8(&b.bytes[..]).unwrap()
     }
 }
 

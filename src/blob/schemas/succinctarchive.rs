@@ -86,7 +86,7 @@ where
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
         let alph_width = sucds::utils::needed_bits(domain.len() - 1);
 
-        let mut e_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
+        let mut e_a = EliasFanoBuilder::new(triple_count + 1, domain.len() + 1).expect("|D| > 0");
         let mut sum = 0;
         let mut last = 0;
         for (e, count) in set
@@ -99,11 +99,11 @@ where
             sum = sum + count;
             last = e + 1;
         }
-        e_a.extend(iter::repeat(sum).take(domain.len() - last))
+        e_a.extend(iter::repeat(sum).take(domain.len() + 1 - last))
             .unwrap();
         let e_a = e_a.build();
 
-        let mut a_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
+        let mut a_a = EliasFanoBuilder::new(triple_count + 1, domain.len() + 1).expect("|D| > 0");
         let mut sum = 0;
         let mut last = 0;
         for (a, count) in set
@@ -116,11 +116,11 @@ where
             sum = sum + count;
             last = a + 1;
         }
-        a_a.extend(iter::repeat(sum).take(domain.len() - last))
+        a_a.extend(iter::repeat(sum).take(domain.len() + 1 - last))
             .unwrap();
         let a_a = a_a.build();
 
-        let mut v_a = EliasFanoBuilder::new(triple_count + 1, domain.len()).expect("|D| > 0");
+        let mut v_a = EliasFanoBuilder::new(triple_count + 1, domain.len() + 1).expect("|D| > 0");
         let mut sum = 0;
         let mut last = 0;
         for (v, count) in set
@@ -133,7 +133,7 @@ where
             sum = sum + count;
             last = v + 1;
         }
-        v_a.extend(iter::repeat(sum).take(domain.len() - last))
+        v_a.extend(iter::repeat(sum).take(domain.len() + 1 - last))
             .unwrap();
         let v_a = v_a.build();
 

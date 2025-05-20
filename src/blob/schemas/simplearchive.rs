@@ -30,7 +30,7 @@ pub enum UnarchiveError {
     BadCanonicalizationOrdering,
 }
 
-impl TryFromBlob<'_, SimpleArchive> for TribleSet {
+impl TryFromBlob<SimpleArchive> for TribleSet {
     type Error = UnarchiveError;
 
     fn try_from_blob(blob: &Blob<SimpleArchive>) -> Result<Self, Self::Error> {

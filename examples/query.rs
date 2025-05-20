@@ -24,7 +24,7 @@ NS! {
 
 fn main() {
     let mut kb = TribleSet::new();
-    let mut blobs = BlobSet::new();
+    let mut blobs = MemoryBlobStore::new();
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();

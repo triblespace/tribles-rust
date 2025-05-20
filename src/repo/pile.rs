@@ -375,7 +375,10 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         Ok(written_bytes)
     }
 
-    pub fn insert_blob<T: BlobSchema>(&mut self, blob: Blob<T>) -> Result<Value<Hash<H>>, InsertError> {
+    pub fn insert_blob<T: BlobSchema>(
+        &mut self,
+        blob: Blob<T>,
+    ) -> Result<Value<Hash<H>>, InsertError> {
         let handle: Value<Handle<H, T>> = blob.get_handle();
         let hash = handle.into();
 
@@ -522,10 +525,10 @@ where
     type Err = std::convert::Infallible;
     type Iter<'a> = PileBlobIterator<'a, H>;
 
-    fn list<'a>(
-        &'a self,
-    ) -> Self::Iter<'a> {
-        PileBlobIterator { iter: self.index.keys() }
+    fn list<'a>(&'a self) -> Self::Iter<'a> {
+        PileBlobIterator {
+            iter: self.index.keys(),
+        }
     }
 }
 
@@ -589,14 +592,12 @@ where
     type ListIter<'a> = PileBranchIterator<'a, H>;
 
     fn list<'a>(&'a self) -> Self::ListIter<'a> {
-        PileBranchIterator {iter: self.branches.keys()}
+        PileBranchIterator {
+            iter: self.branches.keys(),
+        }
     }
 
-    fn pull(
-        &self,
-        id: Id,
-    ) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::PullErr>
-    {
+    fn pull(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::PullErr> {
         Ok(self.get_branch(id))
     }
 

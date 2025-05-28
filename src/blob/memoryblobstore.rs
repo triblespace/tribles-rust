@@ -12,39 +12,32 @@ use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::ops::Bound;
 
-use left_right::{Absorb, ReadHandle, WriteHandle};
+use reft_light::{Apply, ReadHandle, WriteHandle};
 
-type MemoryBlobStoreMap<H: HashProtocol> =
-    BTreeMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
-
-enum BlobStoreOp<H: HashProtocol> {
+enum MemoryBlobStoreOps<H: HashProtocol> {
     Insert(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>),
     Keep(TribleSet),
 }
 
-impl<H: HashProtocol> Absorb<BlobStoreOp<H>> for MemoryBlobStoreMap<H> {
-    fn absorb_first(&mut self, operation: &mut BlobStoreOp<H>, _other: &Self) {
-        match operation {
-            BlobStoreOp::Insert(handle, blob) => {
+type MemoryBlobStoreMap<H: HashProtocol> =
+    BTreeMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
+
+impl<H: HashProtocol> Apply<MemoryBlobStoreMap<H>, ()> for MemoryBlobStoreOps<H> {
+    fn apply_first(&mut self, first: &mut MemoryBlobStoreMap<H>, _second: &MemoryBlobStoreMap<H>, _auxiliary: &mut ()) {
+        match self {
+            MemoryBlobStoreOps::Insert(handle, blob) => {
                 // This operation is indempotent, so we can just
                 // ignore it if the blob is already present.
-                self.entry(*handle).or_insert(blob.clone());
+                first.entry(*handle).or_insert(blob.clone());
             }
-            BlobStoreOp::Keep(trible_set) => self.retain(|k, _| trible_set.vae.has_prefix(&k.raw)),
-        }
-    }
-
-    fn sync_with(&mut self, first: &Self) {
-        for (k, v) in first.iter() {
-            self.insert(k.clone(), v.clone());
+            MemoryBlobStoreOps::Keep(trible_set) => first.retain(|k, _| trible_set.vae.has_prefix(&k.raw)),
         }
     }
 }
 
 /// A mapping from [Handle]s to [Blob]s.
 pub struct MemoryBlobStore<H: HashProtocol> {
-    write_handle: WriteHandle<MemoryBlobStoreMap<H>, BlobStoreOp<H>>,
-    read_handle: ReadHandle<MemoryBlobStoreMap<H>>,
+    write_handle: WriteHandle<MemoryBlobStoreOps<H>, MemoryBlobStoreMap<H>, ()>,
 }
 
 impl<H: HashProtocol> Debug for MemoryBlobStore<H>
@@ -56,9 +49,19 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct MemoryBlobStoreReader<H: HashProtocol> {
     read_handle: ReadHandle<MemoryBlobStoreMap<H>>,
 }
+
+impl<H: HashProtocol> Clone for MemoryBlobStoreReader<H> {
+    fn clone(&self) -> Self {
+        MemoryBlobStoreReader {
+            read_handle: self.read_handle.clone(),
+        }
+    }
+}
+
 impl<H: HashProtocol> MemoryBlobStoreReader<H> {
     fn new(read_handle: ReadHandle<MemoryBlobStoreMap<H>>) -> Self {
         MemoryBlobStoreReader { read_handle }
@@ -74,7 +77,7 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
         let read_guard = self.read_handle.enter()?;
         let blob = read_guard.get(&handle)?;
 
-        Some(FromBlob::from_blob(blob.as_transmute()))
+        Some(FromBlob::from_blob(blob.clone().transmute()))
     }
 
     pub fn get_blob<S>(&self, handle: Value<Handle<H, S>>) -> Option<Blob<S>>
@@ -96,7 +99,7 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
             .unwrap_or(0)
     }
 
-    pub fn iter<'a>(&'a self) -> MemoryBlobStoreIter<H> {
+    pub fn iter(&self) -> MemoryBlobStoreIter<H> {
         let read_handle = self.read_handle.clone();
         let iter = MemoryBlobStoreIter {
             read_handle,
@@ -108,29 +111,13 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
 
 impl<H: HashProtocol> MemoryBlobStore<H> {
     pub fn new() -> MemoryBlobStore<H> {
-        let (write_storage, read_storage) =
-            left_right::new::<MemoryBlobStoreMap<H>, BlobStoreOp<H>>();
+        let write_storage = reft_light::new::<MemoryBlobStoreOps<H>, MemoryBlobStoreMap<H>, ()>(MemoryBlobStoreMap::new(), ());
         MemoryBlobStore {
             write_handle: write_storage,
-            read_handle: read_storage,
         }
     }
 
-    pub fn insert<T, S>(&mut self, item: T) -> Value<Handle<H, S>>
-    where
-        S: BlobSchema,
-        T: ToBlob<S>,
-    {
-        let blob: Blob<S> = ToBlob::to_blob(item);
-        let handle = blob.get_handle();
-        let unknown_handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
-        let blob: Blob<UnknownBlob> = Blob::new(blob.bytes);
-        self.write_handle
-            .append(BlobStoreOp::Insert(unknown_handle, blob));
-        handle
-    }
-
-    pub fn insert_blob<S>(&mut self, blob: Blob<S>)
+    pub fn insert<S>(&mut self, blob: Blob<S>) -> Value<Handle<H, S>>
     where
         S: BlobSchema,
     {
@@ -138,7 +125,8 @@ impl<H: HashProtocol> MemoryBlobStore<H> {
         let unknown_handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
         let blob: Blob<UnknownBlob> = blob.transmute();
         self.write_handle
-            .append(BlobStoreOp::Insert(unknown_handle, blob));
+            .append(MemoryBlobStoreOps::Insert(unknown_handle, blob));
+        handle
     }
 
     // Note that keep is conservative and keeps every blob for which there exists
@@ -149,7 +137,7 @@ impl<H: HashProtocol> MemoryBlobStore<H> {
     // allowed to write non-handle typed triples, otherwise they might as well
     // introduce blobs directly.
     pub fn keep(&mut self, tribles: TribleSet) {
-        self.write_handle.append(BlobStoreOp::Keep(tribles));
+        self.write_handle.append(MemoryBlobStoreOps::Keep(tribles));
     }
 }
 
@@ -163,7 +151,7 @@ where
         let mut set = MemoryBlobStore::new();
 
         for (handle, blob) in iter {
-            set.write_handle.append(BlobStoreOp::Insert(handle, blob));
+            set.write_handle.append(MemoryBlobStoreOps::Insert(handle, blob));
         }
 
         set
@@ -265,11 +253,12 @@ where
 {
     type Err = NotFoundErr;
 
-    fn get<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    fn get<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
     where
-        T: BlobSchema,
+        S: BlobSchema,
+        T: FromBlob<S>,
     {
-        self.get_blob(handle).ok_or(NotFoundErr())
+        self.get_blob(handle).map(|blob| FromBlob::from_blob(blob)).ok_or(NotFoundErr())
     }
 }
 
@@ -279,12 +268,14 @@ where
 {
     type Err = Infallible;
 
-    fn put<T>(&mut self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
-        T: BlobSchema,
+        S: BlobSchema,
+        T: ToBlob<S>,
     {
+        let blob = item.to_blob();
         let handle = blob.get_handle();
-        self.insert_blob(blob);
+        self.insert(blob);
         Ok(handle)
     }
 }
@@ -293,7 +284,7 @@ impl<H: HashProtocol> BlobStorage<H> for MemoryBlobStore<H> {
     type Reader = MemoryBlobStoreReader<H>;
 
     fn reader(&self) -> Self::Reader {
-        MemoryBlobStoreReader::new(self.read_handle.clone())
+        MemoryBlobStoreReader::new(self.write_handle.factory().handle())
     }
 }
 
@@ -322,7 +313,7 @@ mod tests {
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..2000 {
             kb.union(knights2::entity!({
-                description: blobs.insert(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap())
+                description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
             }));
         }
         blobs.keep(kb);

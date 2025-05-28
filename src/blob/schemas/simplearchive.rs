@@ -1,5 +1,5 @@
 use crate::{
-    blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
+    blob::{Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob},
     id::Id,
     id_hex,
     trible::{Trible, TribleSet},
@@ -11,6 +11,15 @@ pub struct SimpleArchive;
 
 impl BlobSchema for SimpleArchive {
     const BLOB_SCHEMA_ID: Id = id_hex!("8F4A27C8581DADCBA1ADA8BA228069B6");
+}
+
+impl ToBlob<SimpleArchive> for TribleSet {
+    fn to_blob(self) -> Blob<SimpleArchive> {
+        let mut tribles: Vec<[u8; 64]> = Vec::with_capacity(self.len());
+        tribles.extend(self.eav.iter_ordered());
+        let bytes: Bytes = tribles.into();
+        Blob::new(bytes)
+    }
 }
 
 impl ToBlob<SimpleArchive> for &TribleSet {
@@ -33,7 +42,7 @@ pub enum UnarchiveError {
 impl TryFromBlob<SimpleArchive> for TribleSet {
     type Error = UnarchiveError;
 
-    fn try_from_blob(blob: &Blob<SimpleArchive>) -> Result<Self, Self::Error> {
+    fn try_from_blob(blob: Blob<SimpleArchive>) -> Result<Self, Self::Error> {
         let mut tribles = TribleSet::new();
 
         let mut prev_trible = None;
@@ -58,5 +67,11 @@ impl TryFromBlob<SimpleArchive> for TribleSet {
         }
 
         Ok(tribles)
+    }
+}
+
+impl FromBlob<SimpleArchive> for TribleSet {
+    fn from_blob(blob: Blob<SimpleArchive>) -> Self {
+        blob.try_from_blob().unwrap()
     }
 }

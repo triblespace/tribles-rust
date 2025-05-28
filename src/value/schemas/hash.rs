@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 /// A trait for hash functions.
 /// This trait is implemented by hash functions that can be in a value schema
 /// for example via a [struct@Hash] or a [Handle].
-pub trait HashProtocol: Digest<OutputSize = U32> + 'static {
+pub trait HashProtocol: Digest<OutputSize = U32> + Clone + Send + 'static {
     const NAME: &'static str;
     const SCHEMA_ID: Id;
 }
@@ -22,7 +22,7 @@ pub trait HashProtocol: Digest<OutputSize = U32> + 'static {
 /// See the [crate::id] module documentation for a discussion on the length
 /// of the digest and its role as an intrinsic identifier.
 pub struct Hash<H> {
-    _hasher: PhantomData<H>,
+    _hasher: PhantomData<fn(H) -> ()>,
 }
 
 impl<H> ValueSchema for Hash<H>

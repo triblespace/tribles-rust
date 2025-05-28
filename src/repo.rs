@@ -37,7 +37,7 @@ use itertools::Itertools;
 
 use crate::{
     and,
-    blob::{schemas::UnknownBlob, Blob, BlobSchema, ToBlob},
+    blob::{schemas::UnknownBlob, Blob, BlobSchema, FromBlob, ToBlob},
     find,
     id::Id,
     metadata::metadata,
@@ -109,23 +109,27 @@ pub trait BlobStoreGetOp<H: HashProtocol> {
     /// # Errors
     /// Returns an error if the blob could not be found in the repository.
     /// The error type is specified by the `Err` associated type.
-    fn get<T>(&self, handle: Value<Handle<H, T>>) -> Result<Blob<T>, Self::Err>
+    fn get<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
     where
-        T: BlobSchema + 'static;
+        S: BlobSchema + 'static,
+        T: FromBlob<S>, // TODO make this try_from_blob and add the conversion error to Self::Err
+        Handle<H, S>: ValueSchema;
 }
 
 /// The `PutBlob` trait is used to store blobs in a repository.
-pub trait BlobStorePutOp<H> {
+pub trait BlobStorePutOp<H: HashProtocol> {
     type Err: Error + Debug + Send + Sync + 'static;
 
-    fn put<T>(&mut self, blob: Blob<T>) -> Result<Value<Handle<H, T>>, Self::Err>
+
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
-        T: BlobSchema + 'static,
-        Handle<H, T>: ValueSchema;
+        S: BlobSchema + 'static,
+        T: ToBlob<S>,
+        Handle<H, S>: ValueSchema;
 }
 
 pub trait BlobStorage<H: HashProtocol>: BlobStorePutOp<H> {
-    type Reader: BlobStoreGetOp<H> + BlobStoreListOp<H>;
+    type Reader: BlobStoreGetOp<H> + BlobStoreListOp<H> + Clone + Send + 'static;
     fn reader(&self) -> Self::Reader;
 }
 
@@ -138,7 +142,7 @@ where
     Conflict(Option<Value<Handle<H, SimpleArchive>>>),
 }
 
-pub trait BranchRepo<H: HashProtocol> {
+pub trait BranchStore<H: HashProtocol> {
     type ListErr: Error + Debug + Send + Sync + 'static;
     type PullErr: Error + Debug + Send + Sync + 'static;
     type PushErr: Error + Debug + Send + Sync + 'static;
@@ -163,9 +167,9 @@ pub trait BranchRepo<H: HashProtocol> {
     /// # Returns
     /// * A future that resolves to the handle of the branch.
     /// * The handle is a unique identifier for the branch, and is used to retrieve it from the repository.
-    fn pull(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::PullErr>;
+    fn get(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::PullErr>;
 
-    /// Pushes a branch to the repository, creating or updating it.
+    /// Puts a branch on the repository, creating or updating it.
     ///
     /// # Parameters
     /// * `old` - Expected current value of the branch (None if creating new)
@@ -175,7 +179,7 @@ pub trait BranchRepo<H: HashProtocol> {
     /// * `Success` - Push completed successfully
     /// * `Conflict(current)` - Failed because the branch's current value doesn't match `old`
     ///   (contains the actual current value for conflict resolution)
-    fn push(
+    fn put(
         &mut self,
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
@@ -239,7 +243,7 @@ where
             <BS as BlobStoreListOp<HS>>::Err,
         >| {
             let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
-            let blob = source
+            let blob: Blob<UnknownBlob> = source
                 .get(source_handle)
                 .map_err(|e| TransferError::Load(e))?;
             let target_handle = target.put(blob).map_err(|e| TransferError::Store(e))?;
@@ -284,7 +288,7 @@ pub struct MergeError();
 #[derive(Debug)]
 pub struct PushError();
 
-pub struct Repository<Blobs: BlobStorage<Blake3>, Branches: BranchRepo<Blake3>> {
+pub struct Repository<Blobs: BlobStorage<Blake3>, Branches: BranchStore<Blake3>> {
     blobs: Blobs,
     branches: Branches,
 }
@@ -292,7 +296,7 @@ pub struct Repository<Blobs: BlobStorage<Blake3>, Branches: BranchRepo<Blake3>> 
 impl<Blobs, Branches> Repository<Blobs, Branches>
 where
     Blobs: BlobStorage<Blake3>,
-    Branches: BranchRepo<Blake3>,
+    Branches: BranchStore<Blake3>,
 {
     /// Creates a new repository with the given blob and branch repositories.
     /// The blob repository is used to store the actual data of the repository,
@@ -307,6 +311,137 @@ where
     pub fn new(blobs: Blobs, branches: Branches) -> Self {
         Self { blobs, branches }
     }
+
+    /// Initializes a new branch in the repository.
+    /// Branches are the only mutable state in the repository,
+    /// and are used to represent the state of a commit chain at a specific point in time.
+    /// A branch must always point to a commit, and this function can be used to create a new branch.
+
+    /// Creates a new branch in the repository.
+    /// This branch is a pointer to a specific commit in the repository.
+    /// The branch is created with name and is initialized to point to the opionally given commit.
+    /// The branch is signed by the branch signing key.
+    ///
+    /// # Parameters
+    /// * `branch_name` - The name of the branch to create.
+    /// * `commit` - The handle referencing the commit to initialize the branch to.
+    /// * `branch_signing_key` - The signing key to use for signing the branch.
+    /// # Returns
+    /// * A future that resolves to the id of the new branch.
+    ///
+    pub fn branch(
+        &mut self,
+        branch_name: &str,
+        commit: Value<Handle<Blake3, SimpleArchive>>,
+        branch_signing_key: SigningKey,
+    ) -> Id {
+        let branch_id = *ufoid();
+        let commit_blob = self.blobs.reader().get(commit).expect("failed to get commit blob");
+
+        let branch = branch(&branch_signing_key, branch_id, branch_name, commit_blob);
+
+        let branch_blob = branch.to_blob();
+        let branch_handle = self
+            .blobs
+            .put(branch_blob)
+            .expect("failed to put branch blob");
+
+        let push_result = self
+            .branches
+            .put(branch_id, None, branch_handle)
+            .expect("failed to push branch");
+
+        match push_result {
+            PushResult::Success() => branch_id,
+            PushResult::Conflict(_) => panic!("branch already exists"),
+        }
+    }
+
+    /// Pushes the workspace's new blobs and commit to the persistent repository.
+    /// This syncs the local BlobSet with the repository's BlobStorage and performs
+    /// an atomic branch update (using the stored base_branch_meta).
+    pub fn push(&mut self, repo: &mut Workspace<Blobs>) -> Result<PushResult<Blake3>, PushError> {
+        // 1. Sync `self.local_blobset` to repository's BlobStorage.
+        // 2. Create a new branch meta blob referencing self.current_commit.
+        // 3. Use CAS (comparing against self.base_branch_meta) to update the branch pointer.
+        unimplemented!()
+    }
+}
+
+type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
+type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
+
+/// The Workspace represents the mutable working area or "staging" state.
+/// It was formerly known as `Head`. It is sent to worker threads,
+/// modified (via commits, merges, etc.), and then merged back into the Repository.
+#[derive(Debug)]
+pub struct Workspace<Blobs: BlobStorage<Blake3>> {
+    /// Handle to the current commit in the working branch.
+    pub head: CommitHandle,
+    /// The meta-handle corresponding to the base branch state used for CAS.
+    pub base_branch_meta: Option<BranchMetaHandle>,
+    /// The branch id this workspace is tracking; None for a detached workspace.
+    pub base_branch_id: Option<Id>,
+    /// The blob storage base for the workspace.
+    pub base_blobs: Blobs::Reader,
+    /// A local BlobStore that holds any new blobs (commits, trees, deltas) before they are synced.
+    pub local_blobs: MemoryBlobStore<Blake3>,
+    /// The signing key used for commit/branch signing.
+    pub signing_key: SigningKey,
+}
+
+impl<Blobs: BlobStorage<Blake3>> Workspace<Blobs> {
+    /// Creates a new Workspace given an initial commit, optional base meta, a local blobset,
+    /// and the signing key.
+    pub fn new(
+        head: CommitHandle,
+        base_branch_meta: Option<BranchMetaHandle>,
+        base_branch_id: Option<Id>,
+        signing_key: SigningKey,
+        base_blobs: Blobs::Reader,
+    ) -> Self {
+        Self {
+            head,
+            base_branch_meta,
+            base_branch_id,
+            local_blobs: MemoryBlobStore::new(),
+            signing_key,
+            base_blobs,
+        }
+    }
+    
+    /// Adds a blob to the workspace's local blob store.
+    /// Returns the handle of the blob as stored locally.
+    pub fn add_blob<T>(&mut self, blob: Blob<T>) -> Value<Handle<Blake3, T>>
+    where
+        T: BlobSchema + 'static,
+    {
+        self.local_blobs.put(blob).unwrap()
+    }
+
+    /// Performs a commit in the workspace.
+    /// This method creates a new commit blob (stored in the local blobset)
+    /// and updates the current commit handle. It returns an error if the commit fails.
+    pub fn commit(&mut self, content: Option<Blob<SimpleArchive>>, message: &str) {
+        // 1. Create a commit blob from the current state,
+        //    content (if any) and the commit message.
+        // 2. Store the commit blob in `self.local_blobs`.
+        // 3. Update `self.head` to point to the new commit.
+
+
+    }
+
+    /// Merges another workspace (or its commit state) into this one.
+    /// This returns a new commit that combines the changes from both.
+    pub fn merge(&mut self, other: &Workspace<Blobs>) {
+        // 1. Compute a merge commit from self.current_commit and other.current_commit.
+        // 2. Update the local blobset with any new blobs resulting from merging.
+        // 3. Update self.current_commit accordingly.
+        unimplemented!()
+    }
+}
+
+/*
 
     /// Creates an immutable commit object and stores it (and its content, if provided)
     /// in the blob repository. Does not update any branches.
@@ -350,51 +485,6 @@ where
             .map_err(CreateCommitError::CommitStorageError) // Map error to the correct variant
     }
 
-    /// Initializes a new branch in the repository.
-    /// Branches are the only mutable state in the repository,
-    /// and are used to represent the state of a commit chain at a specific point in time.
-    /// A branch must always point to a commit, and this function can be used to create a new branch.
-
-    /// Creates a new branch in the repository.
-    /// This branch is a pointer to a specific commit in the repository.
-    /// The branch is created with name and is initialized to point to the opionally given commit.
-    /// The branch is signed by the branch signing key.
-    ///
-    /// # Parameters
-    /// * `branch_name` - The name of the branch to create.
-    /// * `commit` - The handle referencing the commit to initialize the branch to.
-    /// * `branch_signing_key` - The signing key to use for signing the branch.
-    /// # Returns
-    /// * A future that resolves to the id of the new branch.
-    ///
-    pub fn branch(
-        &mut self,
-        branch_name: &str,
-        commit: Value<Handle<Blake3, SimpleArchive>>,
-        branch_signing_key: SigningKey,
-    ) -> Id {
-        let branch_id = *ufoid();
-        let commit_blob = self.blobs.get(commit).expect("failed to get commit blob");
-
-        let branch = branch(&branch_signing_key, branch_id, branch_name, commit_blob);
-
-        let branch_blob = branch.to_blob();
-        let branch_handle = self
-            .blobs
-            .put(branch_blob)
-            .expect("failed to put branch blob");
-
-        let push_result = self
-            .branches
-            .push(branch_id, None, branch_handle)
-            .expect("failed to push branch");
-
-        match push_result {
-            PushResult::Success() => branch_id,
-            PushResult::Conflict(_) => panic!("branch already exists"),
-        }
-    }
-
     /// Commits the given content to the specified branch.
     /// This stores the following information in the repository:
     /// * A blob containing the content of the commit.
@@ -427,13 +517,11 @@ where
             .expect("branch not found");
 
         loop {
-            let current_branch_blob = self
+            let current_head: TribleSet = self
                 .blobs
+                .reader()
                 .get(current_branch_handle)
                 .expect("failed to get current head blob");
-            let current_head: TribleSet = current_branch_blob
-                .try_from_blob()
-                .expect("failed to convert blob");
             let (parent,) = find!(
                 (head: Value<_>),
                 repo::pattern!(&current_head, [{ head: head }])
@@ -514,21 +602,11 @@ where
                 return Err(MergeError());
             };
 
-            let Ok(source_branch_blob) = source.blobs.get(source_branch_handle) else {
+            let Ok(source_branch_set): Result<TribleSet, _> = source.blobs.reader().get(source_branch_handle) else {
                 return Err(MergeError());
             };
 
-            let Ok(target_branch_blob) = self.blobs.get(target_branch_handle) else {
-                return Err(MergeError());
-            };
-
-            let Ok(source_branch_set): Result<TribleSet, _> = source_branch_blob.try_from_blob()
-            else {
-                return Err(MergeError());
-            };
-
-            let Ok(target_branch_set): Result<TribleSet, _> = target_branch_blob.try_from_blob()
-            else {
+            let Ok(target_branch_set): Result<TribleSet, _> = self.blobs.reader().get(target_branch_handle) else {
                 return Err(MergeError());
             };
 
@@ -566,9 +644,8 @@ where
                 self_branch,
                 target_name.from_value(),
                 commit.clone(),
-            )
-            .to_blob();
-
+            );
+            
             let Ok(_) = self.blobs.put(commit) else {
                 return Err(MergeError());
             };
@@ -591,72 +668,4 @@ where
         }
     }
 
-    /// Pushes the workspace's new blobs and commit to the persistent repository.
-    /// This syncs the local BlobSet with the repository's BlobStorage and performs
-    /// an atomic branch update (using the stored base_branch_meta).
-    pub fn push(&mut self, repo: &mut Workspace) -> Result<PushResult<Blake3>, PushError> {
-        // 1. Sync `self.local_blobset` to repository's BlobStorage.
-        // 2. Create a new branch meta blob referencing self.current_commit.
-        // 3. Use CAS (comparing against self.base_branch_meta) to update the branch pointer.
-        unimplemented!()
-    }
-}
-
-type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
-type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
-
-/// The Workspace represents the mutable working area or "staging" state.
-/// It was formerly known as `Head`. It is sent to worker threads,
-/// modified (via commits, merges, etc.), and then merged back into the Repository.
-#[derive(Clone, Debug)]
-pub struct Workspace {
-    /// Handle to the current commit in the working branch.
-    pub head: CommitHandle,
-    /// The meta-handle corresponding to the base branch state used for CAS.
-    pub base_branch_meta: Option<BranchMetaHandle>,
-    /// The branch id this workspace is tracking; None for a detached workspace.
-    pub base_branch_id: Option<Id>,
-    /// A local BlobSet that holds any new blobs (commits, trees, deltas) before they are synced.
-    pub blobs: MemoryBlobStore<Blake3>,
-    /// The signing key used for commit/branch signing.
-    pub signing_key: SigningKey,
-}
-
-impl Workspace {
-    /// Creates a new Workspace given an initial commit, optional base meta, a local blobset,
-    /// and the signing key.
-    pub fn new(
-        head: CommitHandle,
-        base_branch_meta: Option<BranchMetaHandle>,
-        base_branch_id: Option<Id>,
-        signing_key: SigningKey,
-    ) -> Self {
-        Self {
-            head,
-            base_branch_meta,
-            base_branch_id,
-            blobs: MemoryBlobStore::new(),
-            signing_key,
-        }
-    }
-
-    /// Performs a commit in the workspace.
-    /// This method creates a new commit blob (stored in the local blobset)
-    /// and updates the current commit handle. It returns an error if the commit fails.
-    pub fn commit(&mut self, content: Option<Blob<SimpleArchive>>, message: &str) {
-        // 1. Create a commit blob from the current state,
-        //    content (if any) and the commit message.
-        // 2. Store the commit blob in `self.local_blobset`.
-        // 3. Update `self.current_commit` to the new commit's handle.
-        unimplemented!()
-    }
-
-    /// Merges another workspace (or its commit state) into this one.
-    /// This returns a new commit that combines the changes from both.
-    pub fn merge(&mut self, other: &Workspace) {
-        // 1. Compute a merge commit from self.current_commit and other.current_commit.
-        // 2. Update the local blobset with any new blobs resulting from merging.
-        // 3. Update self.current_commit accordingly.
-        unimplemented!()
-    }
-}
+*/

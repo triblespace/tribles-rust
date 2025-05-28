@@ -24,8 +24,8 @@ impl BlobSchema for UnknownBlob {
 }
 
 impl FromBlob<UnknownBlob> for Bytes {
-    fn from_blob(blob: &Blob<UnknownBlob>) -> Self {
-        blob.bytes.clone()
+    fn from_blob(blob: Blob<UnknownBlob>) -> Self {
+        blob.bytes
     }
 }
 

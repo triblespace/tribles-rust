@@ -13,8 +13,8 @@ impl BlobSchema for LongString {
 impl TryFromBlob<LongString> for View<str> {
     type Error = ViewError;
 
-    fn try_from_blob(b: &Blob<LongString>) -> Result<Self, Self::Error> {
-        (&b.bytes).clone().view()
+    fn try_from_blob(b: Blob<LongString>) -> Result<Self, Self::Error> {
+        b.bytes.view()
     }
 }
 

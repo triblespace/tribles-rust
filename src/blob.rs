@@ -22,13 +22,13 @@
 //!
 //! // Let's build a BlobSet and fill it with some data.
 //! // Note that we are using the Blake3 hash protocol here.
-//! let mut blobset: BlobSet<Blake3> = BlobSet::new();
+//! let mut memory_store: MemoryBlobStore<Blake3> = MemoryBlobStore::new();
 //!
 //! let book_author_id = fucid();
-//! let quote_a: Value<Handle<Blake3, LongString>> = blobset.insert("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.");
+//! let quote_a: Value<Handle<Blake3, LongString>> = memory_store.put_blob("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.").unwrap();
 //! // Note how the type is inferred from it's usage in the [entity!](crate::namespace::entity!) macro.
-//! let quote_b = blobset.insert("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and
-//!  through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.");
+//! let quote_b = memory_store.put_blob("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and
+//!  through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.").unwrap();
 //!
 //! let set = literature::entity!({
 //!    title: "Dune",
@@ -38,11 +38,11 @@
 //! });
 //!
 //! // Now we can serialize the TribleSet and store it in the BlobSet too.
-//! let archived_set_handle: Value<Handle<Blake3, SimpleArchive>> = blobset.insert(&set);
+//! let archived_set_handle: Value<Handle<Blake3, SimpleArchive>> = memory_store.put_blob(&set).unwrap();
 //!
 //! let mut csprng = OsRng;
 //! let commit_author_key: SigningKey = SigningKey::generate(&mut csprng);
-//! let signature: Signature = commit_author_key.sign(&blobset.get_blob(archived_set_handle).unwrap().bytes);
+//! let signature: Signature = commit_author_key.sign(&memory_store.reader().get_blob(archived_set_handle).unwrap().bytes);
 //!
 //! // And store the handle in another TribleSet.
 //! let meta_set = repo::entity!({
@@ -58,7 +58,7 @@ mod memoryblobstore;
 pub mod schemas;
 
 use crate::{
-    id::Id, trible::TribleSet, value::{
+    id::Id, value::{
         schemas::hash::{Handle, HashProtocol},
         Value, ValueSchema,
     }
@@ -73,7 +73,6 @@ use std::{
 pub use memoryblobstore::MemoryBlobStore;
 
 pub use anybytes::Bytes;
-use schemas::UnknownBlob;
 
 /// A blob is a immutable sequence of bytes that can be used to represent any kind of data.
 /// It is the fundamental building block of data storage and transmission.

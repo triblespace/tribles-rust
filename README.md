@@ -51,7 +51,7 @@ NS! {
 }
 
 fn main() -> std::io::Result<()> {
-    let mut blobs = BlobSet::new();
+    let mut blobs = MemoryBlobStore::new();
     let mut set = TribleSet::new();
 
     let author_id = ufoid();
@@ -66,15 +66,15 @@ fn main() -> std::io::Result<()> {
     set += literature::entity!({
                 title: "Dune",
                 author: &author_id,
-                quote: blobs.insert("Deep in the human unconscious is a \
+                quote: blobs.put_blob("Deep in the human unconscious is a \
                 pervasive need for a logical universe that makes sense. \
-                But the real universe is always one step beyond logic."),
-                quote: blobs.insert("I must not fear. Fear is the \
+                But the real universe is always one step beyond logic.").unwrap(),
+                quote: blobs.put_blob("I must not fear. Fear is the \
                 mind-killer. Fear is the little-death that brings total \
                 obliteration. I will face my fear. I will permit it to \
                 pass over me and through me. And when it has gone past I \
                 will turn the inner eye to see its path. Where the fear \
-                has gone there will be nothing. Only I will remain.")
+                has gone there will be nothing. Only I will remain.").unwrap(),
             });
 
     let title = "Dune";
@@ -92,7 +92,8 @@ fn main() -> std::io::Result<()> {
                 author: author,
                 quote: quote
             }])) {
-        let q: &str = blobs.get(q).unwrap();
+        let q: View<str> = blobs.reader().get_blob(q).unwrap();
+        let q = q.as_ref();
 
         println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
     }

@@ -10,6 +10,7 @@ use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 use tribles::query::ContainsConstraint;
+use tribles::repo::BlobStorePut;
 
 NS! {
     pub namespace literature {
@@ -24,7 +25,7 @@ NS! {
 
 fn main() {
     let mut kb = TribleSet::new();
-    let mut blobs = MemoryBlobStore::new();
+    let mut mem_store = MemoryBlobStore::new();
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();
@@ -35,7 +36,7 @@ fn main() {
         kb += literature::entity!(&book, {
             author: &author,
             title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: blobs.insert_value(Sentence(5..25).fake::<String>())
+            quote: mem_store.put_blob(Sentence(5..25).fake::<String>()).unwrap()
         });
     });
 

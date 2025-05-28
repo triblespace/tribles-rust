@@ -42,3 +42,5 @@ pub use crate::query::{
 pub use crate::repo::pile::Pile;
 pub use crate::trible::{Trible, TribleSet};
 pub use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
+pub use crate::repo::{BlobStore, BranchStore, BlobStoreList, BlobStoreGet, BlobStorePut};
+pub use anybytes::View;

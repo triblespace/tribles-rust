@@ -1,6 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+use tribles::repo::BlobStorePut;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
@@ -259,7 +260,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 });
                 let archive: Blob<SimpleArchive> = SimpleArchive::blob_from(&set);
                 b.iter(|| {
-                    let set: TribleSet = archive.try_from_blob().unwrap();
+                    let set: TribleSet = archive.clone().try_from_blob().unwrap();
                     set
                 });
             },
@@ -745,7 +746,7 @@ fn pile_benchmark(c: &mut Criterion) {
                 let tmp_pile = tmp_dir.path().join("test.pile");
                 let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
-                    pile.insert_blob(UnknownBlob::blob_from(data.clone()))
+                    pile.put_blob(UnknownBlob::blob_from(data.clone()))
                         .unwrap();
                 });
             },
@@ -754,34 +755,6 @@ fn pile_benchmark(c: &mut Criterion) {
     });
 
     group.throughput(Throughput::Bytes(RECORD_COUNT as u64 * RECORD_LEN as u64));
-    group.bench_function(BenchmarkId::new("insert_unvalidated", RECORD_COUNT), |b| {
-        b.iter_batched(
-            || {
-                let mut rng = rand::thread_rng();
-                (0..RECORD_COUNT)
-                    .map(|_| {
-                        let mut record = vec![0u8; RECORD_LEN];
-                        rng.fill_bytes(&mut record);
-
-                        let bytes = Bytes::from_source(record);
-
-                        let hash = Hash::<Blake3>::digest(&bytes).into();
-
-                        (hash, bytes)
-                    })
-                    .collect()
-            },
-            |data: Vec<(Value<Hash<Blake3>>, Bytes)>| {
-                let tmp_dir = tempfile::tempdir().unwrap();
-                let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
-                data.iter().for_each(|(hash, data)| {
-                    pile.insert_blob_unvalidated(*hash, data).unwrap();
-                });
-            },
-            BatchSize::PerIteration,
-        );
-    });
 
     const FLUSHED_RECORD_COUNT: usize = 1 << 10; // 1k
     group.throughput(Throughput::Bytes(FLUSHED_RECORD_COUNT as u64 * 1000 as u64));
@@ -803,7 +776,7 @@ fn pile_benchmark(c: &mut Criterion) {
                 let tmp_pile = tmp_dir.path().join("test.pile");
                 let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
-                    pile.insert_blob(UnknownBlob::blob_from(data.clone()))
+                    pile.put_blob(UnknownBlob::blob_from(data.clone()))
                         .unwrap();
                     pile.flush().unwrap();
                 });
@@ -826,7 +799,7 @@ fn pile_benchmark(c: &mut Criterion) {
                     rng.fill_bytes(&mut record);
 
                     let data = Bytes::from_source(record);
-                    pile.insert_blob(UnknownBlob::blob_from(data.clone()))
+                    pile.put_blob(UnknownBlob::blob_from(data.clone()))
                         .unwrap();
                 });
 

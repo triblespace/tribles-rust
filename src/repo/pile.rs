@@ -30,7 +30,6 @@
 //! ```
 
 use anybytes::Bytes;
-use anyhow::Ok;
 use hex_literal::hex;
 use reft_light::{Apply, ReadHandle, WriteHandle};
 use memmap2::MmapOptions;
@@ -41,7 +40,7 @@ use std::path::Path;
 use std::ptr::slice_from_raw_parts;
 use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{collections::BTreeMap, io::Write};
+use std::{collections::{HashMap, BTreeMap}, io::Write};
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
 use crate::blob::schemas::UnknownBlob;
@@ -119,16 +118,16 @@ impl BlobHeader {
 }
 
 #[derive(Debug, Clone)]
-pub struct PileSwap<H: HashProtocol = Blake3> {
+pub struct PileSwap<H: HashProtocol> {
     blobs: BTreeMap<Value<Hash<H>>, IndexEntry>,
-    branches: BTreeMap<Id, Value<Handle<H, SimpleArchive>>>,
 }
 
-pub struct PileAux<const MAX_PILE_SIZE: usize> {
+pub struct PileAux<const MAX_PILE_SIZE: usize, H: HashProtocol> {
     pending_length: usize,
     applied_length: usize,
     file: File,
     mmap: Arc<memmap2::MmapRaw>,
+    branches: HashMap<Id, Value<Handle<H, SimpleArchive>>>,
 }
 
 fn new_length_and_padding(current_length: usize, blob_size: usize) -> (usize, usize) {
@@ -137,8 +136,8 @@ fn new_length_and_padding(current_length: usize, blob_size: usize) -> (usize, us
     (new_length, padding)
 }
 
-impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX_PILE_SIZE>> for PileBlobStoreOps<H> {
-    fn apply_first(&mut self, first: &mut PileSwap<H>, _second: &PileSwap<H>, auxiliary: &mut PileAux<MAX_PILE_SIZE>) {
+impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX_PILE_SIZE, H>> for PileBlobStoreOps<H> {
+    fn apply_first(&mut self, first: &mut PileSwap<H>, _second: &PileSwap<H>, auxiliary: &mut PileAux<MAX_PILE_SIZE, H>) {
         match self {
             PileBlobStoreOps::Insert(hash, bytes) => {
                 let old_length = auxiliary.applied_length;
@@ -180,7 +179,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
         }
     }
 
-    fn apply_second(self, first: &PileSwap<H>, second: &mut PileSwap<H>, _auxiliary: &mut PileAux<MAX_PILE_SIZE>) {
+    fn apply_second(self, first: &PileSwap<H>, second: &mut PileSwap<H>, _auxiliary: &mut PileAux<MAX_PILE_SIZE, H>) {
         match self {
             PileBlobStoreOps::Insert(hash, _blob) => {
                 // This operation is idempotent, so we can just
@@ -197,7 +196,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
 }
 
 pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
-    w_handle: WriteHandle<PileBlobStoreOps<H>, PileSwap<H>, PileAux<MAX_PILE_SIZE>>,
+    w_handle: WriteHandle<PileBlobStoreOps<H>, PileSwap<H>, PileAux<MAX_PILE_SIZE, H>>,
 }
 
 #[derive(Debug, Clone)]
@@ -218,13 +217,13 @@ impl<H: HashProtocol> PileReader<H> {
     }
 }
 
-impl<H> BlobStoreGetOp<H> for PileReader<H>
+impl<H> BlobStoreGet<H> for PileReader<H>
 where
     H: HashProtocol,
 {
     type Err = GetBlobError;
 
-    fn get<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
+    fn get_blob<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
     where
         S: BlobSchema + 'static,
         T: FromBlob<S>,
@@ -258,7 +257,7 @@ where
     }
 }
 
-impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStorage<H> for Pile<MAX_PILE_SIZE, H> {
+impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE_SIZE, H> {
     type Reader = PileReader<H>;
 
     fn reader(&self) -> Self::Reader {
@@ -304,42 +303,35 @@ impl From<std::io::Error> for InsertError {
     }
 }
 
-pub enum UpdateBranchError<H: HashProtocol> {
-    PreviousHashMismatch(Option<Value<Handle<H, SimpleArchive>>>),
+pub enum UpdateBranchError {
     IoError(std::io::Error),
     PileTooLarge,
 }
 
-impl<H: HashProtocol> std::error::Error for UpdateBranchError<H> {}
+impl std::error::Error for UpdateBranchError {}
 
-unsafe impl<H: HashProtocol> Send for UpdateBranchError<H> {}
-unsafe impl<H: HashProtocol> Sync for UpdateBranchError<H> {}
+unsafe impl Send for UpdateBranchError {}
+unsafe impl Sync for UpdateBranchError {}
 
-impl<H: HashProtocol> std::fmt::Debug for UpdateBranchError<H> {
+impl std::fmt::Debug for UpdateBranchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UpdateBranchError::PreviousHashMismatch(old) => {
-                write!(f, "Previous hash mismatch: {:?}", old)
-            }
             UpdateBranchError::IoError(err) => write!(f, "IO error: {}", err),
             UpdateBranchError::PileTooLarge => write!(f, "Pile too large"),
         }
     }
 }
 
-impl<H: HashProtocol> std::fmt::Display for UpdateBranchError<H> {
+impl std::fmt::Display for UpdateBranchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UpdateBranchError::PreviousHashMismatch(old) => {
-                write!(f, "Previous hash mismatch: {:?}", old)
-            }
             UpdateBranchError::IoError(err) => write!(f, "IO error: {}", err),
             UpdateBranchError::PileTooLarge => write!(f, "Pile too large"),
         }
     }
 }
 
-impl<H: HashProtocol> From<std::io::Error> for UpdateBranchError<H> {
+impl From<std::io::Error> for UpdateBranchError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
     }
@@ -401,7 +393,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         }
 
         let mut blobs = BTreeMap::new();
-        let mut branches = BTreeMap::new();
+        let mut branches = HashMap::new();
 
         while bytes.len() > 0 {
             if bytes.len() < 16 {
@@ -443,19 +435,20 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             w_handle: reft_light::new(
                 PileSwap {
                     blobs,
-                    branches,
                 },
                 PileAux {
                     pending_length: length,
                     applied_length: length,
                     file,
                     mmap,
+                    branches,
                 },
             ),
         })
     }
 
-    pub fn flush(&self) -> Result<(), FlushError> {
+    pub fn flush(&mut self) -> Result<(), FlushError> {
+        self.w_handle.flush();
         self.w_handle.auxiliary().file.sync_data()?;
         Ok(())
     }
@@ -470,7 +463,7 @@ where
     }
 }
 
-use super::{BlobStorage, BlobStoreGetOp, BlobStoreListOp, BlobStorePutOp, BranchStore, PushResult};
+use super::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore, PushResult};
 
 pub struct PileBlobStoreIter<H>
 where
@@ -529,27 +522,27 @@ where
     }
 }
 
-impl<H> BlobStoreListOp<H> for PileReader<H>
+impl<H> BlobStoreList<H> for PileReader<H>
 where
     H: HashProtocol,
 {
     type Err = Infallible;
     type Iter<'a> = PileBlobStoreListIter<H>;
 
-    fn list(&self) -> Self::Iter<'static> {
+    fn list_blobs(&self) -> Self::Iter<'static> {
         PileBlobStoreListIter {
             inner: self.iter(),
         }
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H> BlobStorePutOp<H> for Pile<MAX_PILE_SIZE, H>
+impl<const MAX_PILE_SIZE: usize, H> BlobStorePut<H> for Pile<MAX_PILE_SIZE, H>
 where
     H: HashProtocol,
 {
     type Err = InsertError;
 
-    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put_blob<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
         S: BlobSchema + 'static,
         T: ToBlob<S>,
@@ -575,38 +568,15 @@ where
     }
 }
 
-pub struct PileBranchStoreIter<H>
-where
-    H: HashProtocol,
-{
-    read_handle: ReadHandle<PileSwap<H>>,
-    cursor: Option<Id>,
+pub struct PileBranchStoreIter<'a, H: HashProtocol> {
+    iter: std::collections::hash_map::Keys<'a, Id, Value<Handle<H, SimpleArchive>>>,
 }
 
-impl<'a, H> Iterator for PileBranchStoreIter<H>
-where
-    H: HashProtocol,
-{
-    type Item = Result<Id, Infallible>;
+impl<'a, H: HashProtocol> Iterator for PileBranchStoreIter<'a, H> {
+    type Item = Result<Id, std::convert::Infallible>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let read_handle = self.read_handle.enter()?;
-        let mut iter = if let Some(cursor) = self.cursor.take() {
-            // If we have a cursor, we start from the cursor.
-            // We use `Bound::Excluded` to skip the cursor itself.
-            read_handle.branches.range((Bound::Excluded(cursor), Bound::Unbounded))
-        } else {
-            // If we don't have a cursor, we start from the beginning.
-            read_handle.branches.range((
-                Bound::Unbounded::<Id>,
-                Bound::Unbounded,
-            ))
-        };
-
-        let (id, entry) = iter.next()?;
-        Some(Ok(*id))
-        //TODO we may want to use batching in the future to gain more performance and amortize
-        // the cost of creating the iterator over the BTreeMap.
+        self.iter.next().map(|id| Ok(*id))
     }
 }
 
@@ -615,89 +585,50 @@ where
     H: HashProtocol,
 {
     type ListErr = std::convert::Infallible;
-    type PullErr = std::convert::Infallible;
-    type PushErr = UpdateBranchError<H>;
+    type GetErr = std::convert::Infallible;
+    type PutErr = UpdateBranchError;
 
-    type ListIter<'a> = PileBranchStoreIter<H>;
+    type ListIter<'a> = PileBranchStoreIter<'a, H>;
 
-    fn list(&self) -> Self::ListIter<'static> {
+    fn list_branches<'a>(&'a self) -> Self::ListIter<'a> {
         PileBranchStoreIter {
-            read_handle: self.w_handle.clone(),
-            cursor: None,
+            iter: self.w_handle.auxiliary().branches.keys(),
         }
     }
 
-    fn get(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::PullErr> {
-        self.branches.get(&branch_id).copied()
+    fn get_branch(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr> {        
+        Ok(self.w_handle.auxiliary().branches.get(&id).copied())
+    }
 
-        Ok(self.get_branch(id))
-    }
-    pub fn get_branch(&self, branch_id: Id) -> Option<Value<Handle<H, SimpleArchive>>> {
-    }
-    fn put(
+    fn put_branch(
         &mut self,
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
-    ) -> Result<super::PushResult<H>, Self::PushErr> {
-        let result = self.update_branch(id, old, new);
-        match result {
-            Ok(()) => Ok(PushResult::Success()),
-            Err(UpdateBranchError::PreviousHashMismatch(old)) => Ok(PushResult::Conflict(old)),
-            Err(err) => Err(err),
-        }
-    }
+    ) -> Result<super::PushResult<H>, Self::PutErr> {
+        let aux = self.w_handle.auxiliary_mut();
 
-        pub fn update_branch(
-        &mut self,
-        branch_id: Id,
-        old: Option<Value<Handle<H, SimpleArchive>>>,
-        new: Value<Handle<H, SimpleArchive>>,
-    ) -> Result<(), UpdateBranchError<H>> {
-        {
-            let current_hash = self.branches.get(&branch_id);
-            if current_hash != old.as_ref() {
-                return Err(UpdateBranchError::PreviousHashMismatch(
-                    current_hash.cloned(),
-                ));
-            }
+        let current_hash = aux.branches.get(&id);
+        if current_hash != old.as_ref() {
+            return Ok(PushResult::Conflict(
+                current_hash.cloned(),
+            ));
         }
 
-        let new_length = self.length + 64;
+        let new_length = aux.pending_length + 64;
         if new_length > MAX_PILE_SIZE {
             return Err(UpdateBranchError::PileTooLarge);
         }
 
-        self.length = new_length;
+        aux.pending_length = new_length;
 
-        let header = BranchHeader::new(branch_id, new);
+        let header = BranchHeader::new(id, new);
 
-        self.file.write_all(header.as_bytes())?;
+        aux.file.write_all(header.as_bytes())?;
 
-        self.branches.insert(branch_id, new);
+        aux.branches.insert(id, new);
 
-        Ok(())
-    }
-
-    pub fn force_branch(
-        &mut self,
-        branch_id: Id,
-        hash: Value<Handle<H, SimpleArchive>>,
-    ) -> Result<(), InsertError> {
-        let new_length = self.length + 64;
-        if new_length > MAX_PILE_SIZE {
-            return Err(InsertError::PileTooLarge);
-        }
-
-        self.length = new_length;
-
-        let header = BranchHeader::new(branch_id, hash);
-
-        self.file.write_all(header.as_bytes())?;
-
-        self.branches.insert(branch_id, hash);
-
-        Ok(())
+        Ok(PushResult::Success())
     }
 }
 
@@ -724,7 +655,7 @@ mod tests {
             rng.fill_bytes(&mut record);
 
             let data: Blob<UnknownBlob> = Blob::new(Bytes::from_source(record));
-            pile.put(data).unwrap();
+            pile.put_blob(data).unwrap();
         });
 
         pile.flush().unwrap();

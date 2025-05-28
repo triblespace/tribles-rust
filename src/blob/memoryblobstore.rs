@@ -1,6 +1,6 @@
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
 use crate::blob::{FromBlob, ToBlob};
-use crate::repo::{BlobStorage, BlobStoreGetOp, BlobStoreListOp, BlobStorePutOp};
+use crate::repo::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut};
 use crate::trible::TribleSet;
 use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
 use crate::value::Value;
@@ -78,18 +78,6 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
         let blob = read_guard.get(&handle)?;
 
         Some(FromBlob::from_blob(blob.clone().transmute()))
-    }
-
-    pub fn get_blob<S>(&self, handle: Value<Handle<H, S>>) -> Option<Blob<S>>
-    where
-        S: BlobSchema,
-    {
-        let hash: Value<Hash<_>> = handle.into();
-        let handle: Value<Handle<H, UnknownBlob>> = hash.into();
-        let read_guard = self.read_handle.enter()?;
-        let blob = read_guard.get(&handle)?;
-
-        Some(Blob::transmute(blob.clone()))
     }
 
     pub fn len(&self) -> usize {
@@ -235,40 +223,40 @@ where
     }
 }
 
-impl<H> BlobStoreListOp<H> for MemoryBlobStoreReader<H>
+impl<H> BlobStoreList<H> for MemoryBlobStoreReader<H>
 where
     H: HashProtocol,
 {
     type Iter<'a> = MemoryBlobStoreListIter<H>;
     type Err = Infallible;
 
-    fn list(&self) -> Self::Iter<'static> {
+    fn list_blobs(&self) -> Self::Iter<'static> {
         MemoryBlobStoreListIter { inner: self.iter() }
     }
 }
 
-impl<H> BlobStoreGetOp<H> for MemoryBlobStoreReader<H>
+impl<H> BlobStoreGet<H> for MemoryBlobStoreReader<H>
 where
     H: HashProtocol,
 {
     type Err = NotFoundErr;
 
-    fn get<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
+    fn get_blob<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
     where
         S: BlobSchema,
         T: FromBlob<S>,
     {
-        self.get_blob(handle).map(|blob| FromBlob::from_blob(blob)).ok_or(NotFoundErr())
+        self.get(handle).map(|blob| FromBlob::from_blob(blob)).ok_or(NotFoundErr())
     }
 }
 
-impl<H> BlobStorePutOp<H> for MemoryBlobStore<H>
+impl<H> BlobStorePut<H> for MemoryBlobStore<H>
 where
     H: HashProtocol,
 {
     type Err = Infallible;
 
-    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put_blob<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
         S: BlobSchema,
         T: ToBlob<S>,
@@ -280,7 +268,7 @@ where
     }
 }
 
-impl<H: HashProtocol> BlobStorage<H> for MemoryBlobStore<H> {
+impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
     type Reader = MemoryBlobStoreReader<H>;
 
     fn reader(&self) -> Self::Reader {
@@ -313,7 +301,7 @@ mod tests {
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..2000 {
             kb.union(knights2::entity!({
-                description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
+                description: blobs.put_blob(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
             }));
         }
         blobs.keep(kb);

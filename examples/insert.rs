@@ -7,6 +7,7 @@ use tribles::prelude::*;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
+use tribles::repo::BlobStorePut;
 
 NS! {
     pub namespace literature {
@@ -32,7 +33,7 @@ fn main() {
         kb += literature::entity!(&book, {
             author: &author,
             title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: blobs.insert_value(Sentence(5..25).fake::<String>())
+            quote: blobs.put_blob(Sentence(5..25).fake::<String>()).unwrap()
         });
     });
 }

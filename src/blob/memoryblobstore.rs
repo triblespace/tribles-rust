@@ -1,8 +1,8 @@
+use crate::blob::ToBlob;
 use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
-use crate::blob::{FromBlob, ToBlob};
 use crate::repo::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut};
 use crate::trible::TribleSet;
-use crate::value::schemas::hash::{Handle, Hash, HashProtocol};
+use crate::value::schemas::hash::{Handle, HashProtocol};
 use crate::value::Value;
 
 use std::collections::BTreeMap;
@@ -14,23 +14,31 @@ use std::ops::Bound;
 
 use reft_light::{Apply, ReadHandle, WriteHandle};
 
+use super::TryFromBlob;
+
 enum MemoryBlobStoreOps<H: HashProtocol> {
     Insert(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>),
     Keep(TribleSet),
 }
 
-type MemoryBlobStoreMap<H: HashProtocol> =
-    BTreeMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
+type MemoryBlobStoreMap<H> = BTreeMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
 
 impl<H: HashProtocol> Apply<MemoryBlobStoreMap<H>, ()> for MemoryBlobStoreOps<H> {
-    fn apply_first(&mut self, first: &mut MemoryBlobStoreMap<H>, _second: &MemoryBlobStoreMap<H>, _auxiliary: &mut ()) {
+    fn apply_first(
+        &mut self,
+        first: &mut MemoryBlobStoreMap<H>,
+        _second: &MemoryBlobStoreMap<H>,
+        _auxiliary: &mut (),
+    ) {
         match self {
             MemoryBlobStoreOps::Insert(handle, blob) => {
                 // This operation is indempotent, so we can just
                 // ignore it if the blob is already present.
                 first.entry(*handle).or_insert(blob.clone());
             }
-            MemoryBlobStoreOps::Keep(trible_set) => first.retain(|k, _| trible_set.vae.has_prefix(&k.raw)),
+            MemoryBlobStoreOps::Keep(trible_set) => {
+                first.retain(|k, _| trible_set.vae.has_prefix(&k.raw))
+            }
         }
     }
 }
@@ -45,7 +53,7 @@ where
     H: HashProtocol,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "MemoryBlobStore {} blobs", self.reader().len())
+        write!(f, "MemoryBlobStore")
     }
 }
 
@@ -67,19 +75,6 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
         MemoryBlobStoreReader { read_handle }
     }
 
-    pub fn get<T, S>(&self, handle: Value<Handle<H, S>>) -> Option<T>
-    where
-        S: BlobSchema,
-        T: FromBlob<S>,
-    {
-        let hash: Value<Hash<_>> = handle.into();
-        let handle: Value<Handle<H, UnknownBlob>> = hash.into();
-        let read_guard = self.read_handle.enter()?;
-        let blob = read_guard.get(&handle)?;
-
-        Some(FromBlob::from_blob(blob.clone().transmute()))
-    }
-
     pub fn len(&self) -> usize {
         self.read_handle
             .enter()
@@ -99,7 +94,10 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
 
 impl<H: HashProtocol> MemoryBlobStore<H> {
     pub fn new() -> MemoryBlobStore<H> {
-        let write_storage = reft_light::new::<MemoryBlobStoreOps<H>, MemoryBlobStoreMap<H>, ()>(MemoryBlobStoreMap::new(), ());
+        let write_storage = reft_light::new::<MemoryBlobStoreOps<H>, MemoryBlobStoreMap<H>, ()>(
+            MemoryBlobStoreMap::new(),
+            (),
+        );
         MemoryBlobStore {
             write_handle: write_storage,
         }
@@ -139,7 +137,8 @@ where
         let mut set = MemoryBlobStore::new();
 
         for (handle, blob) in iter {
-            set.write_handle.append(MemoryBlobStoreOps::Insert(handle, blob));
+            set.write_handle
+                .append(MemoryBlobStoreOps::Insert(handle, blob));
         }
 
         set
@@ -158,15 +157,24 @@ where
 }
 
 #[derive(Debug)]
-pub struct NotFoundErr();
+pub enum MemoryStoreGetError<E: Error> {
+    /// This error occurs when a blob is requested that does not exist in the store.
+    /// It is used to indicate that the requested blob could not be found.
+    NotFound(),
+    /// This error occurs when a blob is requested that exists, but cannot be converted to the requested type.
+    ConversionFailed(E),
+}
 
-impl fmt::Display for NotFoundErr {
+impl<E: Error> fmt::Display for MemoryStoreGetError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "no blob for hash in blobset")
+        match self {
+            MemoryStoreGetError::NotFound() => write!(f, "Blob not found in memory store"),
+            MemoryStoreGetError::ConversionFailed(e) => write!(f, "Blob conversion failed: {}", e),
+        }
     }
 }
 
-impl Error for NotFoundErr {}
+impl<E: Error> Error for MemoryStoreGetError<E> {}
 
 pub struct MemoryBlobStoreIter<H>
 where
@@ -230,7 +238,7 @@ where
     type Iter<'a> = MemoryBlobStoreListIter<H>;
     type Err = Infallible;
 
-    fn list_blobs(&self) -> Self::Iter<'static> {
+    fn blobs(&self) -> Self::Iter<'static> {
         MemoryBlobStoreListIter { inner: self.iter() }
     }
 }
@@ -239,14 +247,31 @@ impl<H> BlobStoreGet<H> for MemoryBlobStoreReader<H>
 where
     H: HashProtocol,
 {
-    type Err = NotFoundErr;
+    type Error<E: Error> = MemoryStoreGetError<E>;
 
-    fn get_blob<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
+    fn get<T, S>(
+        &self,
+        handle: Value<Handle<H, S>>,
+    ) -> Result<T, Self::Error<<T as TryFromBlob<S>>::Error>>
     where
         S: BlobSchema,
-        T: FromBlob<S>,
+        T: TryFromBlob<S>,
     {
-        self.get(handle).map(|blob| FromBlob::from_blob(blob)).ok_or(NotFoundErr())
+        let handle: Value<Handle<H, UnknownBlob>> = handle.transmute();
+
+        let Some(read_guard) = self.read_handle.enter() else {
+            return Err(MemoryStoreGetError::NotFound());
+        };
+        let Some(blob) = read_guard.get(&handle) else {
+            return Err(MemoryStoreGetError::NotFound());
+        };
+
+        let blob: Blob<S> = blob.clone().transmute();
+
+        match blob.try_from_blob() {
+            Ok(value) => Ok(value),
+            Err(e) => Err(MemoryStoreGetError::ConversionFailed(e)),
+        }
     }
 }
 
@@ -256,7 +281,7 @@ where
 {
     type Err = Infallible;
 
-    fn put_blob<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
         S: BlobSchema,
         T: ToBlob<S>,
@@ -271,7 +296,7 @@ where
 impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
     type Reader = MemoryBlobStoreReader<H>;
 
-    fn reader(&self) -> Self::Reader {
+    fn reader(&mut self) -> Self::Reader {
         MemoryBlobStoreReader::new(self.write_handle.factory().handle())
     }
 }
@@ -301,7 +326,7 @@ mod tests {
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..2000 {
             kb.union(knights2::entity!({
-                description: blobs.put_blob(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
+                description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
             }));
         }
         blobs.keep(kb);

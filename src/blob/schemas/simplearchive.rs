@@ -1,5 +1,5 @@
 use crate::{
-    blob::{Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob},
+    blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
     id::Id,
     id_hex,
     trible::{Trible, TribleSet},
@@ -39,6 +39,23 @@ pub enum UnarchiveError {
     BadCanonicalizationOrdering,
 }
 
+impl std::fmt::Display for UnarchiveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnarchiveError::BadArchive => write!(f, "The archive is malformed or invalid."),
+            UnarchiveError::BadTrible => write!(f, "A trible in the archive is malformed."),
+            UnarchiveError::BadCanonicalizationRedundancy => {
+                write!(f, "The archive contains redundant tribles.")
+            }
+            UnarchiveError::BadCanonicalizationOrdering => {
+                write!(f, "The tribles in the archive are not in canonical order.")
+            }
+        }
+    }
+}
+
+impl std::error::Error for UnarchiveError {}
+
 impl TryFromBlob<SimpleArchive> for TribleSet {
     type Error = UnarchiveError;
 
@@ -67,11 +84,5 @@ impl TryFromBlob<SimpleArchive> for TribleSet {
         }
 
         Ok(tribles)
-    }
-}
-
-impl FromBlob<SimpleArchive> for TribleSet {
-    fn from_blob(blob: Blob<SimpleArchive>) -> Self {
-        blob.try_from_blob().unwrap()
     }
 }

@@ -92,7 +92,7 @@ fn main() -> std::io::Result<()> {
                 author: author,
                 quote: quote
             }])) {
-        let q: View<str> = blobs.reader().get_blob(q).unwrap();
+        let q: View<str> = blobs.reader().get(q).unwrap();
         let q = q.as_ref();
 
         println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())

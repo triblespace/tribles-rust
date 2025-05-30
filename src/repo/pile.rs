@@ -31,20 +31,24 @@
 
 use anybytes::Bytes;
 use hex_literal::hex;
-use reft_light::{Apply, ReadHandle, WriteHandle};
 use memmap2::MmapOptions;
+use reft_light::{Apply, ReadHandle, WriteHandle};
 use std::convert::Infallible;
+use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::ops::Bound;
 use std::path::Path;
 use std::ptr::slice_from_raw_parts;
 use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{collections::{HashMap, BTreeMap}, io::Write};
+use std::{
+    collections::{BTreeMap, HashMap},
+    io::Write,
+};
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
 use crate::blob::schemas::UnknownBlob;
-use crate::blob::{Blob, BlobSchema, FromBlob, ToBlob};
+use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
 use crate::id::{Id, RawId};
 use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::valueschemas::Handle;
@@ -73,7 +77,11 @@ struct IndexEntry {
 impl IndexEntry {
     fn new(bytes: Bytes, validation: Option<ValidationState>) -> Self {
         Self {
-            state: Arc::new(validation.map(|state| OnceLock::from(state)).unwrap_or_default()),
+            state: Arc::new(
+                validation
+                    .map(|state| OnceLock::from(state))
+                    .unwrap_or_default(),
+            ),
             bytes,
         }
     }
@@ -136,8 +144,15 @@ fn new_length_and_padding(current_length: usize, blob_size: usize) -> (usize, us
     (new_length, padding)
 }
 
-impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX_PILE_SIZE, H>> for PileBlobStoreOps<H> {
-    fn apply_first(&mut self, first: &mut PileSwap<H>, _second: &PileSwap<H>, auxiliary: &mut PileAux<MAX_PILE_SIZE, H>) {
+impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX_PILE_SIZE, H>>
+    for PileBlobStoreOps<H>
+{
+    fn apply_first(
+        &mut self,
+        first: &mut PileSwap<H>,
+        _second: &PileSwap<H>,
+        auxiliary: &mut PileAux<MAX_PILE_SIZE, H>,
+    ) {
         match self {
             PileBlobStoreOps::Insert(hash, bytes) => {
                 let old_length = auxiliary.applied_length;
@@ -156,15 +171,26 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
 
                 let header = BlobHeader::new(now_in_ms as u64, bytes.len() as u64, *hash);
 
-                auxiliary.file.write_all(header.as_bytes()).expect("failed to write header");
-                auxiliary.file.write_all(bytes).expect("failed to write blob bytes");
-                auxiliary.file.write_all(&[0; 64][0..padding]).expect("failed to write padding");
+                auxiliary
+                    .file
+                    .write_all(header.as_bytes())
+                    .expect("failed to write header");
+                auxiliary
+                    .file
+                    .write_all(bytes)
+                    .expect("failed to write blob bytes");
+                auxiliary
+                    .file
+                    .write_all(&[0; 64][0..padding])
+                    .expect("failed to write padding");
 
                 let written_bytes = unsafe {
-                    let written_slice =
-                        slice_from_raw_parts(auxiliary.mmap.as_ptr().offset(old_length as _), bytes.len())
-                            .as_ref()
-                            .unwrap();
+                    let written_slice = slice_from_raw_parts(
+                        auxiliary.mmap.as_ptr().offset(old_length as _),
+                        bytes.len(),
+                    )
+                    .as_ref()
+                    .unwrap();
                     Bytes::from_raw_parts(written_slice, auxiliary.mmap.clone())
                 };
 
@@ -173,18 +199,23 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                     IndexEntry {
                         state: Arc::new(OnceLock::from(ValidationState::Validated)),
                         bytes: written_bytes.clone(),
-                    }
+                    },
                 );
             }
         }
     }
 
-    fn apply_second(self, first: &PileSwap<H>, second: &mut PileSwap<H>, _auxiliary: &mut PileAux<MAX_PILE_SIZE, H>) {
+    fn apply_second(
+        self,
+        first: &PileSwap<H>,
+        second: &mut PileSwap<H>,
+        _auxiliary: &mut PileAux<MAX_PILE_SIZE, H>,
+    ) {
         match self {
             PileBlobStoreOps::Insert(hash, _blob) => {
                 // This operation is idempotent, so we can just
                 // ignore it if the blob is already present.
-                
+
                 let first = first.blobs.get(&hash).expect("handle must exist in first");
                 second.blobs.entry(hash).or_insert_with(|| IndexEntry {
                     state: first.state.clone(),
@@ -221,12 +252,15 @@ impl<H> BlobStoreGet<H> for PileReader<H>
 where
     H: HashProtocol,
 {
-    type Err = GetBlobError;
+    type Error<E: Error> = GetBlobError<E>;
 
-    fn get_blob<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
+    fn get<T, S>(
+        &self,
+        handle: Value<Handle<H, S>>,
+    ) -> Result<T, Self::Error<<T as TryFromBlob<S>>::Error>>
     where
         S: BlobSchema + 'static,
-        T: FromBlob<S>,
+        T: TryFromBlob<S>,
         Handle<H, S>: ValueSchema,
     {
         let hash: &Value<Hash<H>> = handle.as_transmute();
@@ -239,16 +273,20 @@ where
             return Err(GetBlobError::BlobNotFound);
         };
         let state = entry.state.get_or_init(|| {
-                let computed_hash = Hash::<H>::digest(&entry.bytes);
-                if computed_hash == *hash {
-                    ValidationState::Validated
-                } else {
-                    ValidationState::Invalid
-                }
+            let computed_hash = Hash::<H>::digest(&entry.bytes);
+            if computed_hash == *hash {
+                ValidationState::Validated
+            } else {
+                ValidationState::Invalid
+            }
         });
         match state {
             ValidationState::Validated => {
-                return Ok(Blob::new(entry.bytes.clone()).from_blob());
+                let blob: Blob<S> = Blob::new(entry.bytes.clone());
+                match blob.try_from_blob() {
+                    Ok(value) => return Ok(value),
+                    Err(e) => return Err(GetBlobError::ConversionError(e)),
+                }
             }
             ValidationState::Invalid => {
                 return Err(GetBlobError::ValidationError(entry.bytes.clone()));
@@ -260,8 +298,8 @@ where
 impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE_SIZE, H> {
     type Reader = PileReader<H>;
 
-    fn reader(&self) -> Self::Reader {
-        PileReader::new(self.w_handle.clone())
+    fn reader(&mut self) -> Self::Reader {
+        PileReader::new(self.w_handle.publish().clone())
     }
 }
 
@@ -338,21 +376,23 @@ impl From<std::io::Error> for UpdateBranchError {
 }
 
 #[derive(Debug)]
-pub enum GetBlobError {
+pub enum GetBlobError<E: Error> {
     BlobNotFound,
     ValidationError(Bytes),
+    ConversionError(E),
 }
 
-impl std::fmt::Display for GetBlobError {
+impl<E: Error> std::fmt::Display for GetBlobError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GetBlobError::BlobNotFound => write!(f, "Blob not found"),
+            GetBlobError::ConversionError(err) => write!(f, "Conversion error: {}", err),
             GetBlobError::ValidationError(_) => write!(f, "Validation error"),
         }
     }
 }
 
-impl std::error::Error for GetBlobError {}
+impl<E: Error> std::error::Error for GetBlobError<E> {}
 
 #[derive(Debug)]
 pub enum FlushError {
@@ -433,9 +473,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
 
         Ok(Self {
             w_handle: reft_light::new(
-                PileSwap {
-                    blobs,
-                },
+                PileSwap { blobs },
                 PileAux {
                     pending_length: length,
                     applied_length: length,
@@ -484,13 +522,14 @@ where
         let mut iter = if let Some(cursor) = self.cursor.take() {
             // If we have a cursor, we start from the cursor.
             // We use `Bound::Excluded` to skip the cursor itself.
-            read_handle.blobs.range((Bound::Excluded(cursor), Bound::Unbounded))
+            read_handle
+                .blobs
+                .range((Bound::Excluded(cursor), Bound::Unbounded))
         } else {
             // If we don't have a cursor, we start from the beginning.
-            read_handle.blobs.range((
-                Bound::Unbounded::<Value<Hash<H>>>,
-                Bound::Unbounded,
-            ))
+            read_handle
+                .blobs
+                .range((Bound::Unbounded::<Value<Hash<H>>>, Bound::Unbounded))
         };
 
         let (hash, entry) = iter.next()?;
@@ -529,10 +568,8 @@ where
     type Err = Infallible;
     type Iter<'a> = PileBlobStoreListIter<H>;
 
-    fn list_blobs(&self) -> Self::Iter<'static> {
-        PileBlobStoreListIter {
-            inner: self.iter(),
-        }
+    fn blobs(&self) -> Self::Iter<'static> {
+        PileBlobStoreListIter { inner: self.iter() }
     }
 }
 
@@ -542,11 +579,11 @@ where
 {
     type Err = InsertError;
 
-    fn put_blob<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
         S: BlobSchema + 'static,
         T: ToBlob<S>,
-        Handle<H, S>: ValueSchema
+        Handle<H, S>: ValueSchema,
     {
         let blob = ToBlob::to_blob(item);
 
@@ -555,7 +592,7 @@ where
         if aux.pending_length + blob_size + 64 > MAX_PILE_SIZE {
             return Err(InsertError::PileTooLarge);
         }
-        
+
         aux.pending_length += blob_size + 64;
 
         let handle: Value<Handle<H, S>> = blob.get_handle();
@@ -590,17 +627,17 @@ where
 
     type ListIter<'a> = PileBranchStoreIter<'a, H>;
 
-    fn list_branches<'a>(&'a self) -> Self::ListIter<'a> {
+    fn branches<'a>(&'a self) -> Self::ListIter<'a> {
         PileBranchStoreIter {
             iter: self.w_handle.auxiliary().branches.keys(),
         }
     }
 
-    fn get_branch(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr> {        
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr> {
         Ok(self.w_handle.auxiliary().branches.get(&id).copied())
     }
 
-    fn put_branch(
+    fn update(
         &mut self,
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
@@ -610,9 +647,7 @@ where
 
         let current_hash = aux.branches.get(&id);
         if current_hash != old.as_ref() {
-            return Ok(PushResult::Conflict(
-                current_hash.cloned(),
-            ));
+            return Ok(PushResult::Conflict(current_hash.cloned()));
         }
 
         let new_length = aux.pending_length + 64;
@@ -655,7 +690,7 @@ mod tests {
             rng.fill_bytes(&mut record);
 
             let data: Blob<UnknownBlob> = Blob::new(Bytes::from_source(record));
-            pile.put_blob(data).unwrap();
+            pile.put(data).unwrap();
         });
 
         pile.flush().unwrap();

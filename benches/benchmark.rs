@@ -1,7 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
-use tribles::repo::BlobStorePut;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
@@ -11,6 +10,7 @@ use tribles::blob::schemas::succinctarchive::{
     CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
 };
 use tribles::blob::schemas::UnknownBlob;
+use tribles::repo::BlobStorePut;
 
 use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
@@ -746,8 +746,7 @@ fn pile_benchmark(c: &mut Criterion) {
                 let tmp_pile = tmp_dir.path().join("test.pile");
                 let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
-                    pile.put_blob(UnknownBlob::blob_from(data.clone()))
-                        .unwrap();
+                    pile.put(UnknownBlob::blob_from(data.clone())).unwrap();
                 });
             },
             BatchSize::PerIteration,
@@ -776,8 +775,7 @@ fn pile_benchmark(c: &mut Criterion) {
                 let tmp_pile = tmp_dir.path().join("test.pile");
                 let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
-                    pile.put_blob(UnknownBlob::blob_from(data.clone()))
-                        .unwrap();
+                    pile.put(UnknownBlob::blob_from(data.clone())).unwrap();
                     pile.flush().unwrap();
                 });
             },
@@ -799,8 +797,7 @@ fn pile_benchmark(c: &mut Criterion) {
                     rng.fill_bytes(&mut record);
 
                     let data = Bytes::from_source(record);
-                    pile.put_blob(UnknownBlob::blob_from(data.clone()))
-                        .unwrap();
+                    pile.put(UnknownBlob::blob_from(data.clone())).unwrap();
                 });
 
                 pile.flush().unwrap();

@@ -27,6 +27,7 @@ pub mod commit;
 pub mod pile;
 
 use std::{
+    convert::Infallible,
     error::Error,
     fmt::{self, Debug},
 };
@@ -37,7 +38,7 @@ use itertools::Itertools;
 
 use crate::{
     and,
-    blob::{schemas::UnknownBlob, Blob, BlobSchema, FromBlob, ToBlob},
+    blob::{schemas::UnknownBlob, Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob},
     find,
     id::Id,
     metadata::metadata,
@@ -94,12 +95,18 @@ pub trait BlobStoreList<H: HashProtocol> {
     type Err: Error + Debug + Send + Sync + 'static;
 
     /// Lists all blobs in the repository.
-    fn list_blobs<'a>(&'a self) -> Self::Iter<'a>;
+    fn blobs<'a>(&'a self) -> Self::Iter<'a>;
 }
 
 /// The `GetBlob` trait is used to retrieve blobs from a repository.
 pub trait BlobStoreGet<H: HashProtocol> {
-    type Err: Error + Debug + Send + Sync + 'static;
+    type Error<E: std::error::Error>: Error;
+
+    //TODO: Do we want to split the get into get_bytes and get?
+    // With the latter being a higher-level operation that deserializes the blob into a specific type?
+    // It would have a default implementation that uses the `TryFromBlob` trait.
+    // The would allow us to remove the `UnknownBlob` type, potentially avoiding
+    // having a "untyped" blob type in the system.
 
     /// Retrieves a blob from the repository by its handle.
     /// The handle is a unique identifier for the blob, and is used to retrieve it from the repository.
@@ -109,10 +116,13 @@ pub trait BlobStoreGet<H: HashProtocol> {
     /// # Errors
     /// Returns an error if the blob could not be found in the repository.
     /// The error type is specified by the `Err` associated type.
-    fn get_blob<T, S>(&self, handle: Value<Handle<H, S>>) -> Result<T, Self::Err>
+    fn get<T, S>(
+        &self,
+        handle: Value<Handle<H, S>>,
+    ) -> Result<T, Self::Error<<T as TryFromBlob<S>>::Error>>
     where
         S: BlobSchema + 'static,
-        T: FromBlob<S>, // TODO make this try_from_blob and add the conversion error to Self::Err
+        T: TryFromBlob<S>,
         Handle<H, S>: ValueSchema;
 }
 
@@ -120,8 +130,7 @@ pub trait BlobStoreGet<H: HashProtocol> {
 pub trait BlobStorePut<H: HashProtocol> {
     type Err: Error + Debug + Send + Sync + 'static;
 
-
-    fn put_blob<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
     where
         S: BlobSchema + 'static,
         T: ToBlob<S>,
@@ -130,7 +139,7 @@ pub trait BlobStorePut<H: HashProtocol> {
 
 pub trait BlobStore<H: HashProtocol>: BlobStorePut<H> {
     type Reader: BlobStoreGet<H> + BlobStoreList<H> + Clone + Send + 'static;
-    fn reader(&self) -> Self::Reader;
+    fn reader(&mut self) -> Self::Reader;
 }
 
 #[derive(Debug)]
@@ -153,7 +162,7 @@ pub trait BranchStore<H: HashProtocol> {
 
     /// Lists all branches in the repository.
     /// This function returns a stream of branch ids.
-    fn list_branches<'a>(&'a self) -> Self::ListIter<'a>;
+    fn branches<'a>(&'a self) -> Self::ListIter<'a>;
 
     /// Retrieves a branch from the repository by its id.
     /// The id is a unique identifier for the branch, and is used to retrieve it from the repository.
@@ -167,7 +176,7 @@ pub trait BranchStore<H: HashProtocol> {
     /// # Returns
     /// * A future that resolves to the handle of the branch.
     /// * The handle is a unique identifier for the branch, and is used to retrieve it from the repository.
-    fn get_branch(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr>;
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr>;
 
     /// Puts a branch on the repository, creating or updating it.
     ///
@@ -179,7 +188,7 @@ pub trait BranchStore<H: HashProtocol> {
     /// * `Success` - Push completed successfully
     /// * `Conflict(current)` - Failed because the branch's current value doesn't match `old`
     ///   (contains the actual current value for conflict resolution)
-    fn put_branch(
+    fn update(
         &mut self,
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
@@ -226,7 +235,7 @@ pub fn transfer<'a, BS, BT, HS, HT, S>(
         ),
         TransferError<
             <BS as BlobStoreList<HS>>::Err,
-            <BS as BlobStoreGet<HS>>::Err,
+            <BS as BlobStoreGet<HS>>::Error<Infallible>,
             <BT as BlobStorePut<HT>>::Err,
         >,
     >,
@@ -237,16 +246,16 @@ where
     HS: 'static + HashProtocol,
     HT: 'static + HashProtocol,
 {
-    source.list_blobs().map(
+    source.blobs().map(
         move |source_handle: Result<
             Value<Handle<HS, UnknownBlob>>,
             <BS as BlobStoreList<HS>>::Err,
         >| {
             let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
             let blob: Blob<UnknownBlob> = source
-                .get_blob(source_handle)
+                .get(source_handle)
                 .map_err(|e| TransferError::Load(e))?;
-            let target_handle = target.put_blob(blob).map_err(|e| TransferError::Store(e))?;
+            let target_handle = target.put(blob).map_err(|e| TransferError::Store(e))?;
             Ok((source_handle, target_handle))
         },
     )
@@ -336,19 +345,23 @@ where
         branch_signing_key: SigningKey,
     ) -> Id {
         let branch_id = *ufoid();
-        let commit_blob = self.blobs.reader().get_blob(commit).expect("failed to get commit blob");
+        let commit_blob = self
+            .blobs
+            .reader()
+            .get(commit)
+            .expect("failed to get commit blob");
 
         let branch = branch(&branch_signing_key, branch_id, branch_name, commit_blob);
 
         let branch_blob = branch.to_blob();
         let branch_handle = self
             .blobs
-            .put_blob(branch_blob)
+            .put(branch_blob)
             .expect("failed to put branch blob");
 
         let push_result = self
             .branches
-            .put_branch(branch_id, None, branch_handle)
+            .update(branch_id, None, branch_handle)
             .expect("failed to push branch");
 
         match push_result {
@@ -360,7 +373,7 @@ where
     /// Pushes the workspace's new blobs and commit to the persistent repository.
     /// This syncs the local BlobSet with the repository's BlobStore and performs
     /// an atomic branch update (using the stored base_branch_meta).
-    pub fn push(&mut self, repo: &mut Workspace<Blobs>) -> Result<PushResult<Blake3>, PushError> {
+    pub fn push(&mut self, _repo: &mut Workspace<Blobs>) -> Result<PushResult<Blake3>, PushError> {
         // 1. Sync `self.local_blobset` to repository's BlobStore.
         // 2. Create a new branch meta blob referencing self.current_commit.
         // 3. Use CAS (comparing against self.base_branch_meta) to update the branch pointer.
@@ -409,26 +422,24 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             base_blobs,
         }
     }
-    
+
     /// Adds a blob to the workspace's local blob store.
     /// Returns the handle of the blob as stored locally.
     pub fn add_blob<T>(&mut self, blob: Blob<T>) -> Value<Handle<Blake3, T>>
     where
         T: BlobSchema + 'static,
     {
-        self.local_blobs.put_blob(blob).unwrap()
+        self.local_blobs.put(blob).unwrap()
     }
 
     /// Performs a commit in the workspace.
     /// This method creates a new commit blob (stored in the local blobset)
     /// and updates the current commit handle. It returns an error if the commit fails.
-    pub fn commit(&mut self, content: Option<Blob<SimpleArchive>>, message: &str) {
+    pub fn commit(&mut self, _content: Option<Blob<SimpleArchive>>, message: &str) {
         // 1. Create a commit blob from the current state,
         //    content (if any) and the commit message.
         // 2. Store the commit blob in `self.local_blobs`.
         // 3. Update `self.head` to point to the new commit.
-
-
     }
 
     /// Merges another workspace (or its commit state) into this one.
@@ -645,7 +656,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
                 target_name.from_value(),
                 commit.clone(),
             );
-            
+
             let Ok(_) = self.blobs.put(commit) else {
                 return Err(MergeError());
             };

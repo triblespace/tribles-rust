@@ -42,7 +42,7 @@
 //!
 //! let mut csprng = OsRng;
 //! let commit_author_key: SigningKey = SigningKey::generate(&mut csprng);
-//! let signature: Signature = commit_author_key.sign(&memory_store.reader().get_blob(archived_set_handle).unwrap().bytes);
+//! let signature: Signature = commit_author_key.sign(&memory_store.reader().get(archived_set_handle).unwrap().bytes);
 //!
 //! // And store the handle in another TribleSet.
 //! let meta_set = repo::entity!({
@@ -58,13 +58,16 @@ mod memoryblobstore;
 pub mod schemas;
 
 use crate::{
-    id::Id, value::{
+    id::Id,
+    value::{
         schemas::hash::{Handle, HashProtocol},
         Value, ValueSchema,
-    }
+    },
 };
 
 use std::{
+    convert::Infallible,
+    error::Error,
     fmt::{self, Debug},
     hash::Hash,
     marker::PhantomData,
@@ -247,8 +250,24 @@ pub trait TryToBlob<S: BlobSchema> {
 ///
 /// See [TryFromValue](crate::value::TryFromValue) for the counterpart trait for values.
 pub trait TryFromBlob<S: BlobSchema>: Sized {
-    type Error;
+    type Error: Error;
     fn try_from_blob(b: Blob<S>) -> Result<Self, Self::Error>;
+}
+
+impl<S: BlobSchema> TryToBlob<S> for Blob<S> {
+    type Error = Infallible;
+
+    fn try_to_blob(&self) -> Result<Blob<S>, Self::Error> {
+        Ok(self.clone())
+    }
+}
+
+impl<S: BlobSchema> TryFromBlob<S> for Blob<S> {
+    type Error = Infallible;
+
+    fn try_from_blob(b: Blob<S>) -> Result<Self, Self::Error> {
+        Ok(b)
+    }
 }
 
 impl<S: BlobSchema> ToBlob<S> for Blob<S> {

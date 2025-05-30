@@ -36,7 +36,7 @@ fn main() {
         kb += literature::entity!(&book, {
             author: &author,
             title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: mem_store.put_blob(Sentence(5..25).fake::<String>()).unwrap()
+            quote: mem_store.put(Sentence(5..25).fake::<String>()).unwrap()
         });
     });
 

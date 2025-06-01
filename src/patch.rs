@@ -14,7 +14,6 @@ mod entry;
 mod leaf;
 
 use arrayvec::ArrayVec;
-use sptr::Strict;
 
 use branch::*;
 pub use entry::Entry;

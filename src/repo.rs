@@ -153,13 +153,25 @@ where
     Conflict(Option<Value<Handle<H, SimpleArchive>>>),
 }
 
-#[derive(Debug)]
 pub enum RepoPushResult<Storage>
 where
     Storage: BlobStore<Blake3> + BranchStore<Blake3>,
 {
     Success(),
     Conflict(Workspace<Storage>),
+}
+
+impl<Storage> fmt::Debug for RepoPushResult<Storage>
+where
+    Storage: BlobStore<Blake3> + BranchStore<Blake3>,
+    Storage::Reader: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RepoPushResult::Success() => f.debug_tuple("Success").finish(),
+            RepoPushResult::Conflict(ws) => f.debug_tuple("Conflict").field(ws).finish(),
+        }
+    }
 }
 
 pub trait BranchStore<H: HashProtocol> {
@@ -546,7 +558,6 @@ type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 /// The Workspace represents the mutable working area or "staging" state.
 /// It was formerly known as `Head`. It is sent to worker threads,
 /// modified (via commits, merges, etc.), and then merged back into the Repository.
-#[derive(Debug)]
 pub struct Workspace<Blobs: BlobStore<Blake3>> {
     /// A local BlobStore that holds any new blobs (commits, trees, deltas) before they are synced.
     local_blobs: MemoryBlobStore<Blake3>,
@@ -560,6 +571,22 @@ pub struct Workspace<Blobs: BlobStore<Blake3>> {
     head: CommitHandle,
     /// The signing key used for commit/branch signing.
     signing_key: SigningKey,
+}
+
+impl<Blobs> fmt::Debug for Workspace<Blobs>
+where
+    Blobs: BlobStore<Blake3>,
+    Blobs::Reader: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Workspace")
+            .field("local_blobs", &self.local_blobs)
+            .field("base_blobs", &self.base_blobs)
+            .field("base_branch_id", &self.base_branch_id)
+            .field("base_branch_meta", &self.base_branch_meta)
+            .field("head", &self.head)
+            .finish()
+    }
 }
 
 impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {

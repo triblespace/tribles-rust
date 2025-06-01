@@ -305,7 +305,7 @@ impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
     type Reader = MemoryBlobStoreReader<H>;
 
     fn reader(&mut self) -> Self::Reader {
-        MemoryBlobStoreReader::new(self.write_handle.factory().handle())
+        MemoryBlobStoreReader::new(self.write_handle.publish().clone())
     }
 }
 

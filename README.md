@@ -66,10 +66,10 @@ fn main() -> std::io::Result<()> {
     set += literature::entity!({
                 title: "Dune",
                 author: &author_id,
-                quote: blobs.put_blob("Deep in the human unconscious is a \
+                quote: blobs.put("Deep in the human unconscious is a \
                 pervasive need for a logical universe that makes sense. \
                 But the real universe is always one step beyond logic.").unwrap(),
-                quote: blobs.put_blob("I must not fear. Fear is the \
+                quote: blobs.put("I must not fear. Fear is the \
                 mind-killer. Fear is the little-death that brings total \
                 obliteration. I will face my fear. I will permit it to \
                 pass over me and through me. And when it has gone past I \

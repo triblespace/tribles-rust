@@ -546,8 +546,8 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             [self.head],
             message,
             Some(content_blob.clone()),
-        ); // Pass blob ownership
-           // 2. Store the content and commit blobs in `self.local_blobs`.
+        );
+        // 2. Store the content and commit blobs in `self.local_blobs`.
         let _ = self
             .local_blobs
             .put(content_blob)

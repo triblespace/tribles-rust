@@ -235,6 +235,17 @@ pub struct PileReader<H: HashProtocol> {
     r_handle: ReadHandle<PileSwap<H>>,
 }
 
+impl<H> PartialEq for PileReader<H>
+where
+    H: HashProtocol,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.r_handle == other.r_handle
+    }
+}
+
+impl<H> Eq for PileReader<H> where H: HashProtocol {}
+
 impl<H: HashProtocol> PileReader<H> {
     pub fn new(r_handle: ReadHandle<PileSwap<H>>) -> Self {
         Self { r_handle }
@@ -252,12 +263,12 @@ impl<H> BlobStoreGet<H> for PileReader<H>
 where
     H: HashProtocol,
 {
-    type Error<E: Error> = GetBlobError<E>;
+    type GetError<E: Error> = GetBlobError<E>;
 
     fn get<T, S>(
         &self,
         handle: Value<Handle<H, S>>,
-    ) -> Result<T, Self::Error<<T as TryFromBlob<S>>::Error>>
+    ) -> Result<T, Self::GetError<<T as TryFromBlob<S>>::Error>>
     where
         S: BlobSchema + 'static,
         T: TryFromBlob<S>,
@@ -577,9 +588,9 @@ impl<const MAX_PILE_SIZE: usize, H> BlobStorePut<H> for Pile<MAX_PILE_SIZE, H>
 where
     H: HashProtocol,
 {
-    type Err = InsertError;
+    type PutError = InsertError;
 
-    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::PutError>
     where
         S: BlobSchema + 'static,
         T: ToBlob<S>,
@@ -621,9 +632,9 @@ impl<const MAX_PILE_SIZE: usize, H> BranchStore<H> for Pile<MAX_PILE_SIZE, H>
 where
     H: HashProtocol,
 {
-    type ListErr = std::convert::Infallible;
-    type GetErr = std::convert::Infallible;
-    type PutErr = UpdateBranchError;
+    type BranchesError = std::convert::Infallible;
+    type HeadError = std::convert::Infallible;
+    type UpdateError = UpdateBranchError;
 
     type ListIter<'a> = PileBranchStoreIter<'a, H>;
 
@@ -633,7 +644,7 @@ where
         }
     }
 
-    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr> {
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
         Ok(self.w_handle.auxiliary().branches.get(&id).copied())
     }
 
@@ -642,7 +653,7 @@ where
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
-    ) -> Result<super::PushResult<H>, Self::PutErr> {
+    ) -> Result<super::PushResult<H>, Self::UpdateError> {
         let aux = self.w_handle.auxiliary_mut();
 
         let current_hash = aux.branches.get(&id);

@@ -54,6 +54,11 @@
 //! });
 //! ```
 
+// TODO: Should we slim down the traits to only include `ToBlob` and `TryFromBlob`?
+// Any convertible rust type should be convertible to a blob.
+// While the only time that something can go wrong is when converting a blob to a concrete type,
+// as the type might now allow any bit pattern.
+
 mod memoryblobstore;
 pub mod schemas;
 

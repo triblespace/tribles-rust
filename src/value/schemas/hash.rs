@@ -129,7 +129,7 @@ impl HashProtocol for Blake3 {
 /// The handle is generated when a blob is inserted into a BlobSet, and the handle
 /// can be used to retrieve the blob from the BlobSet later.
 #[repr(transparent)]
-pub struct Handle<H, T: BlobSchema> {
+pub struct Handle<H: HashProtocol, T: BlobSchema> {
     digest: Hash<H>,
     _type: PhantomData<T>,
 }

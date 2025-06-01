@@ -70,6 +70,14 @@ impl<H: HashProtocol> Clone for MemoryBlobStoreReader<H> {
     }
 }
 
+impl<H: HashProtocol> PartialEq for MemoryBlobStoreReader<H> {
+    fn eq(&self, other: &Self) -> bool {
+        self.read_handle == other.read_handle
+    }
+}
+
+impl<H: HashProtocol> Eq for MemoryBlobStoreReader<H> {}
+
 impl<H: HashProtocol> MemoryBlobStoreReader<H> {
     fn new(read_handle: ReadHandle<MemoryBlobStoreMap<H>>) -> Self {
         MemoryBlobStoreReader { read_handle }
@@ -247,12 +255,12 @@ impl<H> BlobStoreGet<H> for MemoryBlobStoreReader<H>
 where
     H: HashProtocol,
 {
-    type Error<E: Error> = MemoryStoreGetError<E>;
+    type GetError<E: Error> = MemoryStoreGetError<E>;
 
     fn get<T, S>(
         &self,
         handle: Value<Handle<H, S>>,
-    ) -> Result<T, Self::Error<<T as TryFromBlob<S>>::Error>>
+    ) -> Result<T, Self::GetError<<T as TryFromBlob<S>>::Error>>
     where
         S: BlobSchema,
         T: TryFromBlob<S>,
@@ -279,9 +287,9 @@ impl<H> BlobStorePut<H> for MemoryBlobStore<H>
 where
     H: HashProtocol,
 {
-    type Err = Infallible;
+    type PutError = Infallible;
 
-    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::PutError>
     where
         S: BlobSchema,
         T: ToBlob<S>,

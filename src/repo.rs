@@ -36,9 +36,12 @@ use commit::commit;
 use ed25519_dalek::SigningKey;
 use itertools::Itertools;
 
+use crate::{blob::MemoryBlobStore, repo::branch::branch};
 use crate::{
-    and,
-    blob::{schemas::UnknownBlob, Blob, BlobSchema, FromBlob, ToBlob, TryFromBlob},
+    blob::{
+        schemas::{simplearchive::UnarchiveError, UnknownBlob},
+        Blob, BlobSchema, ToBlob, TryFromBlob,
+    },
     find,
     id::Id,
     metadata::metadata,
@@ -49,7 +52,6 @@ use crate::{
     },
     NS,
 };
-use crate::{blob::MemoryBlobStore, repo::branch::branch};
 use crate::{id::ufoid, prelude::valueschemas::GenId};
 
 use crate::{
@@ -100,7 +102,7 @@ pub trait BlobStoreList<H: HashProtocol> {
 
 /// The `GetBlob` trait is used to retrieve blobs from a repository.
 pub trait BlobStoreGet<H: HashProtocol> {
-    type Error<E: std::error::Error>: Error;
+    type GetError<E: std::error::Error>: Error;
 
     //TODO: Do we want to split the get into get_bytes and get?
     // With the latter being a higher-level operation that deserializes the blob into a specific type?
@@ -119,7 +121,7 @@ pub trait BlobStoreGet<H: HashProtocol> {
     fn get<T, S>(
         &self,
         handle: Value<Handle<H, S>>,
-    ) -> Result<T, Self::Error<<T as TryFromBlob<S>>::Error>>
+    ) -> Result<T, Self::GetError<<T as TryFromBlob<S>>::Error>>
     where
         S: BlobSchema + 'static,
         T: TryFromBlob<S>,
@@ -128,9 +130,9 @@ pub trait BlobStoreGet<H: HashProtocol> {
 
 /// The `PutBlob` trait is used to store blobs in a repository.
 pub trait BlobStorePut<H: HashProtocol> {
-    type Err: Error + Debug + Send + Sync + 'static;
+    type PutError: Error + Debug + Send + Sync + 'static;
 
-    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::Err>
+    fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::PutError>
     where
         S: BlobSchema + 'static,
         T: ToBlob<S>,
@@ -138,7 +140,7 @@ pub trait BlobStorePut<H: HashProtocol> {
 }
 
 pub trait BlobStore<H: HashProtocol>: BlobStorePut<H> {
-    type Reader: BlobStoreGet<H> + BlobStoreList<H> + Clone + Send + 'static;
+    type Reader: BlobStoreGet<H> + BlobStoreList<H> + Clone + Send + PartialEq + Eq + 'static;
     fn reader(&mut self) -> Self::Reader;
 }
 
@@ -152,11 +154,11 @@ where
 }
 
 pub trait BranchStore<H: HashProtocol> {
-    type ListErr: Error + Debug + Send + Sync + 'static;
-    type GetErr: Error + Debug + Send + Sync + 'static;
-    type PutErr: Error + Debug + Send + Sync + 'static;
+    type BranchesError: Error + Debug + Send + Sync + 'static;
+    type HeadError: Error + Debug + Send + Sync + 'static;
+    type UpdateError: Error + Debug + Send + Sync + 'static;
 
-    type ListIter<'a>: Iterator<Item = Result<Id, Self::ListErr>>
+    type ListIter<'a>: Iterator<Item = Result<Id, Self::BranchesError>>
     where
         Self: 'a;
 
@@ -176,7 +178,7 @@ pub trait BranchStore<H: HashProtocol> {
     /// # Returns
     /// * A future that resolves to the handle of the branch.
     /// * The handle is a unique identifier for the branch, and is used to retrieve it from the repository.
-    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::GetErr>;
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError>;
 
     /// Puts a branch on the repository, creating or updating it.
     ///
@@ -193,7 +195,7 @@ pub trait BranchStore<H: HashProtocol> {
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
-    ) -> Result<PushResult<H>, Self::PutErr>;
+    ) -> Result<PushResult<H>, Self::UpdateError>;
 }
 
 #[derive(Debug)]
@@ -235,8 +237,8 @@ pub fn transfer<'a, BS, BT, HS, HT, S>(
         ),
         TransferError<
             <BS as BlobStoreList<HS>>::Err,
-            <BS as BlobStoreGet<HS>>::Error<Infallible>,
-            <BT as BlobStorePut<HT>>::Err,
+            <BS as BlobStoreGet<HS>>::GetError<Infallible>,
+            <BT as BlobStorePut<HT>>::PutError,
         >,
     >,
 > + 'a
@@ -292,20 +294,49 @@ impl<BlobErr: Error + Debug + Send + Sync + 'static> Error for CreateCommitError
 }
 
 #[derive(Debug)]
-pub struct MergeError();
-
-#[derive(Debug)]
-pub struct PushError();
-
-pub struct Repository<Blobs: BlobStore<Blake3>, Branches: BranchStore<Blake3>> {
-    blobs: Blobs,
-    branches: Branches,
+pub enum MergeError {
+    /// The merge failed because the workspaces have different base repos.
+    DifferentRepos(),
 }
 
-impl<Blobs, Branches> Repository<Blobs, Branches>
+#[derive(Debug)]
+pub enum PushError<Storage: BranchStore<Blake3> + BlobStore<Blake3>> {
+    /// An error occurred while enumerating the branch storage branches.
+    StorageBranches(Storage::BranchesError),
+    /// An error occurred while reading metadata blobs.
+    StorageGet(
+        <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
+    ),
+    /// An error occurred while transferring blobs to the repository.
+    StoragePut(<Storage as BlobStorePut<Blake3>>::PutError),
+    /// An error occurred while updating the branch storage.
+    BranchUpdate(Storage::UpdateError),
+    /// Malformed branch metadata.
+    BadBranchMetadata(),
+}
+
+pub struct Repository<Storage: BlobStore<Blake3> + BranchStore<Blake3>> {
+    storage: Storage,
+}
+
+pub enum CheckoutError<BranchStorageErr, BlobStorageErr>
 where
-    Blobs: BlobStore<Blake3>,
-    Branches: BranchStore<Blake3>,
+    BranchStorageErr: Error,
+    BlobStorageErr: Error,
+{
+    /// The branch does not exist in the repository.
+    BranchNotFound(Id),
+    /// An error occurred while accessing the branch storage.
+    BranchStorage(BranchStorageErr),
+    /// An error occurred while accessing the blob storage.
+    BlobStorage(BlobStorageErr),
+    /// The branch metadata is malformed or does not contain the expected fields.
+    BadBranchMetadata(),
+}
+
+impl<Storage> Repository<Storage>
+where
+    Storage: BlobStore<Blake3> + BranchStore<Blake3>,
 {
     /// Creates a new repository with the given blob and branch repositories.
     /// The blob repository is used to store the actual data of the repository,
@@ -317,8 +348,8 @@ where
     /// * `branches` - The branch repository to use for storing branches.
     /// # Returns
     /// * A new `Repo` object that can be used to store and retrieve blobs and branches.
-    pub fn new(blobs: Blobs, branches: Branches) -> Self {
-        Self { blobs, branches }
+    pub fn new(storage: Storage) -> Self {
+        Self { storage }
     }
 
     /// Initializes a new branch in the repository.
@@ -346,7 +377,7 @@ where
     ) -> Id {
         let branch_id = *ufoid();
         let commit_blob = self
-            .blobs
+            .storage
             .reader()
             .get(commit)
             .expect("failed to get commit blob");
@@ -355,12 +386,12 @@ where
 
         let branch_blob = branch.to_blob();
         let branch_handle = self
-            .blobs
+            .storage
             .put(branch_blob)
             .expect("failed to put branch blob");
 
         let push_result = self
-            .branches
+            .storage
             .update(branch_id, None, branch_handle)
             .expect("failed to push branch");
 
@@ -370,14 +401,105 @@ where
         }
     }
 
+    pub fn checkout(
+        &mut self,
+        branch_id: Id,
+    ) -> Result<
+        Workspace<Storage>,
+        CheckoutError<
+            Storage::HeadError,
+            <Storage::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
+        >,
+    > {
+        // 1. Get the branch metadata head from the branch store.
+        let base_branch_meta_handle = match self.storage.head(branch_id) {
+            Ok(Some(handle)) => handle,
+            Ok(None) => return Err(CheckoutError::BranchNotFound(branch_id)),
+            Err(e) => return Err(CheckoutError::BranchStorage(e)),
+        };
+        // 2. Get the current commit from the branch metadata.
+        let base_branch_meta: TribleSet = match self.storage.reader().get(base_branch_meta_handle) {
+            Ok(metadata) => metadata,
+            Err(e) => return Err(CheckoutError::BlobStorage(e)),
+        };
+
+        let Ok((head,)) = find!(
+            (head: Value<_>),
+            repo::pattern!(&base_branch_meta, [{ head: head }])
+        )
+        .exactly_one() else {
+            return Err(CheckoutError::BadBranchMetadata());
+        };
+        // 3. Create a new workspace with the current commit and base blobs.
+        Ok(Workspace {
+            base_blobs: self.storage.reader(),
+            local_blobs: MemoryBlobStore::new(),
+            head,
+            base_branch_id: branch_id,
+            base_branch_meta: base_branch_meta_handle,
+            signing_key: SigningKey::generate(&mut rand::rngs::OsRng),
+        })
+    }
+
     /// Pushes the workspace's new blobs and commit to the persistent repository.
     /// This syncs the local BlobSet with the repository's BlobStore and performs
     /// an atomic branch update (using the stored base_branch_meta).
-    pub fn push(&mut self, _repo: &mut Workspace<Blobs>) -> Result<PushResult<Blake3>, PushError> {
+    pub fn push(
+        &mut self,
+        workspace: &mut Workspace<Storage>,
+    ) -> Result<PushResult<Blake3>, PushError<Storage>> {
         // 1. Sync `self.local_blobset` to repository's BlobStore.
-        // 2. Create a new branch meta blob referencing self.current_commit.
+        let workspace_reader = workspace.local_blobs.reader();
+        for handle in workspace_reader.blobs() {
+            let handle = handle.expect("infallible blob enumeration");
+            let blob: Blob<UnknownBlob> =
+                workspace_reader.get(handle).expect("infallible blob read");
+            self.storage
+                .put(blob)
+                .map_err(|e| PushError::StoragePut(e))?;
+        }
+        // 2. Create a new branch meta blob referencing the new workspace head.
+        let repo_reader = self.storage.reader();
+
+        let base_branch_meta: TribleSet = repo_reader
+            .get(workspace.base_branch_meta)
+            .map_err(|e| PushError::StorageGet(e))?;
+
+        let Ok((branch_name,)) = find!((name: Value<_>),
+            metadata::pattern!(base_branch_meta, [{ name: name }])
+        )
+        .exactly_one() else {
+            return Err(PushError::BadBranchMetadata());
+        };
+
+        let head: TribleSet = repo_reader
+            .get(workspace.head)
+            .map_err(|e| PushError::StorageGet(e))?;
+
+        let branch_meta = branch(
+            &workspace.signing_key,
+            workspace.base_branch_id,
+            branch_name.from_value(),
+            head.to_blob(),
+        );
+
+        let branch_meta_handle = self
+            .storage
+            .put(branch_meta)
+            .map_err(|e| PushError::StoragePut(e))?;
+
         // 3. Use CAS (comparing against self.base_branch_meta) to update the branch pointer.
-        unimplemented!()
+
+        // TODO: Have this return a RepoPushResult instead of a PushResult.
+        // It should contain a workspace that can be directly used to merge the conflicting branches.
+        Ok(self
+            .storage
+            .update(
+                workspace.base_branch_id,
+                Some(workspace.base_branch_meta),
+                branch_meta_handle,
+            )
+            .map_err(|e| PushError::BranchUpdate(e))?)
     }
 }
 
@@ -389,40 +511,21 @@ type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 /// modified (via commits, merges, etc.), and then merged back into the Repository.
 #[derive(Debug)]
 pub struct Workspace<Blobs: BlobStore<Blake3>> {
-    /// Handle to the current commit in the working branch.
-    pub head: CommitHandle,
-    /// The meta-handle corresponding to the base branch state used for CAS.
-    pub base_branch_meta: Option<BranchMetaHandle>,
-    /// The branch id this workspace is tracking; None for a detached workspace.
-    pub base_branch_id: Option<Id>,
-    /// The blob storage base for the workspace.
-    pub base_blobs: Blobs::Reader,
     /// A local BlobStore that holds any new blobs (commits, trees, deltas) before they are synced.
-    pub local_blobs: MemoryBlobStore<Blake3>,
+    local_blobs: MemoryBlobStore<Blake3>,
+    /// The blob storage base for the workspace.
+    base_blobs: Blobs::Reader,
+    /// The branch id this workspace is tracking; None for a detached workspace.
+    base_branch_id: Id,
+    /// The meta-handle corresponding to the base branch state used for CAS.
+    base_branch_meta: BranchMetaHandle,
+    /// Handle to the current commit in the working branch.
+    head: CommitHandle,
     /// The signing key used for commit/branch signing.
-    pub signing_key: SigningKey,
+    signing_key: SigningKey,
 }
 
 impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
-    /// Creates a new Workspace given an initial commit, optional base meta, a local blobset,
-    /// and the signing key.
-    pub fn new(
-        head: CommitHandle,
-        base_branch_meta: Option<BranchMetaHandle>,
-        base_branch_id: Option<Id>,
-        signing_key: SigningKey,
-        base_blobs: Blobs::Reader,
-    ) -> Self {
-        Self {
-            head,
-            base_branch_meta,
-            base_branch_id,
-            local_blobs: MemoryBlobStore::new(),
-            signing_key,
-            base_blobs,
-        }
-    }
-
     /// Adds a blob to the workspace's local blob store.
     /// Returns the handle of the blob as stored locally.
     pub fn add_blob<T>(&mut self, blob: Blob<T>) -> Value<Handle<Blake3, T>>
@@ -434,67 +537,68 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
 
     /// Performs a commit in the workspace.
     /// This method creates a new commit blob (stored in the local blobset)
-    /// and updates the current commit handle. It returns an error if the commit fails.
-    pub fn commit(&mut self, _content: Option<Blob<SimpleArchive>>, message: &str) {
-        // 1. Create a commit blob from the current state,
-        //    content (if any) and the commit message.
-        // 2. Store the commit blob in `self.local_blobs`.
+    /// and updates the current commit handle.
+    pub fn commit(&mut self, content: TribleSet, message: Option<&str>) {
+        // 1. Create a commit blob from the current head, content and the commit message (if any).
+        let content_blob = content.to_blob();
+        let commit_set = crate::repo::commit::commit(
+            &self.signing_key,
+            [self.head],
+            message,
+            Some(content_blob.clone()),
+        ); // Pass blob ownership
+           // 2. Store the content and commit blobs in `self.local_blobs`.
+        let _ = self
+            .local_blobs
+            .put(content_blob)
+            .expect("failed to put content blob");
+        let commit_handle = self
+            .local_blobs
+            .put(commit_set)
+            .expect("failed to put commit blob");
         // 3. Update `self.head` to point to the new commit.
+        self.head = commit_handle;
     }
 
     /// Merges another workspace (or its commit state) into this one.
     /// This returns a new commit that combines the changes from both.
-    pub fn merge(&mut self, other: &Workspace<Blobs>) {
-        // 1. Compute a merge commit from self.current_commit and other.current_commit.
-        // 2. Update the local blobset with any new blobs resulting from merging.
-        // 3. Update self.current_commit accordingly.
-        unimplemented!()
+    pub fn merge(&mut self, other: &mut Workspace<Blobs>) -> Result<CommitHandle, MergeError> {
+        if self.base_blobs != other.base_blobs {
+            // Cannot merge workspaces with different base blobs,
+            // as this would potentially require transferring a huge number of blobs
+            // between the merged workspace to the current one.
+            // A better design would be to transfer the blobs first,
+            // then merge the commit states via detached commits.
+            return Err(MergeError::DifferentRepos());
+        }
+        // 1. Transfer all blobs from the other workspace to self.local_blobs.
+        let other_local = other.local_blobs.reader();
+        for r in other_local.blobs() {
+            let handle = r.expect("infallible blob enumeration");
+            let blob: Blob<UnknownBlob> = other_local.get(handle).expect("infallible blob read");
+
+            // Store the blob in the local workspace's blob store.
+            self.local_blobs.put(blob).expect("infallible blob put");
+        }
+        // 2. Compute a merge commit from self.current_commit and other.current_commit.
+        let merge_commit = commit(
+            &self.signing_key,
+            [self.head, other.head],
+            None, // No message for the merge commit
+            None, // No content blob for the merge commit
+        );
+        // 3. Store the merge commit in self.local_blobs.
+        let commit_handle = self
+            .local_blobs
+            .put(merge_commit)
+            .expect("failed to put merge commit blob");
+        self.head = commit_handle;
+
+        Ok(commit_handle)
     }
 }
 
 /*
-
-    /// Creates an immutable commit object and stores it (and its content, if provided)
-    /// in the blob repository. Does not update any branches.
-    ///
-    /// The content blob itself is passed in, as it's needed for signing.
-    /// This function handles storing both the content blob (if provided) and the commit metadata blob.
-    ///
-    /// # Errors
-    /// Returns `CreateCommitError::ContentStorageError` if storing the content blob fails.
-    /// Returns `CreateCommitError::CommitStorageError` if storing the commit metadata blob fails.
-    pub fn create_commit(
-        &mut self,
-        parents: impl IntoIterator<Item = Value<Handle<Blake3, SimpleArchive>>>,
-        // Accept the actual content Blob, not just the handle
-        content_blob: Option<Blob<SimpleArchive>>,
-        msg: Option<&str>,
-        commit_signing_key: &SigningKey,
-    ) -> Result<
-        Value<Handle<Blake3, SimpleArchive>>,
-        CreateCommitError<<Blobs as BlobStorePutOp<Blake3>>::Err>,
-    > {
-        // 1. Store content blob first (if it exists)
-        //    We need to clone it if commit() takes ownership, or ensure commit() borrows.
-        //    Assuming commit() takes Option<Blob<SimpleArchive>> by value (ownership).
-        if let Some(blob) = &content_blob {
-            self.blobs
-                .put(blob.clone())
-                .map_err(CreateCommitError::ContentStorageError)?;
-            // We ignore the handle returned here, as commit() likely recalculates or doesn't need it explicitly.
-        }
-
-        // 2. Create the commit TribleSet using the lower-level function from commit.rs
-        //    Pass the actual content_blob for signing.
-        let commit_set =
-            crate::repo::commit::commit(commit_signing_key, parents, msg, content_blob); // Pass blob ownership
-
-        // 3. Store the commit metadata blob
-        let commit_meta_blob = commit_set.to_blob(); // This doesn't fail
-        self.blobs
-            .put(commit_meta_blob)
-            .map_err(CreateCommitError::CommitStorageError) // Map error to the correct variant
-    }
 
     /// Commits the given content to the specified branch.
     /// This stores the following information in the repository:
@@ -580,22 +684,8 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         }
     }
 
-    /// Merges the contents of a source branch into a target branch.
-    /// The merge is performed by creating a new merge commit that has both the source and target branch as parents.
-    /// The target branch is then updated to point to the new merge commit.
-    fn merge<OtherBlobs, OtherBranches>(
-        &mut self,
-        self_branch: Id,
-        source: Repository<OtherBlobs, OtherBranches>,
-        source_branch: Id,
-        msg: Option<&str>,
-        commit_signing_key: SigningKey,
-        branch_signing_key: SigningKey,
-    ) -> Result<(), MergeError>
-    where
-        OtherBlobs: BlobStore<Blake3>,
-        OtherBranches: BranchRepo<Blake3>,
-    {
+
+
         let Ok(mut old_target_branch) = self.branches.pull(self_branch) else {
             return Err(MergeError());
         };
@@ -677,6 +767,26 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
                 Err(_) => return Err(MergeError()),
             };
         }
+
+        Ok(())
+
+    /// Merges the contents of a source branch into a target branch.
+    /// The merge is performed by creating a new merge commit that has both the source and target branch as parents.
+    /// The target branch is then updated to point to the new merge commit.
+    fn merge<OtherBlobs, OtherBranches>(
+        &mut self,
+        self_branch: Id,
+        source: Repository<OtherBlobs, OtherBranches>,
+        source_branch: Id,
+        msg: Option<&str>,
+        commit_signing_key: SigningKey,
+        branch_signing_key: SigningKey,
+    ) -> Result<(), MergeError>
+    where
+        OtherBlobs: BlobStore<Blake3>,
+        OtherBranches: BranchRepo<Blake3>,
+    {
+
     }
 
 */

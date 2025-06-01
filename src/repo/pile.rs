@@ -139,7 +139,7 @@ pub struct PileAux<const MAX_PILE_SIZE: usize, H: HashProtocol> {
 }
 
 fn new_length_and_padding(current_length: usize, blob_size: usize) -> (usize, usize) {
-    let padding = 64 - (blob_size % 64);
+    let padding = (64 - (blob_size % 64)) % 64;
     let new_length = current_length + 64 + blob_size + padding;
     (new_length, padding)
 }

@@ -33,7 +33,8 @@ where
 
     fn estimate(&self, variable: VariableId, _binding: &Binding) -> Option<usize> {
         if self.variable.index == variable {
-            Some(self.set.capacity())
+            // use the current set length as the estimate for proposal count
+            Some(self.set.len())
         } else {
             None
         }

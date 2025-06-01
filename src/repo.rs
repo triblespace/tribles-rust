@@ -153,6 +153,15 @@ where
     Conflict(Option<Value<Handle<H, SimpleArchive>>>),
 }
 
+#[derive(Debug)]
+pub enum RepoPushResult<Storage>
+where
+    Storage: BlobStore<Blake3> + BranchStore<Blake3>,
+{
+    Success(),
+    Conflict(Workspace<Storage>),
+}
+
 pub trait BranchStore<H: HashProtocol> {
     type BranchesError: Error + Debug + Send + Sync + 'static;
     type HeadError: Error + Debug + Send + Sync + 'static;
@@ -447,7 +456,7 @@ where
     pub fn push(
         &mut self,
         workspace: &mut Workspace<Storage>,
-    ) -> Result<PushResult<Blake3>, PushError<Storage>> {
+    ) -> Result<RepoPushResult<Storage>, PushError<Storage>> {
         // 1. Sync `self.local_blobset` to repository's BlobStore.
         let workspace_reader = workspace.local_blobs.reader();
         for handle in workspace_reader.blobs() {
@@ -490,16 +499,44 @@ where
 
         // 3. Use CAS (comparing against self.base_branch_meta) to update the branch pointer.
 
-        // TODO: Have this return a RepoPushResult instead of a PushResult.
-        // It should contain a workspace that can be directly used to merge the conflicting branches.
-        Ok(self
+        let result = self
             .storage
             .update(
                 workspace.base_branch_id,
                 Some(workspace.base_branch_meta),
                 branch_meta_handle,
             )
-            .map_err(|e| PushError::BranchUpdate(e))?)
+            .map_err(|e| PushError::BranchUpdate(e))?;
+
+        match result {
+            PushResult::Success() => Ok(RepoPushResult::Success()),
+            PushResult::Conflict(conflicting_meta) => {
+                let conflicting_meta = conflicting_meta.ok_or(PushError::BadBranchMetadata())?;
+
+                let repo_reader = self.storage.reader();
+                let branch_meta: TribleSet = repo_reader
+                    .get(conflicting_meta)
+                    .map_err(|e| PushError::StorageGet(e))?;
+
+                let Ok((head,)) = find!((head: Value<_>),
+                    repo::pattern!(&branch_meta, [{ head: head }])
+                )
+                .exactly_one() else {
+                    return Err(PushError::BadBranchMetadata());
+                };
+
+                let conflict_ws = Workspace {
+                    base_blobs: self.storage.reader(),
+                    local_blobs: MemoryBlobStore::new(),
+                    head,
+                    base_branch_id: workspace.base_branch_id,
+                    base_branch_meta: conflicting_meta,
+                    signing_key: SigningKey::generate(&mut rand::rngs::OsRng),
+                };
+
+                Ok(RepoPushResult::Conflict(conflict_ws))
+            }
+        }
     }
 }
 

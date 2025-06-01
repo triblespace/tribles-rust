@@ -37,7 +37,8 @@ where
 
     fn estimate(&self, variable: VariableId, _binding: &Binding) -> Option<usize> {
         if self.variable.index == variable {
-            Some(self.map.capacity())
+            // the estimated proposal count equals the current number of keys
+            Some(self.map.len())
         } else {
             None
         }

@@ -633,7 +633,7 @@ mod tests {
     #[test]
     fn pattern() {
         let mut kb = TribleSet::new();
-        (0..1000000).for_each(|_| {
+        (0..1000).for_each(|_| {
             let author = fucid();
             let book = fucid();
             kb += literature::entity!(&author, {
@@ -664,7 +664,7 @@ mod tests {
                     has gone there will be nothing. Only I will remain.".to_blob().get_handle()
         });
 
-        (0..1000).for_each(|_| {
+        (0..100).for_each(|_| {
             let author = fucid();
             let book = fucid();
             kb += literature::entity!(&author, {

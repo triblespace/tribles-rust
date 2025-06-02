@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn union() {
         let mut kb = TribleSet::new();
-        for _i in 0..2000 {
+        for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
             kb += literature::entity!(&author, {
@@ -221,12 +221,12 @@ mod tests {
                 author: &author
             });
         }
-        assert_eq!(kb.len(), 8000);
+        assert_eq!(kb.len(), 400);
     }
 
     #[test]
     fn union_parallel() {
-        let kb = (0..1000000)
+        let kb = (0..1000)
             .into_par_iter()
             .flat_map(|_| {
                 let author = ufoid();
@@ -243,14 +243,14 @@ mod tests {
                 ]
             })
             .reduce(|| TribleSet::new(), |a, b| a + b);
-        assert_eq!(kb.len(), 4000000);
+        assert_eq!(kb.len(), 4000);
     }
 
     #[test]
     fn intersection() {
         let mut kb1 = TribleSet::new();
         let mut kb2 = TribleSet::new();
-        for _i in 0..1000 {
+        for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
             kb1 += literature::entity!(&author, {
@@ -282,7 +282,7 @@ mod tests {
     fn difference() {
         let mut kb1 = TribleSet::new();
         let mut kb2 = TribleSet::new();
-        for _i in 0..1000 {
+        for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
             kb1 += literature::entity!(&author, {

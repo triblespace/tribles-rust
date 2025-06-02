@@ -40,7 +40,7 @@ fn main() {
         match repo.push(&mut ws2).expect("push ws2") {
             RepoPushResult::Success() => break,
             RepoPushResult::Conflict(mut other) => {
-                ws2.merge(&mut other).expect("merge");
+                other.merge(&mut ws2).expect("merge");
             }
         }
     }

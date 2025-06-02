@@ -18,43 +18,43 @@ pub mod examples;
 // Let's add the readme example as a test
 #[cfg(test)]
 mod readme_example {
-use crate::prelude::*;
-use crate::prelude::valueschemas::*;
-use crate::prelude::blobschemas::*;
-use crate::examples::literature;
+    use crate::examples::literature;
+    use crate::prelude::blobschemas::*;
+    use crate::prelude::valueschemas::*;
+    use crate::prelude::*;
 
-#[test]
-fn readme_example() -> Result<(), Box<dyn std::error::Error>> {
-    let mut blobs = MemoryBlobStore::new();
-    let mut set = TribleSet::new();
+    #[test]
+    fn readme_example() -> Result<(), Box<dyn std::error::Error>> {
+        let mut blobs = MemoryBlobStore::new();
+        let mut set = TribleSet::new();
 
-    let author_id = ufoid();
+        let author_id = ufoid();
 
-    // Note how the entity macro returns TribleSets that can be cheaply merged
-    // into our existing dataset.
-    set += literature::entity!(&author_id, {
-                firstname: "Frank",
-                lastname: "Herbert",
-            });
+        // Note how the entity macro returns TribleSets that can be cheaply merged
+        // into our existing dataset.
+        set += literature::entity!(&author_id, {
+            firstname: "Frank",
+            lastname: "Herbert",
+        });
 
-    set += literature::entity!({
-                title: "Dune",
-                author: &author_id,
-                quote: blobs.put("Deep in the human unconscious is a \
-                pervasive need for a logical universe that makes sense. \
-                But the real universe is always one step beyond logic.").unwrap(),
-                quote: blobs.put("I must not fear. Fear is the \
-                mind-killer. Fear is the little-death that brings total \
-                obliteration. I will face my fear. I will permit it to \
-                pass over me and through me. And when it has gone past I \
-                will turn the inner eye to see its path. Where the fear \
-                has gone there will be nothing. Only I will remain.").unwrap(),
-            });
+        set += literature::entity!({
+            title: "Dune",
+            author: &author_id,
+            quote: blobs.put("Deep in the human unconscious is a \
+            pervasive need for a logical universe that makes sense. \
+            But the real universe is always one step beyond logic.").unwrap(),
+            quote: blobs.put("I must not fear. Fear is the \
+            mind-killer. Fear is the little-death that brings total \
+            obliteration. I will face my fear. I will permit it to \
+            pass over me and through me. And when it has gone past I \
+            will turn the inner eye to see its path. Where the fear \
+            has gone there will be nothing. Only I will remain.").unwrap(),
+        });
 
-    let title = "Dune";
+        let title = "Dune";
 
-    // We can then find all entities matching a certain pattern in our dataset.
-    for (_, f, l, q) in find!(
+        // We can then find all entities matching a certain pattern in our dataset.
+        for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
         literature::pattern!(&set, [
             { author @
@@ -65,12 +65,13 @@ fn readme_example() -> Result<(), Box<dyn std::error::Error>> {
                 title: (title),
                 author: author,
                 quote: quote
-            }])) {
-        let q: View<str> = blobs.reader().get(q).unwrap();
-        let q = q.as_ref();
+            }]))
+        {
+            let q: View<str> = blobs.reader().get(q).unwrap();
+            let q = q.as_ref();
 
-        println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
+            println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
+        }
+        Ok(())
     }
-    Ok(())
-}
 }

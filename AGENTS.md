@@ -1,6 +1,18 @@
 # AGENT Instructions
 
 This repository contains the `tribles` Rust crate.
+The library is extremely performance-sensitive, so changes should be made with
+care to avoid regressions, and we always look for opportunities to improve
+performance.
+
+## Project Priorities
+
+The project balances a few key goals:
+
+* **Performance** – we continually look for opportunities to improve.
+* **Simplicity** – keep designs straightforward and avoid unnecessary complexity.
+* **Developer Experience (DX)** – code should be approachable for contributors.
+* **Safety** – maintain soundness and data integrity.
 
 ## Repository Guidelines
 

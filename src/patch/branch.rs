@@ -1,7 +1,7 @@
 use super::*;
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::alloc::{alloc_zeroed, dealloc, Layout};
+use std::alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout};
 use std::ptr::addr_of_mut;
 
 const BRANCH_ALIGN: usize = 16;
@@ -61,24 +61,23 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             let layout =
                 Layout::from_size_align(BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size), BRANCH_ALIGN)
                     .unwrap(); // TODO use unchecked if this doesn't fail immedaitately
-            if let Some(ptr) =
+            let Some(ptr) =
                 NonNull::new(std::ptr::slice_from_raw_parts(alloc_zeroed(layout), size)
                     as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>)
-            {
-                addr_of_mut!((*ptr.as_ptr()).rc).write(atomic::AtomicU32::new(1));
-                addr_of_mut!((*ptr.as_ptr()).end_depth).write(end_depth as u32);
-                addr_of_mut!((*ptr.as_ptr()).childleaf).write(lchild.childleaf());
-                addr_of_mut!((*ptr.as_ptr()).leaf_count).write(lchild.count() + rchild.count());
-                addr_of_mut!((*ptr.as_ptr()).segment_count)
-                    .write(lchild.count_segment(end_depth) + rchild.count_segment(end_depth));
-                addr_of_mut!((*ptr.as_ptr()).hash).write(lchild.hash() ^ rchild.hash());
-                (*ptr.as_ptr()).child_table[0] = Some(lchild);
-                (*ptr.as_ptr()).child_table[1] = Some(rchild);
+            else {
+                handle_alloc_error(layout);
+            };
+            addr_of_mut!((*ptr.as_ptr()).rc).write(atomic::AtomicU32::new(1));
+            addr_of_mut!((*ptr.as_ptr()).end_depth).write(end_depth as u32);
+            addr_of_mut!((*ptr.as_ptr()).childleaf).write(lchild.childleaf());
+            addr_of_mut!((*ptr.as_ptr()).leaf_count).write(lchild.count() + rchild.count());
+            addr_of_mut!((*ptr.as_ptr()).segment_count)
+                .write(lchild.count_segment(end_depth) + rchild.count_segment(end_depth));
+            addr_of_mut!((*ptr.as_ptr()).hash).write(lchild.hash() ^ rchild.hash());
+            (*ptr.as_ptr()).child_table[0] = Some(lchild);
+            (*ptr.as_ptr()).child_table[1] = Some(rchild);
 
-                ptr
-            } else {
-                panic!("Allocation failed!");
-            }
+            ptr
         }
     }
 
@@ -150,7 +149,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                     Self::rc_dec(NonNull::new_unchecked(branch));
                     Some(ptr)
                 } else {
-                    panic!("Allocation failed!");
+                    handle_alloc_error(layout);
                 }
             }
         }
@@ -192,7 +191,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
                 ptr
             } else {
-                panic!("Allocation failed!");
+                handle_alloc_error(layout);
             }
         }
     }

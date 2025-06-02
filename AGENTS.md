@@ -1,9 +1,6 @@
 # AGENT Instructions
 
 This repository contains the `tribles` Rust crate.
-The library is extremely performance-sensitive, so changes should be made with
-care to avoid regressions, and we always look for opportunities to improve
-performance.
 
 ## Project Priorities
 

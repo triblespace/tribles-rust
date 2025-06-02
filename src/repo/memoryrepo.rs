@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 
-use tribles::blob::{BlobSchema, MemoryBlobStore, ToBlob};
-use tribles::prelude::blobschemas::SimpleArchive;
-use tribles::prelude::*;
-use tribles::repo::{BranchStore, PushResult};
-use tribles::value::schemas::hash::Blake3;
+use crate::blob::{BlobSchema, MemoryBlobStore, ToBlob};
+use crate::prelude::blobschemas::SimpleArchive;
+use crate::prelude::*;
+use crate::repo::{BranchStore, PushResult};
+use crate::value::schemas::hash::Blake3;
 
-use tribles::value::schemas::hash::Handle;
-use tribles::value::ValueSchema;
+use crate::value::schemas::hash::Handle;
+use crate::value::ValueSchema;
 
 #[derive(Debug)]
 pub struct InMemoryRepo {
@@ -25,8 +25,8 @@ impl Default for InMemoryRepo {
     }
 }
 
-impl tribles::repo::BlobStorePut<Blake3> for InMemoryRepo {
-    type PutError = <MemoryBlobStore<Blake3> as tribles::repo::BlobStorePut<Blake3>>::PutError;
+impl crate::repo::BlobStorePut<Blake3> for InMemoryRepo {
+    type PutError = <MemoryBlobStore<Blake3> as crate::repo::BlobStorePut<Blake3>>::PutError;
     fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<Blake3, S>>, Self::PutError>
     where
         S: BlobSchema + 'static,
@@ -37,8 +37,8 @@ impl tribles::repo::BlobStorePut<Blake3> for InMemoryRepo {
     }
 }
 
-impl tribles::repo::BlobStore<Blake3> for InMemoryRepo {
-    type Reader = <MemoryBlobStore<Blake3> as tribles::repo::BlobStore<Blake3>>::Reader;
+impl crate::repo::BlobStore<Blake3> for InMemoryRepo {
+    type Reader = <MemoryBlobStore<Blake3> as crate::repo::BlobStore<Blake3>>::Reader;
     fn reader(&mut self) -> Self::Reader {
         self.blobs.reader()
     }

@@ -35,6 +35,7 @@ use memmap2::MmapOptions;
 use reft_light::{Apply, ReadHandle, WriteHandle};
 use std::convert::Infallible;
 use std::error::Error;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::ops::Bound;
 use std::path::Path;
@@ -228,6 +229,15 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
 
 pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
     w_handle: WriteHandle<PileBlobStoreOps<H>, PileSwap<H>, PileAux<MAX_PILE_SIZE, H>>,
+}
+
+impl<const MAX_PILE_SIZE: usize, H> fmt::Debug for Pile<MAX_PILE_SIZE, H>
+where
+    H: HashProtocol,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Pile").finish()
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -355,6 +355,21 @@ where
     BadBranchMetadata(),
 }
 
+impl<B, C> fmt::Debug for CheckoutError<B, C>
+where
+    B: Error + fmt::Debug,
+    C: Error + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CheckoutError::BranchNotFound(id) => f.debug_tuple("BranchNotFound").field(id).finish(),
+            CheckoutError::BranchStorage(e) => f.debug_tuple("BranchStorage").field(e).finish(),
+            CheckoutError::BlobStorage(e) => f.debug_tuple("BlobStorage").field(e).finish(),
+            CheckoutError::BadBranchMetadata() => f.debug_tuple("BadBranchMetadata").finish(),
+        }
+    }
+}
+
 impl<Storage> Repository<Storage>
 where
     Storage: BlobStore<Blake3> + BranchStore<Blake3>,

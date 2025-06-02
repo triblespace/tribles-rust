@@ -38,6 +38,7 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::fmt::Debug;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Once;
 
 /// The number of slots per bucket.
@@ -50,7 +51,9 @@ const MAX_SLOT_COUNT: usize = 256;
 /// insert before the size of the table is increased.
 const MAX_RETRIES: usize = 4;
 
-static mut RAND: u8 = 4; // Choosen by fair dice roll.
+/// Global randomness used for bucket selection.
+/// Atomic to allow thread-safe updates.
+static RAND: AtomicU8 = AtomicU8::new(4); // Choosen by fair dice roll.
 static mut RANDOM_PERMUTATION_RAND: [u8; 256] = [0; 256];
 static mut RANDOM_PERMUTATION_HASH: [u8; 256] = [0; 256];
 static INIT: Once = Once::new();
@@ -143,7 +146,7 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning a random existing entry.
     fn bucket_shove_random_slot(&mut self, shoved_entry: T) -> Option<T> {
-        let index = unsafe { RAND as usize & (BUCKET_ENTRY_COUNT - 1) };
+        let index = (RAND.load(Ordering::Relaxed) as usize) & (BUCKET_ENTRY_COUNT - 1);
         return self[index].replace(shoved_entry);
     }
 
@@ -245,9 +248,9 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
         let mut use_cheap_hash = true;
         let mut retries: usize = 0;
         loop {
-            unsafe {
-                RAND = RANDOM_PERMUTATION_RAND[(RAND ^ byte_key) as usize]; //TODO move this to shove_random_slot
-            }
+            let current = RAND.load(Ordering::Relaxed);
+            let new_rand = unsafe { RANDOM_PERMUTATION_RAND[(current ^ byte_key) as usize] };
+            RAND.store(new_rand, Ordering::Relaxed); //TODO move this to shove_random_slot
 
             let hash = if use_cheap_hash {
                 cheap_hash(byte_key)
@@ -377,8 +380,12 @@ mod tests {
 
                     if displaced.is_none() {
                         for j in 0..i {
-                            prop_assert!($grown_table.table_get(entries[j]).is_some(),
-                            "Missing value {} after growth with hash {:?}", entries[j], unsafe { RANDOM_PERMUTATION_HASH });
+                            prop_assert!(
+                                $grown_table.table_get(entries[j]).is_some(),
+                                "Missing value {} after growth with hash {:?}",
+                                entries[j],
+                                unsafe { RANDOM_PERMUTATION_HASH }
+                            );
                         }
                     }
                 };

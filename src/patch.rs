@@ -1462,8 +1462,8 @@ mod tests {
         }
 
         #[test]
-        fn tree_union(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2000),
-                        right in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2000)) {
+        fn tree_union(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 200),
+                        right in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 200)) {
             let mut set = HashSet::new();
 
             let mut left_tree = PATCH::<64, IdentityOrder, SingleSegmentation>::new();

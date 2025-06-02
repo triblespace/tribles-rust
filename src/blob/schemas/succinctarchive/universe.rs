@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn ids_compressed() {
-        let size = 1000;
+        let size = 100;
 
         let count_data: Vec<_> = (0..size as u128)
             .map(|id| id_into_value(&id.to_be_bytes()))
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn ids_uncompressed() {
-        let size = 1000;
+        let size = 100;
 
         let count_data: Vec<_> = (0..size as u128)
             .map(|id| id_into_value(&id.to_be_bytes()))

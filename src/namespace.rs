@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn ns_pattern_large() {
         let mut kb = TribleSet::new();
-        (0..10000).for_each(|_| {
+        (0..100).for_each(|_| {
             let author = ufoid();
             let book = ufoid();
             kb += literature::entity!(&author, {

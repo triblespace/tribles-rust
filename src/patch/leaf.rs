@@ -1,7 +1,7 @@
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use siphasher::sip128::SipHasher24;
-use std::alloc::*;
+use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::ptr::addr_of;
 
 use super::*;
@@ -24,21 +24,20 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> NonNull<Self> {
         unsafe {
             let layout = Layout::new::<Self>();
-            if let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) {
-                let hash = SipHasher24::new_with_key(&*addr_of!(SIP_KEY))
-                    .hash(&key[..])
-                    .into();
+            let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) else {
+                handle_alloc_error(layout);
+            };
+            let hash = SipHasher24::new_with_key(&*addr_of!(SIP_KEY))
+                .hash(&key[..])
+                .into();
 
-                ptr.write(Self {
-                    key: *key,
-                    hash,
-                    rc: atomic::AtomicU32::new(1),
-                });
+            ptr.write(Self {
+                key: *key,
+                hash,
+                rc: atomic::AtomicU32::new(1),
+            });
 
-                ptr
-            } else {
-                panic!("Allocation failed!");
-            }
+            ptr
         }
     }
 

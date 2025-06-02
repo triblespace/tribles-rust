@@ -1,14 +1,11 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{self, RepoPushResult, Repository};
-
-mod util;
-use util::InMemoryRepo;
+use tribles::repo::{self, memoryrepo::MemoryRepo, RepoPushResult, Repository};
 
 #[test]
 fn workspace_commit_updates_head() {
-    let mut storage = InMemoryRepo::default();
+    let mut storage = MemoryRepo::default();
     let signing_key = SigningKey::generate(&mut OsRng);
     let init_commit = repo::commit::commit(&signing_key, [], None, None);
     let init_handle = storage.put(init_commit).unwrap();

@@ -11,12 +11,12 @@ use crate::value::schemas::hash::Handle;
 use crate::value::ValueSchema;
 
 #[derive(Debug)]
-pub struct InMemoryRepo {
+pub struct MemoryRepo {
     pub blobs: MemoryBlobStore<Blake3>,
     pub branches: HashMap<Id, Value<Handle<Blake3, SimpleArchive>>>,
 }
 
-impl Default for InMemoryRepo {
+impl Default for MemoryRepo {
     fn default() -> Self {
         Self {
             blobs: MemoryBlobStore::new(),
@@ -25,7 +25,7 @@ impl Default for InMemoryRepo {
     }
 }
 
-impl crate::repo::BlobStorePut<Blake3> for InMemoryRepo {
+impl crate::repo::BlobStorePut<Blake3> for MemoryRepo {
     type PutError = <MemoryBlobStore<Blake3> as crate::repo::BlobStorePut<Blake3>>::PutError;
     fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<Blake3, S>>, Self::PutError>
     where
@@ -37,14 +37,14 @@ impl crate::repo::BlobStorePut<Blake3> for InMemoryRepo {
     }
 }
 
-impl crate::repo::BlobStore<Blake3> for InMemoryRepo {
+impl crate::repo::BlobStore<Blake3> for MemoryRepo {
     type Reader = <MemoryBlobStore<Blake3> as crate::repo::BlobStore<Blake3>>::Reader;
     fn reader(&mut self) -> Self::Reader {
         self.blobs.reader()
     }
 }
 
-impl BranchStore<Blake3> for InMemoryRepo {
+impl BranchStore<Blake3> for MemoryRepo {
     type BranchesError = Infallible;
     type HeadError = Infallible;
     type UpdateError = Infallible;

@@ -19,14 +19,15 @@ fn main() {
     pile.put(init_blob).expect("store blob");
     let init_commit = pile.put(init_commit_set.to_blob()).expect("store commit");
 
+
+
     // Create a repository from the pile and initialize the main branch
     let mut repo = Repository::new(pile);
     let branch_id = repo.branch("main", init_commit, key.clone());
 
     // First workspace adds Alice and pushes
     let mut ws1 = repo.checkout(branch_id).expect("checkout");
-    let mut change = TribleSet::new();
-    change += literature::entity!(&ufoid(), { firstname: "Alice" });
+    let change = literature::entity!(&ufoid(), { firstname: "Alice" });
     ws1.commit(change, Some("add alice"));
     repo.push(&mut ws1).expect("push ws1");
 
@@ -36,11 +37,15 @@ fn main() {
     change += literature::entity!(&ufoid(), { firstname: "Bob" });
     ws2.commit(change, Some("add bob"));
 
-    loop {
-        match repo.push(&mut ws2).expect("push ws2") {
-            RepoPushResult::Success() => break,
+    match repo.push(&mut ws2).expect("push ws2") {
+            RepoPushResult::Success() => println!("Push ws2 succeeded"),
             RepoPushResult::Conflict(mut other) => {
-                other.merge(&mut ws2).expect("merge");
+                loop {
+                    other.merge(&mut ws2).expect("merge");
+                    match repo.push(&mut other).expect("push conflict") {
+                        RepoPushResult::Success() => break,
+                        RepoPushResult::Conflict(next) => other = next,
+                    }
             }
         }
     }

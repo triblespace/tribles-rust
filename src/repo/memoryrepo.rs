@@ -11,12 +11,12 @@ use crate::value::schemas::hash::Handle;
 use crate::value::ValueSchema;
 
 #[derive(Debug)]
-pub struct InMemoryRepo {
+pub struct MemoryRepo {
     pub blobs: MemoryBlobStore<Blake3>,
     pub branches: HashMap<Id, Value<Handle<Blake3, SimpleArchive>>>,
 }
 
-impl Default for InMemoryRepo {
+impl Default for MemoryRepo {
     fn default() -> Self {
         Self {
             blobs: MemoryBlobStore::new(),
@@ -44,7 +44,7 @@ impl crate::repo::BlobStore<Blake3> for InMemoryRepo {
     }
 }
 
-impl BranchStore<Blake3> for InMemoryRepo {
+impl BranchStore<Blake3> for MemoryRepo {
     type BranchesError = Infallible;
     type HeadError = Infallible;
     type UpdateError = Infallible;

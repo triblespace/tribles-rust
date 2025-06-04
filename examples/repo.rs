@@ -18,6 +18,7 @@ fn main() {
     // First workspace adds Alice and pushes
     let mut change = TribleSet::new();
     change += literature::entity!(&ufoid(), { firstname: "Alice" });
+
     ws1.commit(change, Some("add alice"));
     repo.push(&mut ws1).expect("push ws1");
 
@@ -27,11 +28,15 @@ fn main() {
     change += literature::entity!(&ufoid(), { firstname: "Bob" });
     ws2.commit(change, Some("add bob"));
 
-    loop {
-        match repo.push(&mut ws2).expect("push ws2") {
-            RepoPushResult::Success() => break,
+    match repo.push(&mut ws2).expect("push ws2") {
+            RepoPushResult::Success() => println!("Push ws2 succeeded"),
             RepoPushResult::Conflict(mut other) => {
-                other.merge(&mut ws2).expect("merge");
+                loop {
+                    other.merge(&mut ws2).expect("merge");
+                    match repo.push(&mut other).expect("push conflict") {
+                        RepoPushResult::Success() => break,
+                        RepoPushResult::Conflict(next) => other = next,
+                    }
             }
         }
     }

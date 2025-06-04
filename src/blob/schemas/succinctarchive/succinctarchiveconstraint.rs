@@ -105,22 +105,28 @@ where
             (None, None, None, false, true, false) => self.archive.a_a.len(),
             (None, None, None, false, false, true) => self.archive.v_a.len(),
             (Some(e), None, None, false, true, false) => {
-                base_range(&self.archive.domain, &self.archive.e_a, &e).len()
+                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                self.archive.distinct_in(&self.archive.changed_e_a, &r)
             }
             (Some(e), None, None, false, false, true) => {
-                base_range(&self.archive.domain, &self.archive.e_a, &e).len()
+                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                self.archive.distinct_in(&self.archive.changed_e_v, &r)
             }
             (None, Some(a), None, true, false, false) => {
-                base_range(&self.archive.domain, &self.archive.a_a, &a).len()
+                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                self.archive.distinct_in(&self.archive.changed_a_e, &r)
             }
             (None, Some(a), None, false, false, true) => {
-                base_range(&self.archive.domain, &self.archive.a_a, &a).len()
+                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                self.archive.distinct_in(&self.archive.changed_a_v, &r)
             }
             (None, None, Some(v), true, false, false) => {
-                base_range(&self.archive.domain, &self.archive.v_a, &v).len()
+                let r = base_range(&self.archive.domain, &self.archive.v_a, &v);
+                self.archive.distinct_in(&self.archive.changed_v_e, &r)
             }
             (None, None, Some(v), false, true, false) => {
-                base_range(&self.archive.domain, &self.archive.v_a, &v).len()
+                let r = base_range(&self.archive.domain, &self.archive.v_a, &v);
+                self.archive.distinct_in(&self.archive.changed_v_a, &r)
             }
             (None, Some(a), Some(v), true, false, false) => {
                 let r = base_range(&self.archive.domain, &self.archive.a_a, &a);

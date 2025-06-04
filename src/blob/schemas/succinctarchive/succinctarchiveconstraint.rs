@@ -101,9 +101,9 @@ where
 
         //TODO add disting color counting ds to archive and estimate better
         Some(match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => self.archive.e_a.len(),
-            (None, None, None, false, true, false) => self.archive.a_a.len(),
-            (None, None, None, false, false, true) => self.archive.v_a.len(),
+            (None, None, None, true, false, false) => self.archive.entity_count,
+            (None, None, None, false, true, false) => self.archive.attribute_count,
+            (None, None, None, false, false, true) => self.archive.value_count,
             (Some(e), None, None, false, true, false) => {
                 base_range(&self.archive.domain, &self.archive.e_a, &e).len()
             }

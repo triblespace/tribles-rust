@@ -34,6 +34,13 @@ pub struct SuccinctArchive<U, B> {
     pub a_a: EliasFano,
     pub v_a: EliasFano,
 
+    pub changed_e_a: B,
+    pub changed_e_v: B,
+    pub changed_a_e: B,
+    pub changed_a_v: B,
+    pub changed_v_e: B,
+    pub changed_v_a: B,
+
     pub eav_c: WaveletMatrix<B>,
     pub vea_c: WaveletMatrix<B>,
     pub ave_c: WaveletMatrix<B>,
@@ -65,6 +72,20 @@ where
 
             Trible::force(&e, &a, &v)
         })
+    }
+
+    pub fn distinct_in(&self, bv: &B, range: &std::ops::Range<usize>) -> usize {
+        bv.rank1(range.end).unwrap() - bv.rank1(range.start).unwrap()
+    }
+
+    pub fn enumerate_in<'a>(
+        &'a self,
+        bv: &'a B,
+        range: &std::ops::Range<usize>,
+    ) -> impl Iterator<Item = usize> + 'a {
+        let start = bv.rank1(range.start).unwrap();
+        let end = bv.rank1(range.end).unwrap();
+        (start..end).map(move |r| bv.select1(r).unwrap())
     }
 }
 
@@ -217,6 +238,67 @@ where
             .unwrap();
         let aev_c = WaveletMatrix::new(aev_c).unwrap();
 
+        // Build bit vectors marking the first occurrence of each pair
+        let changed_e_a = B::build_from_bits(
+            set.eav.iter_prefix_count::<32>().flat_map(|(_, c)| {
+                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+            }),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+
+        let changed_e_v = B::build_from_bits(
+            set.eva.iter_prefix_count::<48>().flat_map(|(_, c)| {
+                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+            }),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+
+        let changed_a_e = B::build_from_bits(
+            set.aev.iter_prefix_count::<32>().flat_map(|(_, c)| {
+                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+            }),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+
+        let changed_a_v = B::build_from_bits(
+            set.ave.iter_prefix_count::<48>().flat_map(|(_, c)| {
+                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+            }),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+
+        let changed_v_e = B::build_from_bits(
+            set.vea.iter_prefix_count::<48>().flat_map(|(_, c)| {
+                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+            }),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+
+        let changed_v_a = B::build_from_bits(
+            set.vae.iter_prefix_count::<48>().flat_map(|(_, c)| {
+                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+            }),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+
         SuccinctArchive {
             domain,
             entity_count,
@@ -225,6 +307,12 @@ where
             e_a,
             a_a,
             v_a,
+            changed_e_a,
+            changed_e_v,
+            changed_a_e,
+            changed_a_v,
+            changed_v_e,
+            changed_v_a,
             eav_c,
             vea_c,
             ave_c,

@@ -1,11 +1,11 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{self, memoryrepo::MemoryRepo, PushResult};
+use tribles::repo::{self, memoryrepo::InMemoryRepo, PushResult};
 
 #[test]
 fn branch_update_success_and_conflict() {
-    let mut store = MemoryRepo::default();
+    let mut store = InMemoryRepo::default();
     let key = SigningKey::generate(&mut OsRng);
     let commit1 = repo::commit::commit(&key, [], None, None);
     let h1 = store.put(commit1).unwrap();

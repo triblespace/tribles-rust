@@ -45,6 +45,27 @@ pub fn branch(
     metadata
 }
 
+pub fn branch_unsigned(branch_id: Id, name: &str, commit_head: Blob<SimpleArchive>) -> TribleSet {
+    let handle = commit_head.get_handle();
+
+    let metadata_entity = rngid();
+
+    let mut metadata: TribleSet = Default::default();
+
+    metadata += repo::entity!(&metadata_entity,
+    {
+        branch: branch_id,
+        head: handle,
+    });
+
+    metadata += metadata::entity!(&metadata_entity,
+    {
+        name: name,
+    });
+
+    metadata
+}
+
 pub enum ValidationError {
     AmbiguousSignature,
     MissingSignature,

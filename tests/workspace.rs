@@ -1,9 +1,9 @@
 use tribles::prelude::*;
-use tribles::repo::{memoryrepo::InMemoryRepo, RepoPushResult, Repository};
+use tribles::repo::{memoryrepo::MemoryRepo, RepoPushResult, Repository};
 
 #[test]
 fn workspace_commit_updates_head() {
-    let storage = InMemoryRepo::default();
+    let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage);
     let mut ws = repo.branch("main").expect("create branch");
 

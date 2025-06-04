@@ -1,9 +1,9 @@
 use tribles::prelude::*;
-use tribles::repo::{memoryrepo::InMemoryRepo, RepoPushResult, Repository};
+use tribles::repo::{memoryrepo::MemoryRepo, RepoPushResult, Repository};
 
 #[test]
 fn push_and_merge_conflict_resolution() {
-    let storage = InMemoryRepo::default();
+    let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage);
     let mut ws1 = repo.branch("main").expect("create branch");
     let branch_id = ws1.branch_id();

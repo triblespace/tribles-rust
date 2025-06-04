@@ -337,6 +337,27 @@ pub enum PushError<Storage: BranchStore<Blake3> + BlobStore<Blake3>> {
     BadBranchMetadata(),
 }
 
+#[derive(Debug)]
+pub enum BranchError<Storage>
+where
+    Storage: BranchStore<Blake3> + BlobStore<Blake3>,
+{
+    /// An error occurred while reading metadata blobs.
+    StorageGet(
+        <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
+    ),
+    /// An error occurred while storing blobs.
+    StoragePut(<Storage as BlobStorePut<Blake3>>::PutError),
+    /// An error occurred while retrieving branch heads.
+    BranchHead(Storage::HeadError),
+    /// An error occurred while updating the branch storage.
+    BranchUpdate(Storage::UpdateError),
+    /// The branch already exists.
+    AlreadyExists(),
+    /// The referenced base branch does not exist.
+    BranchNotFound(Id),
+}
+
 pub struct Repository<Storage: BlobStore<Blake3> + BranchStore<Blake3>> {
     storage: Storage,
 }
@@ -409,32 +430,69 @@ where
     pub fn branch(
         &mut self,
         branch_name: &str,
-        commit: Value<Handle<Blake3, SimpleArchive>>,
-        branch_signing_key: SigningKey,
-    ) -> Id {
+    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
         let branch_id = *ufoid();
-        let commit_blob = self
-            .storage
-            .reader()
-            .get(commit)
-            .expect("failed to get commit blob");
-
-        let branch = branch(&branch_signing_key, branch_id, branch_name, commit_blob);
-
-        let branch_blob = branch.to_blob();
+        let branch_set = branch::branch_unsigned(branch_id, branch_name, None);
+        let branch_blob = branch_set.to_blob();
         let branch_handle = self
             .storage
             .put(branch_blob)
-            .expect("failed to put branch blob");
+            .map_err(|e| BranchError::StoragePut(e))?;
 
         let push_result = self
             .storage
             .update(branch_id, None, branch_handle)
-            .expect("failed to push branch");
+            .map_err(|e| BranchError::BranchUpdate(e))?;
 
         match push_result {
-            PushResult::Success() => branch_id,
-            PushResult::Conflict(_) => panic!("branch already exists"),
+            PushResult::Success() => Ok(Workspace {
+                base_blobs: self.storage.reader(),
+                local_blobs: MemoryBlobStore::new(),
+                head: None,
+                base_branch_id: branch_id,
+                base_branch_meta: branch_handle,
+                signing_key: SigningKey::generate(&mut rand::rngs::OsRng),
+            }),
+            PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
+        }
+    }
+
+    pub fn branch_from(
+        &mut self,
+        branch_name: &str,
+        commit: CommitHandle,
+        key: SigningKey,
+    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
+        let branch_id = *ufoid();
+
+        let set: TribleSet = self
+            .storage
+            .reader()
+            .get(commit)
+            .map_err(|e| BranchError::StorageGet(e))?;
+
+        let branch_set = branch(&key, branch_id, branch_name, Some(set.to_blob()));
+        let branch_blob = branch_set.to_blob();
+        let branch_handle = self
+            .storage
+            .put(branch_blob)
+            .map_err(|e| BranchError::StoragePut(e))?;
+
+        let push_result = self
+            .storage
+            .update(branch_id, None, branch_handle)
+            .map_err(|e| BranchError::BranchUpdate(e))?;
+
+        match push_result {
+            PushResult::Success() => Ok(Workspace {
+                base_blobs: self.storage.reader(),
+                local_blobs: MemoryBlobStore::new(),
+                head: Some(commit),
+                base_branch_id: branch_id,
+                base_branch_meta: branch_handle,
+                signing_key: key,
+            }),
+            PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
 
@@ -460,12 +518,15 @@ where
             Err(e) => return Err(CheckoutError::BlobStorage(e)),
         };
 
-        let Ok((head,)) = find!(
+        let head = match find!(
             (head: Value<_>),
             repo::pattern!(&base_branch_meta, [{ head: head }])
         )
-        .exactly_one() else {
-            return Err(CheckoutError::BadBranchMetadata());
+        .at_most_one()
+        {
+            Ok(Some((h,))) => Some(h),
+            Ok(None) => None,
+            Err(_) => return Err(CheckoutError::BadBranchMetadata()),
         };
         // 3. Create a new workspace with the current commit and base blobs.
         Ok(Workspace {
@@ -509,15 +570,16 @@ where
             return Err(PushError::BadBranchMetadata());
         };
 
+        let head_handle = workspace.head.ok_or(PushError::BadBranchMetadata())?;
         let head: TribleSet = repo_reader
-            .get(workspace.head)
+            .get(head_handle)
             .map_err(|e| PushError::StorageGet(e))?;
 
         let branch_meta = branch(
             &workspace.signing_key,
             workspace.base_branch_id,
             branch_name.from_value(),
-            head.to_blob(),
+            Some(head.to_blob()),
         );
 
         let branch_meta_handle = self
@@ -546,11 +608,13 @@ where
                     .get(conflicting_meta)
                     .map_err(|e| PushError::StorageGet(e))?;
 
-                let Ok((head,)) = find!((head: Value<_>),
+                let head = match find!((head: Value<_>),
                     repo::pattern!(&branch_meta, [{ head: head }])
                 )
-                .exactly_one() else {
-                    return Err(PushError::BadBranchMetadata());
+                .at_most_one() {
+                    Ok(Some((h,))) => Some(h),
+                    Ok(None) => None,
+                    Err(_) => return Err(PushError::BadBranchMetadata()),
                 };
 
                 let conflict_ws = Workspace {
@@ -583,8 +647,8 @@ pub struct Workspace<Blobs: BlobStore<Blake3>> {
     base_branch_id: Id,
     /// The meta-handle corresponding to the base branch state used for CAS.
     base_branch_meta: BranchMetaHandle,
-    /// Handle to the current commit in the working branch.
-    head: CommitHandle,
+    /// Handle to the current commit in the working branch. `None` for an empty branch.
+    head: Option<CommitHandle>,
     /// The signing key used for commit/branch signing.
     signing_key: SigningKey,
 }
@@ -606,6 +670,10 @@ where
 }
 
 impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
+    /// Returns the branch id associated with this workspace.
+    pub fn branch_id(&self) -> Id {
+        self.base_branch_id
+    }
     /// Adds a blob to the workspace's local blob store.
     /// Returns the handle of the blob as stored locally.
     pub fn add_blob<T>(&mut self, blob: Blob<T>) -> Value<Handle<Blake3, T>>
@@ -621,9 +689,10 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     pub fn commit(&mut self, content: TribleSet, message: Option<&str>) {
         // 1. Create a commit blob from the current head, content and the commit message (if any).
         let content_blob = content.to_blob();
+        let parents = self.head.iter().copied();
         let commit_set = crate::repo::commit::commit(
             &self.signing_key,
-            [self.head],
+            parents,
             message,
             Some(content_blob.clone()),
         );
@@ -637,7 +706,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             .put(commit_set)
             .expect("failed to put commit blob");
         // 3. Update `self.head` to point to the new commit.
-        self.head = commit_handle;
+        self.head = Some(commit_handle);
     }
 
     /// Merges another workspace (or its commit state) into this one.
@@ -661,9 +730,14 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             self.local_blobs.put(blob).expect("infallible blob put");
         }
         // 2. Compute a merge commit from self.current_commit and other.current_commit.
+        let parents = self
+            .head
+            .iter()
+            .copied()
+            .chain(other.head.iter().copied());
         let merge_commit = commit(
             &self.signing_key,
-            [self.head, other.head],
+            parents,
             None, // No message for the merge commit
             None, // No content blob for the merge commit
         );
@@ -672,7 +746,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             .local_blobs
             .put(merge_commit)
             .expect("failed to put merge commit blob");
-        self.head = commit_handle;
+        self.head = Some(commit_handle);
 
         Ok(commit_handle)
     }

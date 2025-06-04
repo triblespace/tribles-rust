@@ -19,49 +19,48 @@ pub fn branch(
     signing_key: &SigningKey,
     branch_id: Id,
     name: &str,
-    commit_head: Blob<SimpleArchive>,
+    commit_head: Option<Blob<SimpleArchive>>,
 ) -> TribleSet {
-    let handle = commit_head.get_handle();
-    let signature = signing_key.sign(&commit_head.bytes);
+    let mut metadata: TribleSet = Default::default();
 
     let metadata_entity = rngid();
 
-    let mut metadata: TribleSet = Default::default();
+    metadata += repo::entity!(&metadata_entity, { branch: branch_id });
+    if let Some(commit_head) = commit_head {
+        let handle = commit_head.get_handle();
+        let signature = signing_key.sign(&commit_head.bytes);
 
-    metadata += repo::entity!(&metadata_entity,
-    {
-        branch: branch_id,
-        head: handle,
-        signed_by: signing_key.verifying_key(),
-        signature_r: signature,
-        signature_s: signature,
-    });
-
-    metadata += metadata::entity!(&metadata_entity,
-    {
-        name: name,
-    });
+        metadata += repo::entity!(&metadata_entity,
+        {
+            head: handle,
+            signed_by: signing_key.verifying_key(),
+            signature_r: signature,
+            signature_s: signature,
+        });
+    }
+    metadata += metadata::entity!(&metadata_entity, { name: name });
 
     metadata
 }
 
-pub fn branch_unsigned(branch_id: Id, name: &str, commit_head: Blob<SimpleArchive>) -> TribleSet {
-    let handle = commit_head.get_handle();
 
+pub fn branch_unsigned(
+    branch_id: Id,
+    name: &str,
+    commit_head: Option<Blob<SimpleArchive>>,
+) -> TribleSet {
     let metadata_entity = rngid();
 
     let mut metadata: TribleSet = Default::default();
 
-    metadata += repo::entity!(&metadata_entity,
-    {
-        branch: branch_id,
-        head: handle,
-    });
+    metadata += repo::entity!(&metadata_entity, { branch: branch_id });
 
-    metadata += metadata::entity!(&metadata_entity,
-    {
-        name: name,
-    });
+    if let Some(commit_head) = commit_head {
+        let handle = commit_head.get_handle();
+        metadata += repo::entity!(&metadata_entity, { head: handle });
+    }
+
+    metadata += metadata::entity!(&metadata_entity, { name: name });
 
     metadata
 }

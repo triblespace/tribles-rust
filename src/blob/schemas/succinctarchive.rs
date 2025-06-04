@@ -26,6 +26,10 @@ use sucds::int_vectors::CompactVector;
 pub struct SuccinctArchive<U, B> {
     pub domain: U,
 
+    pub entity_count: usize,
+    pub attribute_count: usize,
+    pub value_count: usize,
+
     pub e_a: EliasFano,
     pub a_a: EliasFano,
     pub v_a: EliasFano,
@@ -73,6 +77,10 @@ where
         let triple_count = set.eav.len() as usize;
         assert!(triple_count > 0);
 
+        let entity_count = set.eav.segmented_len(&[0; 0]) as usize;
+        let attribute_count = set.ave.segmented_len(&[0; 0]) as usize;
+        let value_count = set.vea.segmented_len(&[0; 0]) as usize;
+
         let e_iter = set
             .eav
             .iter_prefix_count::<16>()
@@ -107,7 +115,7 @@ where
         let mut sum = 0;
         let mut last = 0;
         for (a, count) in set
-            .aev
+            .ave
             .iter_prefix_count::<16>()
             .map(|(a, count)| (id_into_value(&a), count as usize))
             .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
@@ -211,6 +219,9 @@ where
 
         SuccinctArchive {
             domain,
+            entity_count,
+            attribute_count,
+            value_count,
             e_a,
             a_a,
             v_a,

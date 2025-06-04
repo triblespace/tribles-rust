@@ -1,26 +1,13 @@
-use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{self, memoryrepo::MemoryRepo, RepoPushResult, Repository};
+use tribles::repo::{memoryrepo::InMemoryRepo, RepoPushResult, Repository};
 
 #[test]
 fn push_and_merge_conflict_resolution() {
-    let mut storage = MemoryRepo::default();
-    let signing_key = SigningKey::generate(&mut OsRng);
-    let base_commit = repo::commit::commit(&signing_key, [], None, None);
-    let base_handle = storage.put(base_commit).unwrap();
-    let branch_key = SigningKey::generate(&mut OsRng);
+    let storage = InMemoryRepo::default();
     let mut repo = Repository::new(storage);
-    let branch_id = repo.branch("main", base_handle, branch_key);
-
-    let mut ws1 = match repo.checkout(branch_id) {
-        Ok(ws) => ws,
-        Err(_) => panic!("checkout failed"),
-    };
-    let mut ws2 = match repo.checkout(branch_id) {
-        Ok(ws) => ws,
-        Err(_) => panic!("checkout failed"),
-    };
+    let mut ws1 = repo.branch("main").expect("create branch");
+    let branch_id = ws1.branch_id();
+    let mut ws2 = repo.checkout(branch_id).expect("checkout");
 
     ws1.commit(TribleSet::new(), Some("first"));
     ws2.commit(TribleSet::new(), Some("second"));

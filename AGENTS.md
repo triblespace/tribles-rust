@@ -15,6 +15,7 @@ The project balances a few key goals:
 
 * Run `cargo fmt` on any Rust files you modify.
 * Run `cargo test` and ensure it passes before committing. If tests fail or cannot run, note that in your PR.
+* Before committing, execute `./scripts/preflight.sh` from the repository root. This script runs formatting checks, tests, and Kani verification. Ensure `rustfmt` and the Kani verifier are installed separately. If Kani fails for reasons unrelated to your change, mention it in the PR.
 * Avoid committing files in `target/` or other build artifacts listed in `.gitignore`.
 * Use clear commit messages describing the change.
 

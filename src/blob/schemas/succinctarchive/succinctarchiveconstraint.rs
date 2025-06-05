@@ -1,4 +1,3 @@
-use core::panic;
 use std::ops::Not;
 use std::ops::Range;
 
@@ -161,7 +160,7 @@ where
                 );
                 r.len()
             }
-            _ => panic!(),
+            _ => unreachable!(),
         })
     }
 
@@ -332,7 +331,7 @@ where
                     .map(|v| self.archive.domain.access(v)),
                 )
             }
-            _ => panic!(),
+            _ => unreachable!(),
         }
     }
 
@@ -519,7 +518,7 @@ where
                     .not()
                 });
             }
-            _ => panic!("invalid trible constraint state"),
+            _ => unreachable!("invalid trible constraint state"),
         }
     }
 }

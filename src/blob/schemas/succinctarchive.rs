@@ -34,11 +34,23 @@ pub struct SuccinctArchive<U, B> {
     pub a_a: EliasFano,
     pub v_a: EliasFano,
 
+    /// Bit vector marking the first occurrence of each `(entity, attribute)` pair
+    /// in `eav_c`.
     pub changed_e_a: B,
+    /// Bit vector marking the first occurrence of each `(entity, value)` pair in
+    /// `eva_c`.
     pub changed_e_v: B,
+    /// Bit vector marking the first occurrence of each `(attribute, entity)` pair
+    /// in `aev_c`.
     pub changed_a_e: B,
+    /// Bit vector marking the first occurrence of each `(attribute, value)` pair
+    /// in `ave_c`.
     pub changed_a_v: B,
+    /// Bit vector marking the first occurrence of each `(value, entity)` pair in
+    /// `vea_c`.
     pub changed_v_e: B,
+    /// Bit vector marking the first occurrence of each `(value, attribute)` pair
+    /// in `vae_c`.
     pub changed_v_a: B,
 
     pub eav_c: WaveletMatrix<B>,
@@ -74,10 +86,21 @@ where
         })
     }
 
+    /// Count the number of set bits in `bv` within `range`.
+    ///
+    /// The bit vectors in this archive encode the first occurrence of each
+    /// component pair.  By counting the set bits between two offsets we can
+    /// quickly determine how many distinct pairs appear in that slice of the
+    /// index.
     pub fn distinct_in(&self, bv: &B, range: &std::ops::Range<usize>) -> usize {
         bv.rank1(range.end).unwrap() - bv.rank1(range.start).unwrap()
     }
 
+    /// Enumerate the positions of set bits in `bv` within `range`.
+    ///
+    /// This is useful when iterating over the offsets of distinct pairs in the
+    /// archive. The returned iterator yields the indices of all set bits between
+    /// `range.start` and `range.end`.
     pub fn enumerate_in<'a>(
         &'a self,
         bv: &'a B,

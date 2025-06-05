@@ -60,6 +60,7 @@ rustversion = "1.0"
 [features]
 default = ["proptest"]
 proptest = ["dep:proptest"]
+kani = []
 
 [[bench]]
 name = "benchmark"

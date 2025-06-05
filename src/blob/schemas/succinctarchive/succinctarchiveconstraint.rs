@@ -201,44 +201,92 @@ where
                     .dedup()
                     .map(|v| self.archive.domain.access(v)),
             ),
-            (Some(e), None, None, false, true, false) => proposals.extend(
-                base_range(&self.archive.domain, &self.archive.e_a, &e)
-                    .map(|e| self.archive.eva_c.access(e).unwrap())
-                    .unique()
-                    .map(|a| self.archive.domain.access(a)),
-            ),
-            (Some(e), None, None, false, false, true) => proposals.extend(
-                base_range(&self.archive.domain, &self.archive.e_a, &e)
-                    .map(|v| self.archive.eav_c.access(v).unwrap())
-                    .unique()
-                    .map(|v| self.archive.domain.access(v)),
-            ),
+            (Some(e), None, None, false, true, false) => {
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
+                proposals.extend(
+                    self.archive
+                        .enumerate_in(
+                            &self.archive.changed_e_a,
+                            &r,
+                            &self.archive.eav_c,
+                            &self.archive.v_a,
+                        )
+                        .map(|i| self.archive.vea_c.access(i).unwrap())
+                        .map(|a| self.archive.domain.access(a)),
+                )
+            }
+            (Some(e), None, None, false, false, true) => {
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
+                proposals.extend(
+                    self.archive
+                        .enumerate_in(
+                            &self.archive.changed_e_v,
+                            &r,
+                            &self.archive.eva_c,
+                            &self.archive.a_a,
+                        )
+                        .map(|i| self.archive.aev_c.access(i).unwrap())
+                        .map(|v| self.archive.domain.access(v)),
+                )
+            }
 
-            (None, Some(a), None, true, false, false) => proposals.extend(
-                base_range(&self.archive.domain, &self.archive.a_a, &a)
-                    .map(|e| self.archive.ave_c.access(e).unwrap())
-                    .unique()
-                    .map(|e| self.archive.domain.access(e)),
-            ),
-            (None, Some(a), None, false, false, true) => proposals.extend(
-                base_range(&self.archive.domain, &self.archive.a_a, &a)
-                    .map(|v| self.archive.aev_c.access(v).unwrap())
-                    .unique()
-                    .map(|v| self.archive.domain.access(v)),
-            ),
+            (None, Some(a), None, true, false, false) => {
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
+                proposals.extend(
+                    self.archive
+                        .enumerate_in(
+                            &self.archive.changed_a_e,
+                            &r,
+                            &self.archive.aev_c,
+                            &self.archive.v_a,
+                        )
+                        .map(|i| self.archive.vae_c.access(i).unwrap())
+                        .map(|e| self.archive.domain.access(e)),
+                )
+            }
+            (None, Some(a), None, false, false, true) => {
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
+                proposals.extend(
+                    self.archive
+                        .enumerate_in(
+                            &self.archive.changed_a_v,
+                            &r,
+                            &self.archive.ave_c,
+                            &self.archive.e_a,
+                        )
+                        .map(|i| self.archive.eav_c.access(i).unwrap())
+                        .map(|v| self.archive.domain.access(v)),
+                )
+            }
 
-            (None, None, Some(v), true, false, false) => proposals.extend(
-                base_range(&self.archive.domain, &self.archive.v_a, &v)
-                    .map(|e| self.archive.vae_c.access(e).unwrap())
-                    .unique()
-                    .map(|e| self.archive.domain.access(e)),
-            ),
-            (None, None, Some(v), false, true, false) => proposals.extend(
-                base_range(&self.archive.domain, &self.archive.v_a, &v)
-                    .map(|a| self.archive.vea_c.access(a).unwrap())
-                    .unique()
-                    .map(|a| self.archive.domain.access(a)),
-            ),
+            (None, None, Some(v), true, false, false) => {
+                let r = base_range(&self.archive.domain, &self.archive.v_a, v);
+                proposals.extend(
+                    self.archive
+                        .enumerate_in(
+                            &self.archive.changed_v_e,
+                            &r,
+                            &self.archive.vea_c,
+                            &self.archive.a_a,
+                        )
+                        .map(|i| self.archive.ave_c.access(i).unwrap())
+                        .map(|e| self.archive.domain.access(e)),
+                )
+            }
+            (None, None, Some(v), false, true, false) => {
+                let r = base_range(&self.archive.domain, &self.archive.v_a, v);
+                proposals.extend(
+                    self.archive
+                        .enumerate_in(
+                            &self.archive.changed_v_a,
+                            &r,
+                            &self.archive.vae_c,
+                            &self.archive.e_a,
+                        )
+                        .map(|i| self.archive.eva_c.access(i).unwrap())
+                        .map(|a| self.archive.domain.access(a)),
+                )
+            }
             (None, Some(a), Some(v), true, false, false) => {
                 let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
                 proposals.extend(
@@ -305,33 +353,33 @@ where
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => {
                 proposals.retain(|e| {
-                    base_range(&self.archive.domain, &self.archive.e_a, &e)
+                    base_range(&self.archive.domain, &self.archive.e_a, e)
                         .is_empty()
                         .not()
                 });
             }
             (None, None, None, false, true, false) => {
                 proposals.retain(|a| {
-                    base_range(&self.archive.domain, &self.archive.a_a, &a)
+                    base_range(&self.archive.domain, &self.archive.a_a, a)
                         .is_empty()
                         .not()
                 });
             }
             (None, None, None, false, false, true) => {
                 proposals.retain(|v| {
-                    base_range(&self.archive.domain, &self.archive.v_a, &v)
+                    base_range(&self.archive.domain, &self.archive.v_a, v)
                         .is_empty()
                         .not()
                 });
             }
             (Some(e), None, None, false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 proposals.retain(|a| {
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.a_a,
                         &self.archive.eva_c,
-                        &a,
+                        a,
                         &r,
                     )
                     .is_empty()
@@ -339,13 +387,13 @@ where
                 });
             }
             (Some(e), None, None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 proposals.retain(|v| {
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.v_a,
                         &self.archive.eav_c,
-                        &v,
+                        v,
                         &r,
                     )
                     .is_empty()
@@ -353,13 +401,13 @@ where
                 });
             }
             (None, Some(a), None, true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 proposals.retain(|e| {
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.e_a,
                         &self.archive.ave_c,
-                        &e,
+                        e,
                         &r,
                     )
                     .is_empty()
@@ -367,13 +415,13 @@ where
                 });
             }
             (None, Some(a), None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 proposals.retain(|v| {
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.v_a,
                         &self.archive.aev_c,
-                        &v,
+                        v,
                         &r,
                     )
                     .is_empty()
@@ -381,13 +429,13 @@ where
                 });
             }
             (None, None, Some(v), true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.v_a, &v);
+                let r = base_range(&self.archive.domain, &self.archive.v_a, v);
                 proposals.retain(|e| {
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.e_a,
                         &self.archive.vae_c,
-                        &e,
+                        e,
                         &r,
                     )
                     .is_empty()
@@ -395,13 +443,13 @@ where
                 });
             }
             (None, None, Some(v), false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.v_a, &v);
+                let r = base_range(&self.archive.domain, &self.archive.v_a, v);
                 proposals.retain(|a| {
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.a_a,
                         &self.archive.vea_c,
-                        &a,
+                        a,
                         &r,
                     )
                     .is_empty()
@@ -409,12 +457,12 @@ where
                 });
             }
             (None, Some(a), Some(v), true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 let r = restrict_range(
                     &self.archive.domain,
                     &self.archive.v_a,
                     &self.archive.aev_c,
-                    &v,
+                    v,
                     &r,
                 );
                 proposals.retain(|e| {
@@ -422,7 +470,7 @@ where
                         &self.archive.domain,
                         &self.archive.e_a,
                         &self.archive.vae_c,
-                        &e,
+                        e,
                         &r,
                     )
                     .is_empty()
@@ -430,12 +478,12 @@ where
                 });
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 let r = restrict_range(
                     &self.archive.domain,
                     &self.archive.v_a,
                     &self.archive.eav_c,
-                    &v,
+                    v,
                     &r,
                 );
                 proposals.retain(|a| {
@@ -443,7 +491,7 @@ where
                         &self.archive.domain,
                         &self.archive.a_a,
                         &self.archive.vea_c,
-                        &a,
+                        a,
                         &r,
                     )
                     .is_empty()
@@ -451,12 +499,12 @@ where
                 });
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 let r = restrict_range(
                     &self.archive.domain,
                     &self.archive.a_a,
                     &self.archive.eva_c,
-                    &a,
+                    a,
                     &r,
                 );
                 proposals.retain(|v| {
@@ -464,7 +512,7 @@ where
                         &self.archive.domain,
                         &self.archive.v_a,
                         &self.archive.aev_c,
-                        &v,
+                        v,
                         &r,
                     )
                     .is_empty()

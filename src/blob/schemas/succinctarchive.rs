@@ -96,19 +96,27 @@ where
         bv.rank1(range.end).unwrap() - bv.rank1(range.start).unwrap()
     }
 
-    /// Enumerate the positions of set bits in `bv` within `range`.
+    /// Enumerate the rotated offsets of set bits in `bv` within `range`.
     ///
-    /// This is useful when iterating over the offsets of distinct pairs in the
-    /// archive. The returned iterator yields the indices of all set bits between
-    /// `range.start` and `range.end`.
+    /// `bv` marks the first occurrence of component pairs in the ordering that
+    /// produced `col`.  For each selected bit this function reads the component
+    /// value from `col` and uses `prefix` to translate the index to the adjacent
+    /// orientation.  The iterator therefore yields indices positioned to access
+    /// the middle component of each pair.
     pub fn enumerate_in<'a>(
         &'a self,
         bv: &'a B,
         range: &std::ops::Range<usize>,
+        col: &'a WaveletMatrix<B>,
+        prefix: &'a EliasFano,
     ) -> impl Iterator<Item = usize> + 'a {
         let start = bv.rank1(range.start).unwrap();
         let end = bv.rank1(range.end).unwrap();
-        (start..end).map(move |r| bv.select1(r).unwrap())
+        (start..end).map(move |r| {
+            let idx = bv.select1(r).unwrap();
+            let val = col.access(idx).unwrap();
+            prefix.select(val).unwrap() + col.rank(idx, val).unwrap()
+        })
     }
 }
 

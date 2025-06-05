@@ -1,15 +1,16 @@
+use std::collections::HashSet;
 use sucds::bit_vectors::Rank9Sel;
 use tribles::blob::schemas::succinctarchive::{OrderedUniverse, SuccinctArchive};
 use tribles::prelude::*;
-use tribles::value::schemas::UnknownValue;
+use tribles::query::{Binding, Constraint, TriblePattern, VariableContext};
+use tribles::value::schemas::{genid::GenId, UnknownValue};
 
 #[test]
-fn distinct_and_enumerate() {
+fn propose_and_confirm() {
     let e1 = Id::new([1u8; 16]).unwrap();
     let e2 = Id::new([2u8; 16]).unwrap();
     let a1 = Id::new([10u8; 16]).unwrap();
     let a2 = Id::new([20u8; 16]).unwrap();
-
     let v1 = Value::<UnknownValue>::new([1u8; 32]);
     let v2 = Value::<UnknownValue>::new([2u8; 32]);
     let v3 = Value::<UnknownValue>::new([3u8; 32]);
@@ -27,16 +28,24 @@ fn distinct_and_enumerate() {
 
     let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
 
-    let full = 0..set.len();
-    assert_eq!(archive.distinct_in(&archive.changed_e_a, &full), 4);
-    assert_eq!(archive.distinct_in(&archive.changed_e_v, &full), 6);
-    assert_eq!(archive.distinct_in(&archive.changed_a_e, &full), 4);
-    assert_eq!(archive.distinct_in(&archive.changed_a_v, &full), 6);
-    assert_eq!(archive.distinct_in(&archive.changed_v_e, &full), 6);
-    assert_eq!(archive.distinct_in(&archive.changed_v_a, &full), 6);
+    let mut ctx = VariableContext::new();
+    let e_var = ctx.next_variable::<GenId>();
+    let a_var = ctx.next_variable::<GenId>();
+    let v_var = ctx.next_variable::<UnknownValue>();
+    let constraint = archive.pattern(e_var, a_var, v_var);
 
-    let indices: Vec<_> = archive
-        .enumerate_in(&archive.changed_e_a, &(1..5), &archive.eav_c, &archive.v_a)
-        .collect();
-    assert_eq!(indices, vec![2, 3]);
+    let mut binding = Binding::default();
+    binding.set(e_var.index, &e1.to_value().raw);
+
+    let mut proposals = Vec::new();
+    constraint.propose(a_var.index, &binding, &mut proposals);
+    let attrs: HashSet<_> = proposals.iter().cloned().collect();
+    assert_eq!(
+        attrs,
+        [a1.to_value().raw, a2.to_value().raw].into_iter().collect()
+    );
+
+    proposals.push(e1.to_value().raw);
+    constraint.confirm(a_var.index, &binding, &mut proposals);
+    assert_eq!(proposals.len(), 2);
 }

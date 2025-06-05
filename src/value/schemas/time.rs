@@ -47,8 +47,8 @@ mod tests {
 
     #[test]
     fn hifitime_conversion() {
-        let now = Epoch::now().unwrap();
-        let time_in: (Epoch, Epoch) = (now, now);
+        let epoch = Epoch::from_tai_duration(Duration::from_total_nanoseconds(0));
+        let time_in: (Epoch, Epoch) = (epoch, epoch);
         let interval: Value<NsTAIInterval> = time_in.to_value();
         let time_out: (Epoch, Epoch) = interval.from_value();
 

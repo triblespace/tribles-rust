@@ -179,27 +179,15 @@ where
         let v_bound = binding.get(self.variable_v);
 
         match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-            (None, None, None, true, false, false) => proposals.extend(
-                self.archive
-                    .e_a
-                    .iter(0)
-                    .dedup()
-                    .map(|e| self.archive.domain.access(e)),
-            ),
-            (None, None, None, false, true, false) => proposals.extend(
-                self.archive
-                    .a_a
-                    .iter(0)
-                    .dedup()
-                    .map(|a| self.archive.domain.access(a)),
-            ),
-            (None, None, None, false, false, true) => proposals.extend(
-                self.archive
-                    .v_a
-                    .iter(0)
-                    .dedup()
-                    .map(|v| self.archive.domain.access(v)),
-            ),
+            (None, None, None, true, false, false) => {
+                proposals.extend(self.archive.enumerate_domain(&self.archive.e_a))
+            }
+            (None, None, None, false, true, false) => {
+                proposals.extend(self.archive.enumerate_domain(&self.archive.a_a))
+            }
+            (None, None, None, false, false, true) => {
+                proposals.extend(self.archive.enumerate_domain(&self.archive.v_a))
+            }
             (Some(e), None, None, false, true, false) => {
                 let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 proposals.extend(

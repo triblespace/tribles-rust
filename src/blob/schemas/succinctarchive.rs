@@ -118,6 +118,33 @@ where
             prefix.select(val).unwrap() + col.rank(idx, val).unwrap()
         })
     }
+
+    /// Enumerate the identifiers present in `prefix` using `rank`/`select` to
+    /// jump directly to the next distinct prefix sum.
+    pub fn enumerate_domain<'a>(
+        &'a self,
+        prefix: &'a EliasFano,
+    ) -> impl Iterator<Item = RawValue> + 'a {
+        let mut i = 0usize;
+        std::iter::from_fn(move || {
+            while i < self.domain.len() {
+                let start = prefix.select(i).unwrap();
+                let next = prefix.rank(start + 1).unwrap();
+                let end = prefix.select(i + 1).unwrap();
+                let has_entry = start != end;
+                let result = if has_entry {
+                    Some(self.domain.access(i))
+                } else {
+                    None
+                };
+                i = next;
+                if result.is_some() {
+                    return result;
+                }
+            }
+            None
+        })
+    }
 }
 
 impl<U, B> From<&TribleSet> for SuccinctArchive<U, B>

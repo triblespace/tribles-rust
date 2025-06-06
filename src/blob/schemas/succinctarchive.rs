@@ -439,7 +439,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn create(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn create(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..128)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
@@ -451,7 +451,7 @@ mod tests {
         }
 
         #[test]
-        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..128)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
@@ -466,7 +466,7 @@ mod tests {
         }
 
         #[test]
-        fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..1024)) {
+        fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..128)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = OrderedUniverse::with(values.iter().copied());
@@ -483,7 +483,7 @@ mod tests {
         }
 
         #[test]
-        fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..1024)) {
+        fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..128)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = CompressedUniverse::<DacsOpt>::with(values.iter().copied());

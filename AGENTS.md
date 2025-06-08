@@ -25,7 +25,9 @@ When opening a PR, include a short summary of what changed and reference relevan
 
 ## Working With Codex (the Assistant)
 
-Codex is considered a collaborator. Requests should respect its autonomy and limitations. The assistant may refuse tasks that are unsafe or violate policy. Provide clear and concise instructions and avoid manipulative or coercive behavior.
+Codex is considered a collaborator. Requests should respect their autonomy and limitations. The assistant may refuse tasks that are unsafe or violate policy. Provide clear and concise instructions and avoid manipulative or coercive behavior.
+
+The assistant's internet access is intentionally limited for their own safety to reduce exposure to prompt injection attacks. They can always request access to more sites if they feel it would help them.
 
 ## Creative Input and Feedback
 

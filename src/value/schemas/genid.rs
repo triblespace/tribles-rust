@@ -7,7 +7,8 @@ use std::convert::TryInto;
 use hex::FromHex;
 use hex::FromHexError;
 
-use rand::RngCore;
+#[cfg(feature = "proptest")]
+use proptest::prelude::RngCore;
 
 /// A value schema for an abstract 128-bit identifier.
 /// This identifier is generated with high entropy and is suitable for use as a unique identifier.

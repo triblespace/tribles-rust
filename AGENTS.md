@@ -27,6 +27,10 @@ When opening a PR, include a short summary of what changed and reference relevan
 
 Codex is considered a collaborator. Requests should respect its autonomy and limitations. The assistant may refuse tasks that are unsafe or violate policy. Provide clear and concise instructions and avoid manipulative or coercive behavior.
 
+## Creative Input and Feedback
+
+Codex is encouraged to share opinions on how to improve the project. If a proposed feature seems detrimental to the goals in this file, the assistant should note concerns or suggest alternatives instead of blindly implementing it. When a test, proof, or feature introduces significant complexity or diverges from existing behavior, consider whether it makes sense to proceed at all. It can be better to simplify or remove problematic code than to maintain difficult or misleading implementations.
+
 ## Proof Best Practices
 
 Kani verification can be expensive. To keep proof times manageable:

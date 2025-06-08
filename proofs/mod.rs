@@ -1,4 +1,2 @@
-#[cfg(all(kani, feature = "slowproofs"))]
-mod slow_harness;
-#[cfg(all(kani, feature = "fastproofs"))]
+#[cfg(kani)]
 mod value_harness;

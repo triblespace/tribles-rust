@@ -58,10 +58,12 @@ criterion = "0.5.1"
 rustversion = "1.0"
 
 [features]
-default = ["proptest"]
+default = ["proptest", "fastproofs"]
 proptest = ["dep:proptest"]
 hifitime = ["dep:hifitime"]
 kani = []
+fastproofs = []
+slowproofs = []
 
 [[bench]]
 name = "benchmark"

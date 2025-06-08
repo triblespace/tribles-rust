@@ -1,7 +1,7 @@
 #![cfg(kani)]
 
-use tribles::value::{schemas::ShortString, Value};
-use tribles::value::{TryFromValue, ValueSchema};
+use crate::value::{schemas::shortstring::ShortString, Value};
+use crate::value::{TryFromValue, ValueSchema};
 
 #[kani::proof]
 fn short_string_roundtrip() {

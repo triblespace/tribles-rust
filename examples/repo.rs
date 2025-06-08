@@ -29,15 +29,13 @@ fn main() {
     ws2.commit(change, Some("add bob"));
 
     match repo.push(&mut ws2).expect("push ws2") {
-            RepoPushResult::Success() => println!("Push ws2 succeeded"),
-            RepoPushResult::Conflict(mut other) => {
-                loop {
-                    other.merge(&mut ws2).expect("merge");
-                    match repo.push(&mut other).expect("push conflict") {
-                        RepoPushResult::Success() => break,
-                        RepoPushResult::Conflict(next) => other = next,
-                    }
+        RepoPushResult::Success() => println!("Push ws2 succeeded"),
+        RepoPushResult::Conflict(mut other) => loop {
+            other.merge(&mut ws2).expect("merge");
+            match repo.push(&mut other).expect("push conflict") {
+                RepoPushResult::Success() => break,
+                RepoPushResult::Conflict(next) => other = next,
             }
-        }
+        },
     }
 }

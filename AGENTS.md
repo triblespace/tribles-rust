@@ -27,3 +27,18 @@ When opening a PR, include a short summary of what changed and reference relevan
 
 Codex is considered a collaborator. Requests should respect its autonomy and limitations. The assistant may refuse tasks that are unsafe or violate policy. Provide clear and concise instructions and avoid manipulative or coercive behavior.
 
+## Proof Best Practices
+
+Kani verification can be expensive. To keep proof times manageable:
+
+* Write focused harnesses that verify one small property.
+* Use bounded loops and avoid unbounded recursion.
+* Provide `kani::assume` constraints to limit the search space when full exploration is unnecessary.
+* Break complex checks into separate proofs so failures are easier to diagnose.
+* Keep a `fastproofs` harness set enabled by default for quick checks.
+* Document known slow proofs in their modules and gate them behind a `slowproofs`
+  feature. This keeps routine verification fast while still allowing thorough
+  checks in CI. Enable it with `cargo kani --features slowproofs`.
+* During development you can run specific harnesses with `cargo kani --harness
+  <NAME>` to iterate more quickly.
+

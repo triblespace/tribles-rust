@@ -23,8 +23,6 @@ mod proofs;
 #[cfg(test)]
 mod readme_example {
     use crate::examples::literature;
-    use crate::prelude::blobschemas::*;
-    use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
     #[test]

@@ -4,7 +4,6 @@ use crate::value::{FromValue, ToValue, Value, ValueSchema};
 
 use std::convert::TryInto;
 
-#[cfg(feature = "hifitime")]
 use hifitime::prelude::*;
 
 /// A value schema for a TAI interval.
@@ -19,7 +18,6 @@ impl ValueSchema for NsTAIInterval {
     const VALUE_SCHEMA_ID: Id = id_hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");
 }
 
-#[cfg(feature = "hifitime")]
 impl ToValue<NsTAIInterval> for (Epoch, Epoch) {
     fn to_value(self) -> Value<NsTAIInterval> {
         let lower = self.0.to_tai_duration().total_nanoseconds();
@@ -32,7 +30,6 @@ impl ToValue<NsTAIInterval> for (Epoch, Epoch) {
     }
 }
 
-#[cfg(feature = "hifitime")]
 impl FromValue<'_, NsTAIInterval> for (Epoch, Epoch) {
     fn from_value(v: &Value<NsTAIInterval>) -> Self {
         let lower = i128::from_le_bytes(v.raw[0..16].try_into().unwrap());
@@ -48,7 +45,6 @@ impl FromValue<'_, NsTAIInterval> for (Epoch, Epoch) {
 mod tests {
     use super::*;
 
-    #[cfg(feature = "hifitime")]
     #[test]
     fn hifitime_conversion() {
         let epoch = Epoch::from_tai_duration(Duration::from_total_nanoseconds(0));

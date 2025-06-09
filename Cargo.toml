@@ -75,3 +75,9 @@ debug = true
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)', 'cfg(kani)'] }
+
+[package.metadata.kani.flags]
+default-unwind = "1"
+
+[workspace.metadata.kani.flags]
+default-unwind = "1"

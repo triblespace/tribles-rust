@@ -28,7 +28,15 @@ impl<'a> TryFromValue<'a, ShortString> for &'a str {
     type Error = Utf8Error;
 
     fn try_from_value(v: &'a Value<ShortString>) -> Result<&'a str, Self::Error> {
-        std::str::from_utf8(&v.raw[0..v.raw.iter().position(|&b| b == 0).unwrap_or(v.raw.len())])
+        let len = v.raw.iter().position(|&b| b == 0).unwrap_or(v.raw.len());
+        #[cfg(kani)]
+        {
+            // Kani spends significant time unwinding the UTF-8 validation loop.
+            // Bounding `len` to 32 keeps the verifier from exploring unrealistic
+            // larger values, reducing runtime from minutes to seconds.
+            kani::assume(len <= 32);
+        }
+        std::str::from_utf8(&v.raw[..len])
     }
 }
 

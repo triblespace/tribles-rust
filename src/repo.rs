@@ -611,7 +611,8 @@ where
                 let head = match find!((head: Value<_>),
                     repo::pattern!(&branch_meta, [{ head: head }])
                 )
-                .at_most_one() {
+                .at_most_one()
+                {
                     Ok(Some((h,))) => Some(h),
                     Ok(None) => None,
                     Err(_) => return Err(PushError::BadBranchMetadata()),
@@ -730,11 +731,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             self.local_blobs.put(blob).expect("infallible blob put");
         }
         // 2. Compute a merge commit from self.current_commit and other.current_commit.
-        let parents = self
-            .head
-            .iter()
-            .copied()
-            .chain(other.head.iter().copied());
+        let parents = self.head.iter().copied().chain(other.head.iter().copied());
         let merge_commit = commit(
             &self.signing_key,
             parents,

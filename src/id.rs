@@ -240,6 +240,15 @@ impl Id {
         unsafe { std::mem::transmute(id) }
     }
 
+    /// Forces the creation of an `Id` from a [RawId] without checking for nil.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `id` is not the nil value of all zero bytes.
+    pub const unsafe fn force(id: RawId) -> Self {
+        std::mem::transmute(id)
+    }
+
     /// Transmutes a reference to a [RawId] into a reference to an `Id`.
     /// Returns `None` if the referenced RawId is nil (all zero).
     pub fn as_transmute_raw(id: &RawId) -> Option<&Self> {

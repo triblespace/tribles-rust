@@ -9,6 +9,7 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Run preflight script
-        run: ./scripts/preflight.sh
+      name: Run preflight script
+      uses: model-checking/kani-github-action@v1
+      with:
+        command: ./scripts/preflight.sh

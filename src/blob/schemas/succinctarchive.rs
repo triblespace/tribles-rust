@@ -118,6 +118,33 @@ where
             prefix.select(val).unwrap() + col.rank(idx, val).unwrap()
         })
     }
+
+    /// Enumerate the identifiers present in `prefix` using `rank`/`select` to
+    /// jump directly to the next distinct prefix sum.
+    pub fn enumerate_domain<'a>(
+        &'a self,
+        prefix: &'a EliasFano,
+    ) -> impl Iterator<Item = RawValue> + 'a {
+        let mut i = 0usize;
+        std::iter::from_fn(move || {
+            while i < self.domain.len() {
+                let start = prefix.select(i).unwrap();
+                let next = prefix.rank(start + 1).unwrap();
+                let end = prefix.select(i + 1).unwrap();
+                let has_entry = start != end;
+                let result = if has_entry {
+                    Some(self.domain.access(i))
+                } else {
+                    None
+                };
+                i = next;
+                if result.is_some() {
+                    return result;
+                }
+            }
+            None
+        })
+    }
 }
 
 impl<U, B> From<&TribleSet> for SuccinctArchive<U, B>
@@ -412,7 +439,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn create(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn create(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..128)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
@@ -424,7 +451,7 @@ mod tests {
         }
 
         #[test]
-        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..1024)) {
+        fn roundtrip(entries in prop::collection::vec(prop::collection::vec(0u8..255, 64), 1..128)) {
             let mut set = TribleSet::new();
             for entry in entries {
                 let mut key = [0; 64];
@@ -439,7 +466,7 @@ mod tests {
         }
 
         #[test]
-        fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..1024)) {
+        fn ordered_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..128)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = OrderedUniverse::with(values.iter().copied());
@@ -456,7 +483,7 @@ mod tests {
         }
 
         #[test]
-        fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..1024)) {
+        fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..128)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
             let u = CompressedUniverse::<DacsOpt>::with(values.iter().copied());

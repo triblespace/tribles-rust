@@ -15,12 +15,14 @@ pub mod value;
 
 pub mod examples;
 
+#[cfg(kani)]
+#[path = "../proofs/mod.rs"]
+mod proofs;
+
 // Let's add the readme example as a test
 #[cfg(test)]
 mod readme_example {
     use crate::examples::literature;
-    use crate::prelude::blobschemas::*;
-    use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
     #[test]

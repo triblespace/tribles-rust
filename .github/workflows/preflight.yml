@@ -1,0 +1,14 @@
+name: Preflight
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run preflight script
+        run: ./scripts/preflight.sh

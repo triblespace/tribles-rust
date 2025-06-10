@@ -43,7 +43,6 @@ pub fn branch(
     metadata
 }
 
-
 pub fn branch_unsigned(
     branch_id: Id,
     name: &str,

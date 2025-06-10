@@ -45,7 +45,6 @@ impl FromValue<'_, NsTAIInterval> for (Epoch, Epoch) {
 mod tests {
     use super::*;
 
-    #[cfg(feature = "hifitime")]
     #[test]
     fn hifitime_conversion() {
         let epoch = Epoch::from_tai_duration(Duration::from_total_nanoseconds(0));

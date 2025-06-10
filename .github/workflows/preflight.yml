@@ -11,4 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run preflight script
-        run: ./scripts/preflight.sh
+        uses: model-checking/kani-github-action@v1
+        with:
+          command: ./scripts/preflight.sh

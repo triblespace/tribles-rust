@@ -18,6 +18,7 @@ The project balances a few key goals:
 * For quick iterations, run `./scripts/devtest.sh` to execute only the tests.
 * Before committing, execute `./scripts/preflight.sh` from the repository root. This script runs formatting checks, tests, and Kani verification. Ensure `rustfmt` and the Kani verifier are installed separately. If Kani fails for reasons unrelated to your change, mention it in the PR.
 * Avoid committing files in `target/` or other build artifacts listed in `.gitignore`.
+* Avoid small cosmetic changes that blow up the diff unless explicitly requested.
 * Use clear commit messages describing the change.
 
 ## Pull Request Notes

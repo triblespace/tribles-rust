@@ -754,7 +754,7 @@ mod tests {
         }
 
         // Corrupt by removing some bytes from the end
-        let mut file = OpenOptions::new().write(true).open(&path).unwrap();
+        let file = OpenOptions::new().write(true).open(&path).unwrap();
         let len = file.metadata().unwrap().len();
         file.set_len(len - 10).unwrap();
 
@@ -804,12 +804,12 @@ mod tests {
 
         let valid_len = std::fs::metadata(&path).unwrap().len();
         // Append 16 bytes of garbage that don't form a valid marker
-        let mut file = std::fs::OpenOptions::new()
+        std::fs::OpenOptions::new()
             .append(true)
             .open(&path)
+            .unwrap()
+            .write_all(&[0u8; 16])
             .unwrap();
-        file.write_all(&[0u8; 16]).unwrap();
-        drop(file);
 
         let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), valid_len);

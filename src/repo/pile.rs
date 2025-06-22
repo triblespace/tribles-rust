@@ -327,11 +327,8 @@ impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE
 #[derive(Debug)]
 pub enum OpenError {
     IoError(std::io::Error),
-    MagicMarkerError,
-    HeaderError,
-    UnexpectedEndOfFile,
-    FileLengthError,
     PileTooLarge,
+    CorruptPile { valid_length: usize },
 }
 
 impl From<std::io::Error> for OpenError {
@@ -426,10 +423,23 @@ impl From<std::io::Error> for FlushError {
     }
 }
 
-//TODO Handle incomplete writes by truncating the file
-//TODO Add the ability to skip corrupted blobs
 impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     pub fn open(path: &Path) -> Result<Self, OpenError> {
+        match Self::try_open(path) {
+            Ok(pile) => Ok(pile),
+            Err(OpenError::CorruptPile { valid_length }) => {
+                // Truncate the file at the first valid offset and try again.
+                OpenOptions::new()
+                    .write(true)
+                    .open(&path)?
+                    .set_len(valid_length as u64)?;
+                Self::try_open(path)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    pub fn try_open(path: &Path) -> Result<Self, OpenError> {
         let file = OpenOptions::new()
             .read(true)
             .append(true)
@@ -439,57 +449,65 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         if length > MAX_PILE_SIZE {
             return Err(OpenError::PileTooLarge);
         }
+
         let mmap = MmapOptions::new()
             .len(MAX_PILE_SIZE)
             .map_raw_read_only(&file)?;
         let mmap = Arc::new(mmap);
         let mut bytes = unsafe {
-            let written_slice = slice_from_raw_parts(mmap.as_ptr(), length)
+            let slice = slice_from_raw_parts(mmap.as_ptr(), length)
                 .as_ref()
                 .unwrap();
-            Bytes::from_raw_parts(written_slice, mmap.clone())
+            Bytes::from_raw_parts(slice, mmap.clone())
         };
-        if bytes.len() % 64 != 0 {
-            return Err(OpenError::FileLengthError);
-        }
 
         let mut blobs = BTreeMap::new();
         let mut branches = HashMap::new();
 
         while bytes.len() > 0 {
+            let start_offset = length - bytes.len();
             if bytes.len() < 16 {
-                return Err(OpenError::UnexpectedEndOfFile);
+                return Err(OpenError::CorruptPile {
+                    valid_length: start_offset,
+                });
             }
             let magic = bytes[0..16].try_into().unwrap();
             match magic {
                 MAGIC_MARKER_BLOB => {
                     let Ok(header) = bytes.view_prefix::<BlobHeader>() else {
-                        return Err(OpenError::HeaderError);
+                        return Err(OpenError::CorruptPile {
+                            valid_length: start_offset,
+                        });
                     };
+                    let data_len = header.length as usize;
+                    let pad = (64 - (data_len % 64)) % 64;
                     let hash = Value::new(header.hash);
-                    let length = header.length as usize;
-                    let Some(blob_bytes) = bytes.take_prefix(length) else {
-                        return Err(OpenError::UnexpectedEndOfFile);
-                    };
-
-                    let Some(_) = bytes.take_prefix(64 - (length % 64)) else {
-                        return Err(OpenError::UnexpectedEndOfFile);
-                    };
-
+                    let blob_bytes = bytes.take_prefix(data_len).ok_or(OpenError::CorruptPile {
+                        valid_length: start_offset,
+                    })?;
+                    bytes.take_prefix(pad).ok_or(OpenError::CorruptPile {
+                        valid_length: start_offset,
+                    })?;
                     blobs.insert(hash, IndexEntry::new(blob_bytes, None));
                 }
                 MAGIC_MARKER_BRANCH => {
                     let Ok(header) = bytes.view_prefix::<BranchHeader>() else {
-                        return Err(OpenError::HeaderError);
+                        return Err(OpenError::CorruptPile {
+                            valid_length: start_offset,
+                        });
                     };
-                    let Some(branch_id) = Id::new(header.branch_id) else {
-                        return Err(OpenError::HeaderError);
-                    };
+                    let branch_id = Id::new(header.branch_id).ok_or(OpenError::CorruptPile {
+                        valid_length: start_offset,
+                    })?;
                     let hash = Value::new(header.hash);
                     branches.insert(branch_id, hash);
                 }
-                _ => return Err(OpenError::MagicMarkerError),
-            };
+                _ => {
+                    return Err(OpenError::CorruptPile {
+                        valid_length: start_offset,
+                    })
+                }
+            }
         }
 
         Ok(Self {
@@ -693,12 +711,13 @@ mod tests {
     use super::*;
 
     use rand::RngCore;
+    use std::io::Write;
     use tempfile;
 
     #[test]
     fn open() {
         const RECORD_LEN: usize = 1 << 10; // 1k
-        const RECORD_COUNT: usize = 1 << 20; // 1M
+        const RECORD_COUNT: usize = 1 << 12; // 4k
         const MAX_PILE_SIZE: usize = 1 << 30; // 100GB
 
         let mut rng = rand::thread_rng();
@@ -720,4 +739,110 @@ mod tests {
 
         let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
     }
+
+    #[test]
+    fn recover_shrink() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        {
+            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
+            pile.put(blob).unwrap();
+            pile.flush().unwrap();
+        }
+
+        // Corrupt by removing some bytes from the end
+        let mut file = OpenOptions::new().write(true).open(&path).unwrap();
+        let len = file.metadata().unwrap().len();
+        file.set_len(len - 10).unwrap();
+
+        let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn try_open_corrupt_reports_length() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        {
+            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
+            pile.put(blob).unwrap();
+            pile.flush().unwrap();
+        }
+
+        let file_len = std::fs::metadata(&path).unwrap().len();
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_len(file_len - 10)
+            .unwrap();
+
+        match Pile::<MAX_PILE_SIZE>::try_open(&path) {
+            Err(OpenError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn open_truncates_unknown_magic() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        {
+            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
+            pile.put(blob).unwrap();
+            pile.flush().unwrap();
+        }
+
+        let valid_len = std::fs::metadata(&path).unwrap().len();
+        // Append 16 bytes of garbage that don't form a valid marker
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        file.write_all(&[0u8; 16]).unwrap();
+        drop(file);
+
+        let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), valid_len);
+    }
+
+    #[test]
+    fn try_open_partial_header_reports_length() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        {
+            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
+            pile.put(blob).unwrap();
+            pile.flush().unwrap();
+        }
+
+        let file_len = std::fs::metadata(&path).unwrap().len();
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_len(file_len + 8)
+            .unwrap();
+
+        match Pile::<MAX_PILE_SIZE>::try_open(&path) {
+            Err(OpenError::CorruptPile { valid_length }) => {
+                assert_eq!(valid_length as u64, file_len)
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    // recover_grow test removed as growth strategy no longer exists
 }

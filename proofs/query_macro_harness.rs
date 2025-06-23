@@ -1,7 +1,7 @@
 #![cfg(kani)]
 
-use crate::prelude::*;
 use crate::examples::literature;
+use crate::prelude::*;
 
 #[kani::proof]
 #[kani::unwind(5)]
@@ -34,9 +34,7 @@ fn query_macro_harness() {
     .collect();
 
     assert_eq!(
-        vec![
-            (book.to_value(), "Hamlet".to_value(), "William".to_value()),
-        ],
+        vec![(book.to_value(), "Hamlet".to_value(), "William".to_value()),],
         result
     );
 }

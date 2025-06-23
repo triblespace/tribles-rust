@@ -1,3 +1,5 @@
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
 use tribles::examples::literature;
 use tribles::prelude::*;
 use tribles::repo::{RepoPushResult, Repository};
@@ -11,7 +13,7 @@ fn main() {
     let pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).expect("open pile");
 
     // Create a repository from the pile and initialize the main branch
-    let mut repo = Repository::new(pile);
+    let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws1 = repo.branch("main").expect("create branch");
     let branch_id = ws1.branch_id();
 

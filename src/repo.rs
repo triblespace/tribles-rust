@@ -34,7 +34,6 @@ use std::{
 };
 
 use commit::commit;
-use ed25519_dalek::SigningKey;
 use itertools::Itertools;
 
 use crate::{blob::MemoryBlobStore, repo::branch::branch};
@@ -54,6 +53,7 @@ use crate::{
     NS,
 };
 use crate::{id::ufoid, prelude::valueschemas::GenId};
+use ed25519_dalek::SigningKey;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
@@ -360,6 +360,7 @@ where
 
 pub struct Repository<Storage: BlobStore<Blake3> + BranchStore<Blake3>> {
     storage: Storage,
+    signing_key: SigningKey,
 }
 
 pub enum CheckoutError<BranchStorageErr, BlobStorageErr>
@@ -406,8 +407,16 @@ where
     /// * `branches` - The branch repository to use for storing branches.
     /// # Returns
     /// * A new `Repo` object that can be used to store and retrieve blobs and branches.
-    pub fn new(storage: Storage) -> Self {
-        Self { storage }
+    pub fn new(storage: Storage, signing_key: SigningKey) -> Self {
+        Self {
+            storage,
+            signing_key,
+        }
+    }
+
+    /// Replace the repository signing key.
+    pub fn set_signing_key(&mut self, signing_key: SigningKey) {
+        self.signing_key = signing_key;
     }
 
     /// Initializes a new branch in the repository.
@@ -422,14 +431,22 @@ where
     ///
     /// # Parameters
     /// * `branch_name` - The name of the branch to create.
-    /// * `commit` - The handle referencing the commit to initialize the branch to.
-    /// * `branch_signing_key` - The signing key to use for signing the branch.
+    ///
     /// # Returns
-    /// * A future that resolves to the id of the new branch.
+    /// A new workspace bound to the created branch.
     ///
     pub fn branch(
         &mut self,
         branch_name: &str,
+    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
+        self.branch_with_key(branch_name, self.signing_key.clone())
+    }
+
+    /// Creates a new branch with an explicit signing key.
+    pub fn branch_with_key(
+        &mut self,
+        branch_name: &str,
+        signing_key: SigningKey,
     ) -> Result<Workspace<Storage>, BranchError<Storage>> {
         let branch_id = *ufoid();
         let branch_set = branch::branch_unsigned(branch_id, branch_name, None);
@@ -451,17 +468,30 @@ where
                 head: None,
                 base_branch_id: branch_id,
                 base_branch_meta: branch_handle,
-                signing_key: SigningKey::generate(&mut rand::rngs::OsRng),
+                signing_key,
             }),
             PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
 
+    /// Creates a new branch starting from an existing commit.
+    ///
+    /// * `branch_name` - Name of the new branch.
+    /// * `commit` - Commit to initialize the branch from.
     pub fn branch_from(
         &mut self,
         branch_name: &str,
         commit: CommitHandle,
-        key: SigningKey,
+    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
+        self.branch_from_with_key(branch_name, commit, self.signing_key.clone())
+    }
+
+    /// Same as [`branch_from`] but uses the provided signing key.
+    pub fn branch_from_with_key(
+        &mut self,
+        branch_name: &str,
+        commit: CommitHandle,
+        signing_key: SigningKey,
     ) -> Result<Workspace<Storage>, BranchError<Storage>> {
         let branch_id = *ufoid();
 
@@ -471,7 +501,7 @@ where
             .get(commit)
             .map_err(|e| BranchError::StorageGet(e))?;
 
-        let branch_set = branch(&key, branch_id, branch_name, Some(set.to_blob()));
+        let branch_set = branch(&signing_key, branch_id, branch_name, Some(set.to_blob()));
         let branch_blob = branch_set.to_blob();
         let branch_handle = self
             .storage
@@ -490,15 +520,31 @@ where
                 head: Some(commit),
                 base_branch_id: branch_id,
                 base_branch_meta: branch_handle,
-                signing_key: key,
+                signing_key,
             }),
             PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
 
+    /// Checks out an existing branch using the repository's signing key.
     pub fn checkout(
         &mut self,
         branch_id: Id,
+    ) -> Result<
+        Workspace<Storage>,
+        CheckoutError<
+            Storage::HeadError,
+            <Storage::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
+        >,
+    > {
+        self.checkout_with_key(branch_id, self.signing_key.clone())
+    }
+
+    /// Same as [`checkout`] but overrides the signing key.
+    pub fn checkout_with_key(
+        &mut self,
+        branch_id: Id,
+        signing_key: SigningKey,
     ) -> Result<
         Workspace<Storage>,
         CheckoutError<
@@ -528,14 +574,14 @@ where
             Ok(None) => None,
             Err(_) => return Err(CheckoutError::BadBranchMetadata()),
         };
-        // 3. Create a new workspace with the current commit and base blobs.
+        // Create workspace with the current commit and base blobs.
         Ok(Workspace {
             base_blobs: self.storage.reader(),
             local_blobs: MemoryBlobStore::new(),
             head,
             base_branch_id: branch_id,
             base_branch_meta: base_branch_meta_handle,
-            signing_key: SigningKey::generate(&mut rand::rngs::OsRng),
+            signing_key,
         })
     }
 
@@ -624,7 +670,7 @@ where
                     head,
                     base_branch_id: workspace.base_branch_id,
                     base_branch_meta: conflicting_meta,
-                    signing_key: SigningKey::generate(&mut rand::rngs::OsRng),
+                    signing_key: workspace.signing_key.clone(),
                 };
 
                 Ok(RepoPushResult::Conflict(conflict_ws))
@@ -650,7 +696,7 @@ pub struct Workspace<Blobs: BlobStore<Blake3>> {
     base_branch_meta: BranchMetaHandle,
     /// Handle to the current commit in the working branch. `None` for an empty branch.
     head: Option<CommitHandle>,
-    /// The signing key used for commit/branch signing.
+    /// Signing key used for commit/branch signing.
     signing_key: SigningKey,
 }
 

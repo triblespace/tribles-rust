@@ -1,10 +1,12 @@
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
 use tribles::prelude::*;
 use tribles::repo::{memoryrepo::MemoryRepo, RepoPushResult, Repository};
 
 #[test]
 fn push_and_merge_conflict_resolution() {
     let storage = MemoryRepo::default();
-    let mut repo = Repository::new(storage);
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
     let mut ws1 = repo.branch("main").expect("create branch");
     let branch_id = ws1.branch_id();
     let mut ws2 = repo.checkout(branch_id).expect("checkout");

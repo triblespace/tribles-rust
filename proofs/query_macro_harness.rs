@@ -2,21 +2,26 @@
 
 use crate::examples::literature;
 use crate::prelude::*;
+use kani::BoundedArbitrary;
 
 #[kani::proof]
 #[kani::unwind(5)]
 fn query_macro_harness() {
     // Build a small knowledge base with one author and one book.
-    let author = ufoid();
-    let book = ufoid();
+    let author = ExclusiveId::force(Id::new([1u8; 16]).unwrap());
+    let book = ExclusiveId::force(Id::new([2u8; 16]).unwrap());
+
+    let firstname_str = String::bounded_any::<32>();
+    let lastname_str = String::bounded_any::<32>();
+    let title_str = String::bounded_any::<32>();
 
     let mut set = TribleSet::new();
     set += literature::entity!(&author, {
-        firstname: "William",
-        lastname: "Shakespeare",
+        firstname: &firstname_str,
+        lastname: &lastname_str,
     });
     set += literature::entity!(&book, {
-        title: "Hamlet",
+        title: &title_str,
         author: &author,
     });
 
@@ -25,7 +30,7 @@ fn query_macro_harness() {
         (book, title, firstname),
         literature::pattern!(&set, [
             { firstname: firstname,
-              lastname: ("Shakespeare") },
+              lastname: (&lastname_str) },
             { book @
                 title: title,
                 author: (author) }
@@ -34,7 +39,11 @@ fn query_macro_harness() {
     .collect();
 
     assert_eq!(
-        vec![(book.to_value(), "Hamlet".to_value(), "William".to_value()),],
+        vec![(
+            book.to_value(),
+            title_str.to_value(),
+            firstname_str.to_value()
+        )],
         result
     );
 }

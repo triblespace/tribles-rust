@@ -4,12 +4,13 @@ use ed25519_dalek::{SigningKey, SECRET_KEY_LENGTH};
 use tribles::prelude::*;
 use tribles::repo::{self, commit};
 use tribles::value::schemas::hash::Blake3;
+use kani::BoundedArbitrary;
 
 #[kani::proof]
 #[kani::unwind(5)]
 fn commit_harness() {
-    // Use a deterministic signing key
-    let secret = [0u8; SECRET_KEY_LENGTH];
+    // Use a nondeterministic signing key
+    let secret: [u8; SECRET_KEY_LENGTH] = kani::any();
     let signing_key = SigningKey::from_bytes(&secret);
 
     // Create two dummy parent handles
@@ -19,10 +20,11 @@ fn commit_harness() {
     // Create minimal commit content
     let content = TribleSet::new().to_blob();
 
+    let msg = String::bounded_any::<32>();
     let commit_set = commit::commit(
         &signing_key,
         [parent1, parent2],
-        Some("msg"),
+        Some(msg.as_str()),
         Some(content.clone()),
     );
 
@@ -30,14 +32,14 @@ fn commit_harness() {
     assert_eq!(commit_set.len(), 7);
 
     // Ensure the short_message field was stored
-    let (msg,) = find!(
+    let (stored_msg,) = find!(
         (m: String),
         repo::pattern!(&commit_set, [{ short_message: m }])
     )
     .at_most_one()
     .unwrap()
     .expect("missing message");
-    assert_eq!(msg, "msg");
+    assert_eq!(stored_msg, msg);
 
     // Ensure the content handle and signature info were stored
     let (handle, pubkey, _r, _s) = find!(

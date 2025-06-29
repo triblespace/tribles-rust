@@ -9,7 +9,7 @@ use kani::BoundedArbitrary;
 #[kani::proof]
 #[kani::unwind(5)]
 fn commit_harness() {
-    // Use a nondeterministic signing key
+    // Use a nondeterministic signing key, any 32‑byte array is valid.
     let secret: [u8; SECRET_KEY_LENGTH] = kani::any();
     let signing_key = SigningKey::from_bytes(&secret);
 

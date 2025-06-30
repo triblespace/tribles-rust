@@ -6,10 +6,15 @@ use kani::BoundedArbitrary;
 
 #[kani::proof]
 #[kani::unwind(5)]
-fn query_macro_harness() {
+fn query_harness() {
     // Build a small knowledge base with one author and one book.
-    let author = ExclusiveId::force(Id::new([1u8; 16]).unwrap());
-    let book = ExclusiveId::force(Id::new([2u8; 16]).unwrap());
+    let author_raw: [u8; 16] = kani::any();
+    let book_raw: [u8; 16] = kani::any();
+    kani::assume(author_raw != [0u8; 16]);
+    kani::assume(book_raw != [0u8; 16]);
+    kani::assume(book_raw != author_raw);
+    let author = ExclusiveId::force(Id::new(author_raw).unwrap());
+    let book = ExclusiveId::force(Id::new(book_raw).unwrap());
 
     let firstname_str = String::bounded_any::<32>();
     let lastname_str = String::bounded_any::<32>();

@@ -20,6 +20,7 @@ The project balances a few key goals:
 * Avoid committing files in `target/` or other build artifacts listed in `.gitignore`.
 * Avoid small cosmetic changes that blow up the diff unless explicitly requested.
 * Use clear commit messages describing the change.
+* Add an entry to `CHANGELOG.md` summarizing your task.
 
 ## Pull Request Notes
 

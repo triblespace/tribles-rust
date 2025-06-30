@@ -1,5 +1,5 @@
 #[cfg(kani)]
-mod query_macro_harness;
+mod query_harness;
 #[cfg(kani)]
 mod value_harness;
 #[cfg(kani)]

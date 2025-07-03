@@ -288,7 +288,6 @@ where
 
         let Some(r_handle) = self.r_handle.enter() else {
             return Err(GetBlobError::BlobNotFound);
-            // TODO: Maybe we should return a different error here?
         };
         let Some(entry) = r_handle.blobs.get(hash) else {
             return Err(GetBlobError::BlobNotFound);

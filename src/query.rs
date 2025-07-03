@@ -521,7 +521,13 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Query") //TODO
+        f.debug_struct("Query")
+            .field("constraint", &std::any::type_name::<C>())
+            .field("mode", &self.mode)
+            .field("binding", &self.binding)
+            .field("stack", &self.stack)
+            .field("unbound", &self.unbound)
+            .finish()
     }
 }
 

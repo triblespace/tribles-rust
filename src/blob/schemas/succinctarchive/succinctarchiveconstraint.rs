@@ -98,7 +98,6 @@ where
         let a_bound = binding.get(self.variable_a);
         let v_bound = binding.get(self.variable_v);
 
-        //TODO add disting color counting ds to archive and estimate better
         Some(match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
             (None, None, None, true, false, false) => self.archive.entity_count,
             (None, None, None, false, true, false) => self.archive.attribute_count,

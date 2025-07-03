@@ -105,12 +105,6 @@ pub trait BlobStoreList<H: HashProtocol> {
 pub trait BlobStoreGet<H: HashProtocol> {
     type GetError<E: std::error::Error>: Error;
 
-    //TODO: Do we want to split the get into get_bytes and get?
-    // With the latter being a higher-level operation that deserializes the blob into a specific type?
-    // It would have a default implementation that uses the `TryFromBlob` trait.
-    // The would allow us to remove the `UnknownBlob` type, potentially avoiding
-    // having a "untyped" blob type in the system.
-
     /// Retrieves a blob from the repository by its handle.
     /// The handle is a unique identifier for the blob, and is used to retrieve it from the repository.
     /// The blob is returned as a `Blob` object, which contains the raw bytes of the blob,

@@ -58,9 +58,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     ) -> NonNull<Self> {
         unsafe {
             let size = 2;
-            let layout =
-                Layout::from_size_align(BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size), BRANCH_ALIGN)
-                    .unwrap(); // TODO use unchecked if this doesn't fail immedaitately
+            // SAFETY: `BRANCH_ALIGN` is a power of two and `size` is small enough
+            // that the computed layout size is valid.
+            let layout = Layout::from_size_align_unchecked(
+                BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size),
+                BRANCH_ALIGN,
+            );
             let Some(ptr) =
                 NonNull::new(std::ptr::slice_from_raw_parts(alloc_zeroed(layout), size)
                     as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>)
@@ -112,9 +115,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
 
             std::ptr::drop_in_place(branch);
 
-            let layout =
-                Layout::from_size_align(BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size), BRANCH_ALIGN)
-                    .unwrap(); // TODO use unchecked if this doesn't fail immedaitately
+            // SAFETY: layout parameters are constructed from constants and a
+            // runtime `size` that ensures alignment and size validity.
+            let layout = Layout::from_size_align_unchecked(
+                BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size),
+                BRANCH_ALIGN,
+            );
             let ptr = branch as *mut u8;
             dealloc(ptr, layout);
         }
@@ -127,11 +133,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
                 None
             } else {
                 let size = (*branch).child_table.len();
-                let layout = Layout::from_size_align(
+                // SAFETY: `size` preserves alignment requirements and the size
+                // calculation cannot overflow for the allowed range.
+                let layout = Layout::from_size_align_unchecked(
                     BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * size),
                     BRANCH_ALIGN,
-                )
-                .unwrap(); // TODO use unchecked if this doesn't fail immedaitately
+                );
                 if let Some(ptr) =
                     NonNull::new(std::ptr::slice_from_raw_parts(alloc_zeroed(layout), size)
                         as *mut Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>)
@@ -162,11 +169,12 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             let new_size = old_size * 2;
             assert!(new_size <= 256);
 
-            let layout = Layout::from_size_align(
+            // SAFETY: `new_size` is bounded and alignment is constant, so the
+            // resulting layout is valid for allocation.
+            let layout = Layout::from_size_align_unchecked(
                 BRANCH_BASE_SIZE + (TABLE_ENTRY_SIZE * new_size),
                 BRANCH_ALIGN,
-            )
-            .unwrap(); // TODO use unchecked if this doesn't fail immedaitately
+            );
             if let Some(ptr) = NonNull::new(std::ptr::slice_from_raw_parts(
                 alloc_zeroed(layout),
                 new_size,

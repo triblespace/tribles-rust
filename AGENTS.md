@@ -42,6 +42,13 @@ Kani verification can be expensive. To keep proof times manageable:
 
 * Write focused harnesses that verify one small property.
 * Use bounded loops and avoid unbounded recursion.
+* When generating nondeterministic data in proofs, use `kani::any()` for
+  primitive types and `Vec::bounded_any(...)`/`String::bounded_any(...)` for
+  collections. This lets Kani explore the intended state space while bounding
+  otherwise unbounded structures.
+* Avoid using fixed constants in Kani proofs. Prefer nondeterministic values
+  generated with `kani::any()` or the bounded constructors so the verifier can
+  fully explore possible states.
 * Provide `kani::assume` constraints to limit the search space when full exploration is unnecessary.
 * Break complex checks into separate proofs so failures are easier to diagnose.
 * All Kani proofs are considered long running and are executed as part of the

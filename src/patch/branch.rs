@@ -2,11 +2,19 @@ use super::*;
 use core::sync::atomic;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use std::alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout};
-use std::ptr::addr_of_mut;
+use std::ptr::{addr_of, addr_of_mut};
 
 const BRANCH_ALIGN: usize = 16;
 const BRANCH_BASE_SIZE: usize = 48;
 const TABLE_ENTRY_SIZE: usize = 8;
+
+#[inline]
+fn dst_len<T>(ptr: *const [T]) -> usize {
+    let ptr: *const [()] = ptr as _;
+    // SAFETY: There is no aliasing as () is zero-sized
+    let slice: &[()] = unsafe { &*ptr };
+    slice.len()
+}
 
 #[derive(Debug)]
 #[repr(C, align(16))]
@@ -44,7 +52,10 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     for Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>
 {
     fn tag(body: NonNull<Self>) -> HeadTag {
-        unsafe { transmute((&(*body.as_ptr()).child_table).len().ilog2() as u8) }
+        unsafe {
+            let ptr = addr_of!((*body.as_ptr()).child_table);
+            transmute(dst_len(ptr).ilog2() as u8)
+        }
     }
 }
 
@@ -111,7 +122,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             (*branch).rc.load(Acquire);
 
-            let size = (&(*branch).child_table).len();
+            let size = dst_len(addr_of!((*branch).child_table));
 
             std::ptr::drop_in_place(branch);
 
@@ -132,7 +143,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             if (*branch).rc.load(Acquire) == 1 {
                 None
             } else {
-                let size = (&(*branch).child_table).len();
+                let size = dst_len(addr_of!((*branch).child_table));
                 // SAFETY: `size` preserves alignment requirements and the size
                 // calculation cannot overflow for the allowed range.
                 let layout = Layout::from_size_align_unchecked(
@@ -165,7 +176,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(crate) fn grow(branch: NonNull<Self>) -> NonNull<Self> {
         unsafe {
             let branch = branch.as_ptr();
-            let old_size = (&(*branch).child_table).len();
+            let old_size = dst_len(addr_of!((*branch).child_table));
             let new_size = old_size * 2;
             assert!(new_size <= 256);
 

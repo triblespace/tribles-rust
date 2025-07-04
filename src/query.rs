@@ -629,7 +629,7 @@ mod tests {
         assert_eq!(cross.len(), 6);
 
         let one: Vec<_> = find!((a: Value<ShortString>),
-            and!(books.has(a), a.is("LOTR".try_to_value().unwrap())) //TODO
+            and!(books.has(a), a.is(ShortString::value_from("LOTR")))
         )
         .collect();
 

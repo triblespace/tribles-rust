@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   improving query estimation accuracy.
 - Improved `Debug` output for `Query` to show search state and bindings.
 - Replaced branch allocation code with `Layout::from_size_align_unchecked`.
+- Fixed Kani playback build errors by using `dst_len` to access `child_table`
+  length without implicit autorefs.
 
 ## [0.5.2] - 2025-06-30
 ### Added

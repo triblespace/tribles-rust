@@ -146,7 +146,12 @@ impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
     /// Move the provided `shoved_entry` into the bucket, displacing and
     /// returning a random existing entry.
     fn bucket_shove_random_slot(&mut self, shoved_entry: T) -> Option<T> {
-        let index = (RAND.load(Ordering::Relaxed) as usize) & (BUCKET_ENTRY_COUNT - 1);
+        let byte_key = shoved_entry.key();
+        let current = RAND.load(Ordering::Relaxed);
+        let new_rand = unsafe { RANDOM_PERMUTATION_RAND[(current ^ byte_key) as usize] };
+        RAND.store(new_rand, Ordering::Relaxed);
+
+        let index = (new_rand as usize) & (BUCKET_ENTRY_COUNT - 1);
         return self[index].replace(shoved_entry);
     }
 
@@ -227,7 +232,8 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
             .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
             .bucket_get_slot(byte_key)
         {
-            return self.table_bucket_mut(cheap).bucket_get_slot(byte_key); //TODO check if still needed
+            // Duplicate call avoids borrow checker issues when returning the slot
+            return self.table_bucket_mut(cheap).bucket_get_slot(byte_key);
         }
         if let Some(entry) = self.table_bucket_mut(rand).bucket_get_slot(byte_key) {
             return Some(entry);
@@ -248,10 +254,6 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
         let mut use_cheap_hash = true;
         let mut retries: usize = 0;
         loop {
-            let current = RAND.load(Ordering::Relaxed);
-            let new_rand = unsafe { RANDOM_PERMUTATION_RAND[(current ^ byte_key) as usize] };
-            RAND.store(new_rand, Ordering::Relaxed); //TODO move this to shove_random_slot
-
             let hash = if use_cheap_hash {
                 cheap_hash(byte_key)
             } else {

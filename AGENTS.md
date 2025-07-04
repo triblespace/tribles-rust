@@ -6,10 +6,10 @@ This repository contains the `tribles` Rust crate.
 
 The project balances a few key goals:
 
-* **Performance** – we continually look for opportunities to improve.
 * **Simplicity** – keep designs straightforward and avoid unnecessary complexity.
 * **Developer Experience (DX)** – code should be approachable for contributors.
 * **Safety** – maintain soundness and data integrity.
+* **Performance** – we continually look for opportunities to improve.
 
 ## Repository Guidelines
 

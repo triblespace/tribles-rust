@@ -44,7 +44,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     for Branch<KEY_LEN, O, S, [Option<Head<KEY_LEN, O, S>>]>
 {
     fn tag(body: NonNull<Self>) -> HeadTag {
-        unsafe { transmute((*body.as_ptr()).child_table.len().ilog2() as u8) }
+        unsafe { transmute((&(*body.as_ptr()).child_table).len().ilog2() as u8) }
     }
 }
 
@@ -111,7 +111,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             }
             (*branch).rc.load(Acquire);
 
-            let size = (*branch).child_table.len();
+            let size = (&(*branch).child_table).len();
 
             std::ptr::drop_in_place(branch);
 
@@ -132,7 +132,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             if (*branch).rc.load(Acquire) == 1 {
                 None
             } else {
-                let size = (*branch).child_table.len();
+                let size = (&(*branch).child_table).len();
                 // SAFETY: `size` preserves alignment requirements and the size
                 // calculation cannot overflow for the allowed range.
                 let layout = Layout::from_size_align_unchecked(
@@ -165,7 +165,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
     pub(crate) fn grow(branch: NonNull<Self>) -> NonNull<Self> {
         unsafe {
             let branch = branch.as_ptr();
-            let old_size = (*branch).child_table.len();
+            let old_size = (&(*branch).child_table).len();
             let new_size = old_size * 2;
             assert!(new_size <= 256);
 

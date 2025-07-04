@@ -1,7 +1,5 @@
 # AGENT Instructions
 
-This repository contains the `tribles` Rust crate.
-
 ## Project Priorities
 
 The project balances a few key goals:

@@ -1,6 +1,7 @@
 use crate::id::Id;
 use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
+use std::convert::Infallible;
 
 use std::convert::TryInto;
 
@@ -30,9 +31,11 @@ pub type R256 = R256LE;
 
 impl ValueSchema for R256LE {
     const VALUE_SCHEMA_ID: Id = id_hex!("0A9B43C5C2ECD45B257CDEFC16544358");
+    type ValidationError = Infallible;
 }
 impl ValueSchema for R256BE {
     const VALUE_SCHEMA_ID: Id = id_hex!("CA5EAF567171772C1FFD776E9C7C02D1");
+    type ValidationError = Infallible;
 }
 
 /// An error that can occur when converting a ratio value.

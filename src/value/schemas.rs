@@ -11,7 +11,8 @@ pub mod time;
 
 use crate::id::Id;
 use crate::id_hex;
-use crate::value::ValueSchema;
+use crate::value::{Value, ValueSchema};
+use std::convert::Infallible;
 
 /// A value schema for an unknown value.
 /// This value schema is used as a fallback when the value schema is not known.
@@ -22,4 +23,9 @@ use crate::value::ValueSchema;
 pub struct UnknownValue {}
 impl ValueSchema for UnknownValue {
     const VALUE_SCHEMA_ID: Id = id_hex!("4EC697E8599AC79D667C722E2C8BEBF4");
+    type ValidationError = Infallible;
+
+    fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {
+        Ok(value)
+    }
 }

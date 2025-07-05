@@ -5,6 +5,7 @@ pub use ed25519_dalek::VerifyingKey;
 use crate::id::Id;
 use crate::id_hex;
 use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
+use std::convert::Infallible;
 
 /// A value schema for the R component of an Ed25519 signature.
 pub struct ED25519RComponent;
@@ -17,12 +18,15 @@ pub struct ED25519PublicKey;
 
 impl ValueSchema for ED25519RComponent {
     const VALUE_SCHEMA_ID: Id = id_hex!("995A86FFC83DB95ECEAA17E226208897");
+    type ValidationError = Infallible;
 }
 impl ValueSchema for ED25519SComponent {
     const VALUE_SCHEMA_ID: Id = id_hex!("10D35B0B628E9E409C549D8EC1FB3598");
+    type ValidationError = Infallible;
 }
 impl ValueSchema for ED25519PublicKey {
     const VALUE_SCHEMA_ID: Id = id_hex!("69A872254E01B4C1ED36E08E40445E93");
+    type ValidationError = Infallible;
 }
 
 impl ED25519RComponent {

@@ -54,10 +54,9 @@
 //! });
 //! ```
 
-// TODO: Should we slim down the traits to only include `ToBlob` and `TryFromBlob`?
-// Any convertible rust type should be convertible to a blob.
-// While the only time that something can go wrong is when converting a blob to a concrete type,
-// as the type might now allow any bit pattern.
+// Converting Rust types to blobs is infallible in practice, so only `ToBlob`
+// and `TryFromBlob` are used throughout the codebase.  `TryToBlob` and
+// `FromBlob` were never required and have been removed for simplicity.
 
 mod memoryblobstore;
 pub mod schemas;
@@ -133,19 +132,8 @@ impl<S: BlobSchema> Blob<S> {
         Value::new(digest.into())
     }
 
-    /// Converts the blob to a concrete Rust type.
-    /// If the conversion fails, this might cause a panic.
-    /// Use [try_from_blob](Blob::try_from_blob) to explicitly handle the error.
-    pub fn from_blob<T>(self) -> T
-    where
-        T: FromBlob<S>,
-    {
-        <T as FromBlob<S>>::from_blob(self)
-    }
-
     /// Tries to convert the blob to a concrete Rust type.
     /// If the conversion fails, an error is returned.
-    /// Use [from_blob](Blob::from_blob) if you are sure that the conversion will succeed.
     pub fn try_from_blob<T>(self) -> Result<T, <T as TryFromBlob<S>>::Error>
     where
         T: TryFromBlob<S>,
@@ -190,28 +178,16 @@ pub trait BlobSchema: Sized + 'static {
 
     /// Converts a concrete Rust type to a blob with this schema.
     /// If the conversion fails, this might cause a panic.
-    /// Use [try_blob_from](BlobSchema::try_blob_from) to explicitly handle the error.
     fn blob_from<T: ToBlob<Self>>(t: T) -> Blob<Self> {
         t.to_blob()
-    }
-
-    /// Converts a concrete Rust type to a blob with this schema.
-    /// If the conversion fails, an error is returned.
-    /// Use [blob_from](BlobSchema::blob_from) if you are sure that the conversion will succeed.
-    fn try_blob_from<T: TryToBlob<Self>>(
-        t: T,
-    ) -> Result<Blob<Self>, <T as TryToBlob<Self>>::Error> {
-        t.try_to_blob()
     }
 }
 
 /// A trait for converting a Rust type to a [Blob] with a specific schema.
 /// This trait is implemented on the concrete Rust type.
 ///
-/// This might cause a panic if the conversion is not possible,
-/// see [TryToBlob] for a conversion that returns a result.
-///
-/// This is the counterpart to the [FromBlob] trait.
+/// Conversions are infallible.  Use [`TryFromBlob`] on the target type to
+/// perform the fallible reverse conversion.
 ///
 /// See [ToValue](crate::value::ToValue) for the counterpart trait for values.
 pub trait ToBlob<S: BlobSchema> {
@@ -221,50 +197,13 @@ pub trait ToBlob<S: BlobSchema> {
 /// A trait for converting a [Blob] with a specific schema to a Rust type.
 /// This trait is implemented on the concrete Rust type.
 ///
-/// This might cause a panic if the conversion is not possible,
-/// see [TryFromBlob] for a conversion that returns a result.
-///
-/// This is the counterpart to the [ToBlob] trait.
-///
-/// See [FromValue](crate::value::FromValue) for the counterpart trait for values.
-pub trait FromBlob<S: BlobSchema> {
-    fn from_blob(b: Blob<S>) -> Self;
-}
-
-/// A trait for converting a Rust type to a [Blob] with a specific schema.
-/// This trait is implemented on the concrete Rust type.
-///
 /// This might return an error if the conversion is not possible,
-/// see [ToBlob] for cases where the conversion is guaranteed to succeed (or panic).
-///
-/// This is the counterpart to the [TryFromBlob] trait.
-///
-/// See [TryToValue](crate::value::TryToValue) for the counterpart trait for values.
-pub trait TryToBlob<S: BlobSchema> {
-    type Error;
-    fn try_to_blob(&self) -> Result<Blob<S>, Self::Error>;
-}
-
-/// A trait for converting a [Blob] with a specific schema to a Rust type.
-/// This trait is implemented on the concrete Rust type.
-///
-/// This might return an error if the conversion is not possible,
-/// see [FromBlob] for cases where the conversion is guaranteed to succeed (or panic).
-///
-/// This is the counterpart to the [TryToBlob] trait.
+/// This is the counterpart to the [`ToBlob`] trait.
 ///
 /// See [TryFromValue](crate::value::TryFromValue) for the counterpart trait for values.
 pub trait TryFromBlob<S: BlobSchema>: Sized {
     type Error: Error;
     fn try_from_blob(b: Blob<S>) -> Result<Self, Self::Error>;
-}
-
-impl<S: BlobSchema> TryToBlob<S> for Blob<S> {
-    type Error = Infallible;
-
-    fn try_to_blob(&self) -> Result<Blob<S>, Self::Error> {
-        Ok(self.clone())
-    }
 }
 
 impl<S: BlobSchema> TryFromBlob<S> for Blob<S> {
@@ -278,11 +217,5 @@ impl<S: BlobSchema> TryFromBlob<S> for Blob<S> {
 impl<S: BlobSchema> ToBlob<S> for Blob<S> {
     fn to_blob(self) -> Blob<S> {
         self
-    }
-}
-
-impl<S: BlobSchema> FromBlob<S> for Blob<S> {
-    fn from_blob(b: Blob<S>) -> Self {
-        b
     }
 }

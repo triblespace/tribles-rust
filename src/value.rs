@@ -370,7 +370,7 @@ pub trait ToValue<S: ValueSchema> {
 ///
 /// This is the counterpart to the [ToValue] trait.
 ///
-/// See [FromBlob](crate::blob::FromBlob) for the counterpart trait for blobs.
+/// See [TryFromBlob](crate::blob::TryFromBlob) for the counterpart trait for blobs.
 pub trait FromValue<'a, S: ValueSchema> {
     /// Convert the [Value] with a specific schema type to the Rust type.
     /// This might cause a panic if the conversion is not possible.
@@ -387,7 +387,6 @@ pub trait FromValue<'a, S: ValueSchema> {
 ///
 /// This is the counterpart to the [TryFromValue] trait.
 ///
-/// See [TryToBlob](crate::blob::TryToBlob) for the counterpart trait for blobs.
 pub trait TryToValue<S: ValueSchema> {
     type Error;
     /// Convert the Rust type to a [Value] with a specific schema type.

@@ -10,7 +10,7 @@ use crate::blob::BlobSchema;
 use crate::id::Id;
 use crate::id_hex;
 
-use super::{Blob, FromBlob, ToBlob};
+use super::{Blob, ToBlob, TryFromBlob};
 
 /// A blob schema for an unknown blob.
 /// This blob schema is used as a fallback when the blob schema is not known.
@@ -23,9 +23,11 @@ impl BlobSchema for UnknownBlob {
     const BLOB_SCHEMA_ID: Id = id_hex!("EAB14005141181B0C10C4B5DD7985F8D");
 }
 
-impl FromBlob<UnknownBlob> for Bytes {
-    fn from_blob(blob: Blob<UnknownBlob>) -> Self {
-        blob.bytes
+impl TryFromBlob<UnknownBlob> for Bytes {
+    type Error = std::convert::Infallible;
+
+    fn try_from_blob(blob: Blob<UnknownBlob>) -> Result<Self, Self::Error> {
+        Ok(blob.bytes)
     }
 }
 

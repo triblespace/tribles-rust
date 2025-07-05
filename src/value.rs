@@ -50,6 +50,8 @@
 //! // Implement the ValueSchema trait for the schema type.
 //! impl ValueSchema for MyNumber {
 //!    const VALUE_SCHEMA_ID: Id = id_hex!("345EAC0C5B5D7D034C87777280B88AE2");
+//!    type ValidationError = ();
+//!    // Every bit pattern is valid for this schema.
 //! }
 //!
 //! // Implement conversion functions for the schema type.
@@ -104,7 +106,9 @@ pub mod schemas;
 use crate::id::Id;
 
 use core::fmt;
-use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{
+    borrow::Borrow, cmp::Ordering, convert::Infallible, fmt::Debug, hash::Hash, marker::PhantomData,
+};
 
 use hex::ToHex;
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes, Unaligned};
@@ -155,6 +159,16 @@ impl<S: ValueSchema> Value<S> {
             raw: value,
             _schema: PhantomData,
         }
+    }
+
+    /// Validate this value using its schema.
+    pub fn validate(self) -> Result<Self, S::ValidationError> {
+        S::validate(self)
+    }
+
+    /// Check if this value conforms to its schema.
+    pub fn is_valid(&self) -> bool {
+        S::validate(*self).is_ok()
     }
 
     /// Transmute a value from one schema type to another.
@@ -323,6 +337,13 @@ impl<T: ValueSchema> Debug for Value<T> {
 pub trait ValueSchema: Sized + 'static {
     const VALUE_SCHEMA_ID: Id;
     const BLOB_SCHEMA_ID: Option<Id> = None;
+
+    type ValidationError;
+
+    /// Check if the given value conforms to this schema.
+    fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {
+        Ok(value)
+    }
 
     /// Create a new value from a concrete Rust type.
     /// This is a convenience method that calls the [ToValue] trait.

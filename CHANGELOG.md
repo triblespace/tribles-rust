@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`
   length without implicit autorefs.
+- Introduced `ValueSchema::validate` to verify raw value bit patterns.
+- Query and value harnesses use this to avoid invalid `ShortString` data during playback.
+- `ValueSchema::validate` now returns a `Result` and `Value::is_valid` provides
+  a convenient boolean check.
 
 ## [0.5.2] - 2025-06-30
 ### Added

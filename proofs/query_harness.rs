@@ -1,8 +1,17 @@
 #![cfg(kani)]
 
-use crate::examples::literature;
 use crate::prelude::*;
-use kani::BoundedArbitrary;
+use crate::value::schemas::{genid::GenId, UnknownValue};
+
+NS! {
+    /// Namespace used by the query harness with unconstrained values.
+    pub namespace qns {
+        "A74AA63539354CDA47F387A4C3A8D54C" as title: UnknownValue;
+        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
+        "0DBB530B37B966D137C50B943700EDB2" as firstname: UnknownValue;
+        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: UnknownValue;
+    }
+}
 
 #[kani::proof]
 #[kani::unwind(5)]
@@ -16,26 +25,30 @@ fn query_harness() {
     let author = ExclusiveId::force(Id::new(author_raw).unwrap());
     let book = ExclusiveId::force(Id::new(book_raw).unwrap());
 
-    let firstname_str = String::bounded_any::<32>();
-    let lastname_str = String::bounded_any::<32>();
-    let title_str = String::bounded_any::<32>();
+    let firstname_raw: [u8; 32] = kani::any();
+    let lastname_raw: [u8; 32] = kani::any();
+    let title_raw: [u8; 32] = kani::any();
+
+    let firstname = Value::<UnknownValue>::new(firstname_raw);
+    let lastname = Value::<UnknownValue>::new(lastname_raw);
+    let title = Value::<UnknownValue>::new(title_raw);
 
     let mut set = TribleSet::new();
-    set += literature::entity!(&author, {
-        firstname: &firstname_str,
-        lastname: &lastname_str,
+    set += qns::entity!(&author, {
+        firstname: firstname,
+        lastname: lastname,
     });
-    set += literature::entity!(&book, {
-        title: &title_str,
+    set += qns::entity!(&book, {
+        title: title,
         author: &author,
     });
 
     // Find the title and author first name for Shakespeare's book.
     let result: Vec<_> = find!(
         (book, title, firstname),
-        literature::pattern!(&set, [
+        qns::pattern!(&set, [
             { firstname: firstname,
-              lastname: (&lastname_str) },
+              lastname: (lastname) },
             { book @
                 title: title,
                 author: (author) }
@@ -43,279 +56,5 @@ fn query_harness() {
     )
     .collect();
 
-    assert_eq!(
-        vec![(
-            book.to_value(),
-            title_str.to_value(),
-            firstname_str.to_value()
-        )],
-        result
-    );
-}
-
-/// Test generated for harness `proofs::query_harness::query_harness`
-///
-/// Check for `unsupported_construct`: "ptr_mask is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
-
-#[test]
-fn kani_concrete_playback_query_harness_18094746763674326969() {
-    let concrete_vals: Vec<Vec<u8>> = vec![
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 127
-        vec![127],
-        // 127
-        vec![127],
-        // 127
-        vec![127],
-        // 127
-        vec![127],
-        // 127
-        vec![127],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 0
-        vec![0],
-        // 128
-        vec![128],
-        // 192
-        vec![192],
-        // 0
-        vec![0],
-        // 192
-        vec![192],
-        // 192
-        vec![192],
-        // 0
-        vec![0],
-        // 192
-        vec![192],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 0
-        vec![0],
-        // 128
-        vec![128],
-        // 192
-        vec![192],
-        // 0
-        vec![0],
-        // 192
-        vec![192],
-        // 192
-        vec![192],
-        // 0
-        vec![0],
-        // 192
-        vec![192],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 0
-        vec![0],
-        // 128
-        vec![128],
-        // 192
-        vec![192],
-        // 0
-        vec![0],
-        // 192
-        vec![192],
-        // 192
-        vec![192],
-        // 0
-        vec![0],
-        // 192
-        vec![192],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-        // 255
-        vec![255],
-    ];
-    kani::concrete_playback_run(concrete_vals, query_harness);
+    assert_eq!(vec![(book.to_value(), title, firstname)], result);
 }

@@ -18,6 +18,14 @@ pub struct GenId;
 
 impl ValueSchema for GenId {
     const VALUE_SCHEMA_ID: Id = id_hex!("B08EE1D45EB081E8C47618178AFE0D81");
+    type ValidationError = ();
+    fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {
+        if value.raw[0..16] == [0; 16] {
+            Ok(value)
+        } else {
+            Err(())
+        }
+    }
 }
 
 /// Error that can occur when parsing an identifier from a Value.

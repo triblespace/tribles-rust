@@ -13,6 +13,13 @@ pub enum FromStrError {
     InteriorNul,
 }
 
+/// Errors that can occur when validating a [`ShortString`] value.
+#[derive(Debug)]
+pub enum ValidationError {
+    InteriorNul,
+    Utf8(Utf8Error),
+}
+
 /// A value schema for a short string.
 /// A short string is a UTF-8 encoded string with a maximum length of 32 bytes (inclusive)
 /// The string is null-terminated.
@@ -22,6 +29,18 @@ pub struct ShortString;
 
 impl ValueSchema for ShortString {
     const VALUE_SCHEMA_ID: Id = id_hex!("2D848DB0AF112DB226A6BF1A3640D019");
+    type ValidationError = ValidationError;
+
+    fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {
+        let raw = &value.raw;
+        let len = raw.iter().position(|&b| b == 0).unwrap_or(raw.len());
+        // ensure all bytes after first NUL are zero
+        if raw[len..].iter().any(|&b| b != 0) {
+            return Err(ValidationError::InteriorNul);
+        }
+        std::str::from_utf8(&raw[..len]).map_err(ValidationError::Utf8)?;
+        Ok(value)
+    }
 }
 
 impl<'a> TryFromValue<'a, ShortString> for &'a str {

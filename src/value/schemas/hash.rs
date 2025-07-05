@@ -2,6 +2,7 @@ use crate::blob::BlobSchema;
 use crate::id::Id;
 use crate::id_hex;
 use crate::value::{FromValue, RawValue, TryToValue, Value, ValueSchema};
+use std::convert::Infallible;
 
 use anybytes::Bytes;
 use digest::{typenum::U32, Digest};
@@ -30,6 +31,7 @@ where
     H: HashProtocol,
 {
     const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
+    type ValidationError = Infallible;
 }
 
 impl<H> Hash<H>
@@ -159,6 +161,7 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
 impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
     const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
     const BLOB_SCHEMA_ID: Option<Id> = Some(T::BLOB_SCHEMA_ID);
+    type ValidationError = Infallible;
 }
 
 #[cfg(test)]

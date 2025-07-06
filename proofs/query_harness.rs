@@ -14,7 +14,7 @@ NS! {
 }
 
 #[kani::proof]
-#[kani::unwind(5)]
+#[kani::unwind(64)]
 fn query_harness() {
     // Build a small knowledge base with one author and one book.
     let author_raw: [u8; 16] = kani::any();

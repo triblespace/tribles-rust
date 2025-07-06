@@ -12,14 +12,14 @@ license = "MIT OR Apache-2.0"
 memmap2 = "0.9.5"
 zerocopy = { version = "0.8", features = ["derive"] }
 anybytes = {version = "0.19.3", features = ["bytes", "zerocopy"]}
-rand = "0.8.5"
+rand = "0.8"
 digest = "0.10.7"
 ux = "0.1.5"
-siphasher = "0.3"
+siphasher = "1.0.1"
 arbitrary = { version = "1", features = ["derive"] }
-object_store = "0.10.1"
+object_store = "0.12.2"
 hex = "0.4.3"
-hex-literal = "0.3.4"
+hex-literal = "1.0.0"
 url = "2.5.0"
 ed25519 = "2.2.3"
 ed25519-dalek = {version = "2.1.0", features = ["rand_core"]}
@@ -32,9 +32,9 @@ bytes = "1.6.0"
 bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
 proptest = { version = "1.6.0", optional = true }
 hifitime = { git = "https://github.com/nyx-space/hifitime.git" }
-f256 = "0.2.0"
+f256 = "0.7.0"
 sucds = "0.8.1"
-itertools = "0.12.0"
+itertools = "0.14.0"
 sptr = "0.3.2"
 indxvec = "1.9.0"
 ethnum = "1.5.0"
@@ -47,12 +47,12 @@ reft-light = "0.3.1"
 
 #[dev-dependencies]
 im = "15.1.0"
-peak_alloc = "0.1.0"
-fake = "2.8"
+peak_alloc = "0.3.0"
+fake = "4.3.0"
 coz = "0.1"
 rayon = "1.7"
 tempfile = "3.15.0"
-criterion = "0.5.1"
+criterion = "0.6.0"
 
 [build-dependencies]
 rustversion = "1.0"
@@ -67,11 +67,11 @@ name = "benchmark"
 harness = false
 
 [profile.bench]
-debug = true
+debug = false
 opt-level = 3
 
 [profile.release]
-debug = true
+debug = false
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)', 'cfg(kani)'] }

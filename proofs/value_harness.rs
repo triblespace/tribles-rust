@@ -3,7 +3,7 @@
 use crate::value::{schemas::shortstring::ShortString, TryFromValue, Value, ValueSchema};
 
 #[kani::proof]
-#[kani::unwind(32)]
+#[kani::unwind(33)]
 fn short_string_roundtrip() {
     let raw: [u8; 32] = kani::any();
     let value: Value<ShortString> = Value::new(raw);

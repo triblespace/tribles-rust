@@ -116,6 +116,7 @@ The best way to get started is to read the module documentation of the `tribles`
 9. [Predefined Value Schemas](https://docs.rs/tribles/latest/tribles/value/schemas/index.html)
 10. [Predefined Blob Schemas](https://docs.rs/tribles/latest/tribles/blob/schemas/index.html)
 11. [Pile format and recovery](docs/pile.md)
+12. [Repository and Workspace](docs/repository.md)
 ## License
 
 Licensed under either of

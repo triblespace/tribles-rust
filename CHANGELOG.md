@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Documentation and examples for the repository API.
+- Test coverage for `branch_from` and `checkout_with_key`.
+- Git-based terminology notes in the repository guide and a clearer workspace example.
+- Expanded the repository example to store actual data and simplified the conflict loop.
+
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
 - Clarified need for duplicate `bucket_get_slot` check in `table_get_slot`.

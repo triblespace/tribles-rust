@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test coverage for `branch_from` and `checkout_with_key`.
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
+- Documented conflict resolution loop and clarified that returned workspaces
+  contain updated metadata which must be pushed.
+- Explained BranchStore's CAS-based optimistic concurrency control in the
+  repository guide.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

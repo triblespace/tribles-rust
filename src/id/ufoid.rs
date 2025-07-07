@@ -58,6 +58,17 @@ pub fn ufoid() -> ExclusiveId {
     ExclusiveId::force(Id::new(id).expect("The probability time and rng = 0 should be neglegible."))
 }
 
+/// Computes the difference between two UFOID timestamps relative to `now`.
+///
+/// UFOID timestamps only store the lower 32 bits of the UNIX time in
+/// milliseconds. This counter overflows about every 50 days. This helper uses
+/// wrapping arithmetic so it still works if `ts1` or `ts2` has overflowed in the
+/// integer domain.
+///
+/// Because the absolute time of that rollover is lost, `ts1` and `ts2` must
+/// both be newer than one full rollover period relative to `now` for the result
+/// to make sense. In other words, the timestamps should have been created in the
+/// last ~50 days; older IDs should have been garbage collected.
 pub fn timestamp_distance(now: u32, ts1: u32, ts2: u32) -> i64 {
     let d1 = now.wrapping_sub(ts1) as i64;
     let d2 = now.wrapping_sub(ts2) as i64;

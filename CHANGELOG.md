@@ -38,8 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and push that result.
 - `preflight.sh` now only checks formatting and runs tests; Kani proofs run via `verify.sh`.
 - Removed instruction to report unrelated Kani failures in PRs.
+- Added missing documentation for several public structs and functions in
+  `blob` and `repo` modules.
+- Expanded the descriptions to clarify usage of public repository APIs.
 - Moved repository and pile guides into module documentation and updated README links.
 - Depend on the crates.io release `hifitime` 4.1.2 instead of the git repository.
+- Documented iteration order of `MemoryBlobStoreReader`, noted workspace use of
+  `MemoryBlobStore::new` and improved `Pile::try_open` description.
+- Restricted `PileSwap` and `PileAux` to crate visibility.
 
 ## [0.5.2] - 2025-06-30
 ### Added

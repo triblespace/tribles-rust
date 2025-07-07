@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed instruction to report unrelated Kani failures in PRs.
 - Moved repository and pile guides into module documentation and updated README links.
 - Depend on the crates.io release `hifitime` 4.1.2 instead of the git repository.
+- Repository guidelines now discourage asynchronous code in favor of
+  synchronous implementations that can be parallelized.
 
 ## [0.5.2] - 2025-06-30
 ### Added

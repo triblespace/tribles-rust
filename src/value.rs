@@ -106,9 +106,7 @@ pub mod schemas;
 use crate::id::Id;
 
 use core::fmt;
-use std::{
-    borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData,
-};
+use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
 
 use hex::ToHex;
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes, Unaligned};

@@ -44,6 +44,24 @@ match repo.push(&mut ws).expect("push") {
 `branch_from` can be used to start a new branch from a specific commit
 handle. See `examples/workspace.rs` for a more complete example.
 
+### Handling conflicts
+
+`push` may return `RepoPushResult::Conflict` when the branch has moved on
+the repository. The returned workspace contains the updated branch
+metadata and must be pushed after merging your changes:
+
+```rust
+while let RepoPushResult::Conflict(mut other) = repo.push(&mut ws)? {
+    other.merge(&mut ws)?;
+    ws = other;
+}
+```
+
+`push` performs a compare‐and‐swap (CAS) update on the branch metadata.
+This optimistic concurrency control keeps branches consistent without
+locking and can be emulated by many storage systems (for example by
+using conditional writes on S3).
+
 ## Git parallels
 
 The API deliberately mirrors concepts from Git to make its usage familiar:

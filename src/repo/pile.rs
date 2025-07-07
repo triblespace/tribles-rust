@@ -595,7 +595,7 @@ where
 
         let bytes = entry.bytes.clone();
         return Some(((*hash).into(), Blob::new(bytes)));
-        //TODO we may want to use batching in the future to gain more performance and amortize
+        // Note: we may want to use batching in the future to gain more performance and amortize
         // the cost of creating the iterator over the BTreeMap.
     }
 }

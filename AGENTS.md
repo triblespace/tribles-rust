@@ -14,7 +14,7 @@ The project balances a few key goals:
 * Run `cargo fmt` on any Rust files you modify.
 * Run `cargo test` and ensure it passes before committing. If tests fail or cannot run, note that in your PR.
 * For quick iterations, run `./scripts/devtest.sh` to execute only the tests.
-* Before committing, execute `./scripts/preflight.sh` from the repository root. This script runs formatting checks, tests, and Kani verification. Ensure `rustfmt` and the Kani verifier are installed separately. If Kani fails for reasons unrelated to your change, mention it in the PR.
+* Before committing, execute `./scripts/preflight.sh` from the repository root. This script runs formatting checks and tests. Kani proofs run separately via `./scripts/verify.sh`, which normally shouldn't be executed locally.
 * Avoid committing files in `target/` or other build artifacts listed in `.gitignore`.
 * Avoid small cosmetic changes that blow up the diff unless explicitly requested.
 * Use clear commit messages describing the change.
@@ -49,8 +49,8 @@ Kani verification can be expensive. To keep proof times manageable:
   fully explore possible states.
 * Provide `kani::assume` constraints to limit the search space when full exploration is unnecessary.
 * Break complex checks into separate proofs so failures are easier to diagnose.
-* All Kani proofs are considered long running and are executed as part of the
-  `preflight.sh` script or in CI.
+* All Kani proofs are considered long running and are executed via
+  `verify.sh` or in CI.
 * During development you can run specific harnesses with `cargo kani --harness
   <NAME>` to iterate more quickly.
 

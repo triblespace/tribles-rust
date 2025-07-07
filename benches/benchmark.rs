@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
-use std::hint::black_box;
 use std::collections::HashSet;
+use std::hint::black_box;
 use std::iter::FromIterator;
 use sucds::bit_vectors::Rank9Sel;
 use sucds::int_vectors::DacsByte;

@@ -10,12 +10,6 @@ if ! command -v rustfmt >/dev/null 2>&1; then
   rustup component add rustfmt
 fi
 
-if ! cargo kani --version >/dev/null 2>&1; then
-  echo "cargo-kani not found. Installing Kani verifier..."
-  cargo install --locked kani-verifier
-fi
-
-# Run formatting check, tests, and Kani verification
+# Run formatting check and tests
 cargo fmt -- --check
 cargo test
-cargo kani --workspace

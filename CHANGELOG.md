@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test coverage for `branch_from` and `checkout_with_key`.
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
+- Separate `verify.sh` script for running Kani verification.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
@@ -31,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a convenient boolean check.
 - Corrected the workspace example to merge conflicts into the returned workspace
   and push that result.
+- `preflight.sh` now only checks formatting and runs tests; Kani proofs run via `verify.sh`.
+- Removed instruction to report unrelated Kani failures in PRs.
 
 ## [0.5.2] - 2025-06-30
 ### Added

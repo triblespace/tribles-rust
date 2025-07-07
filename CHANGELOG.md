@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contain updated metadata which must be pushed.
 - Explained BranchStore's CAS-based optimistic concurrency control in the
   repository guide.
+- Further clarified `timestamp_distance` documentation that it only works with
+  timestamps younger than the ~50-day rollover period.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

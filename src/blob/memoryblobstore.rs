@@ -215,7 +215,7 @@ where
         let (handle, blob) = iter.next()?;
         self.cursor = Some(handle.clone());
         return Some((handle.clone(), blob.clone()));
-        //TODO we may want to use batching in the future to gain more performance and amortize
+        // Note: we may want to use batching in the future to gain more performance and amortize
         // the cost of creating the iterator over the BTreeMap.
     }
 }

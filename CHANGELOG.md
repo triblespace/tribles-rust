@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified toolchain setup. Scripts install `rustfmt` and `cargo-kani` via
   `cargo install` and rely on the system's default toolchain.
 - Depend on the crates.io release `hifitime` 4.1.2 instead of the git repository.
+- Repository guidelines now discourage asynchronous code in favor of
+  synchronous implementations that can be parallelized.
 
 ## [0.5.2] - 2025-06-30
 ### Added

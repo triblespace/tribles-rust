@@ -101,6 +101,11 @@ impl<S: BlobSchema> Blob<S> {
         }
     }
 
+    /// Reinterprets the contained bytes as a blob of a different schema.
+    ///
+    /// This is a zero-copy transformation that simply changes the compile-time
+    /// schema marker. It does **not** validate that the data actually conforms
+    /// to the new schema.
     pub fn transmute<T: BlobSchema>(self) -> Blob<T> {
         Blob {
             bytes: self.bytes,

@@ -15,6 +15,11 @@ use crate::{
 
 use super::repo;
 
+/// Builds a metadata [`TribleSet`] describing a branch and signs it.
+///
+/// The metadata records the branch `name`, its unique `branch_id` and
+/// optionally the handle of the initial commit. The commit handle is signed with
+/// `signing_key` allowing the repository to verify its authenticity.
 pub fn branch(
     signing_key: &SigningKey,
     branch_id: Id,
@@ -43,6 +48,10 @@ pub fn branch(
     metadata
 }
 
+/// Unsigned variant of [`branch`] used when authenticity is not required.
+///
+/// The resulting set omits any signature information and can therefore be
+/// created without access to a private key.
 pub fn branch_unsigned(
     branch_id: Id,
     name: &str,
@@ -76,6 +85,12 @@ impl From<SignatureError> for ValidationError {
     }
 }
 
+/// Checks that the metadata signature matches the provided commit blob.
+///
+/// The function extracts the public key and signature from `metadata` and
+/// verifies that it signs the `commit_head` blob. If the metadata is missing a
+/// signature or contains multiple signature entities the appropriate
+/// `ValidationError` variant is returned.
 pub fn verify(
     commit_head: Blob<SimpleArchive>,
     metadata: TribleSet,

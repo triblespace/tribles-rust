@@ -11,6 +11,10 @@ use crate::value::schemas::hash::Handle;
 use crate::value::ValueSchema;
 
 #[derive(Debug)]
+/// Simple in-memory implementation of [`BlobStore`] and [`BranchStore`].
+///
+/// Useful for unit tests or ephemeral repositories where persistence is not
+/// required.
 pub struct MemoryRepo {
     pub blobs: MemoryBlobStore<Blake3>,
     pub branches: HashMap<Id, Value<Handle<Blake3, SimpleArchive>>>,

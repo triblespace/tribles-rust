@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified toolchain setup. Scripts install `rustfmt` and `cargo-kani` via
   `cargo install` and rely on the system's default toolchain.
 - Depend on the crates.io release `hifitime` 4.1.2 instead of the git repository.
+- Added a README "Getting Started" section demonstrating `cargo add tribles` and
+  a pile-backed repository example.
 - Documented iteration order of `MemoryBlobStoreReader`, noted workspace use of
   `MemoryBlobStore::new` and improved `Pile::try_open` description.
 - Restricted `PileSwap` and `PileAux` to crate visibility.

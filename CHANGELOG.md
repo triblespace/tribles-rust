@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contain updated metadata which must be pushed.
 - Explained BranchStore's CAS-based optimistic concurrency control in the
   repository guide.
+- Property tests for `ufoid` randomness and timestamp rollover.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

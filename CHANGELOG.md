@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contain updated metadata which must be pushed.
 - Explained BranchStore's CAS-based optimistic concurrency control in the
   repository guide.
+- Further clarified `timestamp_distance` documentation that it only works with
+  timestamps younger than the ~50-day rollover period.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
@@ -42,10 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `blob` and `repo` modules.
 - Expanded the descriptions to clarify usage of public repository APIs.
 - Moved repository and pile guides into module documentation and updated README links.
+- Simplified toolchain setup. Scripts install `rustfmt` and `cargo-kani` via
+  `cargo install` and rely on the system's default toolchain.
 - Depend on the crates.io release `hifitime` 4.1.2 instead of the git repository.
 - Documented iteration order of `MemoryBlobStoreReader`, noted workspace use of
   `MemoryBlobStore::new` and improved `Pile::try_open` description.
 - Restricted `PileSwap` and `PileAux` to crate visibility.
+- Repository guidelines now discourage asynchronous code in favor of
+  synchronous implementations that can be parallelized.
 
 ## [0.5.2] - 2025-06-30
 ### Added

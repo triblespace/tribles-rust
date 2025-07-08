@@ -147,11 +147,19 @@ impl BlobHeader {
 }
 
 #[derive(Debug, Clone)]
-pub struct PileSwap<H: HashProtocol> {
+/// In-memory view of the on-disk pile used while applying write operations.
+///
+/// `PileSwap` mirrors the index portion of the pile file so that new blobs can
+/// be staged before being flushed to disk.
+pub(crate) struct PileSwap<H: HashProtocol> {
     blobs: BTreeMap<Value<Hash<H>>, IndexEntry>,
 }
 
-pub struct PileAux<const MAX_PILE_SIZE: usize, H: HashProtocol> {
+/// Additional state kept alongside [`PileSwap`] while writing to the pile.
+///
+/// It tracks the current file handle, memory mapping and pending write lengths
+/// to enforce the maximum pile size.
+pub(crate) struct PileAux<const MAX_PILE_SIZE: usize, H: HashProtocol> {
     pending_length: usize,
     applied_length: usize,
     file: File,
@@ -247,6 +255,10 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
     }
 }
 
+/// A grow-only collection of blobs and branch pointers backed by a single file on disk.
+///
+/// The pile acts as an append-only log where new blobs or branch updates are appended
+/// while an in-memory index is kept for fast retrieval.
 pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
     w_handle: WriteHandle<PileBlobStoreOps<H>, PileSwap<H>, PileAux<MAX_PILE_SIZE, H>>,
 }
@@ -261,6 +273,10 @@ where
 }
 
 #[derive(Debug, Clone)]
+/// Read-only handle referencing a [`Pile`].
+///
+/// Multiple `PileReader` instances can coexist and provide concurrent access to
+/// the same underlying pile data.
 pub struct PileReader<H: HashProtocol> {
     r_handle: ReadHandle<PileSwap<H>>,
 }
@@ -277,10 +293,12 @@ where
 impl<H> Eq for PileReader<H> where H: HashProtocol {}
 
 impl<H: HashProtocol> PileReader<H> {
-    pub fn new(r_handle: ReadHandle<PileSwap<H>>) -> Self {
+    /// Creates a new reader from the given handle.
+    pub(crate) fn new(r_handle: ReadHandle<PileSwap<H>>) -> Self {
         Self { r_handle }
     }
 
+    /// Returns an iterator over all blobs currently stored in the pile.
     pub fn iter(&self) -> PileBlobStoreIter<H> {
         PileBlobStoreIter {
             read_handle: self.r_handle.clone(),
@@ -443,6 +461,7 @@ impl From<std::io::Error> for FlushError {
 }
 
 impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
+    /// Opens an existing pile and truncates any corrupted tail data if found.
     pub fn open(path: &Path) -> Result<Self, OpenError> {
         match Self::try_open(path) {
             Ok(pile) => Ok(pile),
@@ -458,6 +477,12 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         }
     }
 
+    /// Opens a pile file without repairing potential corruption.
+    ///
+    /// The file is scanned to ensure record boundaries are valid. If a
+    /// truncated or malformed record is encountered the function returns
+    /// [`OpenError::CorruptPile`] with the length of the valid prefix so the
+    /// caller may decide how to handle it.
     pub fn try_open(path: &Path) -> Result<Self, OpenError> {
         let file = OpenOptions::new()
             .read(true)
@@ -543,6 +568,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         })
     }
 
+    /// Persists any queued writes to the underlying pile file.
     pub fn flush(&mut self) -> Result<(), FlushError> {
         self.w_handle.flush();
         self.w_handle.auxiliary().file.sync_data()?;
@@ -561,6 +587,9 @@ where
 
 use super::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore, PushResult};
 
+/// Iterator returned by [`PileReader::iter`].
+///
+/// Iterates over all `(Handle, Blob)` pairs currently stored in the pile.
 pub struct PileBlobStoreIter<H>
 where
     H: HashProtocol,
@@ -600,6 +629,7 @@ where
     }
 }
 
+/// Adapter over [`PileBlobStoreIter`] that yields only the blob handles.
 pub struct PileBlobStoreListIter<H>
 where
     H: HashProtocol,
@@ -663,6 +693,7 @@ where
     }
 }
 
+/// Iterator over the branch identifiers present in a [`Pile`].
 pub struct PileBranchStoreIter<'a, H: HashProtocol> {
     iter: std::collections::hash_map::Keys<'a, Id, Value<Handle<H, SimpleArchive>>>,
 }

@@ -319,6 +319,11 @@ where
     }
 }
 
+/// Copies every blob from `source` into `target`.
+///
+/// The returned iterator yields a `(old, new)` handle pair for each transferred
+/// blob, allowing callers to update references from the source store to the
+/// newly inserted blobs in the target.
 pub fn transfer<'a, BS, BT, HS, HT, S>(
     source: &'a BS,
     target: &'a mut BT,
@@ -429,6 +434,12 @@ where
     BranchNotFound(Id),
 }
 
+/// High-level wrapper combining a blob store and branch store into a usable
+/// repository API.
+///
+/// The `Repository` type exposes convenience methods for creating branches,
+/// committing data and pushing changes while delegating actual storage to the
+/// given `BlobStore` and `BranchStore` implementations.
 pub struct Repository<Storage: BlobStore<Blake3> + BranchStore<Blake3>> {
     storage: Storage,
     signing_key: SigningKey,

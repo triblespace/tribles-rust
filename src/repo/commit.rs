@@ -28,6 +28,11 @@ impl From<SignatureError> for ValidationError {
     }
 }
 
+/// Constructs commit metadata describing `content` and its parent commits.
+///
+/// The resulting [`TribleSet`] is signed using `signing_key` so that its
+/// authenticity can later be verified. If `msg` is provided it is stored as a
+/// short commit message.
 pub fn commit(
     signing_key: &SigningKey,
     parents: impl IntoIterator<Item = Value<Handle<Blake3, SimpleArchive>>>,
@@ -67,6 +72,11 @@ pub fn commit(
     commit
 }
 
+/// Validates that the `metadata` blob genuinely signs the supplied commit
+/// `content`.
+///
+/// Returns an error if the signature information is missing, malformed or does
+/// not match the commit bytes.
 pub fn verify(content: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), ValidationError> {
     let handle = content.get_handle();
     let (pubkey, r, s) = match find!(

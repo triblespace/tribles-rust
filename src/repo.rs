@@ -101,6 +101,7 @@
 pub mod branch;
 pub mod commit;
 //pub mod objectstore;
+pub mod hybridstore;
 pub mod memoryrepo;
 pub mod pile;
 

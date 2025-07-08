@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Property tests for `ufoid` randomness and timestamp rollover.
 - Further clarified `timestamp_distance` documentation that it only works with
   timestamps younger than the ~50-day rollover period.
+- Added `HybridStore` to combine separate blob and branch stores.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

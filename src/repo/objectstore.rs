@@ -29,6 +29,10 @@ use super::{
 const BRANCH_INFIX: &str = "branches";
 const BLOB_INFIX: &str = "blobs";
 
+/// Repository backed by an [`object_store`] compatible storage backend.
+///
+/// All data is stored in an external service (e.g. S3, local filesystem) via
+/// the `object_store` crate.
 pub struct ObjectStoreRepo<H> {
     store: Box<dyn ObjectStore>,
     prefix: Path,
@@ -36,6 +40,7 @@ pub struct ObjectStoreRepo<H> {
 }
 
 impl<H> ObjectStoreRepo<H> {
+    /// Creates a repository pointing at the object store described by `url`.
     pub fn with_url(url: &Url) -> Result<ObjectStoreRepo<H>, object_store::Error> {
         let (store, path) = parse_url(&url)?;
         Ok(ObjectStoreRepo {

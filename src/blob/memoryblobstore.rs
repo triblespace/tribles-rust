@@ -58,6 +58,10 @@ where
 }
 
 #[derive(Debug)]
+/// Clonable view into a [`MemoryBlobStore`] that only exposes read operations.
+///
+/// Clones of this struct share access to the underlying store and may be used
+/// concurrently.
 pub struct MemoryBlobStoreReader<H: HashProtocol> {
     read_handle: ReadHandle<MemoryBlobStoreMap<H>>,
 }
@@ -83,6 +87,7 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
         MemoryBlobStoreReader { read_handle }
     }
 
+    /// Returns how many blobs are currently stored in the underlying map.
     pub fn len(&self) -> usize {
         self.read_handle
             .enter()
@@ -90,6 +95,9 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
             .unwrap_or(0)
     }
 
+    /// Returns an iterator over all blobs currently in the store.
+    ///
+    /// The iteration order is unspecified and should not be relied on.
     pub fn iter(&self) -> MemoryBlobStoreIter<H> {
         let read_handle = self.read_handle.clone();
         let iter = MemoryBlobStoreIter {
@@ -101,6 +109,10 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
 }
 
 impl<H: HashProtocol> MemoryBlobStore<H> {
+    /// Creates a new [`MemoryBlobStore`] with no blobs.
+    ///
+    /// The store keeps all data in memory and is primarily intended for tests
+    /// or other transient repositories such as workspaces.
     pub fn new() -> MemoryBlobStore<H> {
         let write_storage = reft_light::new::<MemoryBlobStoreOps<H>, MemoryBlobStoreMap<H>, ()>(
             MemoryBlobStoreMap::new(),
@@ -111,6 +123,10 @@ impl<H: HashProtocol> MemoryBlobStore<H> {
         }
     }
 
+    /// Inserts `blob` into the store and returns the newly computed handle.
+    ///
+    /// The handle is derived from hashing the blob's bytes using the hash
+    /// protocol associated with this store.
     pub fn insert<S>(&mut self, blob: Blob<S>) -> Value<Handle<H, S>>
     where
         S: BlobSchema,
@@ -130,6 +146,10 @@ impl<H: HashProtocol> MemoryBlobStore<H> {
     // a different type. But this is under the assumption that an attacker is only
     // allowed to write non-handle typed triples, otherwise they might as well
     // introduce blobs directly.
+    /// Drops any blobs that are not referenced by one of the provided tribles.
+    ///
+    /// This is a simple mark-and-sweep style GC used to prune unreferenced
+    /// blobs from long lived stores.
     pub fn keep(&mut self, tribles: TribleSet) {
         self.write_handle.append(MemoryBlobStoreOps::Keep(tribles));
     }
@@ -184,6 +204,9 @@ impl<E: Error> fmt::Display for MemoryStoreGetError<E> {
 
 impl<E: Error> Error for MemoryStoreGetError<E> {}
 
+/// Iterator returned by [`MemoryBlobStoreReader::iter`].
+///
+/// Yields `(Handle, Blob)` pairs for each entry currently in the store.
 pub struct MemoryBlobStoreIter<H>
 where
     H: HashProtocol,
@@ -220,6 +243,7 @@ where
     }
 }
 
+/// Adapter over [`MemoryBlobStoreIter`] that yields only blob handles.
 pub struct MemoryBlobStoreListIter<H>
 where
     H: HashProtocol,

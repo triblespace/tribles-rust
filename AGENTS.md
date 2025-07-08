@@ -19,6 +19,8 @@ The project balances a few key goals:
 * Avoid small cosmetic changes that blow up the diff unless explicitly requested.
 * Use clear commit messages describing the change.
 * Add an entry to `CHANGELOG.md` summarizing your task.
+* Avoid writing asynchronous code. Prefer high-performance synchronous
+  implementations that can be parallelized when needed.
 
 ## Pull Request Notes
 

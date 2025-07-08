@@ -32,6 +32,37 @@ Our goal is to re-invent data storage from first principles and overcome the sho
 
 If you have any questions or want to chat about graph databases hop into our [discord](https://discord.gg/v7AezPywZS).
 
+## Getting Started
+
+Add the crate to your project:
+
+```bash
+cargo add tribles
+```
+
+Then create a pile-backed repository and commit some data. The snippet below uses the `literature` example namespace which is expanded further down in the [Example](#example) section.
+
+```rust,ignore
+use tribles::prelude::*;
+use tribles::examples::literature;
+use tribles::repo::Repository;
+use std::path::Path;
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+
+const MAX_PILE_SIZE: usize = 1 << 20;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let pile: Pile<MAX_PILE_SIZE> = Pile::open(Path::new("example.pile"))?;
+    let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main")?;
+
+    ws.commit(literature::entity!(&ufoid(), { firstname: "Alice" }), None);
+    repo.push(&mut ws)?;
+    Ok(())
+}
+```
+
 # Example
 
 ```rust
@@ -101,7 +132,7 @@ fn main() -> std::io::Result<()> {
 }
 ```
 
-# Getting Started
+# Learn More
 
 The best way to get started is to read the module documentation of the `tribles` crate. The following links provide an overview of the most important modules, in an order where you can start with the most basic concepts and work your way up to more advanced topics:
 

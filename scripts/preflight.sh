@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Ensure rustfmt is installed
-cargo install rustfmt --locked --quiet || true
+rustup component add rustfmt
 
 # Run formatting check and tests
 cargo fmt -- --check

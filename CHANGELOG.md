@@ -56,9 +56,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restricted `PileSwap` and `PileAux` to crate visibility.
 - Repository guidelines now discourage asynchronous code in favor of
   synchronous implementations that can be parallelized.
+- Renamed `ObjectStoreRepo` to `ObjectStoreRemote` in the object-store backend.
+- Listing iterators for the object-store backend now stream directly from the
+  underlying store instead of collecting results in memory.
 
 ## [0.5.2] - 2025-06-30
 ### Added
 - Initial changelog file.
 - Repository guidelines now require documenting tasks in `CHANGELOG.md`.
+- Converted object-store backend to `BranchStore`/`BlobStore` API.
 

@@ -100,9 +100,9 @@
 //!
 pub mod branch;
 pub mod commit;
-//pub mod objectstore;
 pub mod hybridstore;
 pub mod memoryrepo;
+pub mod objectstore;
 pub mod pile;
 
 use std::{

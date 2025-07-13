@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Further clarified `timestamp_distance` documentation that it only works with
   timestamps younger than the ~50-day rollover period.
 - Added `HybridStore` to combine separate blob and branch stores.
+- Added tests for the `ObjectStoreRemote` repository using the in-memory
+  object store backend.
+- Implemented `Debug` for `ObjectStoreRemote` and replaced `panic!` calls
+  with `.expect()` in object store tests.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

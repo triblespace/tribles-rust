@@ -40,6 +40,14 @@ pub struct ObjectStoreRemote<H> {
     _hasher: PhantomData<H>,
 }
 
+impl<H> fmt::Debug for ObjectStoreRemote<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ObjectStoreRemote")
+            .field("prefix", &self.prefix)
+            .finish()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ObjectStoreReader<H> {
     store: Arc<dyn ObjectStore>,

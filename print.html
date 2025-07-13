@@ -179,6 +179,7 @@ enable efficient sharing across systems.</p>
 <p>While this book walks you through the basics, the crate documentation offers a
 complete API reference. Use the links throughout the text to jump directly to
 the modules that interest you.</p>
+<p>If you would like to work on Tribles yourself, check out <a href="contributing.html">Developing Locally</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
 <p>First add the crate to your project:</p>
 <pre><code class="language-bash">cargo add tribles
@@ -204,6 +205,10 @@ fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
 }</code></pre>
 <p>See the <a href="https://docs.rs/tribles/latest/tribles/">crate documentation</a> for
 additional modules and examples.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="developing-locally"><a class="header" href="#developing-locally">Developing Locally</a></h1>
+<p>To build and test Tribles yourself you need a recent Rust toolchain. Install it from <a href="https://rustup.rs/">rustup.rs</a>.</p>
+<p>Run <code>./scripts/preflight.sh</code> from the repository root to format the code and execute the full test suite. For quick iterations <code>./scripts/devtest.sh</code> runs only the tests.</p>
+<p>If you want to render this book locally first install <code>mdbook</code> with <code>cargo install mdbook</code> and then run <code>./scripts/build_book.sh</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deep-dive"><a class="header" href="#deep-dive">Deep Dive</a></h1>
 <p>This section contains in-depth discussions about Trible Space internals.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="philosophy"><a class="header" href="#philosophy">Philosophy</a></h1>

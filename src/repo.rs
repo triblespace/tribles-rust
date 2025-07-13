@@ -783,13 +783,16 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     pub fn branch_id(&self) -> Id {
         self.base_branch_id
     }
+
     /// Adds a blob to the workspace's local blob store.
-    /// Returns the handle of the blob as stored locally.
-    pub fn add_blob<T>(&mut self, blob: Blob<T>) -> Value<Handle<Blake3, T>>
+    /// Mirrors [`BlobStorePut::put`](crate::repo::BlobStorePut) for ease of use.
+    pub fn put<S, T>(&mut self, item: T) -> Value<Handle<Blake3, S>>
     where
-        T: BlobSchema + 'static,
+        S: BlobSchema + 'static,
+        T: ToBlob<S>,
+        Handle<Blake3, S>: ValueSchema,
     {
-        self.local_blobs.put(blob).unwrap()
+        self.local_blobs.put(item).expect("infallible blob put")
     }
 
     /// Performs a commit in the workspace.

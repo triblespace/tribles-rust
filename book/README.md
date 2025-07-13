@@ -1,7 +1,8 @@
 # Tribles Book
 
 This directory contains a work-in-progress guide built with
-[`mdBook`](https://rust-lang.github.io/mdBook/). To build the HTML
+[`mdBook`](https://rust-lang.github.io/mdBook/). If you don't have
+`mdbook` installed yet, run `cargo install mdbook`. To build the HTML
 locally, run:
 
 ```bash

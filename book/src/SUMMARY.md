@@ -2,6 +2,7 @@
 
 - [Introduction](introduction.md)
 - [Getting Started](getting-started.md)
+- [Architecture](architecture.md)
 - Deep Dive
   - [Philosophy](deep-dive/philosophy.md)
   - [Identifiers](deep-dive/identifiers.md)

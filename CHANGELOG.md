@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   underlying store instead of collecting results in memory.
 - `Repository::push` now returns `Option<Workspace>` instead of the custom
   `RepoPushResult` enum, simplifying conflict handling.
+- Split identifier and trible structure discussions into dedicated deep-dive book chapters.
 
 ## [0.5.2] - 2025-06-30
 ### Added

@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Repository::push` now returns `Option<Workspace>` instead of the custom
   `RepoPushResult` enum, simplifying conflict handling.
 - Split identifier and trible structure discussions into dedicated deep-dive book chapters.
+- `preflight.sh` now verifies that the mdBook documentation builds successfully.
+- Fixed book `SUMMARY.md` so preflight passes without parse errors.
 
 ## [0.5.2] - 2025-06-30
 ### Added

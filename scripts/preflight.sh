@@ -7,6 +7,12 @@ cd "$(dirname "$0")/.."
 # Ensure rustfmt is installed
 rustup component add rustfmt
 
-# Run formatting check and tests
+# Ensure mdBook is installed
+if ! command -v mdbook >/dev/null 2>&1; then
+    cargo install mdbook
+fi
+
+# Run formatting check, tests, and build the book
 cargo fmt -- --check
 cargo test
+./scripts/build_book.sh

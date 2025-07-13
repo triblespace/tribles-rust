@@ -1,0 +1,7 @@
+[book]
+title = "Tribles Book"
+description = "A guided tour of Trible Space and how to use the crate."
+
+[build]
+# mdBook will place the built HTML here
+build-dir = "../target/book"

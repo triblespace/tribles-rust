@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{memoryrepo::MemoryRepo, RepoPushResult, Repository};
+use tribles::repo::{memoryrepo::MemoryRepo, Repository};
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -12,7 +12,7 @@ fn workspace_commit_updates_head() {
     ws.commit(TribleSet::new(), Some("change"));
 
     match repo.push(&mut ws) {
-        Ok(RepoPushResult::Success()) => {}
+        Ok(None) => {}
         Ok(_) | Err(_) => panic!("push failed"),
     }
 }

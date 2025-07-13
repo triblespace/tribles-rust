@@ -63,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `ObjectStoreRepo` to `ObjectStoreRemote` in the object-store backend.
 - Listing iterators for the object-store backend now stream directly from the
   underlying store instead of collecting results in memory.
+- `Repository::push` now returns `Option<Workspace>` instead of the custom
+  `RepoPushResult` enum, simplifying conflict handling.
 
 ## [0.5.2] - 2025-06-30
 ### Added

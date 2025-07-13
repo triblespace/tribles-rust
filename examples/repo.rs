@@ -2,7 +2,7 @@ use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::examples::literature;
 use tribles::prelude::*;
-use tribles::repo::{RepoPushResult, Repository};
+use tribles::repo::Repository;
 
 fn main() {
     const MAX_PILE_SIZE: usize = 1 << 20;
@@ -31,12 +31,12 @@ fn main() {
     ws2.commit(change, Some("add bob"));
 
     match repo.push(&mut ws2).expect("push ws2") {
-        RepoPushResult::Success() => println!("Push ws2 succeeded"),
-        RepoPushResult::Conflict(mut other) => loop {
+        None => println!("Push ws2 succeeded"),
+        Some(mut other) => loop {
             other.merge(&mut ws2).expect("merge");
             match repo.push(&mut other).expect("push conflict") {
-                RepoPushResult::Success() => break,
-                RepoPushResult::Conflict(next) => other = next,
+                None => break,
+                Some(next) => other = next,
             }
         },
     }

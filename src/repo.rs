@@ -27,7 +27,7 @@
 //! use rand::rngs::OsRng;
 //! use tribles::prelude::*;
 //! use tribles::prelude::valueschemas::{GenId, ShortString};
-//! use tribles::repo::{memoryrepo::MemoryRepo, RepoPushResult, Repository};
+//! use tribles::repo::{memoryrepo::MemoryRepo, Repository};
 //!
 //! let storage = MemoryRepo::default();
 //! let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -50,8 +50,8 @@
 //! );
 //!
 //! match repo.push(&mut ws).expect("push") {
-//!     RepoPushResult::Success() => {}
-//!     RepoPushResult::Conflict(_) => panic!("unexpected conflict"),
+//!     None => {}
+//!     Some(_) => panic!("unexpected conflict"),
 //! }
 //! ```
 //!
@@ -61,12 +61,12 @@
 //!
 //! ## Handling conflicts
 //!
-//! `push` may return `RepoPushResult::Conflict` when the branch has changed
+//! `push` may return `Some(conflict_ws)` when the branch has changed.
 //! The returned workspace contains the updated branch metadata and must be
 //! pushed after merging your changes:
 //!
 //! ```rust,ignore
-//! while let RepoPushResult::Conflict(mut other) = repo.push(&mut ws)? {
+//! while let Some(mut other) = repo.push(&mut ws)? {
 //!     other.merge(&mut ws)?;
 //!     ws = other;
 //! }
@@ -224,27 +224,6 @@ where
 {
     Success(),
     Conflict(Option<Value<Handle<H, SimpleArchive>>>),
-}
-
-pub enum RepoPushResult<Storage>
-where
-    Storage: BlobStore<Blake3> + BranchStore<Blake3>,
-{
-    Success(),
-    Conflict(Workspace<Storage>),
-}
-
-impl<Storage> fmt::Debug for RepoPushResult<Storage>
-where
-    Storage: BlobStore<Blake3> + BranchStore<Blake3>,
-    Storage::Reader: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RepoPushResult::Success() => f.debug_tuple("Success").finish(),
-            RepoPushResult::Conflict(ws) => f.debug_tuple("Conflict").field(ws).finish(),
-        }
-    }
 }
 
 pub trait BranchStore<H: HashProtocol> {
@@ -674,7 +653,7 @@ where
     pub fn push(
         &mut self,
         workspace: &mut Workspace<Storage>,
-    ) -> Result<RepoPushResult<Storage>, PushError<Storage>> {
+    ) -> Result<Option<Workspace<Storage>>, PushError<Storage>> {
         // 1. Sync `self.local_blobset` to repository's BlobStore.
         let workspace_reader = workspace.local_blobs.reader();
         for handle in workspace_reader.blobs() {
@@ -728,7 +707,7 @@ where
             .map_err(|e| PushError::BranchUpdate(e))?;
 
         match result {
-            PushResult::Success() => Ok(RepoPushResult::Success()),
+            PushResult::Success() => Ok(None),
             PushResult::Conflict(conflicting_meta) => {
                 let conflicting_meta = conflicting_meta.ok_or(PushError::BadBranchMetadata())?;
 
@@ -756,7 +735,7 @@ where
                     signing_key: workspace.signing_key.clone(),
                 };
 
-                Ok(RepoPushResult::Conflict(conflict_ws))
+                Ok(Some(conflict_ws))
             }
         }
     }

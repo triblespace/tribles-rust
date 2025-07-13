@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{memoryrepo::MemoryRepo, RepoPushResult, Repository};
+use tribles::repo::{memoryrepo::MemoryRepo, Repository};
 
 fn main() {
     let mut repo = Repository::new(MemoryRepo::default(), SigningKey::generate(&mut OsRng));
@@ -11,7 +11,7 @@ fn main() {
     workspace.commit(TribleSet::new(), Some("start feature work"));
 
     // attempt to push, merging conflicts before retrying
-    while let RepoPushResult::Conflict(mut incoming) = repo.push(&mut workspace).expect("push") {
+    while let Some(mut incoming) = repo.push(&mut workspace).expect("push") {
         // merge our local changes into the conflicting workspace
         incoming.merge(&mut workspace).expect("merge");
         // push the merged workspace on the next iteration

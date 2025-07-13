@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{self, objectstore::ObjectStoreRemote, RepoPushResult, Repository};
+use tribles::repo::{self, objectstore::ObjectStoreRemote, Repository};
 use tribles::value::schemas::hash::Blake3;
 use url::Url;
 
@@ -26,7 +26,7 @@ fn objectstore_workspace_commit_updates_head() {
     ws.commit(TribleSet::new(), Some("change"));
 
     match repo.push(&mut ws).expect("push") {
-        RepoPushResult::Success() => {}
+        None => {}
         _ => panic!("push failed"),
     }
 }
@@ -63,19 +63,19 @@ fn objectstore_push_and_merge_conflict_resolution() {
     ws2.commit(TribleSet::new(), Some("second"));
 
     match repo.push(&mut ws1).expect("push") {
-        RepoPushResult::Success() => {}
+        None => {}
         _ => panic!("expected success"),
     }
 
     let mut conflict_ws = match repo.push(&mut ws2).expect("push") {
-        RepoPushResult::Conflict(ws) => ws,
+        Some(ws) => ws,
         _ => panic!("expected conflict"),
     };
 
     conflict_ws.merge(&mut ws2).unwrap();
 
     match repo.push(&mut conflict_ws).expect("push") {
-        RepoPushResult::Success() => {}
+        None => {}
         _ => panic!("expected success after merge"),
     }
 }

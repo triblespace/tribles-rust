@@ -132,6 +132,10 @@ fn main() -> std::io::Result<()> {
 }
 ```
 
+## Tribles Book
+
+For a step-by-step narrative guide, see the [Tribles Book](book/README.md).
+
 # Learn More
 
 The best way to get started is to read the module documentation of the `tribles` crate. The following links provide an overview of the most important modules, in an order where you can start with the most basic concepts and work your way up to more advanced topics:

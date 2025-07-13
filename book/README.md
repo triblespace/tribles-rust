@@ -5,7 +5,7 @@ This directory contains a work-in-progress guide built with
 locally, run:
 
 ```bash
-mdbook build book
+./scripts/build_book.sh
 ```
 
 The rendered book will appear under `target/book`.

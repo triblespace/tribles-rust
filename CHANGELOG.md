@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented `Debug` for `ObjectStoreRemote` and replaced `panic!` calls
   with `.expect()` in object store tests.
 - Initial scaffold for a narrative "Tribles Book" documentation.
+- Build script `build_book.sh` and CI workflow to publish the mdBook.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

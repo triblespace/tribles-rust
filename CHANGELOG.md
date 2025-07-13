@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `.expect()` in object store tests.
 - Initial scaffold for a narrative "Tribles Book" documentation.
 - Build script `build_book.sh` and CI workflow to publish the mdBook.
+- Expanded the introduction and philosophy sections of the Tribles Book and
+  documented how to install `mdbook`.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

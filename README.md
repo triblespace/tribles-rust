@@ -135,6 +135,12 @@ fn main() -> std::io::Result<()> {
 ## Tribles Book
 
 For a step-by-step narrative guide, see the [Tribles Book](book/README.md).
+To build the HTML locally, first install `mdbook` with `cargo install mdbook`
+and then run:
+
+```bash
+./scripts/build_book.sh
+```
 
 # Learn More
 

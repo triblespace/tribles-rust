@@ -446,6 +446,64 @@ to described entities, with circles constituting consensus between them.</p>
 the color to the entity that represents the color. This makes the direction
 of the edge a natural consequence of the semantics of the edge, and not
 an arbitrary choice.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="schemas"><a class="header" href="#schemas">Schemas</a></h1>
+<p>Trible Space stores data in strongly typed values and blobs.  A <em>schema</em>
+describes a language‑agnostic data type with a specific byte representation:
+exactly 32 bytes for a [<code>Value</code>] and an arbitrary number of bytes for a
+[<code>Blob</code>].  These abstract types can be converted to the concrete types of your
+application but decouple stored data from any particular implementation.  This
+also means you can refactor to new libraries or frameworks without rewriting
+what's already stored. The crate ships with a collection of ready‑made schemas located in
+<a href="../src/value/schemas"><code>src/value/schemas</code></a> and
+<a href="../src/blob/schemas"><code>src/blob/schemas</code></a>.</p>
+<h2 id="builtin-value-schemas"><a class="header" href="#builtin-value-schemas">Built‑in value schemas</a></h2>
+<p>The crate provides the following value schemas out of the box:</p>
+<ul>
+<li><code>GenId</code> – an abstract 128 bit identifier.</li>
+<li><code>ShortString</code> – a UTF-8 string up to 32 bytes.</li>
+<li><code>U256BE</code> / <code>U256LE</code> – 256-bit unsigned integers.</li>
+<li><code>I256BE</code> / <code>I256LE</code> – 256-bit signed integers.</li>
+<li><code>R256BE</code> / <code>R256LE</code> – 256-bit rational numbers.</li>
+<li><code>F256BE</code> / <code>F256LE</code> – 256-bit floating point numbers.</li>
+<li><code>Hash</code> and <code>Handle</code> – cryptographic digests and blob handles (see <a href="../src/value/schemas/hash.rs"><code>hash.rs</code></a>).</li>
+<li><code>ED25519RComponent</code>, <code>ED25519SComponent</code> and <code>ED25519PublicKey</code> – signature fields and keys.</li>
+<li><code>NsTAIInterval</code> to encode time intervals.</li>
+<li><code>UnknownValue</code> as a fallback when no specific schema is known.</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::value::schemas::shortstring::ShortString;
+use tribles::value::{ToValue, ValueSchema};
+
+let v = "hi".to_value::&lt;ShortString&gt;();
+assert_eq!(v.schema_id(), ShortString::VALUE_SCHEMA_ID);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="builtin-blob-schemas"><a class="header" href="#builtin-blob-schemas">Built‑in blob schemas</a></h2>
+<p>The crate also ships with these blob schemas:</p>
+<ul>
+<li><code>LongString</code> for arbitrarily long UTF‑8 strings.</li>
+<li><code>SimpleArchive</code> which stores a raw sequence of tribles.</li>
+<li><code>SuccinctArchive</code> providing a compressed index for offline queries.</li>
+<li><code>UnknownBlob</code> for data of unknown type.</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::blob::schemas::longstring::LongString;
+use tribles::blob::{ToBlob, BlobSchema};
+
+let b = "example".to_blob::&lt;LongString&gt;();
+assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());
+<span class="boring">}</span></code></pre></pre>
+<h2 id="defining-new-schemas"><a class="header" href="#defining-new-schemas">Defining new schemas</a></h2>
+<p>Custom formats implement [<code>ValueSchema</code>] or [<code>BlobSchema</code>].  A unique identifier
+serves as the schema ID.  The example below defines a little-endian <code>u64</code> value
+schema and a simple blob schema for arbitrary bytes.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{{#include ../examples/custom_schema.rs:beginning:ending}}
+<span class="boring">}</span></code></pre></pre>
+<p>See <a href="../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
+source.</p>
 
                     </main>
 

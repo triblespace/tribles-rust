@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Trible Structure - Tribles Book</title>
+        <title>Schemas - Tribles Book</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc.js"></script>
+        <script src="toc.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -102,7 +102,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -137,7 +137,7 @@
                     <h1 class="menu-title">Tribles Book</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
 
@@ -166,54 +166,73 @@
 
                 <div id="content" class="content">
                     <main>
-                        <p>The <code>trible</code> module contains the definition of the <code>Trible</code> struct, which is the fundamental unit of knowledge in the knowledge graph.
-Instance of <code>Trible</code>s are stored in <code>TribleSet</code>s which index the trible in various ways, allowing for efficient querying and retrieval of data.</p>
-<pre><code class="language-text">┌────────────────────────────64 byte───────────────────────────┐
-┌──────────────┐┌──────────────┐┌──────────────────────────────┐
-│  entity-id   ││ attribute-id ││        inlined value         │
-└──────────────┘└──────────────┘└──────────────────────────────┘
-└────16 byte───┘└────16 byte───┘└────────────32 byte───────────┘
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▶
-</code></pre>
-<h1 id="direction-and-consistency"><a class="header" href="#direction-and-consistency">Direction and Consistency</a></h1>
-<p>In other triple stores the direction of the edge drawn by a triple is often
-choosen incidentally, e.g. there is no intrinsic preference for <code>hasColor</code> over
-<code>colorOf</code>. This can lead to confusion and inconsistency in the graph, as
-different writers might choose different directions for the same edge.
-This is typically solved by:</p>
+                        <h1 id="schemas"><a class="header" href="#schemas">Schemas</a></h1>
+<p>Trible Space stores data in strongly typed values and blobs.  A <em>schema</em>
+describes a language‑agnostic data type with a specific byte representation:
+exactly 32 bytes for a [<code>Value</code>] and an arbitrary number of bytes for a
+[<code>Blob</code>].  These abstract types can be converted to the concrete types of your
+application but decouple stored data from any particular implementation.  This
+also means you can refactor to new libraries or frameworks without rewriting
+what's already stored. The crate ships with a collection of ready‑made schemas located in
+<a href="../src/value/schemas"><code>src/value/schemas</code></a> and
+<a href="../src/blob/schemas"><code>src/blob/schemas</code></a>.</p>
+<h2 id="builtin-value-schemas"><a class="header" href="#builtin-value-schemas">Built‑in value schemas</a></h2>
+<p>The crate provides the following value schemas out of the box:</p>
 <ul>
-<li>Automatically inferring the opposite edge for every edge inserted,
-as done by OWL and RDF with the <code>inverseOf</code> predicate. Leading to a
-doubling of the number of edges in the graph or inference at query time.</li>
-<li>Endless bikeshedding about the "right" direction of edges.</li>
+<li><code>GenId</code> – an abstract 128 bit identifier.</li>
+<li><code>ShortString</code> – a UTF-8 string up to 32 bytes.</li>
+<li><code>U256BE</code> / <code>U256LE</code> – 256-bit unsigned integers.</li>
+<li><code>I256BE</code> / <code>I256LE</code> – 256-bit signed integers.</li>
+<li><code>R256BE</code> / <code>R256LE</code> – 256-bit rational numbers.</li>
+<li><code>F256BE</code> / <code>F256LE</code> – 256-bit floating point numbers.</li>
+<li><code>Hash</code> and <code>Handle</code> – cryptographic digests and blob handles (see <a href="../src/value/schemas/hash.rs"><code>hash.rs</code></a>).</li>
+<li><code>ED25519RComponent</code>, <code>ED25519SComponent</code> and <code>ED25519PublicKey</code> – signature fields and keys.</li>
+<li><code>NsTAIInterval</code> to encode time intervals.</li>
+<li><code>UnknownValue</code> as a fallback when no specific schema is known.</li>
 </ul>
-<p>In the <code>tribles</code> crate we solve this problem by giving the direction of the edge
-an explicit semantic meaning: The direction of the edge indicates which entity
-is the one making the statement, i.e. which entity is observing the fact
-or proclaiming the relationship. This is a simple and consistent rule that
-naturally fits into a distributed system, where each entity is associated with
-a single writer that is responsible the consistency of the facts it asserts.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::value::schemas::shortstring::ShortString;
+use tribles::value::{ToValue, ValueSchema};
+
+let v = "hi".to_value::&lt;ShortString&gt;();
+assert_eq!(v.schema_id(), ShortString::VALUE_SCHEMA_ID);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="builtin-blob-schemas"><a class="header" href="#builtin-blob-schemas">Built‑in blob schemas</a></h2>
+<p>The crate also ships with these blob schemas:</p>
 <ul>
-<li>see <a href="crate::id">ID Ownership</a>.</li>
+<li><code>LongString</code> for arbitrarily long UTF‑8 strings.</li>
+<li><code>SimpleArchive</code> which stores a raw sequence of tribles.</li>
+<li><code>SuccinctArchive</code> providing a compressed index for offline queries.</li>
+<li><code>UnknownBlob</code> for data of unknown type.</li>
 </ul>
-<p>A different perspective is that edges are always ordered from describing
-to described entities, with circles constituting consensus between them.</p>
-<p>For example, the edge <code>hasColor</code> is always drawn from the entity that has
-the color to the entity that represents the color. This makes the direction
-of the edge a natural consequence of the semantics of the edge, and not
-an arbitrary choice.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::blob::schemas::longstring::LongString;
+use tribles::blob::{ToBlob, BlobSchema};
+
+let b = "example".to_blob::&lt;LongString&gt;();
+assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());
+<span class="boring">}</span></code></pre></pre>
+<h2 id="defining-new-schemas"><a class="header" href="#defining-new-schemas">Defining new schemas</a></h2>
+<p>Custom formats implement [<code>ValueSchema</code>] or [<code>BlobSchema</code>].  A unique identifier
+serves as the schema ID.  The example below defines a little-endian <code>u64</code> value
+schema and a simple blob schema for arbitrary bytes.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{{#include ../examples/custom_schema.rs:beginning:ending}}
+<span class="boring">}</span></code></pre></pre>
+<p>See <a href="../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
+source.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../deep-dive/identifiers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="deep-dive/trible-structure.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../schemas.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -221,13 +240,10 @@ an arbitrary choice.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../deep-dive/identifiers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="deep-dive/trible-structure.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../schemas.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
             </nav>
 
         </div>
@@ -240,13 +256,13 @@ an arbitrary choice.</p>
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
 

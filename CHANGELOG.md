@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repository guide.
 - Property tests for `ufoid` randomness and timestamp rollover.
 - Further clarified `timestamp_distance` documentation that it only works with
+- Documentation for built-in schemas and how to create your own.
   timestamps younger than the ~50-day rollover period.
 - Added `HybridStore` to combine separate blob and branch stores.
 - Added tests for the `ObjectStoreRemote` repository using the in-memory
@@ -29,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build script `build_book.sh` and CI workflow to publish the mdBook.
 - Expanded the introduction and philosophy sections of the Tribles Book and
   documented how to install `mdbook`.
+- Documented the pile file format in the book and expanded it with design rationale.
+- Expanded the pile format chapter with recovery notes and a link to the `Pile` API docs.
+- Added a book chapter describing the `find!` query language, listed
+   built-in constraints, and included a reusable sample dataset for
+   documentation examples.
+- Added an architecture chapter that explains how `TribleSet` differs from the repository layer and details branch stores and commit flow. The diagram now better illustrates the commit flow.
+- Added a "Developing Locally" chapter and linked it from the README and book introduction.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
@@ -71,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Repository::push` now returns `Option<Workspace>` instead of the custom
   `RepoPushResult` enum, simplifying conflict handling.
 - Split identifier and trible structure discussions into dedicated deep-dive book chapters.
+- `preflight.sh` now verifies that the mdBook documentation builds successfully.
+- Fixed book `SUMMARY.md` so preflight passes without parse errors.
+- `Workspace` now exposes a `put` method for adding blobs, replacing the old
+  `add_blob` helper. The method returns the stored blob's handle directly since
+  the underlying store cannot fail.
 
 ## [0.5.2] - 2025-06-30
 ### Added

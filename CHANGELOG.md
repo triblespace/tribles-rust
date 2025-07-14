@@ -29,7 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build script `build_book.sh` and CI workflow to publish the mdBook.
 - Expanded the introduction and philosophy sections of the Tribles Book and
   documented how to install `mdbook`.
- - Added a book chapter describing the `find!` query language, listed
+- Documented the pile file format in the book and expanded it with design rationale.
+- Expanded the pile format chapter with recovery notes and a link to the `Pile` API docs.
+- Added a book chapter describing the `find!` query language, listed
    built-in constraints, and included a reusable sample dataset for
    documentation examples.
 - Added an architecture chapter that explains how `TribleSet` differs from the repository layer and details branch stores and commit flow. The diagram now better illustrates the commit flow.

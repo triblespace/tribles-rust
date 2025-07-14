@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the introduction and philosophy sections of the Tribles Book and
   documented how to install `mdbook`.
 - Added an architecture chapter that explains how `TribleSet` differs from the repository layer and details branch stores and commit flow. The diagram now better illustrates the commit flow.
+- Added a "Developing Locally" chapter and linked it from the README and book introduction.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
@@ -71,6 +72,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Repository::push` now returns `Option<Workspace>` instead of the custom
   `RepoPushResult` enum, simplifying conflict handling.
 - Split identifier and trible structure discussions into dedicated deep-dive book chapters.
+- `preflight.sh` now verifies that the mdBook documentation builds successfully.
+- Fixed book `SUMMARY.md` so preflight passes without parse errors.
+- `Workspace` now exposes a `put` method for adding blobs, replacing the old
+  `add_blob` helper. The method returns the stored blob's handle directly since
+  the underlying store cannot fail.
 
 ## [0.5.2] - 2025-06-30
 ### Added

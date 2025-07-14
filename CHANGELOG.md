@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build script `build_book.sh` and CI workflow to publish the mdBook.
 - Expanded the introduction and philosophy sections of the Tribles Book and
   documented how to install `mdbook`.
+- Documented the pile file format in the book and expanded it with design rationale.
+- Expanded the pile format chapter with recovery notes and a link to the `Pile` API docs.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

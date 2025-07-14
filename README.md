@@ -142,6 +142,8 @@ and then run:
 ./scripts/build_book.sh
 ```
 
+For details on setting up a development environment, see [Developing Locally](book/src/contributing.md).
+
 # Learn More
 
 The best way to get started is to read the module documentation of the `tribles` crate. The following links provide an overview of the most important modules, in an order where you can start with the most basic concepts and work your way up to more advanced topics:

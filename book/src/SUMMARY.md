@@ -3,6 +3,7 @@
 - [Introduction](introduction.md)
 - [Getting Started](getting-started.md)
 - [Developing Locally](contributing.md)
+- [Query Language](query-language.md)
 - [Architecture](architecture.md)
 - [Deep Dive](deep-dive/README.md)
   - [Philosophy](deep-dive/philosophy.md)

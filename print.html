@@ -209,6 +209,65 @@ additional modules and examples.</p>
 <p>To build and test Tribles yourself you need a recent Rust toolchain. Install it from <a href="https://rustup.rs/">rustup.rs</a>.</p>
 <p>Run <code>./scripts/preflight.sh</code> from the repository root to format the code and execute the full test suite. For quick iterations <code>./scripts/devtest.sh</code> runs only the tests.</p>
 <p>If you want to render this book locally first install <code>mdbook</code> with <code>cargo install mdbook</code> and then run <code>./scripts/build_book.sh</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="query-language"><a class="header" href="#query-language">Query Language</a></h1>
+<p>This chapter introduces the basic query facilities provided by <code>tribles</code>.</p>
+<p>The <a href="crate::prelude::find"><code>find!</code></a> macro builds a <a href="crate::query::Query"><code>Query</code></a>
+by declaring variables and a constraint expression.  A minimal invocation looks
+like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let results = find!((a), a.is(1.into())).collect::&lt;Vec&lt;_&gt;&gt;();
+<span class="boring">}</span></code></pre></pre>
+<p>Variables can optionally specify a concrete type to convert the underlying
+value:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>find!((x: i32, y: Value&lt;ShortString&gt;),
+      and!(x.is(1.into()), y.is("foo".to_value())))
+<span class="boring">}</span></code></pre></pre>
+<p>The first variable is read as an <code>i32</code> and the second as a short string if the
+conversion succeeds. The query engine walks all possible assignments that
+satisfy the constraint and yields tuples of the declared variables.</p>
+<h2 id="built-in-constraints"><a class="header" href="#built-in-constraints">Built-in constraints</a></h2>
+<p><code>find!</code> queries combine a small set of constraint operators to form a declarative
+language for matching tribles:</p>
+<ul>
+<li><a href="crate::prelude::and"><code>and!</code></a> builds an
+<a href="crate::query::intersectionconstraint::IntersectionConstraint"><code>IntersectionConstraint</code></a>
+requiring all sub-constraints to hold.</li>
+<li><a href="crate::prelude::or"><code>or!</code></a> constructs a
+<a href="crate::query::unionconstraint::UnionConstraint"><code>UnionConstraint</code></a>
+accepting any satisfied alternative.</li>
+<li><a href="crate::prelude::mask"><code>mask!</code></a> hides variables from a sub-query.</li>
+<li>Collection types such as <a href="crate::tribleset::TribleSet"><code>TribleSet</code></a> provide a
+<code>has</code> method yielding a
+<a href="crate::query::hashsetconstraint::ContainsConstraint"><code>ContainsConstraint</code></a> for
+membership tests.</li>
+</ul>
+<p>Any data structure that can iterate its contents, test membership and report its
+size can implement <code>ContainsConstraint</code>, so queries have no inherent ordering
+requirements.</p>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::prelude::*;
+use tribles::examples::{self, literature};
+
+let dataset = examples::dataset();
+
+for (title,) in find!((title: Value&lt;_&gt;),
+                     and!(dataset.has(title), title.is("Dune".to_value()))) {
+    println!("Found {}", title.from_value::&lt;&amp;str&gt;());
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This query searches the example dataset for the book titled "Dune".  The
+variables and constraint can be adapted to express more complex joins and
+filters.</p>
+<h2 id="custom-constraints"><a class="header" href="#custom-constraints">Custom constraints</a></h2>
+<p>Every building block implements the
+<a href="crate::query::Constraint"><code>Constraint</code></a> trait.  You can implement this trait on
+your own types to integrate custom data sources or query operators with the
+solver.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h1>
 <p>Trible Space consists of two layers.  At the core is <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a>, an in‑memory data structure that behaves much like a hashmap.  It is cheap to create and merge and can be used on its own when durability is not required.  The optional repository layer stores those trible sets as blobs and links them through commits so that data can be exchanged and shared across machines.</p>
 <p>The sections below outline how <a href="https://docs.rs/tribles/latest/tribles/repo/index.html"><code>tribles::repo</code></a> combines blob and branch stores into repositories and workspaces.</p>

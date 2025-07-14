@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repository guide.
 - Property tests for `ufoid` randomness and timestamp rollover.
 - Further clarified `timestamp_distance` documentation that it only works with
+- Documentation for built-in schemas and how to create your own.
   timestamps younger than the ~50-day rollover period.
 - Added `HybridStore` to combine separate blob and branch stores.
 - Added tests for the `ObjectStoreRemote` repository using the in-memory

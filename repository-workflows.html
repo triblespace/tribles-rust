@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Query Language - Tribles Book</title>
+        <title>Repository Workflows - Tribles Book</title>
 
 
         <!-- Custom HTML head -->
@@ -166,75 +166,81 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="query-language"><a class="header" href="#query-language">Query Language</a></h1>
-<p>This chapter introduces the basic query facilities provided by <code>tribles</code>.</p>
-<p>The <a href="crate::prelude::find"><code>find!</code></a> macro builds a <a href="crate::query::Query"><code>Query</code></a>
-by declaring variables and a constraint expression.  A minimal invocation looks
-like:</p>
+                        <h1 id="repository-workflows"><a class="header" href="#repository-workflows">Repository Workflows</a></h1>
+<p>Tribles borrows a lot of terminology from Git. A <code>Repository</code> stores the history
+of your data, while a <code>Workspace</code> is the mutable view that you operate on much
+like a working directory and index combined. Commits live in a <code>BlobStore</code> and
+branch metadata in a <code>BranchStore</code>; these stores can be purely in memory,
+persisted to disk or backed by a remote service. The examples in
+<code>examples/repo.rs</code> and <code>examples/workspace.rs</code> showcase this API and should feel
+familiar to anyone comfortable with Git.</p>
+<h2 id="branching"><a class="header" href="#branching">Branching</a></h2>
+<p>A branch records a line of history. Creating one writes initial metadata to the
+underlying store and yields a <code>Workspace</code> pointing at that branch. While
+<code>Repository::branch</code> is a convenient way to start a fresh branch, most workflows
+use <code>Repository::checkout</code> to obtain a workspace for an existing branch:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let results = find!((a), a.is(1.into())).collect::&lt;Vec&lt;_&gt;&gt;();
+</span>let mut repo = Repository::new(pile, SigningKey::generate(&amp;mut OsRng));
+let mut ws = repo.branch("main").expect("create branch");
+let mut ws2 = repo.checkout(ws.branch_id()).expect("open branch");
 <span class="boring">}</span></code></pre></pre>
-<p>Variables can optionally specify a concrete type to convert the underlying
-value:</p>
+<p>After committing changes you can push the workspace back:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>find!((x: i32, y: Value&lt;ShortString&gt;),
-      and!(x.is(1.into()), y.is("foo".to_value())))
+</span>ws.commit(change, Some("initial commit"));
+repo.push(&amp;mut ws)?;
 <span class="boring">}</span></code></pre></pre>
-<p>The first variable is read as an <code>i32</code> and the second as a short string if the
-conversion succeeds. The query engine walks all possible assignments that
-satisfy the constraint and yields tuples of the declared variables.</p>
-<h2 id="built-in-constraints"><a class="header" href="#built-in-constraints">Built-in constraints</a></h2>
-<p><code>find!</code> queries combine a small set of constraint operators to form a declarative
-language for matching tribles:</p>
-<ul>
-<li><a href="crate::prelude::and"><code>and!</code></a> builds an
-<a href="crate::query::intersectionconstraint::IntersectionConstraint"><code>IntersectionConstraint</code></a>
-requiring all sub-constraints to hold.</li>
-<li><a href="crate::prelude::or"><code>or!</code></a> constructs a
-<a href="crate::query::unionconstraint::UnionConstraint"><code>UnionConstraint</code></a>
-accepting any satisfied alternative.</li>
-<li><a href="crate::prelude::mask"><code>mask!</code></a> hides variables from a sub-query.</li>
-<li>Collection types such as <a href="crate::tribleset::TribleSet"><code>TribleSet</code></a> provide a
-<code>has</code> method yielding a
-<a href="crate::query::hashsetconstraint::ContainsConstraint"><code>ContainsConstraint</code></a> for
-membership tests.</li>
-</ul>
-<p>Any data structure that can iterate its contents, test membership and report its
-size can implement <code>ContainsConstraint</code>, so queries have no inherent ordering
-requirements.</p>
-<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<h2 id="merging-and-conflict-handling"><a class="header" href="#merging-and-conflict-handling">Merging and Conflict Handling</a></h2>
+<p>When pushing a workspace another client might have already updated the branch.
+<code>Repository::push</code> returns an optional conflicting <code>Workspace</code>. The usual loop
+looks like:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use tribles::prelude::*;
-use tribles::examples::{self, literature};
-
-let dataset = examples::dataset();
-
-for (title,) in find!((title: Value&lt;_&gt;),
-                     and!(dataset.has(title), title.is("Dune".to_value()))) {
-    println!("Found {}", title.from_value::&lt;&amp;str&gt;());
+</span>while let Some(mut incoming) = repo.push(&amp;mut ws)? {
+    incoming.merge(&amp;mut ws)?;
+    ws = incoming;
 }
 <span class="boring">}</span></code></pre></pre>
-<p>This query searches the example dataset for the book titled "Dune".  The
-variables and constraint can be adapted to express more complex joins and
-filters.</p>
-<h2 id="custom-constraints"><a class="header" href="#custom-constraints">Custom constraints</a></h2>
-<p>Every building block implements the
-<a href="crate::query::Constraint"><code>Constraint</code></a> trait.  You can implement this trait on
-your own types to integrate custom data sources or query operators with the
-solver.</p>
+<p>This snippet is taken from <a href="../examples/workspace.rs"><code>examples/workspace.rs</code></a>.
+The <a href="../examples/repo.rs"><code>examples/repo.rs</code></a> example demonstrates the same
+pattern with two separate workspaces.</p>
+<h2 id="typical-cli-usage"><a class="header" href="#typical-cli-usage">Typical CLI Usage</a></h2>
+<p>There is a small command line front-end in the
+<a href="https://github.com/triblespace/trible"><code>trible</code></a> repository. It exposes push
+and merge operations over simple commands and follows the same API presented in
+the examples. The tool is currently experimental and may lag behind the library,
+but it demonstrates how repository operations map onto a CLI.</p>
+<h2 id="diagram"><a class="header" href="#diagram">Diagram</a></h2>
+<p>A simplified view of the push/merge cycle:</p>
+<pre><code class="language-text">        ┌───────────┐         push          ┌───────────┐
+        │  local ws │ ─────────────────────▶│   repo    │
+        └─────┬─────┘                       └─────┬─────┘
+             │            merge                  │
+             │                                   │ conflict
+             └──────▶┌─────────────┐◀────────────┘
+                     │ conflict ws │
+                     └─────────────┘
+                          │
+                          │ push
+                          ▼
+                     ┌───────────┐
+                     │   repo    │
+                     └───────────┘
+</code></pre>
+<p>Each push either succeeds or returns a workspace containing the other changes.
+Merging incorporates your commits and the process repeats until no conflicts
+remain.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="schemas.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="schemas.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="deep-dive/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -244,11 +250,11 @@ solver.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="schemas.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="schemas.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="deep-dive/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

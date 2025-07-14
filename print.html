@@ -304,6 +304,129 @@ filters.</p>
 <a href="crate::query::Constraint"><code>Constraint</code></a> trait.  You can implement this trait on
 your own types to integrate custom data sources or query operators with the
 solver.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="schemas"><a class="header" href="#schemas">Schemas</a></h1>
+<p>Trible Space stores data in strongly typed values and blobs.  A <em>schema</em>
+describes a language‑agnostic data type with a specific byte representation:
+exactly 32 bytes for a [<code>Value</code>] and an arbitrary number of bytes for a
+[<code>Blob</code>].  These abstract types can be converted to the concrete types of your
+application but decouple stored data from any particular implementation.  This
+also means you can refactor to new libraries or frameworks without rewriting
+what's already stored. The crate ships with a collection of ready‑made schemas located in
+<a href="../src/value/schemas"><code>src/value/schemas</code></a> and
+<a href="../src/blob/schemas"><code>src/blob/schemas</code></a>.</p>
+<h2 id="builtin-value-schemas"><a class="header" href="#builtin-value-schemas">Built‑in value schemas</a></h2>
+<p>The crate provides the following value schemas out of the box:</p>
+<ul>
+<li><code>GenId</code> – an abstract 128 bit identifier.</li>
+<li><code>ShortString</code> – a UTF-8 string up to 32 bytes.</li>
+<li><code>U256BE</code> / <code>U256LE</code> – 256-bit unsigned integers.</li>
+<li><code>I256BE</code> / <code>I256LE</code> – 256-bit signed integers.</li>
+<li><code>R256BE</code> / <code>R256LE</code> – 256-bit rational numbers.</li>
+<li><code>F256BE</code> / <code>F256LE</code> – 256-bit floating point numbers.</li>
+<li><code>Hash</code> and <code>Handle</code> – cryptographic digests and blob handles (see <a href="../src/value/schemas/hash.rs"><code>hash.rs</code></a>).</li>
+<li><code>ED25519RComponent</code>, <code>ED25519SComponent</code> and <code>ED25519PublicKey</code> – signature fields and keys.</li>
+<li><code>NsTAIInterval</code> to encode time intervals.</li>
+<li><code>UnknownValue</code> as a fallback when no specific schema is known.</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::value::schemas::shortstring::ShortString;
+use tribles::value::{ToValue, ValueSchema};
+
+let v = "hi".to_value::&lt;ShortString&gt;();
+assert_eq!(v.schema_id(), ShortString::VALUE_SCHEMA_ID);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="builtin-blob-schemas"><a class="header" href="#builtin-blob-schemas">Built‑in blob schemas</a></h2>
+<p>The crate also ships with these blob schemas:</p>
+<ul>
+<li><code>LongString</code> for arbitrarily long UTF‑8 strings.</li>
+<li><code>SimpleArchive</code> which stores a raw sequence of tribles.</li>
+<li><code>SuccinctArchive</code> providing a compressed index for offline queries.</li>
+<li><code>UnknownBlob</code> for data of unknown type.</li>
+</ul>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tribles::blob::schemas::longstring::LongString;
+use tribles::blob::{ToBlob, BlobSchema};
+
+let b = "example".to_blob::&lt;LongString&gt;();
+assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());
+<span class="boring">}</span></code></pre></pre>
+<h2 id="defining-new-schemas"><a class="header" href="#defining-new-schemas">Defining new schemas</a></h2>
+<p>Custom formats implement [<code>ValueSchema</code>] or [<code>BlobSchema</code>].  A unique identifier
+serves as the schema ID.  The example below defines a little-endian <code>u64</code> value
+schema and a simple blob schema for arbitrary bytes.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{{#include ../examples/custom_schema.rs:beginning:ending}}
+<span class="boring">}</span></code></pre></pre>
+<p>See <a href="../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
+source.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="repository-workflows"><a class="header" href="#repository-workflows">Repository Workflows</a></h1>
+<p>Tribles borrows a lot of terminology from Git. A <code>Repository</code> stores the history
+of your data, while a <code>Workspace</code> is the mutable view that you operate on much
+like a working directory and index combined. Commits live in a <code>BlobStore</code> and
+branch metadata in a <code>BranchStore</code>; these stores can be purely in memory,
+persisted to disk or backed by a remote service. The examples in
+<code>examples/repo.rs</code> and <code>examples/workspace.rs</code> showcase this API and should feel
+familiar to anyone comfortable with Git.</p>
+<h2 id="branching"><a class="header" href="#branching">Branching</a></h2>
+<p>A branch records a line of history. Creating one writes initial metadata to the
+underlying store and yields a <code>Workspace</code> pointing at that branch. While
+<code>Repository::branch</code> is a convenient way to start a fresh branch, most workflows
+use <code>Repository::checkout</code> to obtain a workspace for an existing branch:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut repo = Repository::new(pile, SigningKey::generate(&amp;mut OsRng));
+let mut ws = repo.branch("main").expect("create branch");
+let mut ws2 = repo.checkout(ws.branch_id()).expect("open branch");
+<span class="boring">}</span></code></pre></pre>
+<p>After committing changes you can push the workspace back:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>ws.commit(change, Some("initial commit"));
+repo.push(&amp;mut ws)?;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="merging-and-conflict-handling"><a class="header" href="#merging-and-conflict-handling">Merging and Conflict Handling</a></h2>
+<p>When pushing a workspace another client might have already updated the branch.
+<code>Repository::push</code> returns an optional conflicting <code>Workspace</code>. The usual loop
+looks like:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>while let Some(mut incoming) = repo.push(&amp;mut ws)? {
+    incoming.merge(&amp;mut ws)?;
+    ws = incoming;
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This snippet is taken from <a href="../examples/workspace.rs"><code>examples/workspace.rs</code></a>.
+The <a href="../examples/repo.rs"><code>examples/repo.rs</code></a> example demonstrates the same
+pattern with two separate workspaces.</p>
+<h2 id="typical-cli-usage"><a class="header" href="#typical-cli-usage">Typical CLI Usage</a></h2>
+<p>There is a small command line front-end in the
+<a href="https://github.com/triblespace/trible"><code>trible</code></a> repository. It exposes push
+and merge operations over simple commands and follows the same API presented in
+the examples. The tool is currently experimental and may lag behind the library,
+but it demonstrates how repository operations map onto a CLI.</p>
+<h2 id="diagram"><a class="header" href="#diagram">Diagram</a></h2>
+<p>A simplified view of the push/merge cycle:</p>
+<pre><code class="language-text">        ┌───────────┐         push          ┌───────────┐
+        │  local ws │ ─────────────────────▶│   repo    │
+        └─────┬─────┘                       └─────┬─────┘
+             │            merge                  │
+             │                                   │ conflict
+             └──────▶┌─────────────┐◀────────────┘
+                     │ conflict ws │
+                     └─────────────┘
+                          │
+                          │ push
+                          ▼
+                     ┌───────────┐
+                     │   repo    │
+                     └───────────┘
+</code></pre>
+<p>Each push either succeeds or returns a workspace containing the other changes.
+Merging incorporates your commits and the process repeats until no conflicts
+remain.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deep-dive"><a class="header" href="#deep-dive">Deep Dive</a></h1>
 <p>This section contains in-depth discussions about Trible Space internals.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="philosophy"><a class="header" href="#philosophy">Philosophy</a></h1>
@@ -556,64 +679,6 @@ Hash verification happens lazily only when individual blobs are loaded so that
 opening a large pile remains fast.</p>
 <p>For more details on interacting with a pile see the <a href="https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html"><code>Pile</code> struct
 documentation</a>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="schemas"><a class="header" href="#schemas">Schemas</a></h1>
-<p>Trible Space stores data in strongly typed values and blobs.  A <em>schema</em>
-describes a language‑agnostic data type with a specific byte representation:
-exactly 32 bytes for a [<code>Value</code>] and an arbitrary number of bytes for a
-[<code>Blob</code>].  These abstract types can be converted to the concrete types of your
-application but decouple stored data from any particular implementation.  This
-also means you can refactor to new libraries or frameworks without rewriting
-what's already stored. The crate ships with a collection of ready‑made schemas located in
-<a href="../src/value/schemas"><code>src/value/schemas</code></a> and
-<a href="../src/blob/schemas"><code>src/blob/schemas</code></a>.</p>
-<h2 id="builtin-value-schemas"><a class="header" href="#builtin-value-schemas">Built‑in value schemas</a></h2>
-<p>The crate provides the following value schemas out of the box:</p>
-<ul>
-<li><code>GenId</code> – an abstract 128 bit identifier.</li>
-<li><code>ShortString</code> – a UTF-8 string up to 32 bytes.</li>
-<li><code>U256BE</code> / <code>U256LE</code> – 256-bit unsigned integers.</li>
-<li><code>I256BE</code> / <code>I256LE</code> – 256-bit signed integers.</li>
-<li><code>R256BE</code> / <code>R256LE</code> – 256-bit rational numbers.</li>
-<li><code>F256BE</code> / <code>F256LE</code> – 256-bit floating point numbers.</li>
-<li><code>Hash</code> and <code>Handle</code> – cryptographic digests and blob handles (see <a href="../src/value/schemas/hash.rs"><code>hash.rs</code></a>).</li>
-<li><code>ED25519RComponent</code>, <code>ED25519SComponent</code> and <code>ED25519PublicKey</code> – signature fields and keys.</li>
-<li><code>NsTAIInterval</code> to encode time intervals.</li>
-<li><code>UnknownValue</code> as a fallback when no specific schema is known.</li>
-</ul>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use tribles::value::schemas::shortstring::ShortString;
-use tribles::value::{ToValue, ValueSchema};
-
-let v = "hi".to_value::&lt;ShortString&gt;();
-assert_eq!(v.schema_id(), ShortString::VALUE_SCHEMA_ID);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="builtin-blob-schemas"><a class="header" href="#builtin-blob-schemas">Built‑in blob schemas</a></h2>
-<p>The crate also ships with these blob schemas:</p>
-<ul>
-<li><code>LongString</code> for arbitrarily long UTF‑8 strings.</li>
-<li><code>SimpleArchive</code> which stores a raw sequence of tribles.</li>
-<li><code>SuccinctArchive</code> providing a compressed index for offline queries.</li>
-<li><code>UnknownBlob</code> for data of unknown type.</li>
-</ul>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use tribles::blob::schemas::longstring::LongString;
-use tribles::blob::{ToBlob, BlobSchema};
-
-let b = "example".to_blob::&lt;LongString&gt;();
-assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());
-<span class="boring">}</span></code></pre></pre>
-<h2 id="defining-new-schemas"><a class="header" href="#defining-new-schemas">Defining new schemas</a></h2>
-<p>Custom formats implement [<code>ValueSchema</code>] or [<code>BlobSchema</code>].  A unique identifier
-serves as the schema ID.  The example below defines a little-endian <code>u64</code> value
-schema and a simple blob schema for arbitrary bytes.</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>{{#include ../examples/custom_schema.rs:beginning:ending}}
-<span class="boring">}</span></code></pre></pre>
-<p>See <a href="../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
-source.</p>
 
                     </main>
 

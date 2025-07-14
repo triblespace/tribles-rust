@@ -209,6 +209,42 @@ additional modules and examples.</p>
 <p>To build and test Tribles yourself you need a recent Rust toolchain. Install it from <a href="https://rustup.rs/">rustup.rs</a>.</p>
 <p>Run <code>./scripts/preflight.sh</code> from the repository root to format the code and execute the full test suite. For quick iterations <code>./scripts/devtest.sh</code> runs only the tests.</p>
 <p>If you want to render this book locally first install <code>mdbook</code> with <code>cargo install mdbook</code> and then run <code>./scripts/build_book.sh</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h1>
+<p>Trible Space consists of two layers.  At the core is <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a>, an in‑memory data structure that behaves much like a hashmap.  It is cheap to create and merge and can be used on its own when durability is not required.  The optional repository layer stores those trible sets as blobs and links them through commits so that data can be exchanged and shared across machines.</p>
+<p>The sections below outline how <a href="https://docs.rs/tribles/latest/tribles/repo/index.html"><code>tribles::repo</code></a> combines blob and branch stores into repositories and workspaces.</p>
+<h2 id="trible-sets"><a class="header" href="#trible-sets">Trible Sets</a></h2>
+<p><a href="https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html"><code>Trible</code></a> values are stored in <code>TribleSet</code>s that function much like keyed hashmaps. They provide efficient querying and merging without any external storage. When you want to persist or exchange a set, it can be serialized into a blob and tracked by the repository layer.</p>
+<h2 id="blob-storage"><a class="header" href="#blob-storage">Blob Storage</a></h2>
+<p>Every byte of data is placed in a <a href="https://docs.rs/tribles/latest/tribles/blob/index.html"><code>BlobStore</code></a>.  The trait abstracts the backing implementation so the same code works with an in‑memory <a href="https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html"><code>MemoryBlobStore</code></a>, an on‑disk <a href="https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html"><code>Pile</code></a> or a remote object store.  Trible sets, commit records and arbitrary user blobs are all inserted via <code>put</code> and addressed by their hash.</p>
+<h2 id="branch-store"><a class="header" href="#branch-store">Branch Store</a></h2>
+<p>Repositories keep track of branch heads in a <a href="https://docs.rs/tribles/latest/tribles/repo/trait.BranchStore.html"><code>BranchStore</code></a>.  The store maps branch identifiers to the latest commit and uses a simple compare‑and‑set update to avoid conflicts.  Pile and the in‑memory repo both provide branch store implementations.</p>
+<h2 id="repository"><a class="header" href="#repository">Repository</a></h2>
+<p>The <a href="https://docs.rs/tribles/latest/tribles/repo/struct.Repository.html"><code>Repository</code></a> combines a blob store with a branch store and exposes higher level operations similar to a remote Git repository.  Commits reference blobs holding the changed <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a> and optionally point to a parent commit.</p>
+<h2 id="workspaces"><a class="header" href="#workspaces">Workspaces</a></h2>
+<p>A <a href="https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.html"><code>Workspace</code></a> represents mutable state during editing.  When you <code>branch</code> or <code>checkout</code> you receive a workspace with a fresh <a href="https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html"><code>MemoryBlobStore</code></a> for new blobs.  Commits created in the workspace are stored locally until <code>push</code> updates the repository's branch store.  Multiple workspaces can be merged before pushing to resolve conflicts.</p>
+<h2 id="commits-and-history"><a class="header" href="#commits-and-history">Commits and History</a></h2>
+<p><a href="https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html"><code>Trible</code></a> is the smallest unit of information. <code>TribleSet</code>s can be written to a blob and committed to create an immutable history.  Each commit links to the previous one and is signed by the author.  This chain forms the durable database layer that repositories expose.</p>
+<h3 id="putting-it-together"><a class="header" href="#putting-it-together">Putting It Together</a></h3>
+<pre><code class="language-text">+-----------------------------------------------------------+
+|                        Repository                          |
+|   +---------------------+   +----------------------------+ |
+|   |      BlobStore      |   |        BranchStore        | |
+|   +---------------------+   +----------------------------+ |
++-----------------------------------------------------------+
+           ^ checkout                            | push
+           |                                     v
++-----------------------------------------------------------+
+|                        Workspace                           |
+|   +---------------------+   +----------------------------+ |
+|   |   MemoryBlobStore   |   |          TribleSet        | |
+|   +---------------------+   +----------------------------+ |
++-----------------------------------------------------------+
+                      |
+                      | commit/add_blob
+                      v
+                 TribleSet blobs
+</code></pre>
+<p>Repositories persist blobs and branch metadata, while workspaces stage changes before pushing them.  Because everything is content addressed, different repositories can easily share blobs through a common object store.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="query-language"><a class="header" href="#query-language">Query Language</a></h1>
 <p>This chapter introduces the basic query facilities provided by <code>tribles</code>.</p>
 <p>The <a href="crate::prelude::find"><code>find!</code></a> macro builds a <a href="crate::query::Query"><code>Query</code></a>
@@ -268,42 +304,6 @@ filters.</p>
 <a href="crate::query::Constraint"><code>Constraint</code></a> trait.  You can implement this trait on
 your own types to integrate custom data sources or query operators with the
 solver.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h1>
-<p>Trible Space consists of two layers.  At the core is <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a>, an in‑memory data structure that behaves much like a hashmap.  It is cheap to create and merge and can be used on its own when durability is not required.  The optional repository layer stores those trible sets as blobs and links them through commits so that data can be exchanged and shared across machines.</p>
-<p>The sections below outline how <a href="https://docs.rs/tribles/latest/tribles/repo/index.html"><code>tribles::repo</code></a> combines blob and branch stores into repositories and workspaces.</p>
-<h2 id="trible-sets"><a class="header" href="#trible-sets">Trible Sets</a></h2>
-<p><a href="https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html"><code>Trible</code></a> values are stored in <code>TribleSet</code>s that function much like keyed hashmaps. They provide efficient querying and merging without any external storage. When you want to persist or exchange a set, it can be serialized into a blob and tracked by the repository layer.</p>
-<h2 id="blob-storage"><a class="header" href="#blob-storage">Blob Storage</a></h2>
-<p>Every byte of data is placed in a <a href="https://docs.rs/tribles/latest/tribles/blob/index.html"><code>BlobStore</code></a>.  The trait abstracts the backing implementation so the same code works with an in‑memory <a href="https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html"><code>MemoryBlobStore</code></a>, an on‑disk <a href="https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html"><code>Pile</code></a> or a remote object store.  Trible sets, commit records and arbitrary user blobs are all inserted via <code>put</code> and addressed by their hash.</p>
-<h2 id="branch-store"><a class="header" href="#branch-store">Branch Store</a></h2>
-<p>Repositories keep track of branch heads in a <a href="https://docs.rs/tribles/latest/tribles/repo/trait.BranchStore.html"><code>BranchStore</code></a>.  The store maps branch identifiers to the latest commit and uses a simple compare‑and‑set update to avoid conflicts.  Pile and the in‑memory repo both provide branch store implementations.</p>
-<h2 id="repository"><a class="header" href="#repository">Repository</a></h2>
-<p>The <a href="https://docs.rs/tribles/latest/tribles/repo/struct.Repository.html"><code>Repository</code></a> combines a blob store with a branch store and exposes higher level operations similar to a remote Git repository.  Commits reference blobs holding the changed <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a> and optionally point to a parent commit.</p>
-<h2 id="workspaces"><a class="header" href="#workspaces">Workspaces</a></h2>
-<p>A <a href="https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.html"><code>Workspace</code></a> represents mutable state during editing.  When you <code>branch</code> or <code>checkout</code> you receive a workspace with a fresh <a href="https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html"><code>MemoryBlobStore</code></a> for new blobs.  Commits created in the workspace are stored locally until <code>push</code> updates the repository's branch store.  Multiple workspaces can be merged before pushing to resolve conflicts.</p>
-<h2 id="commits-and-history"><a class="header" href="#commits-and-history">Commits and History</a></h2>
-<p><a href="https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html"><code>Trible</code></a> is the smallest unit of information. <code>TribleSet</code>s can be written to a blob and committed to create an immutable history.  Each commit links to the previous one and is signed by the author.  This chain forms the durable database layer that repositories expose.</p>
-<h3 id="putting-it-together"><a class="header" href="#putting-it-together">Putting It Together</a></h3>
-<pre><code class="language-text">+-----------------------------------------------------------+
-|                        Repository                          |
-|   +---------------------+   +----------------------------+ |
-|   |      BlobStore      |   |        BranchStore        | |
-|   +---------------------+   +----------------------------+ |
-+-----------------------------------------------------------+
-           ^ checkout                            | push
-           |                                     v
-+-----------------------------------------------------------+
-|                        Workspace                           |
-|   +---------------------+   +----------------------------+ |
-|   |   MemoryBlobStore   |   |          TribleSet        | |
-|   +---------------------+   +----------------------------+ |
-+-----------------------------------------------------------+
-                      |
-                      | commit/add_blob
-                      v
-                 TribleSet blobs
-</code></pre>
-<p>Repositories persist blobs and branch metadata, while workspaces stage changes before pushing them.  Because everything is content addressed, different repositories can easily share blobs through a common object store.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deep-dive"><a class="header" href="#deep-dive">Deep Dive</a></h1>
 <p>This section contains in-depth discussions about Trible Space internals.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="philosophy"><a class="header" href="#philosophy">Philosophy</a></h1>
@@ -505,6 +505,57 @@ to described entities, with circles constituting consensus between them.</p>
 the color to the entity that represents the color. This makes the direction
 of the edge a natural consequence of the semantics of the edge, and not
 an arbitrary choice.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="pile-format"><a class="header" href="#pile-format">Pile Format</a></h1>
+<p>The on-disk pile keeps every blob and branch in one append-only file. This layout provides a simple <strong>write-ahead log</strong> style database where new data is only appended. It allows both blob and branch storage in a single file while remaining resilient to crashes. The pile file can be memory mapped for fast reads and is safely shared between threads.</p>
+<p>While large databases often avoid <code>mmap</code> due to pitfalls with partial writes
+and page cache thrashing [<a href="https://db.cs.cmu.edu/mmap-cidr2022/">1</a>], this
+design works well for the pile's narrow usage pattern.</p>
+<h2 id="design-rationale"><a class="header" href="#design-rationale">Design Rationale</a></h2>
+<p>This format emphasizes <strong>simplicity</strong> over sophisticated on-disk structures.
+Appending new blobs rather than rewriting existing data keeps corruption
+windows small and avoids complicated page management. Storing everything in a
+single file makes a pile easy to back up or replicate over simple transports
+while still allowing it to be memory mapped for fast reads. The 64 byte
+alignment ensures each entry begins on a cache line boundary, which improves
+concurrent access patterns and allows safe typed views with the <code>zerocopy</code>
+crate.</p>
+<p>Hash verification only happens when blobs are read. Opening even a very large
+pile is therefore fast while still catching corruption before data is used.</p>
+<p>Every record begins with a 16 byte magic marker that identifies whether it
+stores a blob or a branch. The sections below illustrate the layout of each
+type.</p>
+<h2 id="blob-storage-1"><a class="header" href="#blob-storage-1">Blob Storage</a></h2>
+<pre><code>                             8 byte  8 byte
+            ┌────16 byte───┐┌──────┐┌──────┐┌────────────32 byte───────────┐
+          ┌ ┌──────────────┐┌──────┐┌──────┐┌──────────────────────────────┐
+ header   │ │magic number A││ time ││length││             hash             │
+          └ └──────────────┘└──────┘└──────┘└──────────────────────────────┘
+            ┌────────────────────────────64 byte───────────────────────────┐
+          ┌ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
+          │ │                                                              │
+ payload  │ │              bytes (64byte aligned and padded)               │
+          │ │                                                              │
+          └ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
+</code></pre>
+<p>Each blob entry records its creation timestamp, the length of the payload and
+its hash. The payload is padded so the next record begins on a
+64 byte boundary.</p>
+<h2 id="branch-storage"><a class="header" href="#branch-storage">Branch Storage</a></h2>
+<pre><code>            ┌────16 byte───┐┌────16 byte───┐┌────────────32 byte───────────┐
+          ┌ ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
+ header   │ │magic number B││  branch id   ││             hash             │
+          └ └──────────────┘└──────────────┘└──────────────────────────────┘
+</code></pre>
+<p>Branch entries map a branch identifier to the hash of a blob.</p>
+<h2 id="recovery"><a class="header" href="#recovery">Recovery</a></h2>
+<p>When [<code>Pile::try_open</code>] scans an existing file it checks that every header uses a known marker and that the whole record fits. It does not verify any hashes. If a truncated or unknown block is found the function reports the number of bytes that were valid so far using [<code>OpenError::CorruptPile</code>].</p>
+<p>The convenience wrapper [<code>Pile::open</code>] re-runs the same validation and truncates
+the file to the valid length if corruption is encountered. This recovers from
+interrupted writes by discarding incomplete data.
+Hash verification happens lazily only when individual blobs are loaded so that
+opening a large pile remains fast.</p>
+<p>For more details on interacting with a pile see the <a href="https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html"><code>Pile</code> struct
+documentation</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="schemas"><a class="header" href="#schemas">Schemas</a></h1>
 <p>Trible Space stores data in strongly typed values and blobs.  A <em>schema</em>
 describes a language‑agnostic data type with a specific byte representation:

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Schemas - Tribles Book</title>
+        <title>Pile Format - Tribles Book</title>
 
 
         <!-- Custom HTML head -->
@@ -166,73 +166,69 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="schemas"><a class="header" href="#schemas">Schemas</a></h1>
-<p>Trible Space stores data in strongly typed values and blobs.  A <em>schema</em>
-describes a language‑agnostic data type with a specific byte representation:
-exactly 32 bytes for a [<code>Value</code>] and an arbitrary number of bytes for a
-[<code>Blob</code>].  These abstract types can be converted to the concrete types of your
-application but decouple stored data from any particular implementation.  This
-also means you can refactor to new libraries or frameworks without rewriting
-what's already stored. The crate ships with a collection of ready‑made schemas located in
-<a href="../src/value/schemas"><code>src/value/schemas</code></a> and
-<a href="../src/blob/schemas"><code>src/blob/schemas</code></a>.</p>
-<h2 id="builtin-value-schemas"><a class="header" href="#builtin-value-schemas">Built‑in value schemas</a></h2>
-<p>The crate provides the following value schemas out of the box:</p>
-<ul>
-<li><code>GenId</code> – an abstract 128 bit identifier.</li>
-<li><code>ShortString</code> – a UTF-8 string up to 32 bytes.</li>
-<li><code>U256BE</code> / <code>U256LE</code> – 256-bit unsigned integers.</li>
-<li><code>I256BE</code> / <code>I256LE</code> – 256-bit signed integers.</li>
-<li><code>R256BE</code> / <code>R256LE</code> – 256-bit rational numbers.</li>
-<li><code>F256BE</code> / <code>F256LE</code> – 256-bit floating point numbers.</li>
-<li><code>Hash</code> and <code>Handle</code> – cryptographic digests and blob handles (see <a href="../src/value/schemas/hash.rs"><code>hash.rs</code></a>).</li>
-<li><code>ED25519RComponent</code>, <code>ED25519SComponent</code> and <code>ED25519PublicKey</code> – signature fields and keys.</li>
-<li><code>NsTAIInterval</code> to encode time intervals.</li>
-<li><code>UnknownValue</code> as a fallback when no specific schema is known.</li>
-</ul>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use tribles::value::schemas::shortstring::ShortString;
-use tribles::value::{ToValue, ValueSchema};
-
-let v = "hi".to_value::&lt;ShortString&gt;();
-assert_eq!(v.schema_id(), ShortString::VALUE_SCHEMA_ID);
-<span class="boring">}</span></code></pre></pre>
-<h2 id="builtin-blob-schemas"><a class="header" href="#builtin-blob-schemas">Built‑in blob schemas</a></h2>
-<p>The crate also ships with these blob schemas:</p>
-<ul>
-<li><code>LongString</code> for arbitrarily long UTF‑8 strings.</li>
-<li><code>SimpleArchive</code> which stores a raw sequence of tribles.</li>
-<li><code>SuccinctArchive</code> providing a compressed index for offline queries.</li>
-<li><code>UnknownBlob</code> for data of unknown type.</li>
-</ul>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use tribles::blob::schemas::longstring::LongString;
-use tribles::blob::{ToBlob, BlobSchema};
-
-let b = "example".to_blob::&lt;LongString&gt;();
-assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());
-<span class="boring">}</span></code></pre></pre>
-<h2 id="defining-new-schemas"><a class="header" href="#defining-new-schemas">Defining new schemas</a></h2>
-<p>Custom formats implement [<code>ValueSchema</code>] or [<code>BlobSchema</code>].  A unique identifier
-serves as the schema ID.  The example below defines a little-endian <code>u64</code> value
-schema and a simple blob schema for arbitrary bytes.</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>{{#include ../examples/custom_schema.rs:beginning:ending}}
-<span class="boring">}</span></code></pre></pre>
-<p>See <a href="../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
-source.</p>
+                        <h1 id="pile-format"><a class="header" href="#pile-format">Pile Format</a></h1>
+<p>The on-disk pile keeps every blob and branch in one append-only file. This layout provides a simple <strong>write-ahead log</strong> style database where new data is only appended. It allows both blob and branch storage in a single file while remaining resilient to crashes. The pile file can be memory mapped for fast reads and is safely shared between threads.</p>
+<p>While large databases often avoid <code>mmap</code> due to pitfalls with partial writes
+and page cache thrashing [<a href="https://db.cs.cmu.edu/mmap-cidr2022/">1</a>], this
+design works well for the pile's narrow usage pattern.</p>
+<h2 id="design-rationale"><a class="header" href="#design-rationale">Design Rationale</a></h2>
+<p>This format emphasizes <strong>simplicity</strong> over sophisticated on-disk structures.
+Appending new blobs rather than rewriting existing data keeps corruption
+windows small and avoids complicated page management. Storing everything in a
+single file makes a pile easy to back up or replicate over simple transports
+while still allowing it to be memory mapped for fast reads. The 64 byte
+alignment ensures each entry begins on a cache line boundary, which improves
+concurrent access patterns and allows safe typed views with the <code>zerocopy</code>
+crate.</p>
+<p>Hash verification only happens when blobs are read. Opening even a very large
+pile is therefore fast while still catching corruption before data is used.</p>
+<p>Every record begins with a 16 byte magic marker that identifies whether it
+stores a blob or a branch. The sections below illustrate the layout of each
+type.</p>
+<h2 id="blob-storage"><a class="header" href="#blob-storage">Blob Storage</a></h2>
+<pre><code>                             8 byte  8 byte
+            ┌────16 byte───┐┌──────┐┌──────┐┌────────────32 byte───────────┐
+          ┌ ┌──────────────┐┌──────┐┌──────┐┌──────────────────────────────┐
+ header   │ │magic number A││ time ││length││             hash             │
+          └ └──────────────┘└──────┘└──────┘└──────────────────────────────┘
+            ┌────────────────────────────64 byte───────────────────────────┐
+          ┌ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
+          │ │                                                              │
+ payload  │ │              bytes (64byte aligned and padded)               │
+          │ │                                                              │
+          └ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
+</code></pre>
+<p>Each blob entry records its creation timestamp, the length of the payload and
+its hash. The payload is padded so the next record begins on a
+64 byte boundary.</p>
+<h2 id="branch-storage"><a class="header" href="#branch-storage">Branch Storage</a></h2>
+<pre><code>            ┌────16 byte───┐┌────16 byte───┐┌────────────32 byte───────────┐
+          ┌ ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
+ header   │ │magic number B││  branch id   ││             hash             │
+          └ └──────────────┘└──────────────┘└──────────────────────────────┘
+</code></pre>
+<p>Branch entries map a branch identifier to the hash of a blob.</p>
+<h2 id="recovery"><a class="header" href="#recovery">Recovery</a></h2>
+<p>When [<code>Pile::try_open</code>] scans an existing file it checks that every header uses a known marker and that the whole record fits. It does not verify any hashes. If a truncated or unknown block is found the function reports the number of bytes that were valid so far using [<code>OpenError::CorruptPile</code>].</p>
+<p>The convenience wrapper [<code>Pile::open</code>] re-runs the same validation and truncates
+the file to the valid length if corruption is encountered. This recovers from
+interrupted writes by discarding incomplete data.
+Hash verification happens lazily only when individual blobs are loaded so that
+opening a large pile remains fast.</p>
+<p>For more details on interacting with a pile see the <a href="https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html"><code>Pile</code> struct
+documentation</a>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="pile-format.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="deep-dive/trible-structure.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
+                            <a rel="next prefetch" href="schemas.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -240,10 +236,13 @@ source.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="pile-format.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="deep-dive/trible-structure.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
+                    <a rel="next prefetch" href="schemas.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
             </nav>
 
         </div>

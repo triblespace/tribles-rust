@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Deep Dive - Tribles Book</title>
+        <title>Architecture - Tribles Book</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc.js"></script>
+        <script src="toc.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -102,7 +102,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
             </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -137,7 +137,7 @@
                     <h1 class="menu-title">Tribles Book</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
 
@@ -166,18 +166,52 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="deep-dive"><a class="header" href="#deep-dive">Deep Dive</a></h1>
-<p>This section contains in-depth discussions about Trible Space internals.</p>
+                        <h1 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h1>
+<p>Trible Space consists of two layers.  At the core is <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a>, an in‑memory data structure that behaves much like a hashmap.  It is cheap to create and merge and can be used on its own when durability is not required.  The optional repository layer stores those trible sets as blobs and links them through commits so that data can be exchanged and shared across machines.</p>
+<p>The sections below outline how <a href="https://docs.rs/tribles/latest/tribles/repo/index.html"><code>tribles::repo</code></a> combines blob and branch stores into repositories and workspaces.</p>
+<h2 id="trible-sets"><a class="header" href="#trible-sets">Trible Sets</a></h2>
+<p><a href="https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html"><code>Trible</code></a> values are stored in <code>TribleSet</code>s that function much like keyed hashmaps. They provide efficient querying and merging without any external storage. When you want to persist or exchange a set, it can be serialized into a blob and tracked by the repository layer.</p>
+<h2 id="blob-storage"><a class="header" href="#blob-storage">Blob Storage</a></h2>
+<p>Every byte of data is placed in a <a href="https://docs.rs/tribles/latest/tribles/blob/index.html"><code>BlobStore</code></a>.  The trait abstracts the backing implementation so the same code works with an in‑memory <a href="https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html"><code>MemoryBlobStore</code></a>, an on‑disk <a href="https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html"><code>Pile</code></a> or a remote object store.  Trible sets, commit records and arbitrary user blobs are all inserted via <code>put</code> and addressed by their hash.</p>
+<h2 id="branch-store"><a class="header" href="#branch-store">Branch Store</a></h2>
+<p>Repositories keep track of branch heads in a <a href="https://docs.rs/tribles/latest/tribles/repo/trait.BranchStore.html"><code>BranchStore</code></a>.  The store maps branch identifiers to the latest commit and uses a simple compare‑and‑set update to avoid conflicts.  Pile and the in‑memory repo both provide branch store implementations.</p>
+<h2 id="repository"><a class="header" href="#repository">Repository</a></h2>
+<p>The <a href="https://docs.rs/tribles/latest/tribles/repo/struct.Repository.html"><code>Repository</code></a> combines a blob store with a branch store and exposes higher level operations similar to a remote Git repository.  Commits reference blobs holding the changed <a href="https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html"><code>TribleSet</code></a> and optionally point to a parent commit.</p>
+<h2 id="workspaces"><a class="header" href="#workspaces">Workspaces</a></h2>
+<p>A <a href="https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.html"><code>Workspace</code></a> represents mutable state during editing.  When you <code>branch</code> or <code>checkout</code> you receive a workspace with a fresh <a href="https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html"><code>MemoryBlobStore</code></a> for new blobs.  Commits created in the workspace are stored locally until <code>push</code> updates the repository's branch store.  Multiple workspaces can be merged before pushing to resolve conflicts.</p>
+<h2 id="commits-and-history"><a class="header" href="#commits-and-history">Commits and History</a></h2>
+<p><a href="https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html"><code>Trible</code></a> is the smallest unit of information. <code>TribleSet</code>s can be written to a blob and committed to create an immutable history.  Each commit links to the previous one and is signed by the author.  This chain forms the durable database layer that repositories expose.</p>
+<h3 id="putting-it-together"><a class="header" href="#putting-it-together">Putting It Together</a></h3>
+<pre><code class="language-text">+-----------------------------------------------------------+
+|                        Repository                          |
+|   +---------------------+   +----------------------------+ |
+|   |      BlobStore      |   |        BranchStore        | |
+|   +---------------------+   +----------------------------+ |
++-----------------------------------------------------------+
+           ^ checkout                            | push
+           |                                     v
++-----------------------------------------------------------+
+|                        Workspace                           |
+|   +---------------------+   +----------------------------+ |
+|   |   MemoryBlobStore   |   |          TribleSet        | |
+|   +---------------------+   +----------------------------+ |
++-----------------------------------------------------------+
+                      |
+                      | commit/add_blob
+                      v
+                 TribleSet blobs
+</code></pre>
+<p>Repositories persist blobs and branch metadata, while workspaces stage changes before pushing them.  Because everything is content addressed, different repositories can easily share blobs through a common object store.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="contributing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../deep-dive/philosophy.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="deep-dive/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -187,11 +221,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="contributing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../deep-dive/philosophy.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="deep-dive/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -206,13 +240,13 @@
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
 

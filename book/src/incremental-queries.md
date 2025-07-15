@@ -12,10 +12,11 @@ case yields the new solutions introduced by those additions and we then
 union all of the per‑constraint results.
 
 To help express these delta queries at the macro level, namespaces will
-offer a `delta!` operator. It behaves like `pattern!` but takes two
-`TribleSet`s—the previous and current state—and yields a constraint
-matching only the newly inserted tribles. Combined with the union
-constraint, this lets us run incremental updates using the familiar
+offer a `delta!` operator. It behaves like `pattern!` but takes the
+previous and current `TribleSet`. The macro computes their difference
+and then calls `union!` internally to apply the resulting delta
+constraint, matching only the newly inserted tribles. Combined with the
+union constraint, this lets us run incremental updates using the familiar
 `find!` interface.
 
 We can reuse the existing `find!` interface to run these partial queries

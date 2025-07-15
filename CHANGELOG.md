@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced branch allocation code with `Layout::from_size_align_unchecked`.
 - Removed unused `FromBlob` and `TryToBlob` traits and updated documentation.
 - Simplified constant comparison in query tests.
+- Clarified that the project's developer experience goal also includes
+  providing an intuitive API for library users.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`

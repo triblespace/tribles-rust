@@ -28,6 +28,7 @@ where
     I: IntoIterator<Item = (usize, usize)>,
 {
     let mut bits = BitVector::from_bit(false, triple_count + domain_len + 1);
+
     let mut seen = 0usize;
     let mut last = 0usize;
     for (val, count) in iter {

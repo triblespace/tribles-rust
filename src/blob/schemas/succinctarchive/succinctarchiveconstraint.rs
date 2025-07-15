@@ -36,35 +36,37 @@ where
     }
 }
 
-fn base_range<U>(universe: &U, a: &EliasFano, value: &RawValue) -> Range<usize>
+fn base_range<U, B>(universe: &U, a: &B, value: &RawValue) -> Range<usize>
 where
     U: Universe,
+    B: Build + Access + Rank + Select + NumBits,
 {
     if let Some(d) = universe.search(value) {
-        let s = a.select(d).unwrap();
-        let e = a.select(d + 1).unwrap();
+        let s = a.select1(d).unwrap() - d;
+        let e = a.select1(d + 1).unwrap() - (d + 1);
         s..e
     } else {
         0..0
     }
 }
 
-fn restrict_range<U, B>(
+fn restrict_range<U, Bv>(
     universe: &U,
-    a: &EliasFano,
-    c: &WaveletMatrix<B>,
+    a: &Bv,
+    c: &WaveletMatrix<Bv>,
     value: &RawValue,
     r: &Range<usize>,
 ) -> Range<usize>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
+    Bv: Build + Access + Rank + Select + NumBits,
 {
     let s = r.start;
     let e = r.end;
     if let Some(d) = universe.search(value) {
-        let s_ = a.select(d).unwrap() + c.rank(s, d).unwrap();
-        let e_ = a.select(d).unwrap() + c.rank(e, d).unwrap();
+        let base = a.select1(d).unwrap() - d;
+        let s_ = base + c.rank(s, d).unwrap();
+        let e_ = base + c.rank(e, d).unwrap();
         s_..e_
     } else {
         0..0

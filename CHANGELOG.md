@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    documentation examples.
 - Added an architecture chapter that explains how `TribleSet` differs from the repository layer and details branch stores and commit flow. The diagram now better illustrates the commit flow.
 - Added a "Developing Locally" chapter and linked it from the README and book introduction.
+- Expanded the architecture chapter with design goals, semantic background and
+  cross-references to other chapters.
+- Clarified that the branch store's compare-and-set operation is the only
+  place-oriented update, leaving the rest of the system value oriented and
+  immutable.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

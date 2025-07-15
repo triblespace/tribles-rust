@@ -1,34 +1,48 @@
 # Architecture Overview
 
-Trible Space consists of two layers.  At the core is [`TribleSet`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html), an in‑memory data structure that behaves much like a hashmap.  It is cheap to create and merge and can be used on its own when durability is not required.  The optional repository layer stores those trible sets as blobs and links them through commits so that data can be exchanged and shared across machines.
+Trible Space is designed to keep data management simple, safe and fast.  The [README](../README.md) introduces these goals in more detail, emphasizing a lean design with predictable performance and straightforward developer experience.  This chapter explains how the pieces fit together and why they are organised this way.
 
-The sections below outline how [`tribles::repo`](https://docs.rs/tribles/latest/tribles/repo/index.html) combines blob and branch stores into repositories and workspaces.
+## Design Goals
+
+A full discussion of the motivation behind Trible Space can be found in the [Philosophy](deep-dive/philosophy.md) section.  At a high level we want a self‑contained data store that offers:
+
+- **Simplicity** – minimal moving parts and predictable behaviour.
+- **Developer Experience** – a clear API that avoids complex servers or background processes.
+- **Safety and Performance** – sound data structures backed by efficient content addressed blobs.
+
+These goals grew out of earlier "semantic" technologies that attempted to model knowledge as graphs.  While systems like RDF promised great flexibility, in practice they often became difficult to host, query and synchronise.  Trible Space keeps the idea of describing the world with simple statements but stores them in a form that is easy to exchange and reason about.
+
+## Data Model
+
+The fundamental unit of information is a [`Trible`](https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html).  Its 64 byte layout is described in [Trible Structure](deep-dive/trible-structure.md).  A `Trible` links a subject entity to an attribute and value.  Multiple tribles are stored in a [`TribleSet`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html), which behaves like a hashmap with three columns — subject, attribute and value.
 
 ## Trible Sets
 
-[`Trible`](https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html) values are stored in `TribleSet`s that function much like keyed hashmaps. They provide efficient querying and merging without any external storage. When you want to persist or exchange a set, it can be serialized into a blob and tracked by the repository layer.
+`TribleSet`s provide fast querying and cheap copy‑on‑write semantics.  They can be merged, diffed and searched entirely in memory.  When durability is needed the set is serialised into a blob and tracked by the repository layer.
 
 ## Blob Storage
 
-Every byte of data is placed in a [`BlobStore`](https://docs.rs/tribles/latest/tribles/blob/index.html).  The trait abstracts the backing implementation so the same code works with an in‑memory [`MemoryBlobStore`](https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html), an on‑disk [`Pile`](https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html) or a remote object store.  Trible sets, commit records and arbitrary user blobs are all inserted via `put` and addressed by their hash.
+All persistent data lives in a [`BlobStore`](https://docs.rs/tribles/latest/tribles/blob/index.html).  Every blob is addressed by the hash of its contents.  This content addressing means the same data is never stored twice and its integrity can be verified on read.  Different implementations handle where bytes actually reside: an in‑memory [`MemoryBlobStore`](https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html), an on‑disk [`Pile`](https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html) described in [Pile Format](pile-format.md) or a remote object store.  Trible sets, user blobs and commit records all share this mechanism.
 
 ## Branch Store
 
-Repositories keep track of branch heads in a [`BranchStore`](https://docs.rs/tribles/latest/tribles/repo/trait.BranchStore.html).  The store maps branch identifiers to the latest commit and uses a simple compare‑and‑set update to avoid conflicts.  Pile and the in‑memory repo both provide branch store implementations.
+A [`BranchStore`](https://docs.rs/tribles/latest/tribles/repo/trait.BranchStore.html) keeps track of the tips of each branch.  Updates use a simple compare‑and‑set operation so concurrent writers detect conflicts.  Both the in‑memory and pile repositories implement this trait.
+
+Because only this single operation mutates repository state, nearly all other logic is value oriented and immutable.  Conflicts surface only at the branch store update step, which simplifies concurrent use and reasoning about changes.
 
 ## Repository
 
-The [`Repository`](https://docs.rs/tribles/latest/tribles/repo/struct.Repository.html) combines a blob store with a branch store and exposes higher level operations similar to a remote Git repository.  Commits reference blobs holding the changed [`TribleSet`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html) and optionally point to a parent commit.
+The [`Repository`](https://docs.rs/tribles/latest/tribles/repo/struct.Repository.html) combines a blob store with a branch store.  Commits store a trible set blob along with a parent link and signature.  Because everything is content addressed, multiple repositories can share blobs or synchronize through a basic file copy.
 
 ## Workspaces
 
-A [`Workspace`](https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.html) represents mutable state during editing.  When you `branch` or `checkout` you receive a workspace with a fresh [`MemoryBlobStore`](https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html) for new blobs.  Commits created in the workspace are stored locally until `push` updates the repository's branch store.  Multiple workspaces can be merged before pushing to resolve conflicts.
+A [`Workspace`](https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.html) represents mutable state during editing.  Checking out or branching yields a workspace backed by a fresh `MemoryBlobStore`.  Commits are created locally and only become visible to others when pushed, as described in [Repository Workflows](repository-workflows.md).
 
 ## Commits and History
 
-[`Trible`](https://docs.rs/tribles/latest/tribles/trible/struct.Trible.html) is the smallest unit of information. `TribleSet`s can be written to a blob and committed to create an immutable history.  Each commit links to the previous one and is signed by the author.  This chain forms the durable database layer that repositories expose.
+`TribleSet`s written to blobs form immutable commits.  Each commit references its parent, creating an append‑only chain signed by the author.  This is the durable history shared between repositories.
 
-### Putting It Together
+## Putting It Together
 
 ```text
 +-----------------------------------------------------------+
@@ -51,4 +65,4 @@ A [`Workspace`](https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.htm
                  TribleSet blobs
 ```
 
-Repositories persist blobs and branch metadata, while workspaces stage changes before pushing them.  Because everything is content addressed, different repositories can easily share blobs through a common object store.
+Repositories persist blobs and branch metadata while workspaces stage changes before pushing them.  Because every blob is addressed by its hash, repositories can safely share data through any common storage without coordination.

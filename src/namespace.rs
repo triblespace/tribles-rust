@@ -165,18 +165,6 @@ macro_rules! NS {
                 };
             }
 
-            #[macro_pub::macro_pub]
-            macro_rules! delta {
-                ($prev:expr, $curr:expr, $pattern:tt) => {
-                    {
-                        use $crate::namespace::pattern_inner;
-                        use $crate::prelude::or;
-                        let ctx = __local_find_context!();
-                        let delta = $curr.difference($prev);
-                        or!(pattern_inner!($mod_name, ctx, &delta, $pattern))
-                    }
-                };
-            }
         }
     };
 }

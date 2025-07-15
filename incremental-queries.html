@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Query Language - Tribles Book</title>
+        <title>Incremental Queries - Tribles Book</title>
 
 
         <!-- Custom HTML head -->
@@ -175,75 +175,44 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="query-language"><a class="header" href="#query-language">Query Language</a></h1>
-<p>This chapter introduces the basic query facilities provided by <code>tribles</code>.</p>
-<p>The <a href="crate::prelude::find"><code>find!</code></a> macro builds a <a href="crate::query::Query"><code>Query</code></a>
-by declaring variables and a constraint expression.  A minimal invocation looks
-like:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let results = find!((a), a.is(1.into())).collect::&lt;Vec&lt;_&gt;&gt;();
-<span class="boring">}</span></code></pre></pre>
-<p>Variables can optionally specify a concrete type to convert the underlying
-value:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>find!((x: i32, y: Value&lt;ShortString&gt;),
-      and!(x.is(1.into()), y.is("foo".to_value())))
-<span class="boring">}</span></code></pre></pre>
-<p>The first variable is read as an <code>i32</code> and the second as a short string if the
-conversion succeeds. The query engine walks all possible assignments that
-satisfy the constraint and yields tuples of the declared variables.</p>
-<h2 id="built-in-constraints"><a class="header" href="#built-in-constraints">Built-in constraints</a></h2>
-<p><code>find!</code> queries combine a small set of constraint operators to form a declarative
-language for matching tribles:</p>
-<ul>
-<li><a href="crate::prelude::and"><code>and!</code></a> builds an
-<a href="crate::query::intersectionconstraint::IntersectionConstraint"><code>IntersectionConstraint</code></a>
-requiring all sub-constraints to hold.</li>
-<li><a href="crate::prelude::or"><code>or!</code></a> constructs a
-<a href="crate::query::unionconstraint::UnionConstraint"><code>UnionConstraint</code></a>
-accepting any satisfied alternative.</li>
-<li><a href="crate::prelude::mask"><code>mask!</code></a> hides variables from a sub-query.</li>
-<li>Collection types such as <a href="crate::tribleset::TribleSet"><code>TribleSet</code></a> provide a
-<code>has</code> method yielding a
-<a href="crate::query::hashsetconstraint::ContainsConstraint"><code>ContainsConstraint</code></a> for
-membership tests.</li>
-</ul>
-<p>Any data structure that can iterate its contents, test membership and report its
-size can implement <code>ContainsConstraint</code>, so queries have no inherent ordering
-requirements.</p>
-<h2 id="example"><a class="header" href="#example">Example</a></h2>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use tribles::prelude::*;
-use tribles::examples::{self, literature};
-
-let dataset = examples::dataset();
-
-for (title,) in find!((title: Value&lt;_&gt;),
-                     and!(dataset.has(title), title.is("Dune".to_value()))) {
-    println!("Found {}", title.from_value::&lt;&amp;str&gt;());
-}
-<span class="boring">}</span></code></pre></pre>
-<p>This query searches the example dataset for the book titled "Dune".  The
-variables and constraint can be adapted to express more complex joins and
-filters.</p>
-<h2 id="custom-constraints"><a class="header" href="#custom-constraints">Custom constraints</a></h2>
-<p>Every building block implements the
-<a href="crate::query::Constraint"><code>Constraint</code></a> trait.  You can implement this trait on
-your own types to integrate custom data sources or query operators with the
-solver.</p>
+                        <h1 id="incremental-queries"><a class="header" href="#incremental-queries">Incremental Queries</a></h1>
+<p>The query engine today evaluates against a static <code>TribleSet</code>. Many
+applications would rather compute just the new results when additional
+data arrives. We plan to support this using <em>semi‑naive evaluation</em>.</p>
+<p>When a dataset grows, we compute a delta set of the newly inserted
+tribles. For each triple constraint in the original query we evaluate a
+variant of the query where that single constraint is restricted to the
+delta while the remaining constraints see the full updated dataset. Each
+case yields the new solutions introduced by those additions and we then
+union all of the per‑constraint results.</p>
+<p>To help express these delta queries at the macro level, namespaces will
+offer a <code>delta!</code> operator. It behaves like <code>pattern!</code> but takes the
+previous and current <code>TribleSet</code>. The macro computes their difference
+and then calls <code>union!</code> internally to apply the resulting delta
+constraint, matching only the newly inserted tribles. Combined with the
+union constraint, this lets us run incremental updates using the familiar
+<code>find!</code> interface.</p>
+<p>We can reuse the existing <code>find!</code> interface to run these partial queries
+and poll for updates whenever an application receives a new <code>TribleSet</code>.
+This mechanism also lets us compute the difference between two arbitrary
+datasets by treating the change set as the delta.</p>
+<p>Removed results are not tracked. Tribles are designed to be monotonic
+(CALM); new facts never invalidate previous conclusions. Applications can
+represent contradictions explicitly and continue operating by appending
+new tribles that reference the view they choose to follow.</p>
+<p>Semantically this means tribles are never deleted, though individual
+stores may forget them. Old data remains valid even if it becomes
+inaccessible.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="query-language.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="incremental-queries.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="schemas.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,11 +222,11 @@ solver.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="query-language.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="incremental-queries.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="schemas.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

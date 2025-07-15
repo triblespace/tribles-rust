@@ -5,6 +5,7 @@
 - [Developing Locally](contributing.md)
 - [Architecture](architecture.md)
 - [Query Language](query-language.md)
+- [Incremental Queries](incremental-queries.md)
 - [Schemas](schemas.md)
 - [Repository Workflows](repository-workflows.md)
 - [Deep Dive](deep-dive/README.md)

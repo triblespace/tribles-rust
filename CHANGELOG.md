@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `INVENTORY.md` file and instructions for recording future work.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `checkout_with_key`.
 - Git-based terminology notes in the repository guide and a clearer workspace example.
@@ -42,16 +43,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified that the branch store's compare-and-set operation is the only
   place-oriented update, leaving the rest of the system value oriented and
   immutable.
+- Documented the incremental query plan in `INVENTORY.md` and linked it
+  to a new "Incremental Queries" book chapter detailing the approach.
+- Noted that namespaces will expose a `delta!` operator, similar to
+  `pattern!`, for expressing changes between `TribleSet`s. The macro
+  computes the difference and uses `union!` internally to apply the
+  delta constraint.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
 - Clarified need for duplicate `bucket_get_slot` check in `table_get_slot`.
+- Replaced Elias--Fano arrays in `SuccinctArchive` with bit vectors for
+  simpler builds and equivalent query performance.
 - `SuccinctArchive` now counts distinct component pairs using bitsets,
   improving query estimation accuracy.
+- Domain enumeration skips empty identifiers via `select0` and prefix bit
+  vectors are constructed with `BitVector` for lower memory overhead.
 - Improved `Debug` output for `Query` to show search state and bindings.
 - Replaced branch allocation code with `Layout::from_size_align_unchecked`.
 - Removed unused `FromBlob` and `TryToBlob` traits and updated documentation.
 - Simplified constant comparison in query tests.
+- Clarified that the project's developer experience goal also includes
+  providing an intuitive API for library users.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`
@@ -89,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Workspace` now exposes a `put` method for adding blobs, replacing the old
   `add_blob` helper. The method returns the stored blob's handle directly since
   the underlying store cannot fail.
+- `OpenError` now implements `std::error::Error` and provides clearer messages when opening piles.
 
 ## [0.5.2] - 2025-06-30
 ### Added

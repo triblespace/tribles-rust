@@ -18,9 +18,29 @@ use itertools::Itertools;
 
 use sucds::bit_vectors::{Access, Build, NumBits, Rank, Select};
 use sucds::char_sequences::WaveletMatrix;
-use sucds::mii_sequences::{EliasFano, EliasFanoBuilder};
 
 use sucds::int_vectors::CompactVector;
+
+fn build_prefix_bv<B, I>(domain_len: usize, triple_count: usize, iter: I) -> B
+where
+    B: Build + Access + Rank + Select + NumBits,
+    I: IntoIterator<Item = (usize, usize)>,
+{
+    let mut bits = vec![false; triple_count + domain_len + 1];
+    let mut seen = 0usize;
+    let mut last = 0usize;
+    for (val, count) in iter {
+        for c in last..=val {
+            bits[seen + c] = true;
+        }
+        seen += count;
+        last = val + 1;
+    }
+    for c in last..=domain_len {
+        bits[seen + c] = true;
+    }
+    B::build_from_bits(bits.into_iter(), true, true, true).unwrap()
+}
 
 #[derive(Debug, Clone)]
 pub struct SuccinctArchive<U, B> {
@@ -30,9 +50,9 @@ pub struct SuccinctArchive<U, B> {
     pub attribute_count: usize,
     pub value_count: usize,
 
-    pub e_a: EliasFano,
-    pub a_a: EliasFano,
-    pub v_a: EliasFano,
+    pub e_a: B,
+    pub a_a: B,
+    pub v_a: B,
 
     /// Bit vector marking the first occurrence of each `(entity, attribute)` pair
     /// in `eav_c`.
@@ -69,9 +89,9 @@ where
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = Trible> + 'a {
         (0..self.eav_c.len()).map(move |v_i| {
             let v = self.eav_c.access(v_i).unwrap();
-            let a_i = self.v_a.select(v).unwrap() + self.eav_c.rank(v_i, v).unwrap();
+            let a_i = self.v_a.select1(v).unwrap() - v + self.eav_c.rank(v_i, v).unwrap();
             let a = self.vea_c.access(a_i).unwrap();
-            let e_i = self.a_a.select(a).unwrap() + self.vea_c.rank(a_i, a).unwrap();
+            let e_i = self.a_a.select1(a).unwrap() - a + self.vea_c.rank(a_i, a).unwrap();
             let e = self.ave_c.access(e_i).unwrap();
 
             let e = self.domain.access(e);
@@ -108,41 +128,30 @@ where
         bv: &'a B,
         range: &std::ops::Range<usize>,
         col: &'a WaveletMatrix<B>,
-        prefix: &'a EliasFano,
+        prefix: &'a B,
     ) -> impl Iterator<Item = usize> + 'a {
         let start = bv.rank1(range.start).unwrap();
         let end = bv.rank1(range.end).unwrap();
         (start..end).map(move |r| {
             let idx = bv.select1(r).unwrap();
             let val = col.access(idx).unwrap();
-            prefix.select(val).unwrap() + col.rank(idx, val).unwrap()
+            prefix.select1(val).unwrap() - val + col.rank(idx, val).unwrap()
         })
     }
 
     /// Enumerate the identifiers present in `prefix` using `rank`/`select` to
     /// jump directly to the next distinct prefix sum.
-    pub fn enumerate_domain<'a>(
-        &'a self,
-        prefix: &'a EliasFano,
-    ) -> impl Iterator<Item = RawValue> + 'a {
-        let mut i = 0usize;
+    pub fn enumerate_domain<'a>(&'a self, prefix: &'a B) -> impl Iterator<Item = RawValue> + 'a {
+        let zero_count = prefix.num_bits() - (self.domain.len() + 1);
+        let mut z = 0usize;
         std::iter::from_fn(move || {
-            while i < self.domain.len() {
-                let start = prefix.select(i).unwrap();
-                let next = prefix.rank(start + 1).unwrap();
-                let end = prefix.select(i + 1).unwrap();
-                let has_entry = start != end;
-                let result = if has_entry {
-                    Some(self.domain.access(i))
-                } else {
-                    None
-                };
-                i = next;
-                if result.is_some() {
-                    return result;
-                }
+            if z >= zero_count {
+                return None;
             }
-            None
+            let pos = prefix.select0(z).unwrap();
+            let id = prefix.rank1(pos).unwrap() - 1;
+            z = prefix.rank0(prefix.select1(id + 1).unwrap()).unwrap();
+            Some(self.domain.access(id))
         })
     }
 }
@@ -173,56 +182,35 @@ where
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
         let alph_width = sucds::utils::needed_bits(domain.len() - 1);
 
-        let mut e_a = EliasFanoBuilder::new(triple_count + 1, domain.len() + 1).expect("|D| > 0");
-        let mut sum = 0;
-        let mut last = 0;
-        for (e, count) in set
-            .eav
-            .iter_prefix_count::<16>()
-            .map(|(e, count)| (id_into_value(&e), count as usize))
-            .map(|(e, count)| (domain.search(&e).expect("e in domain"), count))
-        {
-            e_a.extend(iter::repeat(sum).take((e + 1) - last)).unwrap();
-            sum = sum + count;
-            last = e + 1;
-        }
-        e_a.extend(iter::repeat(sum).take(domain.len() + 1 - last))
-            .unwrap();
-        let e_a = e_a.build();
+        let e_a = build_prefix_bv(
+            domain.len(),
+            triple_count,
+            set.eav.iter_prefix_count::<16>().map(|(e, c)| {
+                (
+                    domain.search(&id_into_value(&e)).expect("e in domain"),
+                    c as usize,
+                )
+            }),
+        );
 
-        let mut a_a = EliasFanoBuilder::new(triple_count + 1, domain.len() + 1).expect("|D| > 0");
-        let mut sum = 0;
-        let mut last = 0;
-        for (a, count) in set
-            .ave
-            .iter_prefix_count::<16>()
-            .map(|(a, count)| (id_into_value(&a), count as usize))
-            .map(|(a, count)| (domain.search(&a).expect("a in domain"), count))
-        {
-            a_a.extend(iter::repeat(sum).take((a + 1) - last)).unwrap();
-            sum = sum + count;
-            last = a + 1;
-        }
-        a_a.extend(iter::repeat(sum).take(domain.len() + 1 - last))
-            .unwrap();
-        let a_a = a_a.build();
+        let a_a = build_prefix_bv(
+            domain.len(),
+            triple_count,
+            set.ave.iter_prefix_count::<16>().map(|(a, c)| {
+                (
+                    domain.search(&id_into_value(&a)).expect("a in domain"),
+                    c as usize,
+                )
+            }),
+        );
 
-        let mut v_a = EliasFanoBuilder::new(triple_count + 1, domain.len() + 1).expect("|D| > 0");
-        let mut sum = 0;
-        let mut last = 0;
-        for (v, count) in set
-            .vea
-            .iter_prefix_count::<32>()
-            .map(|(v, count)| (v, count as usize))
-            .map(|(v, count)| (domain.search(&v).expect("v in domain"), count))
-        {
-            v_a.extend(iter::repeat(sum).take((v + 1) - last)).unwrap();
-            sum = sum + count;
-            last = v + 1;
-        }
-        v_a.extend(iter::repeat(sum).take(domain.len() + 1 - last))
-            .unwrap();
-        let v_a = v_a.build();
+        let v_a = build_prefix_bv(
+            domain.len(),
+            triple_count,
+            set.vea
+                .iter_prefix_count::<32>()
+                .map(|(v, c)| (domain.search(&v).expect("v in domain"), c as usize)),
+        );
 
         //eav
         let mut eav_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");

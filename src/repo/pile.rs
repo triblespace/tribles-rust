@@ -368,6 +368,19 @@ pub enum OpenError {
     CorruptPile { valid_length: usize },
 }
 
+impl std::fmt::Display for OpenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OpenError::IoError(err) => write!(f, "IO error: {}", err),
+            OpenError::PileTooLarge => write!(f, "Pile too large"),
+            OpenError::CorruptPile { valid_length } => {
+                write!(f, "Corrupt pile at byte {}", valid_length)
+            }
+        }
+    }
+}
+impl std::error::Error for OpenError {}
+
 impl From<std::io::Error> for OpenError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)

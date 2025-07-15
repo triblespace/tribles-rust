@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    documentation examples.
 - Added an architecture chapter that explains how `TribleSet` differs from the repository layer and details branch stores and commit flow. The diagram now better illustrates the commit flow.
 - Added a "Developing Locally" chapter and linked it from the README and book introduction.
+- Documented the incremental query plan in `INVENTORY.md` and linked it
+  to a new "Incremental Queries" book chapter detailing the approach.
+- Noted that namespaces will expose a `delta!` operator, similar to
+  `pattern!`, for expressing changes between `TribleSet`s. The macro
+  computes the difference and uses `union!` internally to apply the
+  delta constraint.
 
 ### Changed
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.

@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SuccinctArchive` now counts distinct component pairs using bitsets,
   improving query estimation accuracy.
 - Domain enumeration skips empty identifiers via `select0` and prefix bit
-  vectors are constructed with `BitVec` for lower memory overhead.
+  vectors are constructed with `BitVector` for lower memory overhead.
 - Improved `Debug` output for `Query` to show search state and bindings.
 - Replaced branch allocation code with `Layout::from_size_align_unchecked`.
 - Removed unused `FromBlob` and `TryToBlob` traits and updated documentation.

@@ -19,6 +19,7 @@ use itertools::Itertools;
 use sucds::bit_vectors::{Access, Build, NumBits, Rank, Select};
 use sucds::char_sequences::WaveletMatrix;
 
+use sucds::bit_vectors::BitVector;
 use sucds::int_vectors::CompactVector;
 
 fn build_prefix_bv<B, I>(domain_len: usize, triple_count: usize, iter: I) -> B
@@ -26,20 +27,21 @@ where
     B: Build + Access + Rank + Select + NumBits,
     I: IntoIterator<Item = (usize, usize)>,
 {
-    let mut bits = vec![false; triple_count + domain_len + 1];
+    let mut bits = BitVector::from_bit(false, triple_count + domain_len + 1);
+
     let mut seen = 0usize;
     let mut last = 0usize;
     for (val, count) in iter {
         for c in last..=val {
-            bits[seen + c] = true;
+            bits.set_bit(seen + c, true).unwrap();
         }
         seen += count;
         last = val + 1;
     }
     for c in last..=domain_len {
-        bits[seen + c] = true;
+        bits.set_bit(seen + c, true).unwrap();
     }
-    B::build_from_bits(bits.into_iter(), true, true, true).unwrap()
+    B::build_from_bits(bits.iter(), true, true, true).unwrap()
 }
 
 #[derive(Debug, Clone)]

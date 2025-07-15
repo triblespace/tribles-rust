@@ -22,6 +22,13 @@ The project balances a few key goals:
 * Avoid writing asynchronous code. Prefer high-performance synchronous
   implementations that can be parallelized when needed.
 
+## Inventory
+
+Record future work and ideas in `INVENTORY.md`. Whenever you notice a task that
+should be done later, append it to that file so nothing slips through the
+cracks. Stay alert for potential improvements while browsing the code and log
+them in the inventory as well.
+
 ## Pull Request Notes
 
 When opening a PR, include a short summary of what changed and reference relevant file sections.

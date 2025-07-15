@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `INVENTORY.md` file and instructions for recording future work.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `checkout_with_key`.
 - Git-based terminology notes in the repository guide and a clearer workspace example.

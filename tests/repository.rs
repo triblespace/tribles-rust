@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{commit, memoryrepo::MemoryRepo, Repository};
+use tribles::repo::{commit, memoryrepo::MemoryRepo, LookupError, Repository};
 
 #[test]
 fn branch_from_and_checkout_with_key() {
@@ -21,4 +21,35 @@ fn branch_from_and_checkout_with_key() {
     let branch_id = ws.branch_id();
     repo.checkout_with_key(branch_id, other_key)
         .expect("checkout");
+}
+
+#[test]
+fn lookup_branch_id_by_name_found() {
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let ws = repo.branch("dev").expect("create branch");
+    let id = ws.branch_id();
+
+    assert_eq!(repo.branch_id_by_name("dev").unwrap(), Some(id));
+}
+
+#[test]
+fn lookup_branch_id_by_name_conflict() {
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    repo.branch("dev").expect("create branch");
+    repo.branch("dev").expect("create second");
+
+    match repo.branch_id_by_name("dev") {
+        Err(LookupError::NameConflict(ids)) => assert_eq!(ids.len(), 2),
+        _ => panic!("expected NameConflict"),
+    }
+}
+
+#[test]
+fn lookup_branch_id_by_name_missing() {
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+
+    assert_eq!(repo.branch_id_by_name("nothing").unwrap(), None);
 }

@@ -414,6 +414,21 @@ where
     BranchNotFound(Id),
 }
 
+#[derive(Debug)]
+pub enum LookupError<Storage>
+where
+    Storage: BranchStore<Blake3> + BlobStore<Blake3>,
+{
+    StorageBranches(Storage::BranchesError),
+    BranchHead(Storage::HeadError),
+    StorageGet(
+        <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
+    ),
+    /// Multiple branches were found with the given name.
+    NameConflict(Vec<Id>),
+    BadBranchMetadata(),
+}
+
 /// High-level wrapper combining a blob store and branch store into a usable
 /// repository API.
 ///
@@ -645,6 +660,47 @@ where
             base_branch_meta: base_branch_meta_handle,
             signing_key,
         })
+    }
+
+    /// Find the id of a branch by its name.
+    pub fn branch_id_by_name(&mut self, name: &str) -> Result<Option<Id>, LookupError<Storage>> {
+        let ids: Vec<Id> = self
+            .storage
+            .branches()
+            .map(|r| r.map_err(|e| LookupError::StorageBranches(e)))
+            .collect::<Result<_, _>>()?;
+
+        let mut handles = Vec::new();
+        for id in ids {
+            if let Some(handle) = self
+                .storage
+                .head(id)
+                .map_err(|e| LookupError::BranchHead(e))?
+            {
+                handles.push((id, handle));
+            }
+        }
+
+        let reader = self.storage.reader();
+        let mut matches = Vec::new();
+        for (id, handle) in handles {
+            let meta: TribleSet = reader.get(handle).map_err(|e| LookupError::StorageGet(e))?;
+
+            let branch_name = find!((n: Value<_>), metadata::pattern!(meta, [{ name: n }]))
+                .exactly_one()
+                .map_err(|_| LookupError::BadBranchMetadata())?
+                .0;
+
+            if branch_name.from_value::<String>() == name {
+                matches.push(id);
+            }
+        }
+
+        match matches.len() {
+            0 => Ok(None),
+            1 => Ok(Some(matches[0])),
+            _ => Err(LookupError::NameConflict(matches)),
+        }
     }
 
     /// Pushes the workspace's new blobs and commit to the persistent repository.

@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `branch_id_by_name` helper to resolve branch IDs from names. Returns a
   `NameConflict` error when multiple branches share the same name.
 - Documentation and examples for the repository API.
-- Test coverage for `branch_from` and `checkout_with_key`.
+- Test coverage for `branch_from` and `pull_with_key`.
+- `Workspace::checkout` helper to load commit contents.
+- `Workspace::checkout` now accepts commit ranges for convenient history queries.
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Repository workflows chapter covering branching, merging, CLI usage and an improved push/merge diagram.
@@ -54,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Split branch lookup tests into independent cases for better readability.
+- `Repository::checkout` was renamed to `pull` for symmetry with `push`.
+- `IntoCheckoutRange` trait became `CommitSelector` and its `into_vec` method
+  was renamed to `select`.
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
 - Clarified need for duplicate `bucket_get_slot` check in `table_get_slot`.
 - Replaced Elias--Fano arrays in `SuccinctArchive` with bit vectors for

@@ -9,8 +9,8 @@ fn repository_branch_creates_branch() {
     let ws = repo.branch("main").expect("create branch");
     let branch_id = ws.branch_id();
 
-    match repo.checkout(branch_id) {
+    match repo.pull(branch_id) {
         Ok(_) => {}
-        Err(_) => panic!("checkout failed"),
+        Err(_) => panic!("pull failed"),
     }
 }

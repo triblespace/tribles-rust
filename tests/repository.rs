@@ -4,7 +4,7 @@ use tribles::prelude::*;
 use tribles::repo::{commit, memoryrepo::MemoryRepo, LookupError, Repository};
 
 #[test]
-fn branch_from_and_checkout_with_key() {
+fn branch_from_and_pull_with_key() {
     // prepare storage with an initial commit
     let mut store = MemoryRepo::default();
     let key = SigningKey::generate(&mut OsRng);
@@ -16,11 +16,10 @@ fn branch_from_and_checkout_with_key() {
     ws.commit(TribleSet::new(), Some("work"));
     repo.push(&mut ws).expect("push");
 
-    // checkout using a different key should succeed
+    // pull using a different key should succeed
     let other_key = SigningKey::generate(&mut OsRng);
     let branch_id = ws.branch_id();
-    repo.checkout_with_key(branch_id, other_key)
-        .expect("checkout");
+    repo.pull_with_key(branch_id, other_key).expect("pull");
 }
 
 #[test]

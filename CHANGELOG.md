@@ -110,6 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Workspace` now exposes a `put` method for adding blobs, replacing the old
   `add_blob` helper. The method returns the stored blob's handle directly since
   the underlying store cannot fail.
+- `Workspace::get` method retrieves blobs from the local store and falls back to
+  the base store when needed.
 - `OpenError` now implements `std::error::Error` and provides clearer messages when opening piles.
 
 ## [0.5.2] - 2025-06-30

@@ -146,3 +146,32 @@ fn workspace_checkout_range_variants() {
     assert_eq!(ws.checkout(..=c2).unwrap(), s1s2.clone());
     assert_eq!(ws.checkout(..).unwrap(), s1s2s3);
 }
+
+#[test]
+fn workspace_get_local_and_base() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main").expect("create branch");
+
+    let e = ufoid();
+    let a = ufoid();
+    let v: Value<R256> = 123i128.to_value();
+    let t = Trible::new(&e, &a, &v);
+    let mut set = TribleSet::new();
+    set.insert(&t);
+
+    let handle = ws.put(set.clone());
+    ws.commit(set.clone(), None);
+
+    let local: TribleSet = ws.get(handle).expect("get local");
+    assert_eq!(local, set);
+
+    repo.push(&mut ws).expect("push");
+    let branch_id = ws.branch_id();
+    let mut ws2 = repo.pull(branch_id).expect("pull");
+
+    let base: TribleSet = ws2.get(handle).expect("get base");
+    assert_eq!(base, set);
+}

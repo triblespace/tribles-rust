@@ -390,8 +390,8 @@ pub enum PullBranchErr {
 impl fmt::Display for PullBranchErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::StoreErr(e) => write!(f, "checkout failed: {}", e),
-            Self::ValidationErr(e) => write!(f, "checkout failed: {}", e),
+            Self::StoreErr(e) => write!(f, "pull failed: {}", e),
+            Self::ValidationErr(e) => write!(f, "pull failed: {}", e),
         }
     }
 }

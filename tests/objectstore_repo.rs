@@ -13,7 +13,7 @@ fn objectstore_branch_creates_branch() {
     let ws = repo.branch("main").expect("create branch");
     let branch_id = ws.branch_id();
 
-    repo.checkout(branch_id).expect("checkout");
+    repo.pull(branch_id).expect("pull");
 }
 
 #[test]
@@ -32,7 +32,7 @@ fn objectstore_workspace_commit_updates_head() {
 }
 
 #[test]
-fn objectstore_branch_from_and_checkout_with_key() {
+fn objectstore_branch_from_and_pull_with_key() {
     let url = Url::parse("memory:///repo3").unwrap();
     let mut store = ObjectStoreRemote::<Blake3>::with_url(&url).unwrap();
     let key = SigningKey::generate(&mut OsRng);
@@ -46,8 +46,7 @@ fn objectstore_branch_from_and_checkout_with_key() {
 
     let other_key = SigningKey::generate(&mut OsRng);
     let branch_id = ws.branch_id();
-    repo.checkout_with_key(branch_id, other_key)
-        .expect("checkout");
+    repo.pull_with_key(branch_id, other_key).expect("pull");
 }
 
 #[test]
@@ -57,7 +56,7 @@ fn objectstore_push_and_merge_conflict_resolution() {
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
     let mut ws1 = repo.branch("main").expect("create branch");
     let branch_id = ws1.branch_id();
-    let mut ws2 = repo.checkout(branch_id).expect("checkout");
+    let mut ws2 = repo.pull(branch_id).expect("pull");
 
     ws1.commit(TribleSet::new(), Some("first"));
     ws2.commit(TribleSet::new(), Some("second"));

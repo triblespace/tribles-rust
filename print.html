@@ -250,7 +250,7 @@ additional modules and examples.</p>
 |   |      BlobStore      |   |        BranchStore        | |
 |   +---------------------+   +----------------------------+ |
 +-----------------------------------------------------------+
-           ^ checkout                            | push
+           ^ pull                                | push
            |                                     v
 +-----------------------------------------------------------+
 |                        Workspace                           |
@@ -421,18 +421,25 @@ familiar to anyone comfortable with Git.</p>
 <p>A branch records a line of history. Creating one writes initial metadata to the
 underlying store and yields a <code>Workspace</code> pointing at that branch. While
 <code>Repository::branch</code> is a convenient way to start a fresh branch, most workflows
-use <code>Repository::checkout</code> to obtain a workspace for an existing branch:</p>
+use <code>Repository::pull</code> to obtain a workspace for an existing branch:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>let mut repo = Repository::new(pile, SigningKey::generate(&amp;mut OsRng));
 let mut ws = repo.branch("main").expect("create branch");
-let mut ws2 = repo.checkout(ws.branch_id()).expect("open branch");
+let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
 <span class="boring">}</span></code></pre></pre>
 <p>After committing changes you can push the workspace back:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>ws.commit(change, Some("initial commit"));
 repo.push(&amp;mut ws)?;
+<span class="boring">}</span></code></pre></pre>
+<p>You can inspect previous commits using <code>Workspace::checkout</code> which returns a
+<code>TribleSet</code> with the union of the specified commit contents. Commit ranges
+are supported for convenience:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let history = ws.checkout(commit_a..=commit_b)?;
 <span class="boring">}</span></code></pre></pre>
 <h2 id="merging-and-conflict-handling"><a class="header" href="#merging-and-conflict-handling">Merging and Conflict Handling</a></h2>
 <p>When pushing a workspace another client might have already updated the branch.

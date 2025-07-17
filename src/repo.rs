@@ -1003,6 +1003,25 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         self.local_blobs.put(item).expect("infallible blob put")
     }
 
+    /// Retrieves a blob from the workspace.
+    ///
+    /// The method first checks the workspace's local blob store and falls back
+    /// to the base blob store if the blob is not found locally.
+    pub fn get<T, S>(
+        &mut self,
+        handle: Value<Handle<Blake3, S>>,
+    ) -> Result<T, <Blobs::Reader as BlobStoreGet<Blake3>>::GetError<<T as TryFromBlob<S>>::Error>>
+    where
+        S: BlobSchema + 'static,
+        T: TryFromBlob<S>,
+        Handle<Blake3, S>: ValueSchema,
+    {
+        self.local_blobs
+            .reader()
+            .get(handle)
+            .or_else(|_| self.base_blobs.get(handle))
+    }
+
     /// Performs a commit in the workspace.
     /// This method creates a new commit blob (stored in the local blobset)
     /// and updates the current commit handle.

@@ -16,6 +16,9 @@
   internally and matches only the newly added tribles. See the book's
   [Incremental Queries](book/src/incremental-queries.md) chapter for
   the planned approach.
+- Generate namespaces from a `TribleSet` description so tooling can
+  derive them programmatically. Rewriting `pattern!` as a procedural
+  macro will be the first step toward this automation.
 
 ## Discovered Issues
 - No open issues recorded yet.

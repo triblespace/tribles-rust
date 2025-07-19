@@ -49,12 +49,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   immutable.
 - Documented the incremental query plan in `INVENTORY.md` and linked it
   to a new "Incremental Queries" book chapter detailing the approach.
-- Noted that namespaces will expose a `delta!` operator, similar to
-  `pattern!`, for expressing changes between `TribleSet`s. The macro
-  computes the difference and uses `union!` internally to apply the
-  delta constraint.
+- Noted plans for a `delta!` operator to assist with incremental
+  queries. Documentation describes how it will union patterns with
+  each triple constrained to the dataset delta.
+- Recorded a future task to generate namespaces from a TribleSet
+  description and to rewrite `pattern!` as a procedural macro.
+- Documented the internal `pattern_inner!` macro with expanded usage notes.
+- Added inline comments for every `pattern_inner!` rule describing what it
+  matches and why.
 
 ### Changed
+- Removed the experimental `delta!` macro implementation; incremental
+  query support will be revisited once `pattern!` becomes a procedural
+  macro.
 - Split branch lookup tests into independent cases for better readability.
 - `Repository::checkout` was renamed to `pull` for symmetry with `push`.
 - `IntoCheckoutRange` trait became `CommitSelector` and its `into_vec` method

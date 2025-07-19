@@ -8,6 +8,7 @@
 - [Incremental Queries](incremental-queries.md)
 - [Schemas](schemas.md)
 - [Repository Workflows](repository-workflows.md)
+- [Commit Selectors](commit-selectors.md)
 - [Deep Dive](deep-dive/README.md)
   - [Philosophy](deep-dive/philosophy.md)
   - [Identifiers](deep-dive/identifiers.md)

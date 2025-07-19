@@ -49,6 +49,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   immutable.
 - Documented the incremental query plan in `INVENTORY.md` and linked it
   to a new "Incremental Queries" book chapter detailing the approach.
+- Noted that namespaces will expose a `delta!` operator, similar to
+  `pattern!`, for expressing changes between `TribleSet`s. The macro
+  computes the difference and uses `union!` internally to apply the
+  delta constraint.
+ - Documented potential commit selector redesign using git-style
+   reachability semantics. Added a "Commit Selectors" design note with
+    a table comparing Git syntax to the planned set-based API. The table
+    is now exhaustive for Git's revision grammar, using only the general
+    forms. Each entry links to the official documentation and marks
+    selectors that are not planned for the initial implementation.
 - Noted plans for a `delta!` operator to assist with incremental
   queries. Documentation describes how it will union patterns with
   each triple constrained to the dataset delta.

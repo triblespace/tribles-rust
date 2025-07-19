@@ -16,6 +16,14 @@
   internally and matches only the newly added tribles. See the book's
   [Incremental Queries](book/src/incremental-queries.md) chapter for
   the planned approach.
+- Explore replacing `CommitSelector` ranges with a set-based API
+  built on commit reachability. The goal is to mirror git's revision
+  selection semantics (similar to `rev-list` or `rev-parse`).
+  Combinators like `union`, `intersection` and `difference` should let
+  callers express queries such as "A minus B" or "ancestors of A
+  intersect B". Commit sets themselves would be formed by primitives
+  like `ancestors(<commit>)` and `descendants(<commit>)` so selectors
+  map directly to the commit graph.
 - Generate namespaces from a `TribleSet` description so tooling can
   derive them programmatically. Rewriting `pattern!` as a procedural
   macro will be the first step toward this automation.

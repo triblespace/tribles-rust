@@ -51,7 +51,7 @@ A [`Workspace`](https://docs.rs/tribles/latest/tribles/repo/struct.Workspace.htm
 |   |      BlobStore      |   |        BranchStore        | |
 |   +---------------------+   +----------------------------+ |
 +-----------------------------------------------------------+
-           ^ checkout                            | push
+           ^ pull                                | push
            |                                     v
 +-----------------------------------------------------------+
 |                        Workspace                           |

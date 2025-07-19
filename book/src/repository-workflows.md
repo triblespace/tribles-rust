@@ -13,12 +13,12 @@ familiar to anyone comfortable with Git.
 A branch records a line of history. Creating one writes initial metadata to the
 underlying store and yields a `Workspace` pointing at that branch. While
 `Repository::branch` is a convenient way to start a fresh branch, most workflows
-use `Repository::checkout` to obtain a workspace for an existing branch:
+use `Repository::pull` to obtain a workspace for an existing branch:
 
 ```rust
 let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
 let mut ws = repo.branch("main").expect("create branch");
-let mut ws2 = repo.checkout(ws.branch_id()).expect("open branch");
+let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
 ```
 
 After committing changes you can push the workspace back:
@@ -26,6 +26,14 @@ After committing changes you can push the workspace back:
 ```rust
 ws.commit(change, Some("initial commit"));
 repo.push(&mut ws)?;
+```
+
+You can inspect previous commits using `Workspace::checkout` which returns a
+`TribleSet` with the union of the specified commit contents. Commit ranges
+are supported for convenience:
+
+```rust
+let history = ws.checkout(commit_a..=commit_b)?;
 ```
 
 ## Merging and Conflict Handling

@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `INVENTORY.md` file and instructions for recording future work.
+- `branch_id_by_name` helper to resolve branch IDs from names. Returns a
+  `NameConflict` error when multiple branches share the same name.
 - Documentation and examples for the repository API.
-- Test coverage for `branch_from` and `checkout_with_key`.
+- Test coverage for `branch_from` and `pull_with_key`.
+- `Workspace::checkout` helper to load commit contents.
+- `Workspace::checkout` now accepts commit ranges for convenient history queries.
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Repository workflows chapter covering branching, merging, CLI usage and an improved push/merge diagram.
@@ -58,6 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the experimental `delta!` macro implementation; incremental
   query support will be revisited once `pattern!` becomes a procedural
   macro.
+- Split branch lookup tests into independent cases for better readability.
+- `Repository::checkout` was renamed to `pull` for symmetry with `push`.
+- `IntoCheckoutRange` trait became `CommitSelector` and its `into_vec` method
+  was renamed to `select`.
 - Updated bucket handling to advance RNG state in `bucket_shove_random_slot`.
 - Clarified need for duplicate `bucket_get_slot` check in `table_get_slot`.
 - Replaced Elias--Fano arrays in `SuccinctArchive` with bit vectors for
@@ -109,6 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Workspace` now exposes a `put` method for adding blobs, replacing the old
   `add_blob` helper. The method returns the stored blob's handle directly since
   the underlying store cannot fail.
+- `Workspace::get` method retrieves blobs from the local store and falls back to
+  the base store when needed.
 - `OpenError` now implements `std::error::Error` and provides clearer messages when opening piles.
 
 ## [0.5.2] - 2025-06-30

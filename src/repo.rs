@@ -55,7 +55,7 @@
 //! }
 //! ```
 //!
-//! `checkout` creates a new workspace from an existing branch while
+//! `pull` creates a new workspace from an existing branch while
 //! `branch_from` can be used to start a new branch from a specific commit
 //! handle. See `examples/workspace.rs` for a more complete example.
 //!
@@ -89,9 +89,9 @@
 //! - `push` updates the repository atomically. If the branch advanced in the
 //!   meantime, you receive a conflict workspace which can be merged before
 //!   retrying the push.
-//! - `checkout` is similar to cloning a branch into a new workspace.
+//! - `pull` is similar to cloning a branch into a new workspace.
 //!
-//! `checkout` uses the repository's default signing key for new commits. If you
+//! `pull` uses the repository's default signing key for new commits. If you
 //! need to work with a different identity, the `_with_key` variants allow providing
 //! an explicit key when branching or checking out.
 //!
@@ -414,6 +414,21 @@ where
     BranchNotFound(Id),
 }
 
+#[derive(Debug)]
+pub enum LookupError<Storage>
+where
+    Storage: BranchStore<Blake3> + BlobStore<Blake3>,
+{
+    StorageBranches(Storage::BranchesError),
+    BranchHead(Storage::HeadError),
+    StorageGet(
+        <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
+    ),
+    /// Multiple branches were found with the given name.
+    NameConflict(Vec<Id>),
+    BadBranchMetadata(),
+}
+
 /// High-level wrapper combining a blob store and branch store into a usable
 /// repository API.
 ///
@@ -425,7 +440,7 @@ pub struct Repository<Storage: BlobStore<Blake3> + BranchStore<Blake3>> {
     signing_key: SigningKey,
 }
 
-pub enum CheckoutError<BranchStorageErr, BlobStorageErr>
+pub enum PullError<BranchStorageErr, BlobStorageErr>
 where
     BranchStorageErr: Error,
     BlobStorageErr: Error,
@@ -440,17 +455,17 @@ where
     BadBranchMetadata(),
 }
 
-impl<B, C> fmt::Debug for CheckoutError<B, C>
+impl<B, C> fmt::Debug for PullError<B, C>
 where
     B: Error + fmt::Debug,
     C: Error + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CheckoutError::BranchNotFound(id) => f.debug_tuple("BranchNotFound").field(id).finish(),
-            CheckoutError::BranchStorage(e) => f.debug_tuple("BranchStorage").field(e).finish(),
-            CheckoutError::BlobStorage(e) => f.debug_tuple("BlobStorage").field(e).finish(),
-            CheckoutError::BadBranchMetadata() => f.debug_tuple("BadBranchMetadata").finish(),
+            PullError::BranchNotFound(id) => f.debug_tuple("BranchNotFound").field(id).finish(),
+            PullError::BranchStorage(e) => f.debug_tuple("BranchStorage").field(e).finish(),
+            PullError::BlobStorage(e) => f.debug_tuple("BlobStorage").field(e).finish(),
+            PullError::BadBranchMetadata() => f.debug_tuple("BadBranchMetadata").finish(),
         }
     }
 }
@@ -588,28 +603,28 @@ where
         }
     }
 
-    /// Checks out an existing branch using the repository's signing key.
-    pub fn checkout(
+    /// Pulls an existing branch using the repository's signing key.
+    pub fn pull(
         &mut self,
         branch_id: Id,
     ) -> Result<
         Workspace<Storage>,
-        CheckoutError<
+        PullError<
             Storage::HeadError,
             <Storage::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
         >,
     > {
-        self.checkout_with_key(branch_id, self.signing_key.clone())
+        self.pull_with_key(branch_id, self.signing_key.clone())
     }
 
-    /// Same as [`checkout`] but overrides the signing key.
-    pub fn checkout_with_key(
+    /// Same as [`pull`] but overrides the signing key.
+    pub fn pull_with_key(
         &mut self,
         branch_id: Id,
         signing_key: SigningKey,
     ) -> Result<
         Workspace<Storage>,
-        CheckoutError<
+        PullError<
             Storage::HeadError,
             <Storage::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
         >,
@@ -617,13 +632,13 @@ where
         // 1. Get the branch metadata head from the branch store.
         let base_branch_meta_handle = match self.storage.head(branch_id) {
             Ok(Some(handle)) => handle,
-            Ok(None) => return Err(CheckoutError::BranchNotFound(branch_id)),
-            Err(e) => return Err(CheckoutError::BranchStorage(e)),
+            Ok(None) => return Err(PullError::BranchNotFound(branch_id)),
+            Err(e) => return Err(PullError::BranchStorage(e)),
         };
         // 2. Get the current commit from the branch metadata.
         let base_branch_meta: TribleSet = match self.storage.reader().get(base_branch_meta_handle) {
             Ok(metadata) => metadata,
-            Err(e) => return Err(CheckoutError::BlobStorage(e)),
+            Err(e) => return Err(PullError::BlobStorage(e)),
         };
 
         let head = match find!(
@@ -634,7 +649,7 @@ where
         {
             Ok(Some((h,))) => Some(h),
             Ok(None) => None,
-            Err(_) => return Err(CheckoutError::BadBranchMetadata()),
+            Err(_) => return Err(PullError::BadBranchMetadata()),
         };
         // Create workspace with the current commit and base blobs.
         Ok(Workspace {
@@ -645,6 +660,47 @@ where
             base_branch_meta: base_branch_meta_handle,
             signing_key,
         })
+    }
+
+    /// Find the id of a branch by its name.
+    pub fn branch_id_by_name(&mut self, name: &str) -> Result<Option<Id>, LookupError<Storage>> {
+        let ids: Vec<Id> = self
+            .storage
+            .branches()
+            .map(|r| r.map_err(|e| LookupError::StorageBranches(e)))
+            .collect::<Result<_, _>>()?;
+
+        let mut handles = Vec::new();
+        for id in ids {
+            if let Some(handle) = self
+                .storage
+                .head(id)
+                .map_err(|e| LookupError::BranchHead(e))?
+            {
+                handles.push((id, handle));
+            }
+        }
+
+        let reader = self.storage.reader();
+        let mut matches = Vec::new();
+        for (id, handle) in handles {
+            let meta: TribleSet = reader.get(handle).map_err(|e| LookupError::StorageGet(e))?;
+
+            let branch_name = find!((n: Value<_>), metadata::pattern!(meta, [{ name: n }]))
+                .exactly_one()
+                .map_err(|_| LookupError::BadBranchMetadata())?
+                .0;
+
+            if branch_name.from_value::<String>() == name {
+                matches.push(id);
+            }
+        }
+
+        match matches.len() {
+            0 => Ok(None),
+            1 => Ok(Some(matches[0])),
+            _ => Err(LookupError::NameConflict(matches)),
+        }
     }
 
     /// Pushes the workspace's new blobs and commit to the persistent repository.
@@ -778,10 +834,162 @@ where
     }
 }
 
+/// Helper trait for [`Workspace::checkout`] specifying commit handles or ranges.
+pub trait CommitSelector<Blobs: BlobStore<Blake3>> {
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    >;
+}
+
+impl<Blobs> CommitSelector<Blobs> for CommitHandle
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        _ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        Ok(vec![self])
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for Vec<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        _ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        Ok(self)
+    }
+}
+
+impl<'a, Blobs> CommitSelector<Blobs> for &'a [CommitHandle]
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        _ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        Ok(self.to_vec())
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for std::ops::Range<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        ws.collect_range(Some(self.start), Some(self.end), false)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for std::ops::RangeInclusive<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let (start, end) = self.into_inner();
+        ws.collect_range(Some(start), Some(end), true)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for std::ops::RangeFrom<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        ws.collect_range(Some(self.start), None, true)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for std::ops::RangeTo<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        ws.collect_range(None, Some(self.end), false)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for std::ops::RangeToInclusive<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        ws.collect_range(None, Some(self.end), true)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for std::ops::RangeFull
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        ws.collect_range(None, None, true)
+    }
+}
+
 impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     /// Returns the branch id associated with this workspace.
     pub fn branch_id(&self) -> Id {
         self.base_branch_id
+    }
+
+    /// Returns the current commit handle if one exists.
+    pub fn head(&self) -> Option<CommitHandle> {
+        self.head
     }
 
     /// Adds a blob to the workspace's local blob store.
@@ -793,6 +1001,25 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         Handle<Blake3, S>: ValueSchema,
     {
         self.local_blobs.put(item).expect("infallible blob put")
+    }
+
+    /// Retrieves a blob from the workspace.
+    ///
+    /// The method first checks the workspace's local blob store and falls back
+    /// to the base blob store if the blob is not found locally.
+    pub fn get<T, S>(
+        &mut self,
+        handle: Value<Handle<Blake3, S>>,
+    ) -> Result<T, <Blobs::Reader as BlobStoreGet<Blake3>>::GetError<<T as TryFromBlob<S>>::Error>>
+    where
+        S: BlobSchema + 'static,
+        T: TryFromBlob<S>,
+        Handle<Blake3, S>: ValueSchema,
+    {
+        self.local_blobs
+            .reader()
+            .get(handle)
+            .or_else(|_| self.base_blobs.get(handle))
     }
 
     /// Performs a commit in the workspace.
@@ -858,4 +1085,140 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
 
         Ok(commit_handle)
     }
+
+    fn first_parent(
+        &mut self,
+        commit: CommitHandle,
+    ) -> Result<
+        Option<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let meta: TribleSet = self
+            .local_blobs
+            .reader()
+            .get(commit)
+            .or_else(|_| self.base_blobs.get(commit))
+            .map_err(WorkspaceCheckoutError::Storage)?;
+
+        match find!( (p: Value<_>), repo::pattern!(&meta, [{ parent: p }]) ).at_most_one() {
+            Ok(Some((p,))) => Ok(Some(p)),
+            Ok(None) => Ok(None),
+            Err(_) => Err(WorkspaceCheckoutError::BadCommitMetadata()),
+        }
+    }
+
+    fn collect_range(
+        &mut self,
+        start: Option<CommitHandle>,
+        end: Option<CommitHandle>,
+        inclusive_end: bool,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let mut result = Vec::new();
+        let mut current = match end.or(self.head) {
+            Some(c) => c,
+            None => return Err(WorkspaceCheckoutError::NoHead),
+        };
+
+        loop {
+            result.push(current);
+            if Some(current) == start {
+                break;
+            }
+            match self.first_parent(current)? {
+                Some(p) => current = p,
+                None => break,
+            }
+        }
+        result.reverse();
+        if !inclusive_end {
+            result.pop();
+        }
+        Ok(result)
+    }
+
+    /// Returns the combined [`TribleSet`] for the specified commits.
+    ///
+    /// Each commit handle must reference a commit blob stored either in the
+    /// workspace's local blob store or the repository's base store. The
+    /// associated content blobs are loaded and unioned together. An error is
+    /// returned if any commit or content blob is missing or malformed.
+    fn checkout_commits<I>(
+        &mut self,
+        commits: I,
+    ) -> Result<
+        TribleSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    >
+    where
+        I: IntoIterator<Item = CommitHandle>,
+    {
+        let local = self.local_blobs.reader();
+        let mut result = TribleSet::new();
+        for commit in commits {
+            let meta: TribleSet = local
+                .get(commit)
+                .or_else(|_| self.base_blobs.get(commit))
+                .map_err(WorkspaceCheckoutError::Storage)?;
+
+            let Ok((content,)) = find!(
+                (c: Value<_>),
+                repo::pattern!(&meta, [{ content: c }])
+            )
+            .exactly_one() else {
+                return Err(WorkspaceCheckoutError::BadCommitMetadata());
+            };
+
+            let set: TribleSet = local
+                .get(content)
+                .or_else(|_| self.base_blobs.get(content))
+                .map_err(WorkspaceCheckoutError::Storage)?;
+
+            result.union(set);
+        }
+        Ok(result)
+    }
+
+    /// Returns the combined [`TribleSet`] for the specified commits or commit
+    /// ranges. `spec` can be a single [`CommitHandle`], an iterator of handles
+    /// or any of the standard range types over `CommitHandle`.
+    pub fn checkout<R>(
+        &mut self,
+        spec: R,
+    ) -> Result<
+        TribleSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    >
+    where
+        R: CommitSelector<Blobs>,
+    {
+        let commits = spec.select(self)?;
+        self.checkout_commits(commits)
+    }
 }
+
+#[derive(Debug)]
+pub enum WorkspaceCheckoutError<GetErr: Error> {
+    /// Error retrieving blobs from storage.
+    Storage(GetErr),
+    /// Commit metadata is malformed or missing required fields.
+    BadCommitMetadata(),
+    /// The workspace has no commits yet.
+    NoHead,
+}
+
+impl<E: Error + fmt::Debug> fmt::Display for WorkspaceCheckoutError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WorkspaceCheckoutError::Storage(e) => write!(f, "storage error: {}", e),
+            WorkspaceCheckoutError::BadCommitMetadata() => {
+                write!(f, "commit metadata missing content field")
+            }
+            WorkspaceCheckoutError::NoHead => write!(f, "workspace has no commits"),
+        }
+    }
+}
+
+impl<E: Error + fmt::Debug> Error for WorkspaceCheckoutError<E> {}

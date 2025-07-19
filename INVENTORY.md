@@ -24,6 +24,9 @@
   intersect B". Commit sets themselves would be formed by primitives
   like `ancestors(<commit>)` and `descendants(<commit>)` so selectors
   map directly to the commit graph.
+- Generate namespaces from a `TribleSet` description so tooling can
+  derive them programmatically. Rewriting `pattern!` as a procedural
+  macro will be the first step toward this automation.
 
 ## Discovered Issues
 - No open issues recorded yet.

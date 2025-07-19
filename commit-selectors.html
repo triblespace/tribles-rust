@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Repository Workflows - Tribles Book</title>
+        <title>Commit Selectors - Tribles Book</title>
 
 
         <!-- Custom HTML head -->
@@ -175,88 +175,61 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="repository-workflows"><a class="header" href="#repository-workflows">Repository Workflows</a></h1>
-<p>Tribles borrows a lot of terminology from Git. A <code>Repository</code> stores the history
-of your data, while a <code>Workspace</code> is the mutable view that you operate on much
-like a working directory and index combined. Commits live in a <code>BlobStore</code> and
-branch metadata in a <code>BranchStore</code>; these stores can be purely in memory,
-persisted to disk or backed by a remote service. The examples in
-<code>examples/repo.rs</code> and <code>examples/workspace.rs</code> showcase this API and should feel
-familiar to anyone comfortable with Git.</p>
-<h2 id="branching"><a class="header" href="#branching">Branching</a></h2>
-<p>A branch records a line of history. Creating one writes initial metadata to the
-underlying store and yields a <code>Workspace</code> pointing at that branch. While
-<code>Repository::branch</code> is a convenient way to start a fresh branch, most workflows
-use <code>Repository::pull</code> to obtain a workspace for an existing branch:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let mut repo = Repository::new(pile, SigningKey::generate(&amp;mut OsRng));
-let mut ws = repo.branch("main").expect("create branch");
-let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
-<span class="boring">}</span></code></pre></pre>
-<p>After committing changes you can push the workspace back:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>ws.commit(change, Some("initial commit"));
-repo.push(&amp;mut ws)?;
-<span class="boring">}</span></code></pre></pre>
-<p>You can inspect previous commits using <code>Workspace::checkout</code> which returns a
-<code>TribleSet</code> with the union of the specified commit contents. Commit ranges
-are supported for convenience:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let history = ws.checkout(commit_a..=commit_b)?;
-<span class="boring">}</span></code></pre></pre>
-<h2 id="merging-and-conflict-handling"><a class="header" href="#merging-and-conflict-handling">Merging and Conflict Handling</a></h2>
-<p>When pushing a workspace another client might have already updated the branch.
-<code>Repository::push</code> returns an optional conflicting <code>Workspace</code>. The usual loop
-looks like:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>while let Some(mut incoming) = repo.push(&amp;mut ws)? {
-    incoming.merge(&amp;mut ws)?;
-    ws = incoming;
-}
-<span class="boring">}</span></code></pre></pre>
-<p>This snippet is taken from <a href="../examples/workspace.rs"><code>examples/workspace.rs</code></a>.
-The <a href="../examples/repo.rs"><code>examples/repo.rs</code></a> example demonstrates the same
-pattern with two separate workspaces.</p>
-<h2 id="typical-cli-usage"><a class="header" href="#typical-cli-usage">Typical CLI Usage</a></h2>
-<p>There is a small command line front-end in the
-<a href="https://github.com/triblespace/trible"><code>trible</code></a> repository. It exposes push
-and merge operations over simple commands and follows the same API presented in
-the examples. The tool is currently experimental and may lag behind the library,
-but it demonstrates how repository operations map onto a CLI.</p>
-<h2 id="diagram"><a class="header" href="#diagram">Diagram</a></h2>
-<p>A simplified view of the push/merge cycle:</p>
-<pre><code class="language-text">        ┌───────────┐         push          ┌───────────┐
-        │  local ws │ ─────────────────────▶│   repo    │
-        └─────┬─────┘                       └─────┬─────┘
-             │            merge                  │
-             │                                   │ conflict
-             └──────▶┌─────────────┐◀────────────┘
-                     │ conflict ws │
-                     └─────────────┘
-                          │
-                          │ push
-                          ▼
-                     ┌───────────┐
-                     │   repo    │
-                     └───────────┘
-</code></pre>
-<p>Each push either succeeds or returns a workspace containing the other changes.
-Merging incorporates your commits and the process repeats until no conflicts
-remain.</p>
+                        <h1 id="commit-selectors"><a class="header" href="#commit-selectors">Commit Selectors</a></h1>
+<p>The current <code>Workspace::checkout</code> API accepts a <code>CommitSelector</code> trait which is
+implemented for individual handles and standard Rust ranges. While convenient,
+this range-based design makes it difficult to compose complex queries over the
+commit graph.</p>
+<p>A future redesign could mirror Git's revision selection semantics.
+Instead of passing ranges, callers would construct <em>commit sets</em> derived from
+reachability.  Primitive functions like <code>ancestors(&lt;commit&gt;)</code> and
+<code>descendants(&lt;commit&gt;)</code> would produce sets.  Higher level combinators such as
+<code>union</code>, <code>intersection</code> and <code>difference</code> would then let users express queries
+like "A minus B" or "ancestors of A intersect B".  The result of a selector
+would still be an ordered list of commits for <code>checkout</code> to load.</p>
+<p>This approach aligns with Git's mental model and keeps selection logic separate
+from workspace mutation.  It also opens the door for additional operations on
+commit sets without complicating the core API.</p>
+<h2 id="git-comparison"><a class="header" href="#git-comparison">Git Comparison</a></h2>
+<p>The table below summarizes Git's revision grammar. Each row links back to the
+official documentation. Forms that rely on reflogs or reference objects other
+than commits are listed for completeness but are unlikely to be implemented.</p>
+<div class="table-wrapper"><table><thead><tr><th>Git Syntax</th><th>Planned Equivalent</th><th>Reference</th><th>Status</th></tr></thead><tbody>
+<tr><td><code>A</code></td><td><code>commit(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#_specifying_revisions">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^</code>/<code>A^N</code></td><td><code>nth_parent(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A~N</code></td><td><code>nth_ancestor(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADmaster3">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^@</code></td><td><code>parents(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^!</code></td><td><code>A minus parents(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD-1">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^-N</code></td><td><code>A minus nth_parent(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-rev-negHEAD-HEAD-2">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^0</code></td><td><code>commit(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^{}</code></td><td><code>deref_tag(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegv0998">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^{type}</code></td><td><code>object_of_type(A, type)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revtypeegv0998commit">gitrevisions</a></td><td>Not planned: non-commit object</td></tr>
+<tr><td><code>A^{/text}</code></td><td><code>search_from(A, text)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revtextegHEADfixnastybug">gitrevisions</a></td><td>Not planned: requires commit message search</td></tr>
+<tr><td><code>:/text</code></td><td><code>search_repo(text)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-textegfixnastybug">gitrevisions</a></td><td>Not planned: requires repository search</td></tr>
+<tr><td><code>A:path</code></td><td><code>blob_at(A, path)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revpathegHEADREADMEmasterREADME">gitrevisions</a></td><td>Not planned: selects a blob not a commit</td></tr>
+<tr><td><code>:[N:]path</code></td><td><code>index_blob(path, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-npatheg0READMEREADME">gitrevisions</a></td><td>Not planned: selects from the index</td></tr>
+<tr><td><code>A..B</code></td><td><code>range(A, B)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thetwo-dotRangeNotation">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A...B</code></td><td><code>symmetric_diff(A, B)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thethree-dotSymmetricDifferenceNotation">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>^A</code></td><td><code>exclude(reachable(A))</code></td><td><a href="https://git-scm.com/docs/gitrevisions#_commit_exclusions">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A@{upstream}</code></td><td><code>upstream_of(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-branchnameupstreamegmasterupstreamu">gitrevisions</a></td><td>Not planned: depends on remote config</td></tr>
+<tr><td><code>A@{push}</code></td><td><code>push_target_of(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-branchnamepushegmasterpushpush">gitrevisions</a></td><td>Not planned: depends on remote config</td></tr>
+<tr><td><code>A@{N}</code></td><td><code>reflog(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-refnamenegmaster1">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+<tr><td><code>A@{&lt;date&gt;}</code></td><td><code>reflog_at(A, date)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-refnamedateegmasteryesterdayHEAD5minutesago">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+<tr><td><code>@{N}</code></td><td><code>reflog(HEAD, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-neg1">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+<tr><td><code>@{-N}</code></td><td><code>previous_checkout(N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt--neg-1">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+</tbody></table>
+</div>
+<p>Only a subset of Git's revision grammar will likely be supported. Selectors relying on reflog history, remote configuration, or searching commits and blobs add complexity with little benefit for workspace checkout. They are listed above for completeness but remain unplanned for now.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="schemas.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="repository-workflows.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="commit-selectors.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="deep-dive/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -266,11 +239,11 @@ remain.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="schemas.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="repository-workflows.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="commit-selectors.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="deep-dive/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

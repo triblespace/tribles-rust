@@ -481,6 +481,51 @@ but it demonstrates how repository operations map onto a CLI.</p>
 <p>Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts
 remain.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="commit-selectors"><a class="header" href="#commit-selectors">Commit Selectors</a></h1>
+<p>The current <code>Workspace::checkout</code> API accepts a <code>CommitSelector</code> trait which is
+implemented for individual handles and standard Rust ranges. While convenient,
+this range-based design makes it difficult to compose complex queries over the
+commit graph.</p>
+<p>A future redesign could mirror Git's revision selection semantics.
+Instead of passing ranges, callers would construct <em>commit sets</em> derived from
+reachability.  Primitive functions like <code>ancestors(&lt;commit&gt;)</code> and
+<code>descendants(&lt;commit&gt;)</code> would produce sets.  Higher level combinators such as
+<code>union</code>, <code>intersection</code> and <code>difference</code> would then let users express queries
+like "A minus B" or "ancestors of A intersect B".  The result of a selector
+would still be an ordered list of commits for <code>checkout</code> to load.</p>
+<p>This approach aligns with Git's mental model and keeps selection logic separate
+from workspace mutation.  It also opens the door for additional operations on
+commit sets without complicating the core API.</p>
+<h2 id="git-comparison"><a class="header" href="#git-comparison">Git Comparison</a></h2>
+<p>The table below summarizes Git's revision grammar. Each row links back to the
+official documentation. Forms that rely on reflogs or reference objects other
+than commits are listed for completeness but are unlikely to be implemented.</p>
+<div class="table-wrapper"><table><thead><tr><th>Git Syntax</th><th>Planned Equivalent</th><th>Reference</th><th>Status</th></tr></thead><tbody>
+<tr><td><code>A</code></td><td><code>commit(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#_specifying_revisions">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^</code>/<code>A^N</code></td><td><code>nth_parent(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A~N</code></td><td><code>nth_ancestor(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADmaster3">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^@</code></td><td><code>parents(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^!</code></td><td><code>A minus parents(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD-1">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^-N</code></td><td><code>A minus nth_parent(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-rev-negHEAD-HEAD-2">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^0</code></td><td><code>commit(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^{}</code></td><td><code>deref_tag(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegv0998">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A^{type}</code></td><td><code>object_of_type(A, type)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revtypeegv0998commit">gitrevisions</a></td><td>Not planned: non-commit object</td></tr>
+<tr><td><code>A^{/text}</code></td><td><code>search_from(A, text)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revtextegHEADfixnastybug">gitrevisions</a></td><td>Not planned: requires commit message search</td></tr>
+<tr><td><code>:/text</code></td><td><code>search_repo(text)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-textegfixnastybug">gitrevisions</a></td><td>Not planned: requires repository search</td></tr>
+<tr><td><code>A:path</code></td><td><code>blob_at(A, path)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revpathegHEADREADMEmasterREADME">gitrevisions</a></td><td>Not planned: selects a blob not a commit</td></tr>
+<tr><td><code>:[N:]path</code></td><td><code>index_blob(path, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-npatheg0READMEREADME">gitrevisions</a></td><td>Not planned: selects from the index</td></tr>
+<tr><td><code>A..B</code></td><td><code>range(A, B)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thetwo-dotRangeNotation">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A...B</code></td><td><code>symmetric_diff(A, B)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thethree-dotSymmetricDifferenceNotation">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>^A</code></td><td><code>exclude(reachable(A))</code></td><td><a href="https://git-scm.com/docs/gitrevisions#_commit_exclusions">gitrevisions</a></td><td>Unimplemented</td></tr>
+<tr><td><code>A@{upstream}</code></td><td><code>upstream_of(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-branchnameupstreamegmasterupstreamu">gitrevisions</a></td><td>Not planned: depends on remote config</td></tr>
+<tr><td><code>A@{push}</code></td><td><code>push_target_of(A)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-branchnamepushegmasterpushpush">gitrevisions</a></td><td>Not planned: depends on remote config</td></tr>
+<tr><td><code>A@{N}</code></td><td><code>reflog(A, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-refnamenegmaster1">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+<tr><td><code>A@{&lt;date&gt;}</code></td><td><code>reflog_at(A, date)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-refnamedateegmasteryesterdayHEAD5minutesago">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+<tr><td><code>@{N}</code></td><td><code>reflog(HEAD, N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-neg1">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+<tr><td><code>@{-N}</code></td><td><code>previous_checkout(N)</code></td><td><a href="https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt--neg-1">gitrevisions</a></td><td>Not planned: relies on reflog history</td></tr>
+</tbody></table>
+</div>
+<p>Only a subset of Git's revision grammar will likely be supported. Selectors relying on reflog history, remote configuration, or searching commits and blobs add complexity with little benefit for workspace checkout. They are listed above for completeness but remain unplanned for now.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deep-dive"><a class="header" href="#deep-dive">Deep Dive</a></h1>
 <p>This section contains in-depth discussions about Trible Space internals.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="philosophy"><a class="header" href="#philosophy">Philosophy</a></h1>

@@ -69,17 +69,17 @@ A simplified view of the push/merge cycle:
         ┌───────────┐         push          ┌───────────┐
         │  local ws │ ─────────────────────▶│   repo    │
         └─────┬─────┘                       └─────┬─────┘
-             │            merge                  │
-             │                                   │ conflict
-             └──────▶┌─────────────┐◀────────────┘
-                     │ conflict ws │
-                     └─────────────┘
-                          │
-                          │ push
-                          ▼
-                     ┌───────────┐
-                     │   repo    │
-                     └───────────┘
+              │            merge                  │
+              │                                   │ conflict
+              └──────▶┌─────────────┐◀────────────┘
+                      │ conflict ws │
+                      └─────────────┘
+                             │
+                             │ push
+                             ▼
+                        ┌───────────┐
+                        │   repo    │
+                        └───────────┘
 ```
 
 Each push either succeeds or returns a workspace containing the other changes.

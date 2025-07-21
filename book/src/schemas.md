@@ -56,8 +56,8 @@ serves as the schema ID.  The example below defines a little-endian `u64` value
 schema and a simple blob schema for arbitrary bytes.
 
 ```rust
-{{#include ../examples/custom_schema.rs:beginning:ending}}
+{{#include ../../examples/custom_schema.rs:custom_schema}}
 ```
 
-See [`examples/custom_schema.rs`](../examples/custom_schema.rs) for the full
+See [`examples/custom_schema.rs`](../../examples/custom_schema.rs) for the full
 source.

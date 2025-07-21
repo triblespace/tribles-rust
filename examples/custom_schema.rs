@@ -4,7 +4,7 @@ use tribles::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
 use tribles::id::{id_hex, Id};
 use tribles::value::{FromValue, ToValue, Value, ValueSchema, VALUE_LEN};
 
-// beginning
+// ANCHOR: custom_schema
 
 pub struct U64LE;
 
@@ -46,6 +46,6 @@ impl TryFromBlob<BytesBlob> for Bytes {
     }
 }
 
-// ending
+// ANCHOR_END: custom_schema
 
 fn main() {}

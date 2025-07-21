@@ -66,20 +66,26 @@ but it demonstrates how repository operations map onto a CLI.
 A simplified view of the push/merge cycle:
 
 ```text
+
+        ┌───────────┐         pull          ┌───────────┐
+        | local ws  |◀───────────────────── |   repo    |
+        └─────┬─────┘                       └───────────┘
+              │
+              │ commit
+              │                                                                      
+              ▼                                   
         ┌───────────┐         push          ┌───────────┐
         │  local ws │ ─────────────────────▶│   repo    │
         └─────┬─────┘                       └─────┬─────┘
-              │            merge                  │
-              │                                   │ conflict
+              │                                   │
+              │ merge                             │ conflict?
               └──────▶┌─────────────┐◀────────────┘
-                      │ conflict ws │
-                      └─────────────┘
-                             │
-                             │ push
-                             ▼
-                        ┌───────────┐
-                        │   repo    │
-                        └───────────┘
+                      │ conflict ws │       
+                      └───────┬─────┘
+                              │             ┌───────────┐
+                              └────────────▶|   repo    │
+                                     push   └───────────┘
+   
 ```
 
 Each push either succeeds or returns a workspace containing the other changes.

@@ -229,20 +229,26 @@ the examples. The tool is currently experimental and may lag behind the library,
 but it demonstrates how repository operations map onto a CLI.</p>
 <h2 id="diagram"><a class="header" href="#diagram">Diagram</a></h2>
 <p>A simplified view of the push/merge cycle:</p>
-<pre><code class="language-text">        ┌───────────┐         push          ┌───────────┐
+<pre><code class="language-text">
+        ┌───────────┐         pull          ┌───────────┐
+        | local ws  |◀───────────────────── |   repo    |
+        └─────┬─────┘                       └───────────┘
+              │
+              │ commit
+              │                                                                      
+              ▼                                   
+        ┌───────────┐         push          ┌───────────┐
         │  local ws │ ─────────────────────▶│   repo    │
         └─────┬─────┘                       └─────┬─────┘
-              │            merge                  │
-              │                                   │ conflict
+              │                                   │
+              │ merge                             │ conflict?
               └──────▶┌─────────────┐◀────────────┘
-                      │ conflict ws │
-                      └─────────────┘
-                             │
-                             │ push
-                             ▼
-                        ┌───────────┐
-                        │   repo    │
-                        └───────────┘
+                      │ conflict ws │       
+                      └───────┬─────┘
+                              │             ┌───────────┐
+                              └────────────▶|   repo    │
+                                     push   └───────────┘
+   
 </code></pre>
 <p>Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts

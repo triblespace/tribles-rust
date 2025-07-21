@@ -228,10 +228,50 @@ assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());
 serves as the schema ID.  The example below defines a little-endian <code>u64</code> value
 schema and a simple blob schema for arbitrary bytes.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>{{#include ../examples/custom_schema.rs:beginning:ending}}
+</span>
+<span class="boring">fn main() {
+</span>pub struct U64LE;
+
+impl ValueSchema for U64LE {
+    const VALUE_SCHEMA_ID: Id = id_hex!("0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A");
+    type ValidationError = Infallible;
+}
+
+impl ToValue&lt;U64LE&gt; for u64 {
+    fn to_value(self) -&gt; Value&lt;U64LE&gt; {
+        let mut raw = [0u8; VALUE_LEN];
+        raw[..8].copy_from_slice(&amp;self.to_le_bytes());
+        Value::new(raw)
+    }
+}
+
+impl FromValue&lt;'_, U64LE&gt; for u64 {
+    fn from_value(v: &amp;Value&lt;U64LE&gt;) -&gt; Self {
+        u64::from_le_bytes(v.raw[..8].try_into().unwrap())
+    }
+}
+
+pub struct BytesBlob;
+
+impl BlobSchema for BytesBlob {
+    const BLOB_SCHEMA_ID: Id = id_hex!("B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0");
+}
+
+impl ToBlob&lt;BytesBlob&gt; for Bytes {
+    fn to_blob(self) -&gt; Blob&lt;BytesBlob&gt; {
+        Blob::new(self)
+    }
+}
+
+impl TryFromBlob&lt;BytesBlob&gt; for Bytes {
+    type Error = Infallible;
+    fn try_from_blob(b: Blob&lt;BytesBlob&gt;) -&gt; Result&lt;Self, Self::Error&gt; {
+        Ok(b.bytes)
+    }
+}
+
 <span class="boring">}</span></code></pre></pre>
-<p>See <a href="../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
+<p>See <a href="../../examples/custom_schema.rs"><code>examples/custom_schema.rs</code></a> for the full
 source.</p>
 
                     </main>

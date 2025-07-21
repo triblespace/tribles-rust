@@ -232,17 +232,17 @@ but it demonstrates how repository operations map onto a CLI.</p>
 <pre><code class="language-text">        ┌───────────┐         push          ┌───────────┐
         │  local ws │ ─────────────────────▶│   repo    │
         └─────┬─────┘                       └─────┬─────┘
-             │            merge                  │
-             │                                   │ conflict
-             └──────▶┌─────────────┐◀────────────┘
-                     │ conflict ws │
-                     └─────────────┘
-                          │
-                          │ push
-                          ▼
-                     ┌───────────┐
-                     │   repo    │
-                     └───────────┘
+              │            merge                  │
+              │                                   │ conflict
+              └──────▶┌─────────────┐◀────────────┘
+                      │ conflict ws │
+                      └─────────────┘
+                             │
+                             │ push
+                             ▼
+                        ┌───────────┐
+                        │   repo    │
+                        └───────────┘
 </code></pre>
 <p>Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts

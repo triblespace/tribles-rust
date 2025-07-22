@@ -89,14 +89,21 @@ pub enum ValidationState {
     Invalid,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct BlobMetadata {
+    pub timestamp: u64,
+    pub length: u64,
+}
+
 #[derive(Debug, Clone)]
 struct IndexEntry {
     state: Arc<OnceLock<ValidationState>>,
     bytes: Bytes,
+    timestamp: u64,
 }
 
 impl IndexEntry {
-    fn new(bytes: Bytes, validation: Option<ValidationState>) -> Self {
+    fn new(bytes: Bytes, timestamp: u64, validation: Option<ValidationState>) -> Self {
         Self {
             state: Arc::new(
                 validation
@@ -104,6 +111,7 @@ impl IndexEntry {
                     .unwrap_or_default(),
             ),
             bytes,
+            timestamp,
         }
     }
 }
@@ -228,6 +236,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                     IndexEntry {
                         state: Arc::new(OnceLock::from(ValidationState::Validated)),
                         bytes: written_bytes.clone(),
+                        timestamp: now_in_ms as u64,
                     },
                 );
             }
@@ -249,6 +258,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                 second.blobs.entry(hash).or_insert_with(|| IndexEntry {
                     state: first.state.clone(),
                     bytes: first.bytes.clone(),
+                    timestamp: first.timestamp,
                 });
             }
         }
@@ -304,6 +314,21 @@ impl<H: HashProtocol> PileReader<H> {
             read_handle: self.r_handle.clone(),
             cursor: None,
         }
+    }
+
+    /// Returns the metadata for the given blob handle if it exists.
+    pub fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Option<BlobMetadata>
+    where
+        S: BlobSchema,
+        Handle<H, S>: ValueSchema,
+    {
+        let hash: &Value<Hash<H>> = handle.as_transmute();
+        let r_handle = self.r_handle.enter()?;
+        let entry = r_handle.blobs.get(hash)?;
+        Some(BlobMetadata {
+            timestamp: entry.timestamp,
+            length: entry.bytes.len() as u64,
+        })
     }
 }
 
@@ -545,7 +570,8 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                     bytes.take_prefix(pad).ok_or(OpenError::CorruptPile {
                         valid_length: start_offset,
                     })?;
-                    blobs.insert(hash, IndexEntry::new(blob_bytes, None));
+                    let timestamp = header.timestamp;
+                    blobs.insert(hash, IndexEntry::new(blob_bytes, timestamp, None));
                 }
                 MAGIC_MARKER_BRANCH => {
                     let Ok(header) = bytes.view_prefix::<BranchHeader>() else {

@@ -2,6 +2,8 @@
 #![cfg_attr(nightly, feature(rustc_attrs))]
 #![cfg_attr(nightly, feature(decl_macro))]
 
+extern crate self as tribles;
+
 pub mod blob;
 pub mod id;
 pub mod metadata;

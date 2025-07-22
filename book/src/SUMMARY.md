@@ -15,3 +15,4 @@
   - [Trible Structure](deep-dive/trible-structure.md)
   - [PATCH](deep-dive/patch.md)
   - [Pile Format](pile-format.md)
+  - [Pile Blob Metadata](pile-metadata-proposal.md)

@@ -106,6 +106,7 @@ pub mod objectstore;
 pub mod pile;
 
 use std::{
+    collections::HashSet,
     convert::Infallible,
     error::Error,
     fmt::{self, Debug},
@@ -845,6 +846,14 @@ pub trait CommitSelector<Blobs: BlobStore<Blake3>> {
     >;
 }
 
+/// Selector that returns a commit along with all of its ancestors.
+pub struct Ancestors(pub CommitHandle);
+
+/// Convenience function to create an [`Ancestors`] selector.
+pub fn ancestors(commit: CommitHandle) -> Ancestors {
+    Ancestors(commit)
+}
+
 impl<Blobs> CommitSelector<Blobs> for CommitHandle
 where
     Blobs: BlobStore<Blake3>,
@@ -890,6 +899,21 @@ where
     }
 }
 
+impl<Blobs> CommitSelector<Blobs> for Ancestors
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        Vec<CommitHandle>,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        collect_reachable(ws, self.0)
+    }
+}
+
 impl<Blobs> CommitSelector<Blobs> for std::ops::Range<CommitHandle>
 where
     Blobs: BlobStore<Blake3>,
@@ -901,23 +925,11 @@ where
         Vec<CommitHandle>,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        ws.collect_range(Some(self.start), Some(self.end), false)
-    }
-}
-
-impl<Blobs> CommitSelector<Blobs> for std::ops::RangeInclusive<CommitHandle>
-where
-    Blobs: BlobStore<Blake3>,
-{
-    fn select(
-        self,
-        ws: &mut Workspace<Blobs>,
-    ) -> Result<
-        Vec<CommitHandle>,
-        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
-    > {
-        let (start, end) = self.into_inner();
-        ws.collect_range(Some(start), Some(end), true)
+        let mut commits = collect_range(ws, Some(self.start), Some(self.end), true)?;
+        if !commits.is_empty() {
+            commits.remove(0);
+        }
+        Ok(commits)
     }
 }
 
@@ -932,7 +944,7 @@ where
         Vec<CommitHandle>,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        ws.collect_range(Some(self.start), None, true)
+        collect_range(ws, Some(self.start), None, true)
     }
 }
 
@@ -947,22 +959,7 @@ where
         Vec<CommitHandle>,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        ws.collect_range(None, Some(self.end), false)
-    }
-}
-
-impl<Blobs> CommitSelector<Blobs> for std::ops::RangeToInclusive<CommitHandle>
-where
-    Blobs: BlobStore<Blake3>,
-{
-    fn select(
-        self,
-        ws: &mut Workspace<Blobs>,
-    ) -> Result<
-        Vec<CommitHandle>,
-        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
-    > {
-        ws.collect_range(None, Some(self.end), true)
+        collect_range(ws, None, Some(self.end), false)
     }
 }
 
@@ -977,7 +974,7 @@ where
         Vec<CommitHandle>,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        ws.collect_range(None, None, true)
+        collect_range(ws, None, None, true)
     }
 }
 
@@ -1086,59 +1083,6 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         Ok(commit_handle)
     }
 
-    fn first_parent(
-        &mut self,
-        commit: CommitHandle,
-    ) -> Result<
-        Option<CommitHandle>,
-        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
-    > {
-        let meta: TribleSet = self
-            .local_blobs
-            .reader()
-            .get(commit)
-            .or_else(|_| self.base_blobs.get(commit))
-            .map_err(WorkspaceCheckoutError::Storage)?;
-
-        match find!( (p: Value<_>), repo::pattern!(&meta, [{ parent: p }]) ).at_most_one() {
-            Ok(Some((p,))) => Ok(Some(p)),
-            Ok(None) => Ok(None),
-            Err(_) => Err(WorkspaceCheckoutError::BadCommitMetadata()),
-        }
-    }
-
-    fn collect_range(
-        &mut self,
-        start: Option<CommitHandle>,
-        end: Option<CommitHandle>,
-        inclusive_end: bool,
-    ) -> Result<
-        Vec<CommitHandle>,
-        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
-    > {
-        let mut result = Vec::new();
-        let mut current = match end.or(self.head) {
-            Some(c) => c,
-            None => return Err(WorkspaceCheckoutError::NoHead),
-        };
-
-        loop {
-            result.push(current);
-            if Some(current) == start {
-                break;
-            }
-            match self.first_parent(current)? {
-                Some(p) => current = p,
-                None => break,
-            }
-        }
-        result.reverse();
-        if !inclusive_end {
-            result.pop();
-        }
-        Ok(result)
-    }
-
     /// Returns the combined [`TribleSet`] for the specified commits.
     ///
     /// Each commit handle must reference a commit blob stored either in the
@@ -1222,3 +1166,89 @@ impl<E: Error + fmt::Debug> fmt::Display for WorkspaceCheckoutError<E> {
 }
 
 impl<E: Error + fmt::Debug> Error for WorkspaceCheckoutError<E> {}
+
+fn first_parent<Blobs: BlobStore<Blake3>>(
+    ws: &mut Workspace<Blobs>,
+    commit: CommitHandle,
+) -> Result<
+    Option<CommitHandle>,
+    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+> {
+    let meta: TribleSet = ws
+        .local_blobs
+        .reader()
+        .get(commit)
+        .or_else(|_| ws.base_blobs.get(commit))
+        .map_err(WorkspaceCheckoutError::Storage)?;
+
+    match find!( (p: Value<_>), repo::pattern!(&meta, [{ parent: p }]) ).at_most_one() {
+        Ok(Some((p,))) => Ok(Some(p)),
+        Ok(None) => Ok(None),
+        Err(_) => Err(WorkspaceCheckoutError::BadCommitMetadata()),
+    }
+}
+
+fn collect_reachable<Blobs: BlobStore<Blake3>>(
+    ws: &mut Workspace<Blobs>,
+    from: CommitHandle,
+) -> Result<
+    Vec<CommitHandle>,
+    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+> {
+    let mut visited = HashSet::new();
+    let mut stack = vec![from];
+    let mut result = Vec::new();
+
+    while let Some(commit) = stack.pop() {
+        if !visited.insert(commit) {
+            continue;
+        }
+        result.push(commit);
+
+        let meta: TribleSet = ws
+            .local_blobs
+            .reader()
+            .get(commit)
+            .or_else(|_| ws.base_blobs.get(commit))
+            .map_err(WorkspaceCheckoutError::Storage)?;
+
+        for (p,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
+            stack.push(p);
+        }
+    }
+
+    result.reverse();
+    Ok(result)
+}
+
+fn collect_range<Blobs: BlobStore<Blake3>>(
+    ws: &mut Workspace<Blobs>,
+    start: Option<CommitHandle>,
+    end: Option<CommitHandle>,
+    inclusive_end: bool,
+) -> Result<
+    Vec<CommitHandle>,
+    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+> {
+    let mut result = Vec::new();
+    let mut current = match end.or(ws.head) {
+        Some(c) => c,
+        None => return Err(WorkspaceCheckoutError::NoHead),
+    };
+
+    loop {
+        result.push(current);
+        if Some(current) == start {
+            break;
+        }
+        match first_parent(ws, current)? {
+            Some(p) => current = p,
+            None => break,
+        }
+    }
+    result.reverse();
+    if !inclusive_end {
+        result.pop();
+    }
+    Ok(result)
+}

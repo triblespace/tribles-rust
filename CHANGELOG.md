@@ -138,6 +138,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Workspace::get` method retrieves blobs from the local store and falls back to
   the base store when needed.
 - `OpenError` now implements `std::error::Error` and provides clearer messages when opening piles.
+- Removed the `..=` commit range selector. The `..` selector now follows Git's
+  semantics and excludes the starting commit.
+- Extracted `collect_range` into a standalone function for clarity.
+- Moved `first_parent` into a standalone function for clarity.
+- Added a `collect_reachable` helper to gather all commits reachable from a
+  starting point.
+- Scalar commit selectors once again return only the specified commit.
+- Introduced an `ancestors` selector to retrieve a commit and its history.
 
 ## [0.5.2] - 2025-06-30
 ### Added

@@ -938,10 +938,9 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let mut patch = collect_range(ws, Some(self.start), Some(self.end), true)?;
-        // Exclude the starting commit to mirror git semantics
-        patch.remove(&self.start.raw);
-        Ok(patch)
+        let patch = collect_reachable(ws, self.end)?;
+        let exclude = collect_reachable(ws, self.start)?;
+        Ok(patch.difference(&exclude))
     }
 }
 

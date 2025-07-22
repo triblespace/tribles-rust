@@ -13,129 +13,23 @@
 
 /// Helper macro for constructing trible entries for an entity.
 /// Hidden by default, used internally by the `entity!` macro.
+pub use hex_literal;
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! entity_inner {
     ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
         {
             use $Namespace as ns;
-            $({ let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
-                $Set.insert(&$crate::trible::Trible::new(
-                $EntityId,
-                &ns::ids::$FieldName,
-                &v));})*
+            $(
+                { let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
+                $Set.insert(&$crate::trible::Trible::new($EntityId, &ns::ids::$FieldName, &v)); }
+            )*
         }
     };
 }
 
 pub use entity_inner;
-
-/// Helper macro for constructing pattern-based queries.
-///
-/// This is the implementation detail behind the public [`pattern!`] macro.
-/// The macro receives an array of entity patterns where each field either binds
-/// a variable or matches a literal value. It then expands to a list of query
-/// constraints that restrict those triples. The result is wrapped in an
-/// [`IntersectionConstraint`] so that all field constraints must hold.
-///
-/// ### Pattern forms
-///
-/// * `{ ent_var @ field: value, ... }` – use an existing variable for the
-///   entity identifier and add triple constraints for each field.
-///   Example: `{ book @ title: t }`
-/// * `{ (ent_id) @ field: value, ... }` – fix the entity to a specific id.
-///   Example: `{ (book_id) @ title: ("Dune") }`
-/// * `{ field: value, ... }` – create a fresh entity variable internally.
-///   Example: `{ title: ("Dune") }`
-///
-/// Field `value`s can be a variable or `(expr)` to match a literal expression.
-/// Each literal expression is converted to the corresponding [`Value`] and an
-/// equality constraint is emitted for it, e.g. `{ lastname: ("Herbert") }` or
-/// `{ lastname: name_var }`.
-///
-/// The macro is recursive and uses the private `@entity` and `@triple` rules to
-/// transform the declarative syntax into concrete [`Constraint`] objects. It is
-/// not meant to be invoked directly—`pattern!` handles creating the query
-/// context and passing the appropriate namespace.
-///
-/// Hidden by default, used internally by the `pattern!` macro.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pattern_inner {
-    // Handles a triple where the value is a literal expression written in
-    // parentheses. This form creates a new variable for the value and
-    // constrains it to equal the literal.
-    // Example: `{ title: ("Dune") }`
-    (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, ($Value:expr))) => {
-        {
-            use $crate::query::TriblePattern;
-            use $Namespace as ns;
-            let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $ctx.next_variable();
-            let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
-            $constraints.push(Box::new(a_var.is($crate::value::ToValue::to_value(ns::ids::$FieldName))));
-            $constraints.push(Box::new(v_var.is(v)));
-            $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
-        }
-
-    };
-    // Handles a triple that binds its value to an existing variable.
-    // Example: `{ title: my_title }`
-    (@triple ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, $EntityId:ident, $FieldName:ident, $Value:expr)) => {
-        {
-            use $crate::query::TriblePattern;
-            use $Namespace as ns;
-            let a_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            let v_var: $crate::query::Variable<ns::schemas::$FieldName> = $Value;
-            $constraints.push(Box::new(a_var.is($crate::value::ToValue::to_value(ns::ids::$FieldName))));
-            $constraints.push(Box::new($set.pattern($EntityId, a_var, v_var)));
-        }
-
-    };
-
-    // Entity block with a literal id `(id)`, generating a fresh variable bound
-    // to that id before processing the field triples.
-    // Example: `{ (book_id) @ title: t }`
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {($EntityId:expr) @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
-        {
-            let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            $constraints.push({ let e: $crate::id::Id = $EntityId; Box::new(e_var.is($crate::value::ToValue::to_value(e)))});
-            $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
-        }
-    };
-
-    // Entity block that reuses an existing variable for the entity id.
-    // Example: `{ book @ title: t }`
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$EntityId:ident @ $($FieldName:ident : $Value:tt),* $(,)?})) => {
-        {
-            let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $EntityId;
-            $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
-        }
-    };
-
-    // Entity block without an explicit id. A new variable is created for the
-    // entity and shared by all contained triple constraints.
-    // Example: `{ title: t }`
-    (@entity ($constraints:ident, $ctx:ident, $set:ident, $Namespace:path, {$($FieldName:ident : $Value:tt),* $(,)?})) => {
-        {
-            let e_var: $crate::query::Variable<$crate::value::schemas::genid::GenId> = $ctx.next_variable();
-            $(pattern_inner!(@triple ($constraints, $ctx, $set, $Namespace, e_var, $FieldName, $Value));)*
-        }
-    };
-    // Entry point that collects all entity patterns into a single intersection
-    // of constraints. Used by the public `pattern!` macro.
-    ($Namespace:path, $ctx:ident, $set:ident, [$($Entity:tt),*]) => {
-        {
-            let mut constraints: Vec<Box<dyn $crate::query::Constraint>> = vec!();
-            $(pattern_inner!(@entity (constraints, $ctx, $set, $Namespace, $Entity));)*
-            $crate::query::intersectionconstraint::IntersectionConstraint::new(constraints)
-        }
-    };
-}
-
-pub use pattern_inner;
-
-pub use hex_literal;
 
 /// Defines a Rust module to represent a namespace, along with convenience macros.
 /// The `namespace` block maps human-readable names to attribute IDs and type schemas.
@@ -200,10 +94,7 @@ macro_rules! NS {
             macro_rules! pattern {
                 ($set:expr, $pattern: tt) => {
                     {
-                        use $crate::namespace::pattern_inner;
-                        let ctx = __local_find_context!();
-                        let set = $set;
-                        pattern_inner!($mod_name, ctx, set, $pattern)
+                        ::tribles_macros::pattern!{ ::tribles, $mod_name, $set, $pattern }
                     }
                 };
             }

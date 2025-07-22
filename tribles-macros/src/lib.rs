@@ -168,14 +168,22 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     // Accumulate the token stream for each entity pattern.
     let mut entity_tokens = TokenStream2::new();
+    // Token stream that initializes attribute variables once.
+    let mut attr_tokens = TokenStream2::new();
+    // Bring the namespace into scope for attribute initialization.
+    attr_tokens.extend(quote! { use #ns as ns; });
     // Counter to create unique identifiers for entity variables.
-    let mut idx = 0usize;
+    let mut entity_idx = 0usize;
+    // Counter and map for unique attribute variables.
+    let mut attr_idx = 0usize;
+    use std::collections::HashMap;
+    let mut attr_map: HashMap<String, Ident> = HashMap::new();
 
     // Expand one block per entity described in the pattern.
     for entity in pattern {
         // Variable name representing the entity id.
-        let e_ident = format_ident!("__e{}", idx, span = Span::call_site());
-        idx += 1;
+        let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
+        entity_idx += 1;
         // Initialization depends on whether an id was supplied.
         let init = match entity.id {
             // Existing identifier variable: reuse it directly.
@@ -194,6 +202,21 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
         // Emit triple constraints for each field within the entity.
         for Field { name, value } in entity.fields {
             let field_ident = name;
+
+            // Reuse the same attribute variable for each unique field name.
+            let a_var_ident = attr_map
+                .entry(field_ident.to_string())
+                .or_insert_with(|| {
+                    let ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
+                    attr_idx += 1;
+                    attr_tokens.extend(quote! {
+                        let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(ns::ids::#field_ident))));
+                    });
+                    ident
+                })
+                .clone();
+
             let triple_tokens = match value {
                 // Literal value: create a variable bound to the literal and match it.
                 FieldValue::Lit(expr) => {
@@ -201,17 +224,13 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         {
                             use #crate_path::query::TriblePattern;
                             use #ns as ns;
-                            // fresh vars for attribute and value
-                            let a_var: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                             let v_var: #crate_path::query::Variable<ns::schemas::#field_ident> = #ctx_ident.next_variable();
                             // literal value converted to a `Value`
                             let v: #crate_path::value::Value<ns::schemas::#field_ident> = #crate_path::value::ToValue::to_value(#expr);
-                            // ensure the attribute id matches
-                            constraints.push(Box::new(a_var.is(#crate_path::value::ToValue::to_value(ns::ids::#field_ident))));
                             // ensure the literal matches the variable
                             constraints.push(Box::new(v_var.is(v)));
                             // match the triple from the dataset
-                            constraints.push(Box::new(#set_ident.pattern(#e_ident, a_var, v_var)));
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
                 }
@@ -221,10 +240,8 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         {
                             use #crate_path::query::TriblePattern;
                             use #ns as ns;
-                            let a_var: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                             let v_var: #crate_path::query::Variable<ns::schemas::#field_ident> = #expr;
-                            constraints.push(Box::new(a_var.is(#crate_path::value::ToValue::to_value(ns::ids::#field_ident))));
-                            constraints.push(Box::new(#set_ident.pattern(#e_ident, a_var, v_var)));
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
                 }
@@ -239,6 +256,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let mut constraints: Vec<Box<dyn #crate_path::query::Constraint>> = vec![];
             let #ctx_ident = __local_find_context!();
             let #set_ident = #set;
+            #attr_tokens
             #entity_tokens
             #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }

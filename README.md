@@ -146,20 +146,20 @@ For details on setting up a development environment, see [Developing Locally](bo
 
 # Learn More
 
-The best way to get started is to read the module documentation of the `tribles` crate. The following links provide an overview of the most important modules, in an order where you can start with the most basic concepts and work your way up to more advanced topics:
+The best way to get started is to read the [Tribles Book](https://triblespace.github.io/tribles-rust/). The following links mirror the book's chapter order so you can progress from the basics to more advanced topics:
 
-1. [Prelude](https://docs.rs/tribles/latest/tribles/prelude/index.html)
-2. [Identifiers](https://docs.rs/tribles/latest/tribles/id/index.html)
-3. [Values](https://docs.rs/tribles/latest/tribles/value/index.html)
-4. [Blobs](https://docs.rs/tribles/latest/tribles/blob/index.html)
-5. [Tribles](https://docs.rs/tribles/latest/tribles/trible/index.html)
-6. [Namespaces](https://docs.rs/tribles/latest/tribles/namespace/index.html)
-7. [Queries](https://docs.rs/tribles/latest/tribles/query/index.html)
-8. [Remotes](https://docs.rs/tribles/latest/tribles/remote/index.html)
-9. [Predefined Value Schemas](https://docs.rs/tribles/latest/tribles/value/schemas/index.html)
-10. [Predefined Blob Schemas](https://docs.rs/tribles/latest/tribles/blob/schemas/index.html)
-11. [Pile format and recovery](https://docs.rs/tribles/latest/tribles/repo/struct.Pile.html)
-12. [Repository and Workspace](https://docs.rs/tribles/latest/tribles/repo/index.html)
+1. [Introduction](https://triblespace.github.io/tribles-rust/introduction.html)
+2. [Getting Started](https://triblespace.github.io/tribles-rust/getting-started.html)
+3. [Architecture](https://triblespace.github.io/tribles-rust/architecture.html)
+4. [Query Language](https://triblespace.github.io/tribles-rust/query-language.html)
+5. [Incremental Queries](https://triblespace.github.io/tribles-rust/incremental-queries.html)
+6. [Schemas](https://triblespace.github.io/tribles-rust/schemas.html)
+7. [Repository Workflows](https://triblespace.github.io/tribles-rust/repository-workflows.html)
+8. [Commit Selectors](https://triblespace.github.io/tribles-rust/commit-selectors.html)
+9. [Philosophy](https://triblespace.github.io/tribles-rust/deep-dive/philosophy.html)
+10. [Identifiers](https://triblespace.github.io/tribles-rust/deep-dive/identifiers.html)
+11. [Trible Structure](https://triblespace.github.io/tribles-rust/deep-dive/trible-structure.html)
+12. [Pile Format](https://triblespace.github.io/tribles-rust/pile-format.html)
 ## License
 
 Licensed under either of

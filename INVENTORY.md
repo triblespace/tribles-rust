@@ -31,5 +31,15 @@
 - Investigate the theoretical complexity of PATCH operations.
 - Measure practical space usage for PATCH with varying dataset sizes.
 
+## Documentation
+- Move the "Portability & Common Formats" overview from `src/value.rs` into a
+  dedicated chapter of the book.
+- Migrate the blob module introduction in `src/blob.rs` so the crate docs focus
+  on API details.
+- Extract the repository design discussion and Git parallels from `src/repo.rs`
+  into the book.
+- Split out the lengthy explanation of trible structure from `src/trible.rs`
+  and consolidate it with the deep dive chapter.
+
 ## Discovered Issues
 - No open issues recorded yet.

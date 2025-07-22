@@ -124,7 +124,9 @@ use crate::{
     find,
     id::Id,
     metadata::metadata,
+    patch::{Entry, IdentityOrder, SingleSegmentation, PATCH},
     trible::TribleSet,
+    value::VALUE_LEN,
     value::{
         schemas::hash::{Handle, HashProtocol},
         Value, ValueSchema,
@@ -799,6 +801,7 @@ where
 }
 
 type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
+type CommitSet = PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>;
 type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 
 /// The Workspace represents the mutable working area or "staging" state.
@@ -841,7 +844,7 @@ pub trait CommitSelector<Blobs: BlobStore<Blake3>> {
         self,
         ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     >;
 }
@@ -862,10 +865,12 @@ where
         self,
         _ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        Ok(vec![self])
+        let mut patch = CommitSet::new();
+        patch.insert(&Entry::new(&self.raw));
+        Ok(patch)
     }
 }
 
@@ -877,10 +882,14 @@ where
         self,
         _ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        Ok(self)
+        let mut patch = CommitSet::new();
+        for handle in self {
+            patch.insert(&Entry::new(&handle.raw));
+        }
+        Ok(patch)
     }
 }
 
@@ -892,10 +901,14 @@ where
         self,
         _ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        Ok(self.to_vec())
+        let mut patch = CommitSet::new();
+        for handle in self {
+            patch.insert(&Entry::new(&handle.raw));
+        }
+        Ok(patch)
     }
 }
 
@@ -907,7 +920,7 @@ where
         self,
         ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         collect_reachable(ws, self.0)
@@ -922,14 +935,13 @@ where
         self,
         ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let mut commits = collect_range(ws, Some(self.start), Some(self.end), true)?;
-        if !commits.is_empty() {
-            commits.remove(0);
-        }
-        Ok(commits)
+        let mut patch = collect_range(ws, Some(self.start), Some(self.end), true)?;
+        // Exclude the starting commit to mirror git semantics
+        patch.remove(&self.start.raw);
+        Ok(patch)
     }
 }
 
@@ -941,7 +953,7 @@ where
         self,
         ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         collect_range(ws, Some(self.start), None, true)
@@ -956,7 +968,7 @@ where
         self,
         ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         collect_range(ws, None, Some(self.end), false)
@@ -971,7 +983,7 @@ where
         self,
         ws: &mut Workspace<Blobs>,
     ) -> Result<
-        Vec<CommitHandle>,
+        CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         collect_range(ws, None, None, true)
@@ -1138,7 +1150,8 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     where
         R: CommitSelector<Blobs>,
     {
-        let commits = spec.select(self)?;
+        let patch = spec.select(self)?;
+        let commits = patch.iter().map(|raw| Value::new(*raw));
         self.checkout_commits(commits)
     }
 }
@@ -1192,18 +1205,18 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
     ws: &mut Workspace<Blobs>,
     from: CommitHandle,
 ) -> Result<
-    Vec<CommitHandle>,
+    CommitSet,
     WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
 > {
     let mut visited = HashSet::new();
     let mut stack = vec![from];
-    let mut result = Vec::new();
+    let mut result = CommitSet::new();
 
     while let Some(commit) = stack.pop() {
         if !visited.insert(commit) {
             continue;
         }
-        result.push(commit);
+        result.insert(&Entry::new(&commit.raw));
 
         let meta: TribleSet = ws
             .local_blobs
@@ -1217,7 +1230,6 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
         }
     }
 
-    result.reverse();
     Ok(result)
 }
 
@@ -1227,17 +1239,17 @@ fn collect_range<Blobs: BlobStore<Blake3>>(
     end: Option<CommitHandle>,
     inclusive_end: bool,
 ) -> Result<
-    Vec<CommitHandle>,
+    CommitSet,
     WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
 > {
-    let mut result = Vec::new();
+    let mut tmp = Vec::new();
     let mut current = match end.or(ws.head) {
         Some(c) => c,
         None => return Err(WorkspaceCheckoutError::NoHead),
     };
 
     loop {
-        result.push(current);
+        tmp.push(current);
         if Some(current) == start {
             break;
         }
@@ -1246,9 +1258,13 @@ fn collect_range<Blobs: BlobStore<Blake3>>(
             None => break,
         }
     }
-    result.reverse();
+    tmp.reverse();
     if !inclusive_end {
-        result.pop();
+        tmp.pop();
+    }
+    let mut result = CommitSet::new();
+    for h in tmp {
+        result.insert(&Entry::new(&h.raw));
     }
     Ok(result)
 }

@@ -10,8 +10,8 @@ Instead of passing ranges, callers would construct *commit sets* derived from
 reachability.  Primitive functions like `ancestors(<commit>)` and
 `descendants(<commit>)` would produce sets.  Higher level combinators such as
 `union`, `intersection` and `difference` would then let users express queries
-like "A minus B" or "ancestors of A intersect B".  The result of a selector
-would still be an ordered list of commits for `checkout` to load.
+like "A minus B" or "ancestors of A intersect B".  Each selector would return
+a `CommitSet` patch of commit handles for `checkout` to load.
 
 This approach aligns with Git's mental model and keeps selection logic separate
 from workspace mutation.  It also opens the door for additional operations on

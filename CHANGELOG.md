@@ -147,6 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starting point.
 - Scalar commit selectors once again return only the specified commit.
 - Introduced an `ancestors` selector to retrieve a commit and its history.
+- Commit selectors now return a `CommitSet` patch of commit handles instead of a `Vec`.
+- Renamed the `CommitPatch` type alias to `CommitSet`.
 
 ## [0.5.2] - 2025-06-30
 ### Added

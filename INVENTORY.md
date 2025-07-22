@@ -27,6 +27,9 @@
 - Generate namespaces from a `TribleSet` description so tooling can
   derive them programmatically. Rewriting `pattern!` as a procedural
   macro will be the first step toward this automation.
+- Benchmark PATCH performance across typical workloads.
+- Investigate the theoretical complexity of PATCH operations.
+- Measure practical space usage for PATCH with varying dataset sizes.
 
 ## Discovered Issues
 - No open issues recorded yet.

@@ -13,4 +13,5 @@
   - [Philosophy](deep-dive/philosophy.md)
   - [Identifiers](deep-dive/identifiers.md)
   - [Trible Structure](deep-dive/trible-structure.md)
+  - [PATCH](deep-dive/patch.md)
   - [Pile Format](pile-format.md)

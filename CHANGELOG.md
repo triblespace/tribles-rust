@@ -67,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented the internal `pattern_inner!` macro with expanded usage notes.
 - Added inline comments for every `pattern_inner!` rule describing what it
   matches and why.
+- Added a "PATCH" chapter to the book's deep dive section explaining the trie
+  implementation.
+- Recorded tasks to benchmark PATCH, analyze its algorithmic complexity and
+  measure real-world space usage.
 
 ### Changed
 - Removed the experimental `delta!` macro implementation; incremental

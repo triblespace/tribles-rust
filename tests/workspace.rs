@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{memoryrepo::MemoryRepo, Repository};
+use tribles::repo::{ancestors, memoryrepo::MemoryRepo, Repository};
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -139,11 +139,9 @@ fn workspace_checkout_range_variants() {
     let mut s1s2s3 = s1s2.clone();
     s1s2s3.union(sets[2].clone());
 
-    assert_eq!(ws.checkout(c1..c3).unwrap(), s1s2.clone());
-    assert_eq!(ws.checkout(c1..=c3).unwrap(), s1s2s3.clone());
+    assert_eq!(ws.checkout(c1..c3).unwrap(), s2s3.clone());
     assert_eq!(ws.checkout(c2..).unwrap(), s2s3.clone());
     assert_eq!(ws.checkout(..c3).unwrap(), s1s2.clone());
-    assert_eq!(ws.checkout(..=c2).unwrap(), s1s2.clone());
     assert_eq!(ws.checkout(..).unwrap(), s1s2s3);
 }
 
@@ -174,4 +172,34 @@ fn workspace_get_local_and_base() {
 
     let base: TribleSet = ws2.get(handle).expect("get base");
     assert_eq!(base, set);
+}
+
+#[test]
+fn workspace_checkout_head_collects_history() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main").expect("create branch");
+
+    let mut sets = Vec::new();
+    for i in 0..3i128 {
+        let e = ufoid();
+        let a = ufoid();
+        let v: Value<R256> = i.to_value();
+        let t = Trible::new(&e, &a, &v);
+        let mut s = TribleSet::new();
+        s.insert(&t);
+        ws.commit(s.clone(), None);
+        sets.push(s);
+    }
+
+    let head = ws.head().unwrap();
+    let result = ws.checkout(ancestors(head)).expect("checkout history");
+
+    let mut expected = sets[0].clone();
+    expected.union(sets[1].clone());
+    expected.union(sets[2].clone());
+
+    assert_eq!(result, expected);
 }

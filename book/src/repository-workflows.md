@@ -29,11 +29,13 @@ repo.push(&mut ws)?;
 ```
 
 You can inspect previous commits using `Workspace::checkout` which returns a
-`TribleSet` with the union of the specified commit contents. Commit ranges
-are supported for convenience:
+`TribleSet` with the union of the specified commit contents. Passing a single
+commit returns just that commit. To include its history you can use the
+`ancestors` helper. Commit ranges are supported for convenience:
 
 ```rust
-let history = ws.checkout(commit_a..=commit_b)?;
+let history = ws.checkout(commit_a..commit_b)?;
+let full = ws.checkout(ancestors(commit_b))?;
 ```
 
 ## Merging and Conflict Handling

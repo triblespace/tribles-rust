@@ -4,10 +4,9 @@
 - None at the moment.
 
 ## Completed Work
-- None yet. This file now tracks development ideas.
+- Compressed zero-copy archives are complete.
 
 ## Desired Functionality
-- Finalize the compressed zero-copy archive format currently mentioned as WIP.
 - Provide additional examples showcasing advanced queries and repository usage.
 - Add incremental query support building on the union constraint so
   results can update when datasets change without full recomputation.

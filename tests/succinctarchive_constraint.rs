@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use sucds::bit_vectors::Rank9Sel;
 use tribles::blob::schemas::succinctarchive::{OrderedUniverse, SuccinctArchive};
 use tribles::prelude::*;
 use tribles::query::{Binding, Constraint, TriblePattern, VariableContext};
@@ -26,7 +25,7 @@ fn propose_and_confirm() {
     set.insert(&Trible::force(&e2, &a1, &v5));
     set.insert(&Trible::force(&e2, &a2, &v6));
 
-    let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+    let archive: SuccinctArchive<OrderedUniverse> = (&set).into();
 
     let mut ctx = VariableContext::new();
     let e_var = ctx.next_variable::<GenId>();
@@ -71,7 +70,7 @@ fn propose_and_confirm_bound_attribute() {
     set.insert(&Trible::force(&e2, &a1, &v5));
     set.insert(&Trible::force(&e2, &a2, &v6));
 
-    let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+    let archive: SuccinctArchive<OrderedUniverse> = (&set).into();
 
     let mut ctx = VariableContext::new();
     let e_var = ctx.next_variable::<GenId>();
@@ -115,7 +114,7 @@ fn propose_and_confirm_bound_value() {
     set.insert(&Trible::force(&e2, &a1, &v5));
     set.insert(&Trible::force(&e2, &a2, &v6));
 
-    let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+    let archive: SuccinctArchive<OrderedUniverse> = (&set).into();
 
     let mut ctx = VariableContext::new();
     let e_var = ctx.next_variable::<GenId>();
@@ -156,7 +155,7 @@ fn propose_and_confirm_two_bound() {
     set.insert(&Trible::force(&e2, &a1, &v5));
     set.insert(&Trible::force(&e2, &a2, &v6));
 
-    let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+    let archive: SuccinctArchive<OrderedUniverse> = (&set).into();
 
     let mut ctx = VariableContext::new();
     let e_var = ctx.next_variable::<GenId>();

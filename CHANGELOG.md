@@ -83,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measure real-world space usage.
 
 ### Changed
+- README no longer labels compressed zero-copy archives as WIP.
+- Switched from `sucds` to `jerky` for succinct data structures and reworked
+  compressed archives to use it directly.
+- Construct archive prefix bit vectors using `BitVectorBuilder::from_bit`.
 - Removed the experimental `delta!` macro implementation; incremental
   query support will be revisited once `pattern!` becomes a procedural
   macro.

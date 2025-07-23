@@ -16,77 +16,74 @@ use std::iter;
 
 use itertools::Itertools;
 
-use sucds::bit_vectors::{Access, Build, NumBits, Rank, Select};
-use sucds::char_sequences::WaveletMatrix;
+use jerky::bit_vector::rank9sel::Rank9SelIndex;
+use jerky::bit_vector::{BitVector, BitVectorBuilder, NumBits, Rank, Select};
+use jerky::char_sequences::WaveletMatrix;
+use jerky::int_vectors::CompactVector;
 
-use sucds::bit_vectors::BitVector;
-use sucds::int_vectors::CompactVector;
-
-fn build_prefix_bv<B, I>(domain_len: usize, triple_count: usize, iter: I) -> B
+fn build_prefix_bv<I>(domain_len: usize, triple_count: usize, iter: I) -> BitVector<Rank9SelIndex>
 where
-    B: Build + Access + Rank + Select + NumBits,
     I: IntoIterator<Item = (usize, usize)>,
 {
-    let mut bits = BitVector::from_bit(false, triple_count + domain_len + 1);
+    let mut builder = BitVectorBuilder::from_bit(false, triple_count + domain_len + 1);
 
     let mut seen = 0usize;
     let mut last = 0usize;
     for (val, count) in iter {
         for c in last..=val {
-            bits.set_bit(seen + c, true).unwrap();
+            builder.set_bit(seen + c, true).unwrap();
         }
         seen += count;
         last = val + 1;
     }
     for c in last..=domain_len {
-        bits.set_bit(seen + c, true).unwrap();
+        builder.set_bit(seen + c, true).unwrap();
     }
-    B::build_from_bits(bits.iter(), true, true, true).unwrap()
+    builder.freeze::<Rank9SelIndex>()
 }
 
 #[derive(Debug, Clone)]
-pub struct SuccinctArchive<U, B> {
+pub struct SuccinctArchive<U> {
     pub domain: U,
 
     pub entity_count: usize,
     pub attribute_count: usize,
     pub value_count: usize,
 
-    pub e_a: B,
-    pub a_a: B,
-    pub v_a: B,
+    pub e_a: BitVector<Rank9SelIndex>,
+    pub a_a: BitVector<Rank9SelIndex>,
+    pub v_a: BitVector<Rank9SelIndex>,
 
     /// Bit vector marking the first occurrence of each `(entity, attribute)` pair
     /// in `eav_c`.
-    pub changed_e_a: B,
+    pub changed_e_a: BitVector<Rank9SelIndex>,
     /// Bit vector marking the first occurrence of each `(entity, value)` pair in
     /// `eva_c`.
-    pub changed_e_v: B,
+    pub changed_e_v: BitVector<Rank9SelIndex>,
     /// Bit vector marking the first occurrence of each `(attribute, entity)` pair
     /// in `aev_c`.
-    pub changed_a_e: B,
+    pub changed_a_e: BitVector<Rank9SelIndex>,
     /// Bit vector marking the first occurrence of each `(attribute, value)` pair
     /// in `ave_c`.
-    pub changed_a_v: B,
+    pub changed_a_v: BitVector<Rank9SelIndex>,
     /// Bit vector marking the first occurrence of each `(value, entity)` pair in
     /// `vea_c`.
-    pub changed_v_e: B,
+    pub changed_v_e: BitVector<Rank9SelIndex>,
     /// Bit vector marking the first occurrence of each `(value, attribute)` pair
     /// in `vae_c`.
-    pub changed_v_a: B,
+    pub changed_v_a: BitVector<Rank9SelIndex>,
 
-    pub eav_c: WaveletMatrix<B>,
-    pub vea_c: WaveletMatrix<B>,
-    pub ave_c: WaveletMatrix<B>,
-    pub vae_c: WaveletMatrix<B>,
-    pub eva_c: WaveletMatrix<B>,
-    pub aev_c: WaveletMatrix<B>,
+    pub eav_c: WaveletMatrix<Rank9SelIndex>,
+    pub vea_c: WaveletMatrix<Rank9SelIndex>,
+    pub ave_c: WaveletMatrix<Rank9SelIndex>,
+    pub vae_c: WaveletMatrix<Rank9SelIndex>,
+    pub eva_c: WaveletMatrix<Rank9SelIndex>,
+    pub aev_c: WaveletMatrix<Rank9SelIndex>,
 }
 
-impl<U, B> SuccinctArchive<U, B>
+impl<U> SuccinctArchive<U>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = Trible> + 'a {
         (0..self.eav_c.len()).map(move |v_i| {
@@ -114,7 +111,11 @@ where
     /// component pair.  By counting the set bits between two offsets we can
     /// quickly determine how many distinct pairs appear in that slice of the
     /// index.
-    pub fn distinct_in(&self, bv: &B, range: &std::ops::Range<usize>) -> usize {
+    pub fn distinct_in(
+        &self,
+        bv: &BitVector<Rank9SelIndex>,
+        range: &std::ops::Range<usize>,
+    ) -> usize {
         bv.rank1(range.end).unwrap() - bv.rank1(range.start).unwrap()
     }
 
@@ -127,10 +128,10 @@ where
     /// the middle component of each pair.
     pub fn enumerate_in<'a>(
         &'a self,
-        bv: &'a B,
+        bv: &'a BitVector<Rank9SelIndex>,
         range: &std::ops::Range<usize>,
-        col: &'a WaveletMatrix<B>,
-        prefix: &'a B,
+        col: &'a WaveletMatrix<Rank9SelIndex>,
+        prefix: &'a BitVector<Rank9SelIndex>,
     ) -> impl Iterator<Item = usize> + 'a {
         let start = bv.rank1(range.start).unwrap();
         let end = bv.rank1(range.end).unwrap();
@@ -143,7 +144,10 @@ where
 
     /// Enumerate the identifiers present in `prefix` using `rank`/`select` to
     /// jump directly to the next distinct prefix sum.
-    pub fn enumerate_domain<'a>(&'a self, prefix: &'a B) -> impl Iterator<Item = RawValue> + 'a {
+    pub fn enumerate_domain<'a>(
+        &'a self,
+        prefix: &'a BitVector<Rank9SelIndex>,
+    ) -> impl Iterator<Item = RawValue> + 'a {
         let zero_count = prefix.num_bits() - (self.domain.len() + 1);
         let mut z = 0usize;
         std::iter::from_fn(move || {
@@ -158,10 +162,9 @@ where
     }
 }
 
-impl<U, B> From<&TribleSet> for SuccinctArchive<U, B>
+impl<U> From<&TribleSet> for SuccinctArchive<U>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     fn from(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
@@ -182,7 +185,7 @@ where
         let v_iter = set.vea.iter_prefix_count::<32>().map(|(v, _)| v);
 
         let domain = U::with(e_iter.merge(a_iter).merge(v_iter).dedup());
-        let alph_width = sucds::utils::needed_bits(domain.len() - 1);
+        let alph_width = jerky::utils::needed_bits(domain.len() - 1);
 
         let e_a = build_prefix_bv(
             domain.len(),
@@ -215,8 +218,8 @@ where
         );
 
         //eav
-        let mut eav_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        eav_c
+        let mut eav_b = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
+        eav_b
             .extend(
                 set.eav
                     .iter_prefix_count::<64>()
@@ -224,11 +227,11 @@ where
                     .map(|v| domain.search(&v).expect("v in domain")),
             )
             .unwrap();
-        let eav_c = WaveletMatrix::new(eav_c).unwrap();
+        let eav_c = WaveletMatrix::new(eav_b.freeze()).unwrap();
 
         //vea
-        let mut vea_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        vea_c
+        let mut vea_b = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
+        vea_b
             .extend(
                 set.vea
                     .iter_prefix_count::<64>()
@@ -236,11 +239,11 @@ where
                     .map(|a| domain.search(&a).expect("a in domain")),
             )
             .unwrap();
-        let vea_c = WaveletMatrix::new(vea_c).unwrap();
+        let vea_c = WaveletMatrix::new(vea_b.freeze()).unwrap();
 
         //ave
-        let mut ave_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        ave_c
+        let mut ave_b = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
+        ave_b
             .extend(
                 set.ave
                     .iter_prefix_count::<64>()
@@ -248,11 +251,11 @@ where
                     .map(|e| domain.search(&e).expect("e in domain")),
             )
             .unwrap();
-        let ave_c = WaveletMatrix::new(ave_c).unwrap();
+        let ave_c = WaveletMatrix::new(ave_b.freeze()).unwrap();
 
         //vae
-        let mut vae_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        vae_c
+        let mut vae_b = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
+        vae_b
             .extend(
                 set.vae
                     .iter_prefix_count::<64>()
@@ -260,11 +263,11 @@ where
                     .map(|e| domain.search(&e).expect("e in domain")),
             )
             .unwrap();
-        let vae_c = WaveletMatrix::new(vae_c).unwrap();
+        let vae_c = WaveletMatrix::new(vae_b.freeze()).unwrap();
 
         //eva
-        let mut eva_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        eva_c
+        let mut eva_b = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
+        eva_b
             .extend(
                 set.eva
                     .iter_prefix_count::<64>()
@@ -272,11 +275,11 @@ where
                     .map(|a| domain.search(&a).expect("a in domain")),
             )
             .unwrap();
-        let eva_c = WaveletMatrix::new(eva_c).unwrap();
+        let eva_c = WaveletMatrix::new(eva_b.freeze()).unwrap();
 
         //aev
-        let mut aev_c = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
-        aev_c
+        let mut aev_b = CompactVector::with_capacity(triple_count, alph_width).expect("|D| > 2^32");
+        aev_b
             .extend(
                 set.aev
                     .iter_prefix_count::<64>()
@@ -284,68 +287,56 @@ where
                     .map(|v| domain.search(&v).expect("v in domain")),
             )
             .unwrap();
-        let aev_c = WaveletMatrix::new(aev_c).unwrap();
+        let aev_c = WaveletMatrix::new(aev_b.freeze()).unwrap();
 
         // Build bit vectors marking the first occurrence of each pair
-        let changed_e_a = B::build_from_bits(
-            set.eav.iter_prefix_count::<32>().flat_map(|(_, c)| {
+        let changed_e_a = {
+            let mut b = BitVectorBuilder::new();
+            b.extend_bits(set.eav.iter_prefix_count::<32>().flat_map(|(_, c)| {
                 iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
-            }),
-            true,
-            true,
-            true,
-        )
-        .unwrap();
+            }));
+            b.freeze::<Rank9SelIndex>()
+        };
 
-        let changed_e_v = B::build_from_bits(
-            set.eva.iter_prefix_count::<48>().flat_map(|(_, c)| {
+        let changed_e_v = {
+            let mut b = BitVectorBuilder::new();
+            b.extend_bits(set.eva.iter_prefix_count::<48>().flat_map(|(_, c)| {
                 iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
-            }),
-            true,
-            true,
-            true,
-        )
-        .unwrap();
+            }));
+            b.freeze::<Rank9SelIndex>()
+        };
 
-        let changed_a_e = B::build_from_bits(
-            set.aev.iter_prefix_count::<32>().flat_map(|(_, c)| {
+        let changed_a_e = {
+            let mut b = BitVectorBuilder::new();
+            b.extend_bits(set.aev.iter_prefix_count::<32>().flat_map(|(_, c)| {
                 iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
-            }),
-            true,
-            true,
-            true,
-        )
-        .unwrap();
+            }));
+            b.freeze::<Rank9SelIndex>()
+        };
 
-        let changed_a_v = B::build_from_bits(
-            set.ave.iter_prefix_count::<48>().flat_map(|(_, c)| {
+        let changed_a_v = {
+            let mut b = BitVectorBuilder::new();
+            b.extend_bits(set.ave.iter_prefix_count::<48>().flat_map(|(_, c)| {
                 iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
-            }),
-            true,
-            true,
-            true,
-        )
-        .unwrap();
+            }));
+            b.freeze::<Rank9SelIndex>()
+        };
 
-        let changed_v_e = B::build_from_bits(
-            set.vea.iter_prefix_count::<48>().flat_map(|(_, c)| {
+        let changed_v_e = {
+            let mut b = BitVectorBuilder::new();
+            b.extend_bits(set.vea.iter_prefix_count::<48>().flat_map(|(_, c)| {
                 iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
-            }),
-            true,
-            true,
-            true,
-        )
-        .unwrap();
+            }));
+            b.freeze::<Rank9SelIndex>()
+        };
 
-        let changed_v_a = B::build_from_bits(
-            set.vae.iter_prefix_count::<48>().flat_map(|(_, c)| {
+        let changed_v_a = {
+            let mut b = BitVectorBuilder::new();
+            b.extend_bits(set.vae.iter_prefix_count::<48>().flat_map(|(_, c)| {
                 iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
-            }),
-            true,
-            true,
-            true,
-        )
-        .unwrap();
+            }));
+            b.freeze::<Rank9SelIndex>()
+        };
 
         SuccinctArchive {
             domain,
@@ -371,26 +362,23 @@ where
     }
 }
 
-impl<U, B> From<&SuccinctArchive<U, B>> for TribleSet
+impl<U> From<&SuccinctArchive<U>> for TribleSet
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
-    fn from(archive: &SuccinctArchive<U, B>) -> Self {
+    fn from(archive: &SuccinctArchive<U>) -> Self {
         archive.iter().collect()
     }
 }
 
-impl<U, B> TriblePattern for SuccinctArchive<U, B>
+impl<U> TriblePattern for SuccinctArchive<U>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     type PatternConstraint<'a>
-        = SuccinctArchiveConstraint<'a, U, B>
+        = SuccinctArchiveConstraint<'a, U>
     where
-        U: 'a,
-        B: 'a;
+        U: 'a;
 
     fn pattern<'a, V: ValueSchema>(
         &'a self,
@@ -415,9 +403,8 @@ mod tests {
 
     use super::*;
     use itertools::Itertools;
+    use jerky::int_vectors::DacsByte;
     use proptest::prelude::*;
-    use sucds::bit_vectors::Rank9Sel;
-    use sucds::int_vectors::DacsOpt;
 
     NS! {
         pub namespace knights1 {
@@ -437,7 +424,7 @@ mod tests {
                 set.insert(&Trible{ data: key});
             }
 
-            let _archive: SuccinctArchive::<CompressedUniverse<DacsOpt>, Rank9Sel> = (&set).into();
+            let _archive: SuccinctArchive<CompressedUniverse<DacsByte>> = (&set).into();
         }
 
         #[test]
@@ -449,7 +436,7 @@ mod tests {
                 set.insert(&Trible{ data: key});
             }
 
-            let archive: SuccinctArchive::<CompressedUniverse<DacsOpt>, Rank9Sel> = (&set).into();
+            let archive: SuccinctArchive<CompressedUniverse<DacsByte>> = (&set).into();
             let set_: TribleSet = (&archive).into();
 
             assert_eq!(set, set_);
@@ -476,7 +463,7 @@ mod tests {
         fn compressed_universe(values in prop::collection::vec(prop::collection::vec(0u8..255, 32), 1..128)) {
             let mut values: Vec<RawValue> = values.into_iter().map(|v| v.try_into().unwrap()).collect();
             values.sort();
-            let u = CompressedUniverse::<DacsOpt>::with(values.iter().copied());
+            let u = CompressedUniverse::<DacsByte>::with(values.iter().copied());
             for i in 0..u.len() {
                 let original = values[i];
                 let reconstructed = u.access(i);
@@ -513,7 +500,7 @@ mod tests {
             title: "Nurse"
         });
 
-        let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&kb).into();
+        let archive: SuccinctArchive<OrderedUniverse> = (&kb).into();
 
         let r: Vec<_> = find!(
             (juliet, name),

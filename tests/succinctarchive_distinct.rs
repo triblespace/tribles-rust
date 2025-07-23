@@ -1,4 +1,3 @@
-use sucds::bit_vectors::Rank9Sel;
 use tribles::blob::schemas::succinctarchive::{OrderedUniverse, SuccinctArchive};
 use tribles::prelude::*;
 use tribles::value::schemas::UnknownValue;
@@ -25,7 +24,7 @@ fn distinct_and_enumerate() {
     set.insert(&Trible::force(&e2, &a1, &v5));
     set.insert(&Trible::force(&e2, &a2, &v6));
 
-    let archive: SuccinctArchive<OrderedUniverse, Rank9Sel> = (&set).into();
+    let archive: SuccinctArchive<OrderedUniverse> = (&set).into();
 
     let full = 0..set.len();
     assert_eq!(archive.distinct_in(&archive.changed_e_a, &full), 4);

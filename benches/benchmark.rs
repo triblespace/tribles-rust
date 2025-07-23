@@ -1,12 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use jerky::bit_vector::rank9sel::Rank9SelIndex;
+use jerky::int_vectors::DacsByte;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::hint::black_box;
 use std::iter::FromIterator;
-use sucds::bit_vectors::Rank9Sel;
-use sucds::int_vectors::DacsByte;
-use sucds::Serializable;
 use tribles::blob::schemas::succinctarchive::{
     CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
 };
@@ -289,7 +288,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     });
                 });
                 b.iter(|| {
-                    let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                    let archive: SuccinctArchive<UNIVERSE> = (&set).into();
                     let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                     let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
                     let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
@@ -351,7 +350,7 @@ fn archive_benchmark(c: &mut Criterion) {
                         quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
-                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                let archive: SuccinctArchive<UNIVERSE> = (&set).into();
                 b.iter(|| {
                     let set: TribleSet = (&archive).into();
                     set
@@ -369,7 +368,7 @@ fn archive_benchmark(c: &mut Criterion) {
                 let samples = random_tribles(i as usize);
                 let set = TribleSet::from_iter(black_box(&samples).iter().copied());
                 b.iter(|| {
-                    let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                    let archive: SuccinctArchive<UNIVERSE> = (&set).into();
                     let size_domain = archive.domain.size_in_bytes() as f64 / set.len() as f64;
                     let size_ae = archive.e_a.size_in_bytes() as f64 / set.len() as f64;
                     let size_aa = archive.a_a.size_in_bytes() as f64 / set.len() as f64;
@@ -419,7 +418,7 @@ fn archive_benchmark(c: &mut Criterion) {
             |b, &i| {
                 let samples = random_tribles(i as usize);
                 let set = TribleSet::from_iter(black_box(&samples).iter().copied());
-                let archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&set).into();
+                let archive: SuccinctArchive<UNIVERSE> = (&set).into();
                 b.iter(|| {
                     let set: TribleSet = (&archive).into();
                     set
@@ -676,7 +675,7 @@ fn query_benchmark(c: &mut Criterion) {
 
     group.sample_size(10);
 
-    let kb_archive: SuccinctArchive<UNIVERSE, Rank9Sel> = (&kb).into();
+    let kb_archive: SuccinctArchive<UNIVERSE> = (&kb).into();
 
     group.throughput(Throughput::Elements(1));
     group.bench_function(BenchmarkId::new("archive/single", 1), |b| {

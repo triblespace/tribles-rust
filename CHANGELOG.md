@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
+- Implemented a procedural `delta!` macro for incremental query support.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
 - `Workspace::checkout` now accepts commit ranges for convenient history queries.
@@ -26,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation proposal for exposing blob metadata through the `Pile` API.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
+- Design notes for a conservative garbage collection mechanism that scans
+  `SimpleArchive` values in place to find reachable handles.
+- Clarified that accidental collisions are practically impossible given 32-byte
+  hashes, explaining why the collector can treat any matching value as a real
+  reference.
 - Repository workflows chapter covering branching, merging, CLI usage and an improved push/merge diagram.
 - Separate `verify.sh` script for running Kani verification.
 - Documented conflict resolution loop and clarified that returned workspaces
@@ -83,8 +89,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measure real-world space usage.
 - Listed candidate built-in schemas with design notes in `INVENTORY.md` for
   future implementation.
+- Documented commit range semantics explaining that `a..b` equals
+  `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
+  and the current `HEAD`.
+- Compressed zero-copy archives are now complete.
+- Incremental queries use a new `pattern_changes!` macro.
 
 ### Changed
+- README no longer labels compressed zero-copy archives as WIP.
+- Switched from `sucds` to `jerky` for succinct data structures and reworked
+  compressed archives to use it directly.
+- Construct archive prefix bit vectors using `BitVectorBuilder::from_bit`.
+- Removed completed tasks from `INVENTORY.md` and recorded them here.
 - Removed the experimental `delta!` macro implementation; incremental
   query support will be revisited once `pattern!` becomes a procedural
   macro.
@@ -107,6 +123,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pattern!` now reuses attribute variables for identical field names.
 - Clarified that the project's developer experience goal also includes
   providing an intuitive API for library users.
+- Renamed the `delta!` macro to `pattern_changes!` and changed its
+  signature to `(current, changes, [pattern])` assuming the caller
+  computes the delta set.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`
@@ -175,6 +194,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed the tar/zip archive formats.
 - Added `SocketAddr` and `RgbaColor` value types alongside a `CompressedBlob`
   wrapper, while dropping `DateYMD` and `TimeOfDay` from consideration.
+- `RangeFrom` now returns `ancestors(head)` minus `ancestors(start)` while
+  `..c` selects `ancestors(c)` and `..` resolves to `ancestors(head)`. The old
+  `collect_range` and `first_parent` helpers were removed.
+- Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
+  now tracked in this changelog.
 
 ## [0.5.2] - 2025-06-30
 ### Added

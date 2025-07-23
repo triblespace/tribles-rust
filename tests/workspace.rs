@@ -140,8 +140,8 @@ fn workspace_checkout_range_variants() {
     s1s2s3.union(sets[2].clone());
 
     assert_eq!(ws.checkout(c1..c3).unwrap(), s2s3.clone());
-    assert_eq!(ws.checkout(c2..).unwrap(), s2s3.clone());
-    assert_eq!(ws.checkout(..c3).unwrap(), s1s2.clone());
+    assert_eq!(ws.checkout(c2..).unwrap(), sets[2].clone());
+    assert_eq!(ws.checkout(..c3).unwrap(), s1s2s3.clone());
     assert_eq!(ws.checkout(..).unwrap(), s1s2s3);
 }
 

@@ -75,8 +75,15 @@ macro_rules! NS {
                 };
             }
 
-            // TODO: incremental queries will eventually use a dedicated `delta!`
-            // macro that applies semi-naive rewriting on a per-triple basis.
+            #[macro_pub::macro_pub]
+            macro_rules! pattern_changes {
+                ($curr:expr, $changes:expr, $pattern: tt) => {
+                    {
+                        ::tribles_macros::pattern_changes!{ ::tribles, $mod_name, $curr, $changes, $pattern }
+                    }
+                };
+            }
+
         }
     };
 }
@@ -180,6 +187,59 @@ mod tests {
         let r: Vec<_> = find!(
             (author, hamlet, title),
             literature::pattern!(&kb, [
+            {author @
+             firstname: ("William"),
+             lastname: ("Shakespeare")},
+            {hamlet @
+                title: title,
+                author: author
+            }])
+        )
+        .collect();
+
+        assert_eq!(
+            vec![(
+                shakespeare.to_value(),
+                hamlet.to_value(),
+                "Hamlet".to_value(),
+            )],
+            r
+        );
+    }
+
+    #[test]
+    fn ns_delta() {
+        let mut base = TribleSet::new();
+        (0..10).for_each(|_| {
+            let a = ufoid();
+            let b = ufoid();
+            base += literature::entity!(&a, {
+                firstname: Name(EN).fake::<String>(),
+                lastname: Name(EN).fake::<String>()
+            });
+            base += literature::entity!(&b, {
+                title: Name(EN).fake::<String>(),
+                author: &a
+            });
+        });
+
+        let mut updated = base.clone();
+        let shakespeare = ufoid();
+        let hamlet = ufoid();
+        updated += literature::entity!(&shakespeare, {
+            firstname: "William",
+            lastname: "Shakespeare"
+        });
+        updated += literature::entity!(&hamlet, {
+            title: "Hamlet",
+            author: &shakespeare,
+            quote: "To be, or not to be, that is the question.".to_blob().get_handle()
+        });
+
+        let delta = &updated.difference(&base);
+        let r: Vec<_> = find!(
+            (author, hamlet, title),
+            literature::pattern_changes!(&updated, delta, [
             {author @
              firstname: ("William"),
              lastname: ("Shakespeare")},

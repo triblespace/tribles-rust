@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
+- Implemented a procedural `delta!` macro for incremental query support.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
 - `Workspace::checkout` now accepts commit ranges for convenient history queries.
@@ -109,6 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pattern!` now reuses attribute variables for identical field names.
 - Clarified that the project's developer experience goal also includes
   providing an intuitive API for library users.
+- Renamed the `delta!` macro to `pattern_changes!` and changed its
+  signature to `(current, changes, [pattern])` assuming the caller
+  computes the delta set.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`
@@ -161,6 +165,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed the `CommitPatch` type alias to `CommitSet`.
 - The `..` commit selector now computes `reachable(end) minus reachable(start)`
   via set operations, matching Git's two-dot semantics even across merges.
+- Added a `symmetric_diff` selector corresponding to Git's `A...B` three-dot
+  syntax.
+- `RangeFrom` now returns `ancestors(head)` minus `ancestors(start)` while
+  `..c` selects `ancestors(c)` and `..` resolves to `ancestors(head)`. The old
+  `collect_range` and `first_parent` helpers were removed.
 
 ## [0.5.2] - 2025-06-30
 ### Added

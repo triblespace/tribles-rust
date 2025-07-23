@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation proposal for exposing blob metadata through the `Pile` API.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
+- Design notes for a conservative garbage collection mechanism that scans
+  `SimpleArchive` values in place to find reachable handles.
+- Clarified that accidental collisions are practically impossible given 32-byte
+  hashes, explaining why the collector can treat any matching value as a real
+  reference.
 - Repository workflows chapter covering branching, merging, CLI usage and an improved push/merge diagram.
 - Separate `verify.sh` script for running Kani verification.
 - Documented conflict resolution loop and clarified that returned workspaces

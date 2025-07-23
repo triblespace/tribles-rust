@@ -19,6 +19,9 @@
 - Benchmark PATCH performance across typical workloads.
 - Investigate the theoretical complexity of PATCH operations.
 - Measure practical space usage for PATCH with varying dataset sizes.
+- Implement a garbage collection mechanism that scans branch and commit
+  archives without fully deserialising them to find reachable blob handles.
+  Anything not discovered this way can be forgotten by the underlying store.
 
 ## Documentation
 - Move the "Portability & Common Formats" overview from `src/value.rs` into a

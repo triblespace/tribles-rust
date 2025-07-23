@@ -344,6 +344,48 @@ pub fn entity(input: TokenStream) -> TokenStream {
     }
 }
 
+/// Parsed input for the [`delta`] macro.
+///
+/// The invocation takes the form `crate_path, namespace_path, prev, curr, [..]`.
+/// `prev` and `curr` are expressions evaluating to [`TribleSet`]s. The pattern
+/// syntax matches that of [`pattern!`].
+struct DeltaInput {
+    crate_path: Path,
+    ns: Path,
+    prev: Expr,
+    curr: Expr,
+    pattern: Vec<Entity>,
+}
+
+impl Parse for DeltaInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let crate_path: Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let ns: Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let prev: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let curr: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let content;
+        bracketed!(content in input);
+        let mut pattern = Vec::new();
+        while !content.is_empty() {
+            pattern.push(content.parse()?);
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
+        }
+        Ok(DeltaInput {
+            crate_path,
+            ns,
+            prev,
+            curr,
+            pattern,
+        })
+    }
+}
+
 fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let EntityInput {
         crate_path,
@@ -402,6 +444,185 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
             #insert_tokens
             set
         }}
+    };
+
+    Ok(output.into())
+}
+
+/// Procedural implementation of the `delta!` macro.
+#[proc_macro]
+pub fn delta(input: TokenStream) -> TokenStream {
+    match delta_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+fn delta_impl(input: TokenStream) -> syn::Result<TokenStream> {
+    use std::collections::HashMap;
+
+    let DeltaInput {
+        crate_path,
+        ns,
+        prev,
+        curr,
+        pattern,
+    } = syn::parse(input)?;
+
+    // Identifiers used throughout the expansion
+    let ctx_ident = format_ident!("__ctx", span = Span::call_site());
+    let prev_ident = format_ident!("__prev", span = Span::call_site());
+    let curr_ident = format_ident!("__curr", span = Span::call_site());
+    let delta_ident = format_ident!("__delta", span = Span::call_site());
+
+    // Prepare declarations shared by all union branches
+    let mut attr_decl_tokens = TokenStream2::new();
+    let mut attr_const_tokens = TokenStream2::new();
+
+    let mut entity_decl_tokens = TokenStream2::new();
+    let mut entity_const_tokens = TokenStream2::new();
+
+    let mut value_decl_tokens = TokenStream2::new();
+    let mut value_const_tokens = TokenStream2::new();
+
+    struct TripleInfo {
+        e_ident: Ident,
+        a_ident: Ident,
+        v_ident: Ident,
+    }
+    let mut triples: Vec<TripleInfo> = Vec::new();
+
+    let mut attr_map: HashMap<String, Ident> = HashMap::new();
+    let mut attr_idx = 0usize;
+    let mut entity_idx = 0usize;
+    let mut value_idx = 0usize;
+
+    for entity in pattern {
+        let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
+        entity_idx += 1;
+        match entity.id {
+            Some(EntityId::Var(id)) => {
+                entity_decl_tokens.extend(quote! { let #e_ident = #id; });
+            }
+            Some(EntityId::Lit(expr)) => {
+                entity_decl_tokens.extend(quote! {
+                    let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                });
+                entity_const_tokens.extend(quote! {
+                    constraints.push({ let e: #crate_path::id::Id = #expr; Box::new(#e_ident.is(#crate_path::value::ToValue::to_value(e)))});
+                });
+            }
+            None => {
+                entity_decl_tokens.extend(quote! {
+                    let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                });
+            }
+        }
+
+        for Field { name, value } in entity.fields {
+            let field_ident = name;
+            let a_ident = attr_map
+                .entry(field_ident.to_string())
+                .or_insert_with(|| {
+                    let ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
+                    attr_idx += 1;
+                    attr_decl_tokens.extend(quote! {
+                        let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                    });
+                    attr_const_tokens.extend(quote! {
+                        constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(ns::ids::#field_ident))));
+                    });
+                    ident
+                })
+                .clone();
+
+            let v_ident = format_ident!("__v{}", value_idx, span = Span::call_site());
+            value_idx += 1;
+
+            match value {
+                FieldValue::Lit(expr) => {
+                    let val_ident = format_ident!("__c{}", value_idx, span = Span::call_site());
+                    value_idx += 1;
+                    value_decl_tokens.extend(quote! {
+                        let #v_ident: #crate_path::query::Variable<ns::schemas::#field_ident> = #ctx_ident.next_variable();
+                        let #val_ident: #crate_path::value::Value<ns::schemas::#field_ident> = #crate_path::value::ToValue::to_value(#expr);
+                    });
+                    value_const_tokens.extend(quote! {
+                        constraints.push(Box::new(#v_ident.is(#val_ident)));
+                    });
+                }
+                FieldValue::Var(expr) => {
+                    value_decl_tokens.extend(quote! {
+                        let #v_ident: #crate_path::query::Variable<ns::schemas::#field_ident> = #expr;
+                    });
+                }
+            }
+
+            triples.push(TripleInfo {
+                e_ident: e_ident.clone(),
+                a_ident: a_ident.clone(),
+                v_ident,
+            });
+        }
+    }
+
+    let mut case_exprs: Vec<TokenStream2> = Vec::new();
+    for delta_idx in 0..triples.len() {
+        let mut triple_tokens = TokenStream2::new();
+        for (
+            idx,
+            TripleInfo {
+                e_ident,
+                a_ident,
+                v_ident,
+            },
+        ) in triples.iter().enumerate()
+        {
+            let dataset = if idx == delta_idx {
+                &delta_ident
+            } else {
+                &curr_ident
+            };
+            triple_tokens.extend(quote! {
+                constraints.push(Box::new(#dataset.pattern(#e_ident, #a_ident, #v_ident)));
+            });
+        }
+
+        let case = quote! {
+            {
+                let mut constraints: Vec<Box<dyn #crate_path::query::Constraint>> = vec![];
+                use #crate_path::query::TriblePattern;
+                #triple_tokens
+                #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+            }
+        };
+        case_exprs.push(case);
+    }
+
+    let union_expr = quote! {
+        #crate_path::query::unionconstraint::UnionConstraint::new(vec![
+            #(Box::new(#case_exprs) as Box<dyn #crate_path::query::Constraint>),*
+        ])
+    };
+
+    let output = quote! {
+        {
+            let #ctx_ident = __local_find_context!();
+            let #prev_ident = #prev;
+            let #curr_ident = #curr;
+            let #delta_ident = #curr_ident.difference(&#prev_ident);
+            use #ns as ns;
+            #attr_decl_tokens
+            #entity_decl_tokens
+            #value_decl_tokens
+            let mut constraints: Vec<Box<dyn #crate_path::query::Constraint>> = vec![];
+            use #crate_path::query::TriblePattern;
+            #attr_const_tokens
+            #entity_const_tokens
+            #value_const_tokens
+            constraints.push(Box::new(#union_expr));
+            #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+        }
     };
 
     Ok(output.into())

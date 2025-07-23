@@ -11,7 +11,7 @@ delta while the remaining constraints see the full updated dataset. Each
 case yields the new solutions introduced by those additions and we then
 union all of the per‑constraint results.
 
-To help express these delta queries at the macro level, namespaces will
+To help express these delta queries at the macro level, namespaces now
 offer a `delta!` operator. It behaves like `pattern!` but takes the
 previous and current `TribleSet`. The macro computes their difference
 and then calls `union!` internally to apply the resulting delta

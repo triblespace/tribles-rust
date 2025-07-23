@@ -4,8 +4,8 @@
 - None at the moment.
 
 ## Completed Work
-- Implemented a `delta!` macro for incremental queries. The macro
-  computes the difference between two `TribleSet`s and unions per-triple
+- Implemented a `pattern_changes!` macro for incremental queries. The macro
+  takes the current dataset and a precomputed changeset, unioning per-triple
   results so callers only see newly inserted data.
 
 ## Desired Functionality

@@ -106,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pattern!` now reuses attribute variables for identical field names.
 - Clarified that the project's developer experience goal also includes
   providing an intuitive API for library users.
+- Renamed the `delta!` macro to `pattern_changes!` and changed its
+  signature to `(current, changes, [pattern])` assuming the caller
+  computes the delta set.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`

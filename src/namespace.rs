@@ -76,10 +76,10 @@ macro_rules! NS {
             }
 
             #[macro_pub::macro_pub]
-            macro_rules! delta {
-                ($prev:expr, $curr:expr, $pattern: tt) => {
+            macro_rules! pattern_changes {
+                ($curr:expr, $changes:expr, $pattern: tt) => {
                     {
-                        ::tribles_macros::delta!{ ::tribles, $mod_name, $prev, $curr, $pattern }
+                        ::tribles_macros::pattern_changes!{ ::tribles, $mod_name, $curr, $changes, $pattern }
                     }
                 };
             }
@@ -236,9 +236,10 @@ mod tests {
             quote: "To be, or not to be, that is the question.".to_blob().get_handle()
         });
 
+        let delta = &updated.difference(&base);
         let r: Vec<_> = find!(
             (author, hamlet, title),
-            literature::delta!(&base, &updated, [
+            literature::pattern_changes!(&updated, delta, [
             {author @
              firstname: ("William"),
              lastname: ("Shakespeare")},

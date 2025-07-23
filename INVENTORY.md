@@ -3,12 +3,6 @@
 ## Potential Removals
 - None at the moment.
 
-## Completed Work
-- Compressed zero-copy archives are complete.
-- Implemented a `pattern_changes!` macro for incremental queries. The macro
-  takes the current dataset and a precomputed changeset, unioning per-triple
-  results so callers only see newly inserted data.
-
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
 - Explore replacing `CommitSelector` ranges with a set-based API

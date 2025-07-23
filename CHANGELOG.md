@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implementation.
 - Recorded tasks to benchmark PATCH, analyze its algorithmic complexity and
   measure real-world space usage.
+- Listed candidate built-in schemas with design notes in `INVENTORY.md` for
+  future implementation.
 - Documented commit range semantics explaining that `a..b` equals
   `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
   and the current `HEAD`.
@@ -178,6 +180,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via set operations, matching Git's two-dot semantics even across merges.
 - Added a `symmetric_diff` selector corresponding to Git's `A...B` three-dot
   syntax.
+- Refined candidate built-in schemas in `INVENTORY.md`; removed `Bool`, the
+  `BinaryLargeObject` placeholder, and the 64-bit integer types.
+- Expanded the built-in schema ideas with a fuller list of value and blob
+  formats to explore.
+- Brainstormed an even broader range of potential schemas for long-term
+  consideration.
+- Added Lance, neural-network, vector-search and full-text index formats to the
+  candidate blob schemas, with a note to favor memory-mapped Rust crates.
+- Trimmed the candidate schemas, dropping seldom-used formats like neural
+  networks, search indexes, media and font types.
+- Reinstated the neural-network, HNSW and full-text index schema ideas and
+  removed the tar/zip archive formats.
+- Added `SocketAddr` and `RgbaColor` value types alongside a `CompressedBlob`
+  wrapper, while dropping `DateYMD` and `TimeOfDay` from consideration.
 - `RangeFrom` now returns `ancestors(head)` minus `ancestors(start)` while
   `..c` selects `ancestors(c)` and `..` resolves to `ancestors(head)`. The old
   `collect_range` and `first_parent` helpers were removed.

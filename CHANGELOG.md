@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test coverage for `branch_from` and `pull_with_key`.
 - `Workspace::checkout` helper to load commit contents.
 - `pattern!` now implemented as a procedural macro in the new `tribles-macros` crate.
+- `entity!` now implemented as a procedural macro alongside `pattern!`.
+- `entity!` subsumes the old `entity_inner!` helper; macro invocations can
+  optionally provide an existing `TribleSet`.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
 - `Workspace::checkout` now accepts commit ranges for convenient history queries.

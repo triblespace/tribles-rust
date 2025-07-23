@@ -15,22 +15,6 @@
 /// Hidden by default, used internally by the `entity!` macro.
 pub use hex_literal;
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! entity_inner {
-    ($Namespace:path, $Set:expr, $EntityId:expr, {$($FieldName:ident : $Value:expr),* $(,)?}) => {
-        {
-            use $Namespace as ns;
-            $(
-                { let v: $crate::value::Value<ns::schemas::$FieldName> = $crate::value::ToValue::to_value($Value);
-                $Set.insert(&$crate::trible::Trible::new($EntityId, &ns::ids::$FieldName, &v)); }
-            )*
-        }
-    };
-}
-
-pub use entity_inner;
-
 /// Defines a Rust module to represent a namespace, along with convenience macros.
 /// The `namespace` block maps human-readable names to attribute IDs and type schemas.
 #[macro_export]
@@ -72,20 +56,12 @@ macro_rules! NS {
             macro_rules! entity {
                 ($entity:tt) => {
                     {
-                        use $crate::namespace::entity_inner;
-                        let mut set = $crate::trible::TribleSet::new();
-                        let id: $crate::id::ExclusiveId = $crate::id::rngid();
-                        entity_inner!($mod_name, &mut set, &id, $entity);
-                        set
+                        ::tribles_macros::entity!(::tribles, $mod_name, $entity)
                     }
                 };
                 ($entity_id:expr, $entity:tt) => {
                     {
-                        use $crate::namespace::entity_inner;
-                        let mut set = $crate::trible::TribleSet::new();
-                        let id: &$crate::id::ExclusiveId = $entity_id;
-                        entity_inner!($mod_name, &mut set, id, $entity);
-                        set
+                        ::tribles_macros::entity!(::tribles, $mod_name, $entity_id, $entity)
                     }
                 };
             }

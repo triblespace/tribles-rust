@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
+- Implemented a procedural `delta!` macro for incremental query support.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
 - `Workspace::checkout` now accepts commit ranges for convenient history queries.
@@ -81,12 +82,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implementation.
 - Recorded tasks to benchmark PATCH, analyze its algorithmic complexity and
   measure real-world space usage.
+- Documented commit range semantics explaining that `a..b` equals
+  `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
+  and the current `HEAD`.
+- Compressed zero-copy archives are now complete.
+- Incremental queries use a new `pattern_changes!` macro.
 
 ### Changed
 - README no longer labels compressed zero-copy archives as WIP.
 - Switched from `sucds` to `jerky` for succinct data structures and reworked
   compressed archives to use it directly.
 - Construct archive prefix bit vectors using `BitVectorBuilder::from_bit`.
+- Removed completed tasks from `INVENTORY.md` and recorded them here.
 - Removed the experimental `delta!` macro implementation; incremental
   query support will be revisited once `pattern!` becomes a procedural
   macro.
@@ -109,6 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pattern!` now reuses attribute variables for identical field names.
 - Clarified that the project's developer experience goal also includes
   providing an intuitive API for library users.
+- Renamed the `delta!` macro to `pattern_changes!` and changed its
+  signature to `(current, changes, [pattern])` assuming the caller
+  computes the delta set.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`
@@ -161,6 +171,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed the `CommitPatch` type alias to `CommitSet`.
 - The `..` commit selector now computes `reachable(end) minus reachable(start)`
   via set operations, matching Git's two-dot semantics even across merges.
+- Added a `symmetric_diff` selector corresponding to Git's `A...B` three-dot
+  syntax.
+- `RangeFrom` now returns `ancestors(head)` minus `ancestors(start)` while
+  `..c` selects `ancestors(c)` and `..` resolves to `ancestors(head)`. The old
+  `collect_range` and `first_parent` helpers were removed.
+- Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
+  now tracked in this changelog.
 
 ## [0.5.2] - 2025-06-30
 ### Added

@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{ancestors, memoryrepo::MemoryRepo, Repository};
+use tribles::repo::{ancestors, memoryrepo::MemoryRepo, symmetric_diff, Repository};
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -140,9 +140,38 @@ fn workspace_checkout_range_variants() {
     s1s2s3.union(sets[2].clone());
 
     assert_eq!(ws.checkout(c1..c3).unwrap(), s2s3.clone());
-    assert_eq!(ws.checkout(c2..).unwrap(), s2s3.clone());
-    assert_eq!(ws.checkout(..c3).unwrap(), s1s2.clone());
+    assert_eq!(ws.checkout(c2..).unwrap(), sets[2].clone());
+    assert_eq!(ws.checkout(..c3).unwrap(), s1s2s3.clone());
     assert_eq!(ws.checkout(..).unwrap(), s1s2s3);
+}
+
+#[test]
+fn workspace_checkout_symmetric_diff() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main").expect("create branch");
+
+    let mut sets = Vec::new();
+    let mut handles = Vec::new();
+    for i in 0..3i128 {
+        let e = ufoid();
+        let a = ufoid();
+        let v: Value<R256> = i.to_value();
+        let t = Trible::new(&e, &a, &v);
+        let mut s = TribleSet::new();
+        s.insert(&t);
+        ws.commit(s.clone(), None);
+        sets.push(s);
+        handles.push(ws.head().unwrap());
+    }
+
+    let (c1, _c2, c3) = (handles[0], handles[1], handles[2]);
+    let mut expected = sets[1].clone();
+    expected.union(sets[2].clone());
+
+    assert_eq!(ws.checkout(symmetric_diff(c1, c3)).unwrap(), expected);
 }
 
 #[test]

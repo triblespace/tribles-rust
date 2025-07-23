@@ -31,6 +31,45 @@
 - Investigate the theoretical complexity of PATCH operations.
 - Measure practical space usage for PATCH with varying dataset sizes.
 
+## Additional Built-in Schemas
+The existing collection of schemas covers the basics like strings, large
+integers and archives.  The following ideas could broaden what can be stored
+without custom extensions:
+
+### Value schemas
+- `Uuid` for RFC&nbsp;4122 identifiers.
+- `Ipv4Addr` and `Ipv6Addr` to store network addresses.  IPv6 could dedicate
+  spare bits to a port or service code.
+- `SocketAddr` representing an IP address and port in one value.
+- `MacAddr` for layer‑2 hardware addresses.
+- `NsTAIInstant` as a single TAI timestamp for precise event records.
+- `Duration` for relative time spans.
+- `GeoPoint` with latitude and longitude stored as two 64‑bit floats.
+- `RgbaColor` packing four 8‑bit channels into one value.
+- `BigDecimal` for high‑precision numbers up to 256 bits.
+
+### Blob schemas
+- `Json`, `Cbor` and `Yaml` for structured data interchange.
+- `Csv` for comma‑separated tables.
+- `Protobuf` or `MessagePack` for compact typed messages.
+- `Parquet` and `Arrow` for columnar analytics workloads.
+- `Lance` for memory-mapped columnar datasets.
+- `CompressedBlob` wrapping arbitrary content with deflate or zip compression.
+- `WasmModule` for executable WebAssembly.
+- `OnnxModel` or `Safetensors` for neural networks.
+- `HnswIndex` for vector search structures.
+- `TantivyIndex` capturing a full-text search corpus.
+- `Url` for web links and other IRIs; best stored as a blob due to the value
+  size limit.
+- `Html` or `Xml` for markup documents.
+- `Markdown` for portable text.
+- `Svg` for vector graphics.
+- `Png` and `Jpeg` images.
+- `Pdf` for print‑ready documents.
+
+Formats with solid memory-mapping support in the Rust ecosystem should be
+prioritized for efficient zero-copy access.
+
 ## Documentation
 - Move the "Portability & Common Formats" overview from `src/value.rs` into a
   dedicated chapter of the book.

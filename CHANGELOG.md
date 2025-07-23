@@ -157,6 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed the `CommitPatch` type alias to `CommitSet`.
 - The `..` commit selector now computes `reachable(end) minus reachable(start)`
   via set operations, matching Git's two-dot semantics even across merges.
+- Added a `symmetric_diff` selector corresponding to Git's `A...B` three-dot
+  syntax.
 
 ## [0.5.2] - 2025-06-30
 ### Added

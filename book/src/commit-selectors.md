@@ -38,8 +38,8 @@ than commits are listed for completeness but are unlikely to be implemented.
 | `:/text` | `search_repo(text)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-textegfixnastybug) | Not planned: requires repository search |
 | `A:path` | `blob_at(A, path)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revpathegHEADREADMEmasterREADME) | Not planned: selects a blob not a commit |
 | `:[N:]path` | `index_blob(path, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-npatheg0READMEREADME) | Not planned: selects from the index |
-| `A..B` | `range(A, B)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thetwo-dotRangeNotation) | Unimplemented |
-| `A...B` | `symmetric_diff(A, B)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thethree-dotSymmetricDifferenceNotation) | Unimplemented |
+| `A..B` | `range(A, B)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thetwo-dotRangeNotation) | Implemented |
+| `A...B` | `symmetric_diff(A, B)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-Thethree-dotSymmetricDifferenceNotation) | Implemented |
 | `^A` | `exclude(reachable(A))` | [gitrevisions](https://git-scm.com/docs/gitrevisions#_commit_exclusions) | Unimplemented |
 | `A@{upstream}` | `upstream_of(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-branchnameupstreamegmasterupstreamu) | Not planned: depends on remote config |
 | `A@{push}` | `push_target_of(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-branchnamepushegmasterpushpush) | Not planned: depends on remote config |

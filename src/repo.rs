@@ -857,6 +857,15 @@ pub fn ancestors(commit: CommitHandle) -> Ancestors {
     Ancestors(commit)
 }
 
+/// Selector that returns commits reachable from either of two commits but not
+/// both.
+pub struct SymmetricDiff(pub CommitHandle, pub CommitHandle);
+
+/// Convenience function to create a [`SymmetricDiff`] selector.
+pub fn symmetric_diff(a: CommitHandle, b: CommitHandle) -> SymmetricDiff {
+    SymmetricDiff(a, b)
+}
+
 impl<Blobs> CommitSelector<Blobs> for CommitHandle
 where
     Blobs: BlobStore<Blake3>,
@@ -924,6 +933,26 @@ where
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         collect_reachable(ws, self.0)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for SymmetricDiff
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let a = collect_reachable(ws, self.0)?;
+        let b = collect_reachable(ws, self.1)?;
+        let inter = a.intersect(&b);
+        let mut union = a;
+        union.union(b);
+        Ok(union.difference(&inter))
     }
 }
 

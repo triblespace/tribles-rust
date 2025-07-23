@@ -3,11 +3,6 @@
 ## Potential Removals
 - None at the moment.
 
-## Completed Work
-- Implemented a `delta!` macro for incremental queries. The macro
-  computes the difference between two `TribleSet`s and unions per-triple
-  results so callers only see newly inserted data.
-
 ## Desired Functionality
 - Finalize the compressed zero-copy archive format currently mentioned as WIP.
 - Provide additional examples showcasing advanced queries and repository usage.

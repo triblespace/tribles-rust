@@ -21,7 +21,7 @@ Our goal is to re-invent data storage from first principles and overcome the sho
 ## Features
 
 - **Lean, Lightweight & Flexible**: Data storage seamlessly scales from in-memory data organization to large-scale blob and metadata storage on S3 like services.
-- **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives (WIP), and built-in version control.
+- **Distributed**: Eventually consistent CRDT semantics (based on the CALM principle), compressed zero-copy archives, and built-in version control.
 - **Predictable Performance**: An optimizer-free design using novel algorithms and data structures removes the need for manual query-tuning and enables single-digit microsecond latency.  
 - **Fast In-Memory Datasets**: Enjoy cheap copy-on-write (COW) semantics and speedy set operations, allowing you to treat entire datasets as values.
 - **Compile-Time Typed Queries**: Automatic type inference, type-checking, and auto-completion make writing queries a breeze. You can even create queries that span multiple datasets and native Rust data structures.

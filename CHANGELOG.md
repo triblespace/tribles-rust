@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implementation.
 - Recorded tasks to benchmark PATCH, analyze its algorithmic complexity and
   measure real-world space usage.
+- Documented commit range semantics explaining that `a..b` equals
+  `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
+  and the current `HEAD`.
 
 ### Changed
 - README no longer labels compressed zero-copy archives as WIP.

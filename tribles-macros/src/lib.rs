@@ -344,28 +344,29 @@ pub fn entity(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Parsed input for the [`delta`] macro.
+/// Parsed input for the [`pattern_changes`] macro.
 ///
-/// The invocation takes the form `crate_path, namespace_path, prev, curr, [..]`.
-/// `prev` and `curr` are expressions evaluating to [`TribleSet`]s. The pattern
+/// The invocation takes the form `crate_path, namespace_path, current, changes, [..]`.
+/// Both dataset expressions evaluate to [`TribleSet`]s. `current` is the full
+/// dataset and `changes` represents the newly inserted tribles. The pattern
 /// syntax matches that of [`pattern!`].
-struct DeltaInput {
+struct PatternChangesInput {
     crate_path: Path,
     ns: Path,
-    prev: Expr,
     curr: Expr,
+    changes: Expr,
     pattern: Vec<Entity>,
 }
 
-impl Parse for DeltaInput {
+impl Parse for PatternChangesInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let crate_path: Path = input.parse()?;
         input.parse::<Token![,]>()?;
         let ns: Path = input.parse()?;
         input.parse::<Token![,]>()?;
-        let prev: Expr = input.parse()?;
-        input.parse::<Token![,]>()?;
         let curr: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let changes: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let content;
         bracketed!(content in input);
@@ -376,11 +377,11 @@ impl Parse for DeltaInput {
                 content.parse::<Token![,]>()?;
             }
         }
-        Ok(DeltaInput {
+        Ok(PatternChangesInput {
             crate_path,
             ns,
-            prev,
             curr,
+            changes,
             pattern,
         })
     }
@@ -449,29 +450,28 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
     Ok(output.into())
 }
 
-/// Procedural implementation of the `delta!` macro.
+/// Procedural implementation of the `pattern_changes!` macro.
 #[proc_macro]
-pub fn delta(input: TokenStream) -> TokenStream {
-    match delta_impl(input) {
+pub fn pattern_changes(input: TokenStream) -> TokenStream {
+    match pattern_changes_impl(input) {
         Ok(ts) => ts,
         Err(e) => e.to_compile_error().into(),
     }
 }
 
-fn delta_impl(input: TokenStream) -> syn::Result<TokenStream> {
+fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     use std::collections::HashMap;
 
-    let DeltaInput {
+    let PatternChangesInput {
         crate_path,
         ns,
-        prev,
         curr,
+        changes,
         pattern,
     } = syn::parse(input)?;
 
     // Identifiers used throughout the expansion
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
-    let prev_ident = format_ident!("__prev", span = Span::call_site());
     let curr_ident = format_ident!("__curr", span = Span::call_site());
     let delta_ident = format_ident!("__delta", span = Span::call_site());
 
@@ -608,9 +608,8 @@ fn delta_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let output = quote! {
         {
             let #ctx_ident = __local_find_context!();
-            let #prev_ident = #prev;
-            let #curr_ident = #curr;
-            let #delta_ident = #curr_ident.difference(&#prev_ident);
+                        let #curr_ident = #curr;
+            let #delta_ident = #changes;
             use #ns as ns;
             #attr_decl_tokens
             #entity_decl_tokens

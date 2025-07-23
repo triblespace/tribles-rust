@@ -5,9 +5,8 @@ use std::collections::HashMap;
 use std::convert::{Infallible, TryInto};
 
 use indxvec::Search;
+use jerky::int_vectors::{Access as IAccess, Build as IBuild, DacsByte, NumVals};
 use quick_cache::sync::Cache;
-use sucds::int_vectors::{Access as IAccess, Build as IBuild, NumVals};
-use sucds::Serializable;
 
 pub trait Universe {
     fn with<I>(iter: I) -> Self
@@ -17,6 +16,22 @@ pub trait Universe {
     fn search(&self, v: &RawValue) -> Option<usize>;
     fn size_in_bytes(&self) -> usize;
     fn len(&self) -> usize;
+}
+
+pub trait SizeInBytes {
+    fn size_in_bytes(&self) -> usize;
+}
+
+impl SizeInBytes for DacsByte {
+    fn size_in_bytes(&self) -> usize {
+        DacsByte::size_in_bytes(self)
+    }
+}
+
+impl SizeInBytes for jerky::int_vectors::CompactVector {
+    fn size_in_bytes(&self) -> usize {
+        self.size_in_bytes()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -59,7 +74,7 @@ pub struct CompressedUniverse<C> {
 
 impl<C> Universe for CompressedUniverse<C>
 where
-    C: IBuild + IAccess + NumVals + Serializable,
+    C: IBuild + IAccess + NumVals + SizeInBytes,
 {
     fn with<I>(iter: I) -> Self
     where
@@ -184,7 +199,7 @@ where
 mod tests {
     use std::iter::repeat_with;
 
-    use sucds::int_vectors::DacsOpt;
+    use jerky::int_vectors::DacsByte as DacsOpt;
 
     use crate::id::{fucid, id_into_value, rngid, ufoid};
 

@@ -4,28 +4,27 @@ use std::ops::Range;
 use super::*;
 use crate::query::*;
 use crate::value::schemas::genid::GenId;
+use jerky::bit_vector::Select;
 
-pub struct SuccinctArchiveConstraint<'a, U, B>
+pub struct SuccinctArchiveConstraint<'a, U>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     variable_e: VariableId,
     variable_a: VariableId,
     variable_v: VariableId,
-    archive: &'a SuccinctArchive<U, B>,
+    archive: &'a SuccinctArchive<U>,
 }
 
-impl<'a, U, B> SuccinctArchiveConstraint<'a, U, B>
+impl<'a, U> SuccinctArchiveConstraint<'a, U>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     pub fn new<V: ValueSchema>(
         variable_e: Variable<GenId>,
         variable_a: Variable<GenId>,
         variable_v: Variable<V>,
-        archive: &'a SuccinctArchive<U, B>,
+        archive: &'a SuccinctArchive<U>,
     ) -> Self {
         SuccinctArchiveConstraint {
             variable_e: variable_e.index,
@@ -36,10 +35,9 @@ where
     }
 }
 
-fn base_range<U, B>(universe: &U, a: &B, value: &RawValue) -> Range<usize>
+fn base_range<U>(universe: &U, a: &BitVector<Rank9SelIndex>, value: &RawValue) -> Range<usize>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     if let Some(d) = universe.search(value) {
         let s = a.select1(d).unwrap() - d;
@@ -50,16 +48,15 @@ where
     }
 }
 
-fn restrict_range<U, Bv>(
+fn restrict_range<U>(
     universe: &U,
-    a: &Bv,
-    c: &WaveletMatrix<Bv>,
+    a: &BitVector<Rank9SelIndex>,
+    c: &WaveletMatrix<Rank9SelIndex>,
     value: &RawValue,
     r: &Range<usize>,
 ) -> Range<usize>
 where
     U: Universe,
-    Bv: Build + Access + Rank + Select + NumBits,
 {
     let s = r.start;
     let e = r.end;
@@ -73,10 +70,9 @@ where
     }
 }
 
-impl<'a, U, B> Constraint<'a> for SuccinctArchiveConstraint<'a, U, B>
+impl<'a, U> Constraint<'a> for SuccinctArchiveConstraint<'a, U>
 where
     U: Universe,
-    B: Build + Access + Rank + Select + NumBits,
 {
     fn variables(&self) -> VariableSet {
         let mut variables = VariableSet::new_empty();

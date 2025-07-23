@@ -3,7 +3,12 @@
 The current `Workspace::checkout` API accepts a `CommitSelector` trait which is
 implemented for individual handles and standard Rust ranges. While convenient,
 this range-based design makes it difficult to compose complex queries over the
-commit graph.
+commit graph. Range selectors follow Git's two‑dot semantics: `a..b` selects
+all commits reachable from `b` that are not reachable from `a`. In set terms it
+computes `ancestors(b) - ancestors(a)`. When the start is omitted, `a`
+defaults to the empty set so `..b` simply yields `ancestors(b)`. When the end is
+omitted, `b` defaults to the current `HEAD` and `a..` resolves to
+`ancestors(HEAD) - ancestors(a)` while `..` expands to `ancestors(HEAD)`.
 
 A future redesign could mirror Git's revision selection semantics.
 Instead of passing ranges, callers would construct *commit sets* derived from

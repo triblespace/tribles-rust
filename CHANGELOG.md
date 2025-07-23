@@ -82,8 +82,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implementation.
 - Recorded tasks to benchmark PATCH, analyze its algorithmic complexity and
   measure real-world space usage.
+- Documented commit range semantics explaining that `a..b` equals
+  `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
+  and the current `HEAD`.
 
 ### Changed
+- README no longer labels compressed zero-copy archives as WIP.
+- Switched from `sucds` to `jerky` for succinct data structures and reworked
+  compressed archives to use it directly.
+- Construct archive prefix bit vectors using `BitVectorBuilder::from_bit`.
 - Removed the experimental `delta!` macro implementation; incremental
   query support will be revisited once `pattern!` becomes a procedural
   macro.
@@ -106,6 +113,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pattern!` now reuses attribute variables for identical field names.
 - Clarified that the project's developer experience goal also includes
   providing an intuitive API for library users.
+- Renamed the `delta!` macro to `pattern_changes!` and changed its
+  signature to `(current, changes, [pattern])` assuming the caller
+  computes the delta set.
 - Documented Kani proof guidelines to avoid constants and prefer
   `kani::any()` or bounded constructors for nondeterministic inputs.
 - Fixed Kani playback build errors by using `dst_len` to access `child_table`

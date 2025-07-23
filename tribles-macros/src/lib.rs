@@ -3,19 +3,27 @@
 //! The macros here mirror the declarative macros defined in
 //! [`src/namespace.rs`](https://github.com/tribles/tribles-rust/blob/main/src/namespace.rs)
 //! but are implemented with `proc_macro` to allow more complex analysis and
-//! additional features in the future.  Currently the crate exposes a single
-//! [`pattern!`] macro which expands the namespace pattern syntax into an
-//! [`IntersectionConstraint`] of query constraints.
+//! additional features in the future.  The crate currently exposes two macros:
+//! [`pattern!`], which expands namespace patterns into an
+//! [`IntersectionConstraint`] of query constraints, and [`entity!`], which
+//! constructs [`TribleSet`]s from namespace field assignments or inserts
+//! triples into an existing set.
 //!
 //! ```ignore
 //! ::tribles_macros::pattern!(::tribles, my_ns, &set, [ { field: (42) } ]);
+//! ::tribles_macros::entity!(::tribles, my_ns, { field: 42 });
+//! ::tribles_macros::entity!(::tribles, my_ns, &mut set, id, { field: 42 });
 //! ```
 //!
-//! The macro expects the crate path, a namespace module, a dataset expression
-//! implementing [`TriblePattern`], and a bracketed list of entity patterns.
-//! Each entity pattern may specify an identifier using `ident @` or `(expr) @`
-//! notation and contains `field: value` pairs. Values can either reference an
-//! existing query variable or be written as `(expr)` to match a literal.
+//! The `pattern` macro expects the crate path, a namespace module, a dataset
+//! expression implementing [`TriblePattern`], and a bracketed list of entity
+//! patterns. Each entity pattern may specify an identifier using `ident @` or
+//! `(expr) @` notation and contains `field: value` pairs. Values can either
+//! reference an existing query variable or be written as `(expr)` to match a
+//! literal.
+//!
+//! The `entity` macro similarly starts with the crate and namespace paths and
+//! optionally an explicit entity ID expression before the field list.
 //!
 //! These macros are internal implementation details and should not be used
 //! directly outside of the `tribles` codebase.
@@ -260,6 +268,140 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             #entity_tokens
             #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }
+    };
+
+    Ok(output.into())
+}
+
+/// Parsed input for the [`entity`] macro.
+///
+/// Invocation forms:
+/// `crate_path, namespace_path, { field: value, ... }`
+/// `crate_path, namespace_path, id_expr, { field: value, ... }`
+/// `crate_path, namespace_path, set_expr, id_expr, { field: value, ... }`
+struct EntityInput {
+    crate_path: Path,
+    ns: Path,
+    set: Option<Expr>,
+    id: Option<Expr>,
+    fields: Vec<(Ident, Expr)>,
+}
+
+impl Parse for EntityInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let crate_path: Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let ns: Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+
+        let mut set = None;
+        let mut id = None;
+
+        if input.peek(syn::token::Brace) {
+            // no id, no set
+        } else {
+            let expr1: Expr = input.parse()?;
+            input.parse::<Token![,]>()?;
+            if input.peek(syn::token::Brace) {
+                id = Some(expr1);
+            } else {
+                set = Some(expr1);
+                let id_expr: Expr = input.parse()?;
+                input.parse::<Token![,]>()?;
+                id = Some(id_expr);
+            }
+        }
+
+        let content;
+        braced!(content in input);
+        let mut fields = Vec::new();
+        while !content.is_empty() {
+            let name: Ident = content.parse()?;
+            content.parse::<Token![:]>()?;
+            let value: Expr = content.parse()?;
+            fields.push((name, value));
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(EntityInput {
+            crate_path,
+            ns,
+            set,
+            id,
+            fields,
+        })
+    }
+}
+
+/// Procedural implementation of the `entity!` macro.
+#[proc_macro]
+pub fn entity(input: TokenStream) -> TokenStream {
+    match entity_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
+    let EntityInput {
+        crate_path,
+        ns,
+        set,
+        id,
+        fields,
+    } = syn::parse(input)?;
+
+    let (set_init, set_expr) = if let Some(s) = &set {
+        (TokenStream2::new(), quote! { #s })
+    } else {
+        (
+            quote! { let mut set = #crate_path::trible::TribleSet::new(); },
+            quote! { set },
+        )
+    };
+
+    let (id_init, id_expr) = if let Some(expr) = id {
+        (
+            quote! { let id_ref: &#crate_path::id::ExclusiveId = #expr; },
+            quote! { id_ref },
+        )
+    } else {
+        (
+            quote! {
+                let id_tmp: #crate_path::id::ExclusiveId = #crate_path::id::rngid();
+                let id_ref: &#crate_path::id::ExclusiveId = &id_tmp;
+            },
+            quote! { id_ref },
+        )
+    };
+
+    let mut insert_tokens = TokenStream2::new();
+    for (field, value) in fields {
+        let stmt = quote! {
+            {
+                use #ns as ns;
+                let v: #crate_path::value::Value<ns::schemas::#field> =
+                    #crate_path::value::ToValue::to_value(#value);
+                #set_expr.insert(&#crate_path::trible::Trible::new(#id_expr, &ns::ids::#field, &v));
+            }
+        };
+        insert_tokens.extend(stmt);
+    }
+
+    let output = if set.is_some() {
+        quote! {{
+            #id_init
+            #insert_tokens
+        }}
+    } else {
+        quote! {{
+            #set_init
+            #id_init
+            #insert_tokens
+            set
+        }}
     };
 
     Ok(output.into())

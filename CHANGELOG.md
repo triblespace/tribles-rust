@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented commit range semantics explaining that `a..b` equals
   `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
   and the current `HEAD`.
+- Commits now record a `timestamp` using `NsTAIInterval` and workspaces provide a
+  `TimeRange` selector to gather commits between two instants.
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
 

@@ -55,3 +55,23 @@ than commits are listed for completeness but are unlikely to be implemented.
 
 Only a subset of Git's revision grammar will likely be supported. Selectors relying on reflog history, remote configuration, or searching commits and blobs add complexity with little benefit for workspace checkout. They are listed above for completeness but remain unplanned for now.
 
+## TimeRange
+
+Commits record when they were made via a `timestamp` attribute of type
+[`NsTAIInterval`](../src/value/schemas/time.rs). When creating a commit this
+interval defaults to `(now, now)` but other tools could provide a wider range
+if the clock precision is uncertain. The `TimeRange` selector uses this interval
+to gather commits whose timestamps fall between two `Epoch` values:
+
+```rust
+use hifitime::Epoch;
+use tribles::repo::time_range;
+
+let since = Epoch::from_unix_seconds(1_609_459_200.0); // 2020-12-01
+let now = Epoch::now().unwrap();
+let tribles = ws.checkout(time_range(since, now))?;
+```
+
+This walks the history from `HEAD` and returns only those commits whose
+timestamp interval intersects the inclusive range.
+

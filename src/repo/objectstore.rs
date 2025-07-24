@@ -114,7 +114,7 @@ where
         let blob = item.to_blob();
         let handle = blob.get_handle();
         let path = self.prefix.child(BLOB_INFIX).child(hex::encode(handle.raw));
-        let bytes = bytes::Bytes::copy_from_slice(&blob.bytes);
+        let bytes: bytes::Bytes = blob.bytes.into();
         let result = block_on(async {
             self.store
                 .put_opts(&path, bytes.into(), PutMode::Create.into())

@@ -14,24 +14,7 @@ pub trait Universe {
         I: Iterator<Item = RawValue>;
     fn access(&self, pos: usize) -> RawValue;
     fn search(&self, v: &RawValue) -> Option<usize>;
-    fn size_in_bytes(&self) -> usize;
     fn len(&self) -> usize;
-}
-
-pub trait SizeInBytes {
-    fn size_in_bytes(&self) -> usize;
-}
-
-impl SizeInBytes for DacsByte {
-    fn size_in_bytes(&self) -> usize {
-        DacsByte::size_in_bytes(self)
-    }
-}
-
-impl SizeInBytes for jerky::int_vectors::CompactVector {
-    fn size_in_bytes(&self) -> usize {
-        self.size_in_bytes()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -57,10 +40,6 @@ impl Universe for OrderedUniverse {
         self.values.binary_search(v).ok()
     }
 
-    fn size_in_bytes(&self) -> usize {
-        self.values.len() * VALUE_LEN
-    }
-
     fn len(&self) -> usize {
         self.values.len()
     }
@@ -74,7 +53,7 @@ pub struct CompressedUniverse<C> {
 
 impl<C> Universe for CompressedUniverse<C>
 where
-    C: IBuild + IAccess + NumVals + SizeInBytes,
+    C: IBuild + IAccess + NumVals,
 {
     fn with<I>(iter: I) -> Self
     where
@@ -136,10 +115,6 @@ where
             .ok()
     }
 
-    fn size_in_bytes(&self) -> usize {
-        self.fragments.len() * size_of::<[u8; 4]>() + self.data.size_in_bytes()
-    }
-
     #[inline]
     fn len(&self) -> usize {
         self.data.num_vals() / 8
@@ -185,10 +160,6 @@ where
             .unwrap()
     }
 
-    fn size_in_bytes(&self) -> usize {
-        self.inner.size_in_bytes()
-    }
-
     #[inline]
     fn len(&self) -> usize {
         self.inner.len()
@@ -199,7 +170,7 @@ where
 mod tests {
     use std::iter::repeat_with;
 
-    use jerky::int_vectors::DacsByte as DacsOpt;
+    use jerky::int_vectors::DacsByte;
 
     use crate::id::{fucid, id_into_value, rngid, ufoid};
 
@@ -216,27 +187,28 @@ mod tests {
         let ufoid_data: Vec<_> = repeat_with(|| id_into_value(&ufoid())).take(size).collect();
         let fucid_data: Vec<_> = repeat_with(|| id_into_value(&fucid())).take(size).collect();
 
-        let count_universe = CompressedUniverse::<DacsOpt>::with(count_data.iter().copied());
-        let fucid_universe = CompressedUniverse::<DacsOpt>::with(fucid_data.iter().copied());
-        let ufoid_universe = CompressedUniverse::<DacsOpt>::with(ufoid_data.iter().copied());
-        let genid_universe = CompressedUniverse::<DacsOpt>::with(genid_data.iter().copied());
+        let count_universe = CompressedUniverse::<DacsByte>::with(count_data.iter().copied());
+        let fucid_universe = CompressedUniverse::<DacsByte>::with(fucid_data.iter().copied());
+        let ufoid_universe = CompressedUniverse::<DacsByte>::with(ufoid_data.iter().copied());
+        let genid_universe = CompressedUniverse::<DacsByte>::with(genid_data.iter().copied());
 
-        println!(
-            "count universe bytes per entry: {}",
-            count_universe.size_in_bytes() as f64 / size as f64
-        );
-        println!(
-            "fucid universe bytes per entry: {}",
-            fucid_universe.size_in_bytes() as f64 / size as f64
-        );
-        println!(
-            "ufoid universe bytes per entry: {}",
-            ufoid_universe.size_in_bytes() as f64 / size as f64
-        );
-        println!(
-            "genid universe bytes per entry: {}",
-            genid_universe.size_in_bytes() as f64 / size as f64
-        );
+        // Todo: replace with size estimates on serialized data
+        //println!(
+        //    "count universe bytes per entry: {}",
+        //    count_universe.size_in_bytes() as f64 / size as f64
+        //);
+        //println!(
+        //    "fucid universe bytes per entry: {}",
+        //    fucid_universe.size_in_bytes() as f64 / size as f64
+        //);
+        //println!(
+        //    "ufoid universe bytes per entry: {}",
+        //    ufoid_universe.size_in_bytes() as f64 / size as f64
+        //);
+        //println!(
+        //    "genid universe bytes per entry: {}",
+        //    genid_universe.size_in_bytes() as f64 / size as f64
+        //);
     }
 
     #[test]
@@ -255,21 +227,22 @@ mod tests {
         let ufoid_universe = OrderedUniverse::with(ufoid_data.iter().copied());
         let genid_universe = OrderedUniverse::with(genid_data.iter().copied());
 
-        println!(
-            "count universe bytes per entry: {}",
-            count_universe.size_in_bytes() as f64 / size as f64
-        );
-        println!(
-            "fucid universe bytes per entry: {}",
-            fucid_universe.size_in_bytes() as f64 / size as f64
-        );
-        println!(
-            "ufoid universe bytes per entry: {}",
-            ufoid_universe.size_in_bytes() as f64 / size as f64
-        );
-        println!(
-            "genid universe bytes per entry: {}",
-            genid_universe.size_in_bytes() as f64 / size as f64
-        );
+        // Todo: replace with size estimates on serialized data
+        //println!(
+        //    "count universe bytes per entry: {}",
+        //    count_universe.size_in_bytes() as f64 / size as f64
+        //);
+        //println!(
+        //    "fucid universe bytes per entry: {}",
+        //    fucid_universe.size_in_bytes() as f64 / size as f64
+        //);
+        //println!(
+        //    "ufoid universe bytes per entry: {}",
+        //    ufoid_universe.size_in_bytes() as f64 / size as f64
+        //);
+        //println!(
+        //    "genid universe bytes per entry: {}",
+        //    genid_universe.size_in_bytes() as f64 / size as f64
+        //);
     }
 }

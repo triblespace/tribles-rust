@@ -61,6 +61,18 @@ This query searches the example dataset for the book titled "Dune".  The
 variables and constraint can be adapted to express more complex joins and
 filters.
 
+## `matches!`
+
+Sometimes you only want to check whether a constraint has any solutions.
+The `matches!` macro mirrors the `find!` syntax but returns a boolean:
+
+```rust
+use tribles::prelude::*;
+
+assert!(matches!((x), x.is(1.into())));
+assert!(!matches!((x), and!(x.is(1.into()), x.is(2.into()))));
+```
+
 ## Custom constraints
 
 Every building block implements the

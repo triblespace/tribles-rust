@@ -35,6 +35,16 @@ use syn::parse::{Parse, ParseStream};
 use syn::{braced, bracketed, parenthesized, Token};
 use syn::{Expr, Ident, Path};
 
+mod namespace;
+
+#[proc_macro]
+pub fn namespace(input: TokenStream) -> TokenStream {
+    match namespace::namespace_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
 /// Parsed input for the [`pattern`] macro.
 ///
 /// The invocation has the form `crate_path, namespace_path, dataset, [ .. ]`.

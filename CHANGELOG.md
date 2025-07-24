@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
+- Procedural `namespace!` macro replaces the declarative `NS!` implementation.
 - Implemented a procedural `delta!` macro for incremental query support.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
@@ -96,8 +97,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TimeRange` selector to gather commits between two instants.
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
+- Added a `matches!` macro mirroring `find!` for boolean checks.
+- Added a `filter` commit selector with a `history_of` helper.
 
 ### Changed
+- Switched `anybytes` to a git dependency and used its `Bytes` integration
+  to avoid copying blob data when writing to object stores.
 - README no longer labels compressed zero-copy archives as WIP.
 - Switched from `sucds` to `jerky` for succinct data structures and reworked
   compressed archives to use it directly.

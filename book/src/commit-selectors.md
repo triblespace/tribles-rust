@@ -87,3 +87,6 @@ let tribles = ws.checkout(time_range(since, now))?;
 This walks the history from `HEAD` and returns only those commits whose
 timestamp interval intersects the inclusive range.
 
+Internally it uses `filter(ancestors(HEAD), ..)` to check each commit's
+timestamp range.
+

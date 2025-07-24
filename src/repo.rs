@@ -875,6 +875,7 @@ pub struct TimeRange(pub Epoch, pub Epoch);
 /// Convenience function to create a [`TimeRange`] selector.
 pub fn time_range(start: Epoch, end: Epoch) -> TimeRange {
     TimeRange(start, end)
+}
 
 /// Selector that filters commits returned by another selector.
 pub struct Filter<S, F> {
@@ -1124,7 +1125,23 @@ where
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
-        collect_time_range(ws, head, self.0, self.1)
+        let start = self.0;
+        let end = self.1;
+        filter(
+            ancestors(head),
+            move |meta: &TribleSet, _payload: &TribleSet| {
+                if let Ok(Some((ts,))) =
+                    find!((t: Value<_>), repo::pattern!(meta, [{ timestamp: t }])).at_most_one()
+                {
+                    let (ts_start, ts_end): (Epoch, Epoch) =
+                        crate::value::FromValue::from_value(&ts);
+                    ts_start <= end && ts_end >= start
+                } else {
+                    false
+                }
+            },
+        )
+        .select(ws)
     }
 }
 
@@ -1344,48 +1361,6 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
 
         for (p,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
             stack.push(p);
-        }
-    }
-
-    Ok(result)
-}
-
-fn collect_time_range<Blobs: BlobStore<Blake3>>(
-    ws: &mut Workspace<Blobs>,
-    from: CommitHandle,
-    start: Epoch,
-    end: Epoch,
-) -> Result<
-    CommitSet,
-    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
-> {
-    let mut visited = HashSet::new();
-    let mut stack = vec![from];
-    let mut result = CommitSet::new();
-
-    while let Some(commit) = stack.pop() {
-        if !visited.insert(commit) {
-            continue;
-        }
-
-        let meta: TribleSet = ws
-            .local_blobs
-            .reader()
-            .get(commit)
-            .or_else(|_| ws.base_blobs.get(commit))
-            .map_err(WorkspaceCheckoutError::Storage)?;
-
-        for (p,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
-            stack.push(p);
-        }
-
-        if let Ok(Some((ts,))) =
-            find!((t: Value<_>), repo::pattern!(&meta, [{ timestamp: t }])).at_most_one()
-        {
-            let (ts_start, ts_end): (Epoch, Epoch) = crate::value::FromValue::from_value(&ts);
-            if ts_start <= end && ts_end >= start {
-                result.insert(&Entry::new(&commit.raw));
-            }
         }
     }
 

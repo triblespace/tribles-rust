@@ -426,7 +426,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
             binding: Default::default(),
             stack: ArrayVec::new(),
             unbound: ArrayVec::from_iter(variables),
-            values: [const { vec![] }; 128],
+            values: std::array::from_fn(|_| Vec::new()),
         }
     }
 }
@@ -471,14 +471,18 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                             );
                         }
                         _ => {
-                            let (index, &next_variable) = self
+                            let (index, next_variable, next_estimate) = self
                                 .unbound
                                 .iter()
                                 .enumerate()
-                                .min_by_key(|(_, &v)| self.constraint.estimate(v, &self.binding))
+                                .filter_map(|(i, &v)| Some((i, v, self.constraint.estimate(v, &self.binding)?)))
+                                .min_by_key(|(_, _, e)| *e)
                                 .expect("unbound len > 0");
                             self.unbound.swap_remove(index);
                             self.stack.push(next_variable);
+                            let values = &mut self.values[next_variable as usize];
+                            values.clear();
+                            values.reserve_exact(next_estimate.saturating_sub(values.capacity()));
                             self.constraint.propose(
                                 next_variable,
                                 &self.binding,
@@ -503,7 +507,6 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                 Search::Backtrack => {
                     if let Some(variable) = self.stack.pop() {
                         self.binding.unset(variable);
-                        self.values[variable as usize].clear();
                         self.unbound.push(variable);
                         self.mode = Search::NextValue;
                     } else {

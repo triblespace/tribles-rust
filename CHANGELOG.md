@@ -97,6 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a `matches!` macro mirroring `find!` for boolean checks.
 
 ### Changed
+- Switched `anybytes` to a git dependency and used its `Bytes` integration
+  to avoid copying blob data when writing to object stores.
 - README no longer labels compressed zero-copy archives as WIP.
 - Switched from `sucds` to `jerky` for succinct data structures and reworked
   compressed archives to use it directly.

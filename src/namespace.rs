@@ -17,74 +17,11 @@ pub use hex_literal;
 
 /// Defines a Rust module to represent a namespace, along with convenience macros.
 /// The `namespace` block maps human-readable names to attribute IDs and type schemas.
+
 #[macro_export]
 macro_rules! NS {
-    ($(#[doc = $ns_doc:literal])* $visibility:vis namespace $mod_name:ident {$($(#[doc = $field_doc:literal])* $FieldId:literal as $FieldName:ident: $FieldType:ty;)*}) => {
-        $(#[doc=$ns_doc])*
-        $visibility mod $mod_name {
-            #![allow(unused)]
-            use super::*;
-
-            pub fn description() -> $crate::trible::TribleSet {
-                use $crate::value::ValueSchema;
-
-                let mut set = $crate::trible::TribleSet::new();
-                $({let e = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();
-                   let value_schema_id = $crate::value::schemas::genid::GenId::value_from(<$FieldType as $crate::value::ValueSchema>::VALUE_SCHEMA_ID);
-                   set.insert(&$crate::trible::Trible::force(&e, &$crate::metadata::ATTR_VALUE_SCHEMA, &value_schema_id));
-                   if let Some(blob_schema_id) = <$FieldType as $crate::value::ValueSchema>::BLOB_SCHEMA_ID {
-                      let blob_schema_id = $crate::value::schemas::genid::GenId::value_from(blob_schema_id);
-                      set.insert(&$crate::trible::Trible::force(&e, &$crate::metadata::ATTR_BLOB_SCHEMA, &blob_schema_id));
-                   }
-                   let attr_name = $crate::value::schemas::shortstring::ShortString::value_from(stringify!($FieldName));
-                   set.insert(&$crate::trible::Trible::force(&e, &$crate::metadata::ATTR_NAME, &attr_name));
-                })*
-                set
-            }
-            pub mod ids {
-                #![allow(non_upper_case_globals, unused)]
-                use super::*;
-                $($(#[doc = $field_doc])* pub const $FieldName:$crate::id::Id = $crate::id::Id::new($crate::namespace::hex_literal::hex!($FieldId)).unwrap();)*
-            }
-            pub mod schemas {
-                #![allow(non_camel_case_types, unused)]
-                use super::*;
-                $($(#[doc = $field_doc])* pub type $FieldName = $FieldType;)*
-            }
-
-            #[macro_pub::macro_pub]
-            macro_rules! entity {
-                ($entity:tt) => {
-                    {
-                        ::tribles_macros::entity!(::tribles, $mod_name, $entity)
-                    }
-                };
-                ($entity_id:expr, $entity:tt) => {
-                    {
-                        ::tribles_macros::entity!(::tribles, $mod_name, $entity_id, $entity)
-                    }
-                };
-            }
-
-            #[macro_pub::macro_pub]
-            macro_rules! pattern {
-                ($set:expr, $pattern: tt) => {
-                    {
-                        ::tribles_macros::pattern!{ ::tribles, $mod_name, $set, $pattern }
-                    }
-                };
-            }
-
-            #[macro_pub::macro_pub]
-            macro_rules! pattern_changes {
-                ($curr:expr, $changes:expr, $pattern: tt) => {
-                    {
-                        ::tribles_macros::pattern_changes!{ ::tribles, $mod_name, $curr, $changes, $pattern }
-                    }
-                };
-            }
-
-        }
+    ($($tt:tt)*) => {
+        ::tribles_macros::namespace!(::tribles, $($tt)*);
     };
 }
 

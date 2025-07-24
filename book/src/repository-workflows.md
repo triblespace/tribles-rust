@@ -41,6 +41,13 @@ let history = ws.checkout(commit_a..commit_b)?;
 let full = ws.checkout(ancestors(commit_b))?;
 ```
 
+The [`history_of`](../src/repo.rs) helper builds on the `filter` selector to
+retrieve only the commits affecting a specific entity:
+
+```rust
+let entity_changes = ws.checkout(history_of(my_entity))?;
+```
+
 ## Merging and Conflict Handling
 
 When pushing a workspace another client might have already updated the branch.

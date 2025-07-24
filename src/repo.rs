@@ -113,6 +113,7 @@ use std::{
 };
 
 use commit::commit;
+use hifitime::Epoch;
 use itertools::Itertools;
 
 use crate::{blob::MemoryBlobStore, repo::branch::branch};
@@ -138,7 +139,7 @@ use ed25519_dalek::SigningKey;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
-    value::schemas::{ed25519 as ed, hash::Blake3, shortstring::ShortString},
+    value::schemas::{ed25519 as ed, hash::Blake3, shortstring::ShortString, time::NsTAIInterval},
 };
 
 NS! {
@@ -161,6 +162,8 @@ NS! {
         /// An id used to track the branch.
         /// This id is unique to the branch, and is used to identify the branch in the repository.
         "8694CC73AF96A5E1C7635C677D1B928A" as branch: GenId;
+        /// Timestamp range when this commit was created.
+        "71FF566AB4E3119FC2C5E66A18979586" as timestamp: NsTAIInterval;
         //"723C45065E7FCF1D52E86AD8D856A20D" as cached_rollup: Handle<Blake3, SuccinctArchive<CachedUniverse<1024, 1024, CompressedUniverse<DacsOpt>>, Rank9Sel>>;
         /// The author of the signature identified by their ed25519 public key.
         "ADB4FFAD247C886848161297EFF5A05B" as signed_by: ed::ED25519PublicKey;
@@ -866,6 +869,25 @@ pub fn symmetric_diff(a: CommitHandle, b: CommitHandle) -> SymmetricDiff {
     SymmetricDiff(a, b)
 }
 
+/// Selector that returns commits with timestamps in the given inclusive range.
+pub struct TimeRange(pub Epoch, pub Epoch);
+
+/// Convenience function to create a [`TimeRange`] selector.
+pub fn time_range(start: Epoch, end: Epoch) -> TimeRange {
+    TimeRange(start, end)
+}
+
+/// Selector that filters commits returned by another selector.
+pub struct Filter<S, F> {
+    selector: S,
+    filter: F,
+}
+
+/// Convenience function to create a [`Filter`] selector.
+pub fn filter<S, F>(selector: S, filter: F) -> Filter<S, F> {
+    Filter { selector, filter }
+}
+
 impl<Blobs> CommitSelector<Blobs> for CommitHandle
 where
     Blobs: BlobStore<Blake3>,
@@ -956,6 +978,75 @@ where
     }
 }
 
+impl<S, F, Blobs> CommitSelector<Blobs> for Filter<S, F>
+where
+    Blobs: BlobStore<Blake3>,
+    S: CommitSelector<Blobs>,
+    F: for<'x, 'y> Fn(&'x TribleSet, &'y TribleSet) -> bool,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let patch = self.selector.select(ws)?;
+        let mut result = CommitSet::new();
+        let filter = self.filter;
+        for raw in patch.iter() {
+            let handle = Value::new(*raw);
+            let meta: TribleSet = ws.get(handle).map_err(WorkspaceCheckoutError::Storage)?;
+
+            let Ok((content_handle,)) = find!(
+                (c: Value<_>),
+                repo::pattern!(&meta, [{ content: c }])
+            )
+            .exactly_one() else {
+                return Err(WorkspaceCheckoutError::BadCommitMetadata());
+            };
+
+            let payload: TribleSet = ws
+                .get(content_handle)
+                .map_err(WorkspaceCheckoutError::Storage)?;
+
+            if filter(&meta, &payload) {
+                result.insert(&Entry::new(raw));
+            }
+        }
+        Ok(result)
+    }
+}
+
+/// Selector that yields commits touching a specific entity.
+pub struct HistoryOf(pub Id);
+
+/// Convenience function to create a [`HistoryOf`] selector.
+pub fn history_of(entity: Id) -> HistoryOf {
+    HistoryOf(entity)
+}
+
+impl<Blobs> CommitSelector<Blobs> for HistoryOf
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        let entity = self.0;
+        filter(
+            ancestors(head),
+            move |_: &TribleSet, payload: &TribleSet| payload.iter().any(|t| t.e() == &entity),
+        )
+        .select(ws)
+    }
+}
+
 impl<Blobs> CommitSelector<Blobs> for std::ops::Range<CommitHandle>
 where
     Blobs: BlobStore<Blake3>,
@@ -1019,6 +1110,38 @@ where
     > {
         let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
         collect_reachable(ws, head)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for TimeRange
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        let start = self.0;
+        let end = self.1;
+        filter(
+            ancestors(head),
+            move |meta: &TribleSet, _payload: &TribleSet| {
+                if let Ok(Some((ts,))) =
+                    find!((t: Value<_>), repo::pattern!(meta, [{ timestamp: t }])).at_most_one()
+                {
+                    let (ts_start, ts_end): (Epoch, Epoch) =
+                        crate::value::FromValue::from_value(&ts);
+                    ts_start <= end && ts_end >= start
+                } else {
+                    false
+                }
+            },
+        )
+        .select(ws)
     }
 }
 

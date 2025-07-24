@@ -93,9 +93,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented commit range semantics explaining that `a..b` equals
   `ancestors(b) - ancestors(a)` with missing endpoints defaulting to an empty set
   and the current `HEAD`.
+- Commits now record a `timestamp` using `NsTAIInterval` and workspaces provide a
+  `TimeRange` selector to gather commits between two instants.
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
 - Added a `matches!` macro mirroring `find!` for boolean checks.
+- Added a `filter` commit selector with a `history_of` helper.
 
 ### Changed
 - Switched `anybytes` to a git dependency and used its `Bytes` integration
@@ -201,6 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RangeFrom` now returns `ancestors(head)` minus `ancestors(start)` while
   `..c` selects `ancestors(c)` and `..` resolves to `ancestors(head)`. The old
   `collect_range` and `first_parent` helpers were removed.
+- `TimeRange` commit selector now delegates to the generic `filter` selector.
 - Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
   now tracked in this changelog.
 

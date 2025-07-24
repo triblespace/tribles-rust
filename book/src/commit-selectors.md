@@ -22,6 +22,18 @@ This approach aligns with Git's mental model and keeps selection logic separate
 from workspace mutation.  It also opens the door for additional operations on
 commit sets without complicating the core API.
 
+## Filtering commits
+
+The `filter` selector wraps another selector and keeps only the commits for
+which a user provided closure returns `true`. The closure receives the commit
+metadata and its payload. Higher level helpers can build on this primitive. For
+example `history_of(entity)` filters `ancestors(HEAD)` to commits touching a
+specific entity:
+
+```rust
+let changes = ws.checkout(history_of(my_entity))?;
+```
+
 ## Git Comparison
 
 The table below summarizes Git's revision grammar. Each row links back to the
@@ -54,4 +66,27 @@ than commits are listed for completeness but are unlikely to be implemented.
 | `@{-N}` | `previous_checkout(N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt--neg-1) | Not planned: relies on reflog history |
 
 Only a subset of Git's revision grammar will likely be supported. Selectors relying on reflog history, remote configuration, or searching commits and blobs add complexity with little benefit for workspace checkout. They are listed above for completeness but remain unplanned for now.
+
+## TimeRange
+
+Commits record when they were made via a `timestamp` attribute of type
+[`NsTAIInterval`](../src/value/schemas/time.rs). When creating a commit this
+interval defaults to `(now, now)` but other tools could provide a wider range
+if the clock precision is uncertain. The `TimeRange` selector uses this interval
+to gather commits whose timestamps fall between two `Epoch` values:
+
+```rust
+use hifitime::Epoch;
+use tribles::repo::time_range;
+
+let since = Epoch::from_unix_seconds(1_609_459_200.0); // 2020-12-01
+let now = Epoch::now().unwrap();
+let tribles = ws.checkout(time_range(since, now))?;
+```
+
+This walks the history from `HEAD` and returns only those commits whose
+timestamp interval intersects the inclusive range.
+
+Internally it uses `filter(ancestors(HEAD), ..)` to check each commit's
+timestamp range.
 

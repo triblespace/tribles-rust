@@ -581,6 +581,14 @@ macro_rules! find {
 }
 pub use find;
 
+#[macro_export]
+macro_rules! matches {
+    (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
+        $crate::query::find!(($($Var$(:$Ty)?),+), $Constraint).next().is_some()
+    };
+}
+pub use matches;
+
 #[cfg(test)]
 mod tests {
     use valueschemas::ShortString;
@@ -712,5 +720,18 @@ mod tests {
         let r: Vec<_> = q.collect();
 
         assert_eq!(1, r.len())
+    }
+
+    #[test]
+    fn matches_true() {
+        assert!(matches!((a: Value<_>), a.is(I256BE::value_from(42))));
+    }
+
+    #[test]
+    fn matches_false() {
+        assert!(!matches!(
+            (a: Value<_>),
+            and!(a.is(I256BE::value_from(1)), a.is(I256BE::value_from(2)))
+        ));
     }
 }

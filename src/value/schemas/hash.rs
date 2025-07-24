@@ -201,6 +201,6 @@ mod tests {
         let s: &str = "blake3:BAD!";
         let err: HashError = <&str as TryToValue<Hash<Blake3>>>::try_to_value(s)
             .expect_err("packing invalid protocol should fail");
-        assert!(matches!(err, HashError::BadHex(..)));
+        assert!(std::matches!(err, HashError::BadHex(..)));
     }
 }

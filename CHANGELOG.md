@@ -204,6 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RangeFrom` now returns `ancestors(head)` minus `ancestors(start)` while
   `..c` selects `ancestors(c)` and `..` resolves to `ancestors(head)`. The old
   `collect_range` and `first_parent` helpers were removed.
+- `TimeRange` commit selector now delegates to the generic `filter` selector.
 - Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
   now tracked in this changelog.
 

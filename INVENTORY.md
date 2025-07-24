@@ -22,8 +22,6 @@
 - Implement a garbage collection mechanism that scans branch and commit
   archives without fully deserialising them to find reachable blob handles.
   Anything not discovered this way can be forgotten by the underlying store.
-- Support time-based commit queries via a `TimeRange` selector leveraging
-  commit timestamps.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large

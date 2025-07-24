@@ -866,6 +866,17 @@ pub fn symmetric_diff(a: CommitHandle, b: CommitHandle) -> SymmetricDiff {
     SymmetricDiff(a, b)
 }
 
+/// Selector that filters commits returned by another selector.
+pub struct Filter<S, F> {
+    selector: S,
+    filter: F,
+}
+
+/// Convenience function to create a [`Filter`] selector.
+pub fn filter<S, F>(selector: S, filter: F) -> Filter<S, F> {
+    Filter { selector, filter }
+}
+
 impl<Blobs> CommitSelector<Blobs> for CommitHandle
 where
     Blobs: BlobStore<Blake3>,
@@ -953,6 +964,75 @@ where
         let mut union = a;
         union.union(b);
         Ok(union.difference(&inter))
+    }
+}
+
+impl<S, F, Blobs> CommitSelector<Blobs> for Filter<S, F>
+where
+    Blobs: BlobStore<Blake3>,
+    S: CommitSelector<Blobs>,
+    F: for<'x, 'y> Fn(&'x TribleSet, &'y TribleSet) -> bool,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let patch = self.selector.select(ws)?;
+        let mut result = CommitSet::new();
+        let filter = self.filter;
+        for raw in patch.iter() {
+            let handle = Value::new(*raw);
+            let meta: TribleSet = ws.get(handle).map_err(WorkspaceCheckoutError::Storage)?;
+
+            let Ok((content_handle,)) = find!(
+                (c: Value<_>),
+                repo::pattern!(&meta, [{ content: c }])
+            )
+            .exactly_one() else {
+                return Err(WorkspaceCheckoutError::BadCommitMetadata());
+            };
+
+            let payload: TribleSet = ws
+                .get(content_handle)
+                .map_err(WorkspaceCheckoutError::Storage)?;
+
+            if filter(&meta, &payload) {
+                result.insert(&Entry::new(raw));
+            }
+        }
+        Ok(result)
+    }
+}
+
+/// Selector that yields commits touching a specific entity.
+pub struct HistoryOf(pub Id);
+
+/// Convenience function to create a [`HistoryOf`] selector.
+pub fn history_of(entity: Id) -> HistoryOf {
+    HistoryOf(entity)
+}
+
+impl<Blobs> CommitSelector<Blobs> for HistoryOf
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        let entity = self.0;
+        filter(
+            ancestors(head),
+            move |_: &TribleSet, payload: &TribleSet| payload.iter().any(|t| t.e() == &entity),
+        )
+        .select(ws)
     }
 }
 

@@ -94,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the current `HEAD`.
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
+- Added a `matches!` macro mirroring `find!` for boolean checks.
 
 ### Changed
 - README no longer labels compressed zero-copy archives as WIP.

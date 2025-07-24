@@ -38,6 +38,7 @@ pub use crate::namespace::NS;
 pub use crate::query::{
     find,
     intersectionconstraint::{and, IntersectionConstraint},
+    matches,
 };
 pub use crate::repo::pile::Pile;
 pub use crate::repo::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore};

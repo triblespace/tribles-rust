@@ -22,6 +22,18 @@ This approach aligns with Git's mental model and keeps selection logic separate
 from workspace mutation.  It also opens the door for additional operations on
 commit sets without complicating the core API.
 
+## Filtering commits
+
+The `filter` selector wraps another selector and keeps only the commits for
+which a user provided closure returns `true`. The closure receives the commit
+metadata and its payload. Higher level helpers can build on this primitive. For
+example `history_of(entity)` filters `ancestors(HEAD)` to commits touching a
+specific entity:
+
+```rust
+let changes = ws.checkout(history_of(my_entity))?;
+```
+
 ## Git Comparison
 
 The table below summarizes Git's revision grammar. Each row links back to the

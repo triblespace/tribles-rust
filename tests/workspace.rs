@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{ancestors, memoryrepo::MemoryRepo, symmetric_diff, Repository};
+use tribles::repo::{ancestors, history_of, memoryrepo::MemoryRepo, symmetric_diff, Repository};
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -229,6 +229,40 @@ fn workspace_checkout_head_collects_history() {
     let mut expected = sets[0].clone();
     expected.union(sets[1].clone());
     expected.union(sets[2].clone());
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn workspace_history_of_entity() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main").expect("create branch");
+
+    let entity = ufoid();
+    let a1 = ufoid();
+    let a2 = ufoid();
+    let v1: Value<R256> = 1i128.to_value();
+    let v2: Value<R256> = 2i128.to_value();
+
+    let mut s1 = TribleSet::new();
+    s1.insert(&Trible::new(&entity, &a1, &v1));
+    ws.commit(s1.clone(), None);
+
+    let mut s2 = TribleSet::new();
+    s2.insert(&Trible::new(&ufoid(), &a1, &v1));
+    ws.commit(s2.clone(), None);
+
+    let mut s3 = TribleSet::new();
+    s3.insert(&Trible::new(&entity, &a2, &v2));
+    ws.commit(s3.clone(), None);
+
+    let result = ws.checkout(history_of(*entity)).expect("history_of");
+
+    let mut expected = s1;
+    expected.union(s3);
 
     assert_eq!(result, expected);
 }

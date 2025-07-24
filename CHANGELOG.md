@@ -96,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
 - Added a `matches!` macro mirroring `find!` for boolean checks.
+- Added a `filter` commit selector with a `history_of` helper.
 
 ### Changed
 - Switched `anybytes` to a git dependency and used its `Bytes` integration

@@ -113,6 +113,7 @@ use std::{
 };
 
 use commit::commit;
+use hifitime::Epoch;
 use itertools::Itertools;
 
 use crate::{blob::MemoryBlobStore, repo::branch::branch};
@@ -138,7 +139,7 @@ use ed25519_dalek::SigningKey;
 
 use crate::{
     blob::schemas::simplearchive::SimpleArchive,
-    value::schemas::{ed25519 as ed, hash::Blake3, shortstring::ShortString},
+    value::schemas::{ed25519 as ed, hash::Blake3, shortstring::ShortString, time::NsTAIInterval},
 };
 
 NS! {
@@ -161,6 +162,8 @@ NS! {
         /// An id used to track the branch.
         /// This id is unique to the branch, and is used to identify the branch in the repository.
         "8694CC73AF96A5E1C7635C677D1B928A" as branch: GenId;
+        /// Timestamp range when this commit was created.
+        "71FF566AB4E3119FC2C5E66A18979586" as timestamp: NsTAIInterval;
         //"723C45065E7FCF1D52E86AD8D856A20D" as cached_rollup: Handle<Blake3, SuccinctArchive<CachedUniverse<1024, 1024, CompressedUniverse<DacsOpt>>, Rank9Sel>>;
         /// The author of the signature identified by their ed25519 public key.
         "ADB4FFAD247C886848161297EFF5A05B" as signed_by: ed::ED25519PublicKey;
@@ -866,6 +869,13 @@ pub fn symmetric_diff(a: CommitHandle, b: CommitHandle) -> SymmetricDiff {
     SymmetricDiff(a, b)
 }
 
+/// Selector that returns commits with timestamps in the given inclusive range.
+pub struct TimeRange(pub Epoch, pub Epoch);
+
+/// Convenience function to create a [`TimeRange`] selector.
+pub fn time_range(start: Epoch, end: Epoch) -> TimeRange {
+    TimeRange(start, end)
+
 /// Selector that filters commits returned by another selector.
 pub struct Filter<S, F> {
     selector: S,
@@ -1102,6 +1112,22 @@ where
     }
 }
 
+impl<Blobs> CommitSelector<Blobs> for TimeRange
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        collect_time_range(ws, head, self.0, self.1)
+    }
+}
+
 impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     /// Returns the branch id associated with this workspace.
     pub fn branch_id(&self) -> Id {
@@ -1318,6 +1344,48 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
 
         for (p,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
             stack.push(p);
+        }
+    }
+
+    Ok(result)
+}
+
+fn collect_time_range<Blobs: BlobStore<Blake3>>(
+    ws: &mut Workspace<Blobs>,
+    from: CommitHandle,
+    start: Epoch,
+    end: Epoch,
+) -> Result<
+    CommitSet,
+    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+> {
+    let mut visited = HashSet::new();
+    let mut stack = vec![from];
+    let mut result = CommitSet::new();
+
+    while let Some(commit) = stack.pop() {
+        if !visited.insert(commit) {
+            continue;
+        }
+
+        let meta: TribleSet = ws
+            .local_blobs
+            .reader()
+            .get(commit)
+            .or_else(|_| ws.base_blobs.get(commit))
+            .map_err(WorkspaceCheckoutError::Storage)?;
+
+        for (p,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
+            stack.push(p);
+        }
+
+        if let Ok(Some((ts,))) =
+            find!((t: Value<_>), repo::pattern!(&meta, [{ timestamp: t }])).at_most_one()
+        {
+            let (ts_start, ts_end): (Epoch, Epoch) = crate::value::FromValue::from_value(&ts);
+            if ts_start <= end && ts_end >= start {
+                result.insert(&Entry::new(&commit.raw));
+            }
         }
     }
 

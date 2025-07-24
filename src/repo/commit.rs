@@ -15,6 +15,7 @@ use crate::{
 };
 
 use crate::value::schemas::hash::Blake3;
+use hifitime::Epoch;
 
 pub enum ValidationError {
     AmbiguousSignature,
@@ -41,6 +42,9 @@ pub fn commit(
 ) -> TribleSet {
     let mut commit = TribleSet::new();
     let commit_entity = crate::id::rngid();
+    let now = Epoch::now().expect("system time");
+
+    commit += repo::entity!(&commit_entity, { timestamp: (now, now) });
 
     if let Some(content) = content {
         let handle = content.get_handle();

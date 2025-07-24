@@ -22,6 +22,8 @@
 - Implement a garbage collection mechanism that scans branch and commit
   archives without fully deserialising them to find reachable blob handles.
   Anything not discovered this way can be forgotten by the underlying store.
+- Support time-based commit queries via a `TimeRange` selector leveraging
+  commit timestamps.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large
@@ -34,7 +36,6 @@ without custom extensions:
   spare bits to a port or service code.
 - `SocketAddr` representing an IP address and port in one value.
 - `MacAddr` for layer‑2 hardware addresses.
-- `NsTAIInstant` as a single TAI timestamp for precise event records.
 - `Duration` for relative time spans.
 - `GeoPoint` with latitude and longitude stored as two 64‑bit floats.
 - `RgbaColor` packing four 8‑bit channels into one value.

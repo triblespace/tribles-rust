@@ -341,6 +341,22 @@ pub trait Constraint<'a> {
     ///
     /// If the variable is not used by the constraint, the method should do nothing.
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>);
+
+    /// Return the set of variables potentially influenced when the passed
+    /// variable is bound or unbound.
+    ///
+    /// By default this includes all variables used by the constraint except the
+    /// queried one when the constraint contains the variable, otherwise the set
+    /// is empty.
+    fn influence(&self, variable: VariableId) -> VariableSet {
+        let mut vars = self.variables();
+        if vars.is_set(variable) {
+            vars.unset(variable);
+            vars
+        } else {
+            VariableSet::new_empty()
+        }
+    }
 }
 
 impl<'a, T: Constraint<'a> + ?Sized> Constraint<'a> for Box<T> {
@@ -363,6 +379,11 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'a> for Box<T> {
         let inner: &T = self;
         inner.confirm(variable, binding, proposals)
     }
+
+    fn influence(&self, variable: VariableId) -> VariableSet {
+        let inner: &T = self;
+        inner.influence(variable)
+    }
 }
 
 impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
@@ -384,6 +405,11 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
     fn confirm(&self, variable: VariableId, binding: &Binding, proposal: &mut Vec<RawValue>) {
         let inner: &T = self;
         inner.confirm(variable, binding, proposal)
+    }
+
+    fn influence(&self, variable: VariableId) -> VariableSet {
+        let inner: &T = self;
+        inner.influence(variable)
     }
 }
 

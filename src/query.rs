@@ -433,7 +433,9 @@ pub struct Query<C, P: Fn(&Binding) -> R, R> {
     postprocessing: P,
     mode: Search,
     binding: Binding,
+    influences: [VariableSet; 128],
     estimates: [usize; 128],
+    touched_variables: VariableSet,
     stack: ArrayVec<VariableId, 128>,
     unbound: ArrayVec<VariableId, 128>,
     values: ArrayVec<Option<Vec<RawValue>>, 128>,
@@ -447,36 +449,37 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
     /// This method is usually not called directly, but rather through the [find!] macro,
     pub fn new(constraint: C, postprocessing: P) -> Self {
         let variables = constraint.variables();
+        let influences = std::array::from_fn(|v| {
+            if variables.is_set(v) {
+                constraint.influence(v)
+            } else {
+                VariableSet::new_empty()
+            }
+        });
         let binding = Binding::default();
-        let estimates = std::array::from_fn(|i| {
-            if variables.is_set(i) {
+        let estimates = std::array::from_fn(|v| {
+            if variables.is_set(v) {
                 constraint
-                    .estimate(i, &binding)
+                    .estimate(v, &binding)
                     .expect("unconstrained variable in query")
             } else {
                 usize::MAX
             }
         });
-        
+        let mut unbound = ArrayVec::from_iter(variables);
+        unbound.sort_unstable_by_key(|v| Reverse(estimates[*v]));
+
         Query {
             constraint,
             postprocessing,
             mode: Search::NextVariable,
             binding,
+            influences,
             estimates,
+            touched_variables: VariableSet::new_empty(),
             stack: ArrayVec::new(),
-            unbound: ArrayVec::from_iter(variables),
+            unbound,
             values: ArrayVec::from([const { None }; 128]),
-        }
-    }
-
-    #[inline(always)]
-    fn reestimate_influenced_by(&mut self, variable: VariableId) {
-        for influenced_variable in self.constraint.influence(variable).subtract(self.binding.bound) {
-            self.estimates[influenced_variable] = self
-                .constraint
-                .estimate(influenced_variable, &self.binding)
-                .expect("unconstrained variable in query");
         }
     }
 }
@@ -510,13 +513,28 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                         return Some((self.postprocessing)(&self.binding));
                     }
 
-                    // This is a bit of a hack to avoid sorting the unbound variables
-                    // if we have a good estimate for the next variable.
-                    // We could also use a priority queue, but that would add more complexity.
-                    //if self.estimates[*self.unbound.last().expect("non-empty unbound")] > 1 { //TODO @ Codex: uncomment this to make the test fail
+                    let mut stale_estimates = VariableSet::new_empty();
+
+                    while let Some(variable) = self.touched_variables.drain_next_ascending() {
+                        stale_estimates = stale_estimates.union(self.influences[variable]);
+                    }
+
+                    // We remove the bound variables from the stale estimates,
+                    // as already bound variables cannot be influenced by the unbound ones.
+                    stale_estimates = stale_estimates.subtract(self.binding.bound);
+
+                    if !stale_estimates.is_empty() {
+                        while let Some(v) = stale_estimates.drain_next_ascending() {
+                            self.estimates[v] = self
+                                .constraint
+                                .estimate(v, &self.binding)
+                                .expect("unconstrained variable in query");
+                        }
+
                         self.unbound
-                            .sort_unstable_by_key(|v| Reverse(self.estimates[*v]));
-                    //}
+                            .sort_unstable_by_key(|v| (Reverse(self.estimates[*v]), self.influences[*v].count()));
+                        // Idea: We could also sort the unbound variables by their influence.
+                    }
 
                     let variable = self.unbound.pop().expect("non-empty unbound");
                     let estimate = self.estimates[variable];
@@ -535,7 +553,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                             .pop()
                         {
                             self.binding.set(variable, &assignment);
-                            self.reestimate_influenced_by(variable);
+                            self.touched_variables.set(variable);
                             self.mode = Search::NextVariable;
                         } else {
                             self.mode = Search::Backtrack;
@@ -548,8 +566,17 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                 Search::Backtrack => {
                     if let Some(variable) = self.stack.pop() {
                         self.binding.unset(variable);
+                        // Note that we did not update estiamtes for the unbound variables
+                        // as we are backtracking, so the estimates are still valid.
+                        // Since we choose this variable before, we know that it would
+                        // still go last in the unbound list.
                         self.unbound.push(variable);
-                        self.reestimate_influenced_by(variable);
+
+                        // However, we need to update the touched variables,
+                        // as we are backtracking and the variable is no longer bound.
+                        // We're essentially restoring the estimate of the touched variables
+                        // to the state before we bound this variable.
+                        self.touched_variables.set(variable);
                         self.mode = Search::NextValue;
                     } else {
                         self.mode = Search::Done;

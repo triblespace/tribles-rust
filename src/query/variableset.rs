@@ -11,15 +11,18 @@ pub struct VariableSet {
 
 impl VariableSet {
     /// Create a new empty set.
+    #[must_use]
     pub const fn new_empty() -> Self {
         VariableSet { bits: 0 }
     }
     /// Create a new set with every value of the domain set.
+    #[must_use]
     pub const fn new_full() -> Self {
         VariableSet { bits: !0 }
     }
 
     /// Create a new set with a single value from the domain set.
+    #[must_use]
     pub fn new_singleton(index: usize) -> Self {
         let mut set = Self::new_empty();
         set.set(index);
@@ -27,10 +30,12 @@ impl VariableSet {
     }
 
     /// Check if the set is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.bits == 0
     }
     /// Count the number of elements in the set.
+    #[must_use]
     pub fn count(&self) -> usize {
         self.bits.count_ones() as usize
     }
@@ -60,11 +65,13 @@ impl VariableSet {
         self.bits = 0;
     }
     /// Check if the given value is in the set.
+    #[must_use]
     pub fn is_set(&self, index: usize) -> bool {
         0 != (self.bits & (1 << index))
     }
     /// Finds the index of the first set bit.
     /// If no bits are set, returns `None`.
+    #[must_use]
     pub fn find_first_set(&self) -> Option<usize> {
         if self.bits != 0 {
             return Some(self.bits.trailing_zeros() as usize);
@@ -73,6 +80,7 @@ impl VariableSet {
     }
     /// Finds the index of the last set bit.
     /// If no bits are set, returns `None`.
+    #[must_use]
     pub fn find_last_set(&self) -> Option<usize> {
         if self.bits != 0 {
             return Some(127 - (self.bits.leading_zeros() as usize));
@@ -100,32 +108,38 @@ impl VariableSet {
         }
     }
     /// Checks if the set is a superset of the passed set.
+    #[must_use]
     pub fn is_superset_of(&self, other: &Self) -> bool {
         ((self.bits & other.bits) ^ other.bits) == 0
     }
     /// Checks if the set is a subset of the passed set.
+    #[must_use]
     pub fn is_subset_of(&self, other: &Self) -> bool {
         ((self.bits & other.bits) ^ self.bits) == 0
     }
     /// Compute the set intersection between the two given sets.
+    #[must_use]
     pub fn intersect(self, other: Self) -> Self {
         Self {
             bits: self.bits & other.bits,
         }
     }
     /// Compute the set union between the two given sets.
+    #[must_use]
     pub fn union(self, other: Self) -> Self {
         Self {
             bits: self.bits | other.bits,
         }
     }
     /// Compute the set subtraction between the two given sets.
+    #[must_use]
     pub fn subtract(self, other: Self) -> Self {
         Self {
             bits: self.bits & !other.bits,
         }
     }
     /// Compute the set difference between the two given sets.
+    #[must_use]
     pub fn difference(self, other: Self) -> Self {
         Self {
             bits: self.bits ^ other.bits,
@@ -133,6 +147,7 @@ impl VariableSet {
     }
     /// Compute a set complement, removing every element that was in the set
     /// and inserting every element from the domain that wasn't in the set.
+    #[must_use]
     pub fn complement(self) -> Self {
         Self { bits: !self.bits }
     }

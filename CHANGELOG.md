@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README now links to the corresponding chapters on https://triblespace.github.io/tribles-rust.
 - `branch_id_by_name` helper to resolve branch IDs from names. Returns a
   `NameConflict` error when multiple branches share the same name.
+- `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
 - `Workspace::checkout` helper to load commit contents.

@@ -61,6 +61,14 @@ where
 
         _ = mem::replace(proposals, union);
     }
+
+    fn influence(&self, variable: VariableId) -> VariableSet {
+        self.constraints
+            .iter()
+            .fold(VariableSet::new_empty(), |acc, c| {
+                acc.union(c.influence(variable))
+            })
+    }
 }
 
 #[macro_export]

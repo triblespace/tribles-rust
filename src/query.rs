@@ -103,9 +103,9 @@ pub mod unionconstraint;
 mod variableset;
 
 use std::cmp::Reverse;
-use std::{fmt, usize};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::{fmt, usize};
 
 use arrayvec::ArrayVec;
 use constantconstraint::*;
@@ -422,13 +422,24 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
     /// This method is usually not called directly, but rather through the [find!] macro,
     pub fn new(constraint: C, postprocessing: P) -> Self {
         let variables = constraint.variables();
+        let binding = Binding::default();
+        let estimates = std::array::from_fn(|i| {
+            if variables.is_set(i) {
+                constraint
+                    .estimate(i, &binding)
+                    .expect("unconstrained variable in query")
+            } else {
+                usize::MAX
+            }
+        });
+        
         Query {
             constraint,
             postprocessing,
             variables,
             mode: Search::NextVariable,
-            binding: Default::default(),
-            estimates: [usize::MAX; 128], // TODO: calculate estimates
+            binding,
+            estimates,
             stack: ArrayVec::new(),
             unbound: ArrayVec::from_iter(variables),
             values: ArrayVec::from([const { None }; 128]),
@@ -466,14 +477,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                     }
 
                     if self.estimates[*self.unbound.last().expect("non-empty unbound")] > 1 {
-                        for &variable in self.unbound.iter() {
-                            self.estimates[variable] = self
-                                .constraint
-                                .estimate(variable, &self.binding)
-                                .expect("unconstrained variable in query");
-                        }
-
-                        self.unbound.sort_unstable_by_key(|v| Reverse(self.estimates[*v]));
+                        // If we have a good estimate, we don't need to sort the unbound variables
+                        // to find one.
+                        // This is a performance optimization to avoid unnecessary sorting.
+                        // But if
+                        self.unbound
+                            .sort_unstable_by_key(|v| Reverse(self.estimates[*v]));
                     }
 
                     let variable = self.unbound.pop().expect("non-empty unbound");
@@ -492,6 +501,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                             .pop()
                         {
                             self.binding.set(variable, &assignment);
+                            for influenced_variable in self.constraint.influence(variable) {
+                                self.estimates[influenced_variable] = self
+                                    .constraint
+                                    .estimate(influenced_variable, &self.binding)
+                                    .expect("unconstrained variable in query");
+                            }
                             self.mode = Search::NextVariable;
                         } else {
                             self.mode = Search::Backtrack;
@@ -505,6 +520,12 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                     if let Some(variable) = self.stack.pop() {
                         self.binding.unset(variable);
                         self.unbound.push(variable);
+                        for influenced_variable in self.constraint.influence(variable) {
+                            self.estimates[influenced_variable] = self
+                                .constraint
+                                .estimate(influenced_variable, &self.binding)
+                                .expect("unconstrained variable in query");
+                        }
                         self.mode = Search::NextValue;
                     } else {
                         self.mode = Search::Done;

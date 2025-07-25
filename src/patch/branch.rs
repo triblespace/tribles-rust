@@ -365,7 +365,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             let node_end_depth = (*branch).end_depth as usize;
             let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
             for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-                if leaf_key[O::key_index(depth)] != prefix[depth] {
+                if leaf_key.get_unchecked(O::key_index(depth)) != prefix.get_unchecked(depth) {
                     return false;
                 }
             }

@@ -67,8 +67,12 @@ kani = []
 name = "benchmark"
 harness = false
 
+[[bench]]
+name = "query"
+harness = false
+
 [profile.bench]
-debug = false
+debug = true
 opt-level = 3
 
 [profile.release]

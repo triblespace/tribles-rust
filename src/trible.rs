@@ -339,11 +339,14 @@ pub struct TribleSegmentation {}
 
 impl KeySegmentation<TRIBLE_LEN> for TribleSegmentation {
     fn segment(depth: usize) -> usize {
-        match depth {
-            E_START..=E_END => 0,
-            A_START..=A_END => 1,
-            V_START..=V_END => 2,
-            _ => panic!(),
+        unsafe {
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                2, 2, 2, 2, 2, 2, 2, 2,
+            ]
+            .get_unchecked(depth)
+            .clone()
         }
     }
 }
@@ -374,19 +377,26 @@ pub struct EVAOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
     fn tree_index(key_index: usize) -> usize {
-        match key_index {
-            d @ E_START..=E_END => d,
-            d @ A_START..=A_END => d + 32,
-            d @ V_START..=V_END => d - 16,
-            _ => panic!(),
+        unsafe {
+            [
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 48, 49, 50, 51, 52, 53, 54,
+                55, 56, 57, 58, 59, 60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+                28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+            ]
+            .get_unchecked(key_index)
+            .clone()
         }
     }
 
     fn key_index(tree_index: usize) -> usize {
-        match tree_index {
-            d if d < 16 => d,
-            d if d < 48 => d + 16,
-            d => d - 32,
+        unsafe {
+            [
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38,
+                39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+                60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            ]
+            .get_unchecked(tree_index)
+            .clone()
         }
     }
 }
@@ -400,19 +410,26 @@ pub struct AEVOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
     fn tree_index(key_index: usize) -> usize {
-        match key_index {
-            d @ E_START..=E_END => d + 16,
-            d @ A_START..=A_END => d - 16,
-            d @ V_START..=V_END => d,
-            _ => panic!(),
+        unsafe {
+            [
+                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5,
+                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            ]
+            .get_unchecked(key_index)
+            .clone()
         }
     }
 
     fn key_index(tree_index: usize) -> usize {
-        match tree_index {
-            d if d < 16 => d + 16,
-            d if d < 32 => d - 16,
-            d => d,
+        unsafe {
+            [
+                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5,
+                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            ]
+            .get_unchecked(tree_index)
+            .clone()
         }
     }
 }
@@ -426,19 +443,26 @@ pub struct AVEOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
     fn tree_index(key_index: usize) -> usize {
-        match key_index {
-            d @ E_START..=E_END => d + 48,
-            d @ A_START..=A_END => d - 16,
-            d @ V_START..=V_END => d - 16,
-            _ => panic!(),
+        unsafe {
+            [
+                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5,
+                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+                28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+            ]
+            .get_unchecked(key_index)
+            .clone()
         }
     }
 
     fn key_index(tree_index: usize) -> usize {
-        match tree_index {
-            d if d < 16 => d + 16,
-            d if d < 48 => d + 16,
-            d => d - 48,
+        unsafe {
+            [
+                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+                58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+            ]
+            .get_unchecked(tree_index)
+            .clone()
         }
     }
 }
@@ -452,19 +476,26 @@ pub struct VEAOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
     fn tree_index(key_index: usize) -> usize {
-        match key_index {
-            d @ E_START..=E_END => d + 32,
-            d @ A_START..=A_END => d + 32,
-            d @ V_START..=V_END => d - 32,
-            _ => panic!(),
+        unsafe {
+            [
+                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            ]
+            .get_unchecked(key_index)
+            .clone()
         }
     }
 
     fn key_index(tree_index: usize) -> usize {
-        match tree_index {
-            d if d < 32 => d + 32,
-            d if d < 48 => d - 32,
-            d => d - 32,
+        unsafe {
+            [
+                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            ]
+            .get_unchecked(tree_index)
+            .clone()
         }
     }
 }
@@ -478,19 +509,26 @@ pub struct VAEOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VAEOrder {
     fn tree_index(key_index: usize) -> usize {
-        match key_index {
-            d @ E_START..=E_END => d + 48,
-            d @ A_START..=A_END => d + 16,
-            d @ V_START..=V_END => d - 32,
-            _ => panic!(),
+        unsafe {
+            [
+                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 32, 33, 34, 35, 36,
+                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            ]
+            .get_unchecked(key_index)
+            .clone()
         }
     }
 
     fn key_index(tree_index: usize) -> usize {
-        match tree_index {
-            d if d < 32 => d + 32,
-            d if d < 48 => d - 16,
-            d => d - 48,
+        unsafe {
+            [
+                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+                26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+            ]
+            .get_unchecked(tree_index)
+            .clone()
         }
     }
 }

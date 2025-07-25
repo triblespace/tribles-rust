@@ -475,7 +475,9 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                                 .unbound
                                 .iter()
                                 .enumerate()
-                                .filter_map(|(i, &v)| Some((i, v, self.constraint.estimate(v, &self.binding)?)))
+                                .filter_map(|(i, &v)| {
+                                    Some((i, v, self.constraint.estimate(v, &self.binding)?))
+                                })
                                 .min_by_key(|(_, _, e)| *e)
                                 .expect("unbound len > 0");
                             self.unbound.swap_remove(index);

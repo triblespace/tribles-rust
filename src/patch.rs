@@ -62,13 +62,14 @@ pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
     /// Returns the index in the key view, given the index in the tree view.
     ///
     /// This is the inverse of [Self::tree_index].
+
     fn key_index(tree_index: usize) -> usize;
 
     /// Reorders the key from the shared key ordering to the tree ordering.
     fn tree_ordered(key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
         let mut new_key = [0; KEY_LEN];
         for i in 0..KEY_LEN {
-            new_key[i] = key[Self::key_index(i)];
+            new_key[Self::tree_index(i)] = key[i];
         }
         new_key
     }
@@ -77,7 +78,7 @@ pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
     fn key_ordered(tree_key: &[u8; KEY_LEN]) -> [u8; KEY_LEN] {
         let mut new_key = [0; KEY_LEN];
         for i in 0..KEY_LEN {
-            new_key[i] = tree_key[Self::tree_index(i)];
+            new_key[Self::key_index(i)] = tree_key[i];
         }
         new_key
     }
@@ -685,7 +686,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
             let BodyPtr::Branch(other_branch) = other.body() else {
                 unreachable!();
             };
-            let self_byte_key = self.childleaf_key()[O::key_index(self_depth)];
+            let self_byte_key = self.childleaf_key()[O::key_index(other_depth)];
 
             if let Some(other_child) =
                 unsafe { other_branch.as_ref().child_table.table_get(self_byte_key) }

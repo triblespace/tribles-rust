@@ -309,7 +309,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     //    + size_cvae
                     //    + size_ceva
                     //    + size_caev;
-//
+                    //
                     //println!(
                     //    "Archived trible size: {size_total}\n\
                     //   Domain:{size_domain}\n\
@@ -389,7 +389,7 @@ fn archive_benchmark(c: &mut Criterion) {
                     //    + size_cvae
                     //    + size_ceva
                     //    + size_caev;
-//
+                    //
                     //println!(
                     //    "Archived trible size: {size_total}\n\
                     //   Domain:{size_domain}\n\

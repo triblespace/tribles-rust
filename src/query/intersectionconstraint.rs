@@ -63,6 +63,14 @@ where
             .iter()
             .for_each(|(_, c)| c.confirm(variable, binding, proposals));
     }
+
+    fn influence(&self, variable: VariableId) -> VariableSet {
+        self.constraints
+            .iter()
+            .fold(VariableSet::new_empty(), |acc, c| {
+                acc.union(c.influence(variable))
+            })
+    }
 }
 
 #[macro_export]

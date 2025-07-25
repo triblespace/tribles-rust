@@ -102,7 +102,8 @@ pub mod patchconstraint;
 pub mod unionconstraint;
 mod variableset;
 
-use std::fmt;
+use std::cmp::Reverse;
+use std::{fmt, usize};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
@@ -404,11 +405,13 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
 pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     postprocessing: P,
+    variables: VariableSet,
     mode: Search,
     binding: Binding,
+    estimates: [usize; 128],
     stack: ArrayVec<VariableId, 128>,
     unbound: ArrayVec<VariableId, 128>,
-    values: [Vec<RawValue>; 128],
+    values: ArrayVec<Option<Vec<RawValue>>, 128>,
 }
 
 impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
@@ -422,11 +425,13 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
         Query {
             constraint,
             postprocessing,
+            variables,
             mode: Search::NextVariable,
             binding: Default::default(),
+            estimates: [usize::MAX; 128], // TODO: calculate estimates
             stack: ArrayVec::new(),
             unbound: ArrayVec::from_iter(variables),
-            values: std::array::from_fn(|_| Vec::new()),
+            values: ArrayVec::from([const { None }; 128]),
         }
     }
 }
@@ -456,45 +461,36 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
             match &self.mode {
                 Search::NextVariable => {
                     self.mode = Search::NextValue;
-
-                    match self.unbound.len() {
-                        0 => {
-                            return Some((self.postprocessing)(&self.binding));
-                        }
-                        1 => {
-                            let next_variable = self.unbound.pop().unwrap();
-                            self.stack.push(next_variable);
-                            let values = &mut self.values[next_variable as usize];
-                            values.clear();
-                            self.constraint
-                                .propose(next_variable, &self.binding, values);
-                        }
-                        _ => {
-                            let (index, next_variable, next_estimate) = self
-                                .unbound
-                                .iter()
-                                .enumerate()
-                                .filter_map(|(i, &v)| {
-                                    Some((i, v, self.constraint.estimate(v, &self.binding)?))
-                                })
-                                .min_by_key(|(_, _, e)| *e)
-                                .expect("unbound len > 0");
-                            self.unbound.swap_remove(index);
-                            self.stack.push(next_variable);
-                            let values = &mut self.values[next_variable as usize];
-                            values.clear();
-                            values.reserve_exact(next_estimate.saturating_sub(values.capacity()));
-                            self.constraint.propose(
-                                next_variable,
-                                &self.binding,
-                                &mut self.values[next_variable as usize],
-                            );
-                        }
+                    if self.unbound.is_empty() {
+                        return Some((self.postprocessing)(&self.binding));
                     }
+
+                    if self.estimates[*self.unbound.last().expect("non-empty unbound")] > 1 {
+                        for &variable in self.unbound.iter() {
+                            self.estimates[variable] = self
+                                .constraint
+                                .estimate(variable, &self.binding)
+                                .expect("unconstrained variable in query");
+                        }
+
+                        self.unbound.sort_unstable_by_key(|v| Reverse(self.estimates[*v]));
+                    }
+
+                    let variable = self.unbound.pop().expect("non-empty unbound");
+                    let estimate = self.estimates[variable];
+                    self.stack.push(variable);
+                    let values = self.values[variable as usize].get_or_insert(Vec::new());
+                    values.clear();
+                    values.reserve_exact(estimate.saturating_sub(values.capacity()));
+                    self.constraint.propose(variable, &self.binding, values);
                 }
                 Search::NextValue => {
                     if let Some(&variable) = self.stack.last() {
-                        if let Some(assignment) = self.values[variable as usize].pop() {
+                        if let Some(assignment) = self.values[variable as usize]
+                            .as_mut()
+                            .expect("values should be initialized")
+                            .pop()
+                        {
                             self.binding.set(variable, &assignment);
                             self.mode = Search::NextVariable;
                         } else {

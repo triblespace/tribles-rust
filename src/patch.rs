@@ -1093,7 +1093,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
                             .iter()
                             .filter_map(|c| c.as_ref()),
                     );
-                    first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                    first_level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                 },
             }
         }
@@ -1124,7 +1124,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
                                 .iter()
                                 .filter_map(|c| c.as_ref()),
                         );
-                        level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                        level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                     },
                 }
             } else {
@@ -1177,7 +1177,7 @@ impl<
                             .iter()
                             .filter_map(|c| c.as_ref()),
                     );
-                    first_level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                    first_level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                 }
             }
         }
@@ -1217,7 +1217,7 @@ impl<
                                 .iter()
                                 .filter_map(|c| c.as_ref()),
                         );
-                        level.sort_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
+                        level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                     }
                 }
             } else {

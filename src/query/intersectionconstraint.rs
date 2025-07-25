@@ -1,14 +1,15 @@
 use super::*;
+use arrayvec::ArrayVec;
 
 pub struct IntersectionConstraint<C> {
-    constraints: Vec<C>,
+    constraints: ArrayVec<C, 16>,
 }
 
 impl<'a, C> IntersectionConstraint<C>
 where
     C: Constraint<'a> + 'a,
 {
-    pub fn new(constraints: Vec<C>) -> Self {
+    pub fn new(constraints: ArrayVec<C, 16>) -> Self {
         IntersectionConstraint { constraints }
     }
 }
@@ -31,7 +32,7 @@ where
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let mut relevant_constraints: Vec<_> = self
+        let mut relevant_constraints: ArrayVec<_, 16> = self
             .constraints
             .iter()
             .filter_map(|c| Some((c.estimate(variable, binding)?, c)))
@@ -39,7 +40,7 @@ where
         if relevant_constraints.len() == 0 {
             return;
         }
-        relevant_constraints.sort_by_key(|(estimate, _)| *estimate);
+        relevant_constraints.sort_unstable_by_key(|(estimate, _)| *estimate);
 
         relevant_constraints[0]
             .1
@@ -51,12 +52,12 @@ where
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let mut relevant_constraints: Vec<_> = self
+        let mut relevant_constraints: ArrayVec<_, 16> = self
             .constraints
             .iter()
             .filter_map(|c| Some((c.estimate(variable, binding)?, c)))
             .collect();
-        relevant_constraints.sort_by_key(|(estimate, _)| *estimate);
+        relevant_constraints.sort_unstable_by_key(|(estimate, _)| *estimate);
 
         relevant_constraints
             .iter()
@@ -67,9 +68,9 @@ where
 #[macro_export]
 macro_rules! and {
     ($($c:expr),+ $(,)?) => (
-        $crate::query::intersectionconstraint::IntersectionConstraint::new(vec![
+        $crate::query::intersectionconstraint::IntersectionConstraint::new(arrayvec::ArrayVec::from_iter([
             $(Box::new($c) as Box<dyn $crate::query::Constraint>),+
-        ])
+        ]))
     )
 }
 

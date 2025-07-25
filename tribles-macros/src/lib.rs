@@ -271,7 +271,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Wrap all collected constraints in an intersection constraint
     let output = quote! {
         {
-            let mut constraints: Vec<Box<dyn #crate_path::query::Constraint>> = vec![];
+            let mut constraints: arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = arrayvec::ArrayVec::new();
             let #ctx_ident = __local_find_context!();
             let #set_ident = #set;
             #attr_tokens
@@ -600,7 +600,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
         let case = quote! {
             {
-                let mut constraints: Vec<Box<dyn #crate_path::query::Constraint>> = vec![];
+                let mut constraints: arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = arrayvec::ArrayVec::new();
                 use #crate_path::query::TriblePattern;
                 #triple_tokens
                 #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
@@ -624,7 +624,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             #attr_decl_tokens
             #entity_decl_tokens
             #value_decl_tokens
-            let mut constraints: Vec<Box<dyn #crate_path::query::Constraint>> = vec![];
+            let mut constraints: arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = arrayvec::ArrayVec::new();
             use #crate_path::query::TriblePattern;
             #attr_const_tokens
             #entity_const_tokens

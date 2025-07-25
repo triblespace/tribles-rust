@@ -40,12 +40,12 @@ where
         self.constraints
             .iter()
             .for_each(|c| c.propose(variable, binding, proposals));
-        proposals.sort();
+        proposals.sort_unstable();
         proposals.dedup();
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.sort();
+        proposals.sort_unstable();
 
         let union: Vec<_> = self
             .constraints

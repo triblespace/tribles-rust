@@ -60,7 +60,7 @@ where
         I: Iterator<Item = RawValue>,
     {
         let mut universe: Vec<[u8; 32]> = iter.collect();
-        universe.sort();
+        universe.sort_unstable();
         let universe = universe;
 
         let mut data: Vec<[u8; 4]> = Vec::new();
@@ -75,7 +75,7 @@ where
         }
 
         let mut fragments: Vec<_> = frequency.keys().copied().collect();
-        fragments.sort_by_key(|fragment| (Reverse(frequency.get(fragment)), *fragment));
+        fragments.sort_unstable_by_key(|fragment| (Reverse(frequency.get(fragment)), *fragment));
         let fragments = fragments;
 
         let fragment_index: HashMap<[u8; 4], u32> = fragments

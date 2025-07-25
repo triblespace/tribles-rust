@@ -431,7 +431,6 @@ impl<'a, T: Constraint<'a> + ?Sized> Constraint<'static> for std::sync::Arc<T> {
 pub struct Query<C, P: Fn(&Binding) -> R, R> {
     constraint: C,
     postprocessing: P,
-    variables: VariableSet,
     mode: Search,
     binding: Binding,
     estimates: [usize; 128],
@@ -462,13 +461,22 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
         Query {
             constraint,
             postprocessing,
-            variables,
             mode: Search::NextVariable,
             binding,
             estimates,
             stack: ArrayVec::new(),
             unbound: ArrayVec::from_iter(variables),
             values: ArrayVec::from([const { None }; 128]),
+        }
+    }
+
+    #[inline(always)]
+    fn reestimate_influenced_by(&mut self, variable: VariableId) {
+        for influenced_variable in self.constraint.influence(variable).subtract(self.binding.bound) {
+            self.estimates[influenced_variable] = self
+                .constraint
+                .estimate(influenced_variable, &self.binding)
+                .expect("unconstrained variable in query");
         }
     }
 }
@@ -502,17 +510,17 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                         return Some((self.postprocessing)(&self.binding));
                     }
 
-                    if self.estimates[*self.unbound.last().expect("non-empty unbound")] > 1 {
-                        // If we have a good estimate, we don't need to sort the unbound variables
-                        // to find one.
-                        // This is a performance optimization to avoid unnecessary sorting.
-                        // But if
+                    // This is a bit of a hack to avoid sorting the unbound variables
+                    // if we have a good estimate for the next variable.
+                    // We could also use a priority queue, but that would add more complexity.
+                    //if self.estimates[*self.unbound.last().expect("non-empty unbound")] > 1 { //TODO @ Codex: uncomment this to make the test fail
                         self.unbound
                             .sort_unstable_by_key(|v| Reverse(self.estimates[*v]));
-                    }
+                    //}
 
                     let variable = self.unbound.pop().expect("non-empty unbound");
                     let estimate = self.estimates[variable];
+
                     self.stack.push(variable);
                     let values = self.values[variable as usize].get_or_insert(Vec::new());
                     values.clear();
@@ -527,12 +535,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                             .pop()
                         {
                             self.binding.set(variable, &assignment);
-                            for influenced_variable in self.constraint.influence(variable) {
-                                self.estimates[influenced_variable] = self
-                                    .constraint
-                                    .estimate(influenced_variable, &self.binding)
-                                    .expect("unconstrained variable in query");
-                            }
+                            self.reestimate_influenced_by(variable);
                             self.mode = Search::NextVariable;
                         } else {
                             self.mode = Search::Backtrack;
@@ -546,12 +549,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                     if let Some(variable) = self.stack.pop() {
                         self.binding.unset(variable);
                         self.unbound.push(variable);
-                        for influenced_variable in self.constraint.influence(variable) {
-                            self.estimates[influenced_variable] = self
-                                .constraint
-                                .estimate(influenced_variable, &self.binding)
-                                .expect("unconstrained variable in query");
-                        }
+                        self.reestimate_influenced_by(variable);
                         self.mode = Search::NextValue;
                     } else {
                         self.mode = Search::Done;

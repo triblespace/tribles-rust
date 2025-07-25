@@ -464,11 +464,10 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                         1 => {
                             let next_variable = self.unbound.pop().unwrap();
                             self.stack.push(next_variable);
-                            self.constraint.propose(
-                                next_variable,
-                                &self.binding,
-                                &mut self.values[next_variable as usize],
-                            );
+                            let values = &mut self.values[next_variable as usize];
+                            values.clear();
+                            self.constraint
+                                .propose(next_variable, &self.binding, values);
                         }
                         _ => {
                             let (index, next_variable, next_estimate) = self

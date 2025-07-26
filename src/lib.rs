@@ -15,6 +15,7 @@ pub mod repo;
 pub mod trible;
 pub mod value;
 
+pub mod debug;
 pub mod examples;
 
 #[cfg(kani)]

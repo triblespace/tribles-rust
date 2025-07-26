@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Workspace::checkout` helper to load commit contents.
 - `pattern!` now implemented as a procedural macro in the new `tribles-macros` crate.
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
+- Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
+  `debug` module.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
 - Procedural `namespace!` macro replaces the declarative `NS!` implementation.

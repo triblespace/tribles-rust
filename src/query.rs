@@ -467,7 +467,17 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Query<C, P, R> {
             }
         });
         let mut unbound = ArrayVec::from_iter(variables);
-        unbound.sort_unstable_by_key(|v| (Reverse(estimates[*v].ilog2()), influences[*v].count()));
+        unbound.sort_unstable_by_key(|v| {
+            (
+                Reverse(
+                    estimates[*v]
+                        .checked_ilog2()
+                        .map(|magnitude| magnitude + 1)
+                        .unwrap_or(0),
+                ),
+                influences[*v].count(),
+            )
+        });
 
         Query {
             constraint,
@@ -531,8 +541,17 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                                 .expect("unconstrained variable in query");
                         }
 
-                        self.unbound
-                            .sort_unstable_by_key(|v| (Reverse(self.estimates[*v].ilog2()), self.influences[*v].count()));
+                        self.unbound.sort_unstable_by_key(|v| {
+                            (
+                                Reverse(
+                                    self.estimates[*v]
+                                        .checked_ilog2()
+                                        .map(|magnitude| magnitude + 1)
+                                        .unwrap_or(0),
+                                ),
+                                self.influences[*v].count(),
+                            )
+                        });
                     }
 
                     let variable = self.unbound.pop().expect("non-empty unbound");

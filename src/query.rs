@@ -824,4 +824,31 @@ mod tests {
             and!(a.is(I256BE::value_from(1)), a.is(I256BE::value_from(2)))
         ));
     }
+
+    #[test]
+    fn estimate_override_debug_order() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let mut ctx = VariableContext::new();
+        let a = ctx.next_variable::<ShortString>();
+        let b = ctx.next_variable::<ShortString>();
+
+        let base = and!(
+            a.is(ShortString::value_from("A")),
+            b.is(ShortString::value_from("B"))
+        );
+
+        let mut wrapper = crate::debug::query::EstimateOverrideConstraint::new(base);
+        wrapper.set_estimate(a.index, 10);
+        wrapper.set_estimate(b.index, 1);
+
+        let record = Rc::new(RefCell::new(Vec::new()));
+        let debug = crate::debug::query::DebugConstraint::new(wrapper, Rc::clone(&record));
+
+        let q: Query<_, _, _> = Query::new(debug, |_| ());
+        let r: Vec<_> = q.collect();
+        assert_eq!(1, r.len());
+        assert_eq!(&*record.borrow(), &[b.index, a.index]);
+    }
 }

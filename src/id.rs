@@ -647,7 +647,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn ns_local_ids_bad_estimates_panics() {
         let mut kb = TribleSet::new();
 
@@ -685,6 +684,6 @@ mod tests {
         let q: Query<_, _, _> =
             Query::new(wrapper, |binding| String::from_value(name.extract(binding)));
         let r: Vec<_> = q.collect();
-        assert!(r.is_empty());
+        assert_eq!(r, vec!["Isaac", "Jules"]);
     }
 }

@@ -601,6 +601,9 @@ mod tests {
     use crate::examples::literature;
     use crate::id::ExclusiveId;
     use crate::prelude::*;
+    use crate::query::{Query, VariableContext};
+    use crate::value::schemas::genid::GenId;
+    use crate::value::schemas::shortstring::ShortString;
 
     #[test]
     fn id_formatting() {
@@ -641,5 +644,47 @@ mod tests {
         r.sort();
 
         assert_eq!(vec!["Isaac", "Jules"], r);
+    }
+
+    #[test]
+    #[should_panic]
+    fn ns_local_ids_bad_estimates_panics() {
+        let mut kb = TribleSet::new();
+
+        {
+            let isaac = ufoid();
+            let jules = ufoid();
+            kb += literature::entity!(&jules, {
+                firstname: "Jules",
+                lastname: "Verne"
+            });
+            kb += literature::entity!(&isaac, {
+                firstname: "Isaac",
+                lastname: "Asimov"
+            });
+        }
+
+        let mut ctx = VariableContext::new();
+        macro_rules! __local_find_context {
+            () => {
+                &mut ctx
+            };
+        }
+        let author = ctx.next_variable::<GenId>();
+        let name = ctx.next_variable::<ShortString>();
+
+        let base = and!(
+            local_ids(author),
+            literature::pattern!(&kb, [{ author @ firstname: name }])
+        );
+
+        let mut wrapper = crate::debug::query::EstimateOverrideConstraint::new(base);
+        wrapper.set_estimate(author.index, 100);
+        wrapper.set_estimate(name.index, 1);
+
+        let q: Query<_, _, _> =
+            Query::new(wrapper, |binding| String::from_value(name.extract(binding)));
+        let r: Vec<_> = q.collect();
+        assert!(r.is_empty());
     }
 }

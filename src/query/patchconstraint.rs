@@ -102,7 +102,13 @@ where
     }
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
-        proposals.retain(|v| self.patch.has_prefix(v));
+        proposals.retain(|v| {
+            if let Some(id) = crate::id::id_from_value(v) {
+                self.patch.has_prefix(&id)
+            } else {
+                false
+            }
+        });
     }
 }
 

@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
+### Fixed
+- `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
+  `local_ids` queries to return no results with overridden estimates.
 - Documentation proposal for exposing blob metadata through the `Pile` API.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.

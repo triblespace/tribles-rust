@@ -109,6 +109,9 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
+        const {
+            assert!(PREFIX_LEN <= KEY_LEN);
+        }
         let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::key_index(depth)] != prefix[depth] {

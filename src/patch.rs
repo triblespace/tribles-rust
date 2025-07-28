@@ -438,6 +438,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
+        const {
+            assert!(PREFIX_LEN <= KEY_LEN);
+        }
         match self.body() {
             BodyPtr::Leaf(leaf) => Leaf::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix),
             BodyPtr::Branch(branch) => branch::Branch::has_prefix(branch, at_depth, prefix),
@@ -862,7 +865,7 @@ where
     /// but will usually inferred from the arguments.
     ///
     /// The sum of `PREFIX_LEN` and `INFIX_LEN` must be less than or equal to `KEY_LEN`
-    /// or a panic will occur.
+    /// or a compile-time assertion will fail.
     ///
     /// Because all infixes are iterated in one go, less bookkeeping is required,
     /// than when using an Iterator, allowing for better performance.
@@ -873,13 +876,9 @@ where
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        assert!(
-            PREFIX_LEN + INFIX_LEN <= KEY_LEN,
-            "{} + {} > {}",
-            PREFIX_LEN,
-            INFIX_LEN,
-            KEY_LEN
-        );
+        const {
+            assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
+        }
         assert!(
             S::segment(O::key_index(PREFIX_LEN))
                 == S::segment(O::key_index(PREFIX_LEN + INFIX_LEN - 1)),
@@ -895,7 +894,13 @@ where
     }
 
     /// Returns true if the PATCH has a key with the given prefix.
+    ///
+    /// `PREFIX_LEN` must be less than or equal to `KEY_LEN` or a compile-time
+    /// assertion will fail.
     pub fn has_prefix<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> bool {
+        const {
+            assert!(PREFIX_LEN <= KEY_LEN);
+        }
         if let Some(root) = &self.root {
             root.has_prefix(0, prefix)
         } else {
@@ -1156,7 +1161,9 @@ impl<
     > PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, S>
 {
     fn new(patch: &'a PATCH<KEY_LEN, O, S>) -> Self {
-        assert!(PREFIX_LEN <= KEY_LEN);
+        const {
+            assert!(PREFIX_LEN <= KEY_LEN);
+        }
         let mut r = PATCHPrefixIterator {
             stack: Vec::with_capacity(PREFIX_LEN),
         };

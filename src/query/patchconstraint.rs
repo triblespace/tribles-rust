@@ -1,5 +1,5 @@
 use crate::{
-    id::{id_into_value, ID_LEN},
+    id::{id_from_value, id_into_value, ID_LEN},
     patch::{IdentityOrder, SingleSegmentation, PATCH},
     value::{RawValue, ValueSchema, VALUE_LEN},
 };
@@ -103,7 +103,7 @@ where
 
     fn confirm(&self, _variable: VariableId, _binding: &Binding, proposals: &mut Vec<RawValue>) {
         proposals.retain(|v| {
-            if let Some(id) = crate::id::id_from_value(v) {
+            if let Some(id) = id_from_value(v) {
                 self.patch.has_prefix(&id)
             } else {
                 false

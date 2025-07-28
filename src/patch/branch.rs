@@ -360,6 +360,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> bool {
+        const {
+            assert!(PREFIX_LEN <= KEY_LEN);
+        }
         unsafe {
             let branch = branch.as_ptr();
             let node_end_depth = (*branch).end_depth as usize;

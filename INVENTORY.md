@@ -73,3 +73,4 @@ prioritized for efficient zero-copy access.
 
 ## Discovered Issues
 - No open issues recorded yet.
+- Enforce `PREFIX_LEN` never exceeds `KEY_LEN` when checking prefixes.

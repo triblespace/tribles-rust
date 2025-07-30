@@ -9,7 +9,7 @@
 #![allow(unstable_name_collisions)]
 
 mod branch;
-mod bytetable;
+pub mod bytetable;
 mod entry;
 mod leaf;
 
@@ -19,7 +19,7 @@ use branch::*;
 pub use entry::Entry;
 use leaf::*;
 
-use bytetable::*;
+pub use bytetable::*;
 use rand::thread_rng;
 use rand::RngCore;
 use std::cmp::Reverse;

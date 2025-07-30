@@ -982,6 +982,45 @@ where
             return other.clone();
         }
     }
+
+    /// Calculates the average fill level for branch nodes grouped by their
+    /// branching factor. The returned array contains eight entries for branch
+    /// sizes `2`, `4`, `8`, `16`, `32`, `64`, `128` and `256` in that order.
+    #[cfg(debug_assertions)]
+    pub fn debug_branch_fill(&self) -> [f32; 8] {
+        let mut counts = [0u64; 8];
+        let mut used = [0u64; 8];
+
+        if let Some(root) = &self.root {
+            let mut stack = Vec::new();
+            stack.push(root);
+
+            while let Some(head) = stack.pop() {
+                match head.body() {
+                    BodyPtr::Leaf(_) => {}
+                    BodyPtr::Branch(branch) => unsafe {
+                        let b = branch.as_ref();
+                        let size = b.child_table.len();
+                        let idx = size.trailing_zeros() as usize - 1;
+                        counts[idx] += 1;
+                        used[idx] += b.child_table.iter().filter(|c| c.is_some()).count() as u64;
+                        for child in b.child_table.iter().filter_map(|c| c.as_ref()) {
+                            stack.push(child);
+                        }
+                    },
+                }
+            }
+        }
+
+        let mut avg = [0f32; 8];
+        for i in 0..8 {
+            if counts[i] > 0 {
+                let size = 1u64 << (i + 1);
+                avg[i] = used[i] as f32 / (counts[i] as f32 * size as f32);
+            }
+        }
+        avg
+    }
 }
 
 impl<const KEY_LEN: usize, O, S> PartialEq for PATCH<KEY_LEN, O, S>

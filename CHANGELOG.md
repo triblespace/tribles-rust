@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
+- Debug-only `debug_branch_fill` method computes average PATCH branch fill
+  percentages by node size.
+- Added a simple `patch` benchmark filling the tree with fake data and printing
+  branch occupancy averages.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
 - Procedural `namespace!` macro replaces the declarative `NS!` implementation.

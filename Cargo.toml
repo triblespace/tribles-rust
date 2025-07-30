@@ -71,6 +71,10 @@ harness = false
 name = "query"
 harness = false
 
+[[bench]]
+name = "patch"
+harness = false
+
 [profile.bench]
 debug = true
 opt-level = 3

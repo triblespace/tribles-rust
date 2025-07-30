@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   percentages by node size.
 - Added a simple `patch` benchmark filling the tree with fake data and printing
   branch occupancy averages.
+- Added `byte_table_resize_benchmark` measuring average fill ratios that cause
+  growth for random vs sequential inserts. It now tracks the number of elements
+  inserted at each power-of-two table size to compute per-size and overall
+  averages over many random runs.
+- Preallocated the resize counts vector to avoid repeated allocations during
+  the benchmark.
+- Per-size results now include sizes that never triggered growth so the output
+  has no gaps.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
 - Procedural `namespace!` macro replaces the declarative `NS!` implementation.

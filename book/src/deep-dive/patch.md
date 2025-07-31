@@ -26,33 +26,33 @@ before triggering a resize. The benchmark inserts all byte values many times
 and measures the occupancy that forced each power-of-two table size to grow:
 
 ```
-ByteTable resize fill - random: 0.744, sequential: 0.840
+ByteTable resize fill - random: 0.863, sequential: 0.972
 Per-size fill (random)
   size   2: 1.000  # path compression keeps two-entry nodes fully occupied
-  size   4: 0.975
-  size   8: 0.897
-  size  16: 0.841
-  size  32: 0.789
-  size  64: 0.734
-  size 128: 0.713
-  size 256: 0.000  # identity hash maps all 256 children so no resize occurs
+  size   4: 0.973
+  size   8: 0.899
+  size  16: 0.830
+  size  32: 0.749
+  size  64: 0.735
+  size 128: 0.719
+  size 256: 1.000  # identity hash maps all 256 children without resizing
 Per-size fill (sequential)
   size   2: 1.000  # path compression keeps two-entry nodes fully occupied
   size   4: 1.000
-  size   8: 0.936
-  size  16: 0.990
-  size  32: 0.921
-  size  64: 0.944
-  size 128: 0.926
-  size 256: 0.000  # identity hash maps all 256 children so no resize occurs
+  size   8: 0.993
+  size  16: 1.000
+  size  32: 0.928
+  size  64: 0.925
+  size 128: 0.927
+  size 256: 1.000  # identity hash maps all 256 children without resizing
 ```
 
-Random inserts average roughly 74% table fill while sequential inserts hold
-about 84% before doubling the table size. Nodes of size two are always 100%
+Random inserts average roughly 86% table fill while sequential inserts hold
+about 97% before doubling the table size. Nodes of size two are always 100%
 full thanks to path compression, and the final 256‑ary node also reaches 100%
-occupancy because of the linear hash. The benchmark shows `0.000` for the 256
-size as it never triggers a resize. This keeps memory usage predictable without
-the specialized node formats used by ART.
+occupancy because of the linear hash, which we now report explicitly instead of
+`0.000`. This keeps memory usage predictable without the specialized node
+formats used by ART.
 
 PATCH nodes maintain a rolling hash which allows efficient union, intersection and difference operations over whole subtrees.
 Keys can be viewed in different orders with the [`KeyOrdering`](../../src/patch.rs) trait and segmented via [`KeySegmentation`](../../src/patch.rs) to enable prefix based queries.

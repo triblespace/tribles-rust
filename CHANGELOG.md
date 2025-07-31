@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the benchmark.
 - Per-size results now include sizes that never triggered growth so the output
   has no gaps.
+- Documented PATCH's cuckoo-hashing compression as an alternative to ART-style
+  node compression, explained its compressed-permutation hash with an identity
+  first permutation and a random second permutation and why the smallest and
+  largest nodes are always fully occupied, and included benchmark fill ratios in
+  the book.
+- Annotated the benchmark output to highlight path compression in the size-two
+  case and that the identity hash lets 256-ary nodes store all 256 children.
 - `entity!` subsumes the old `entity_inner!` helper; macro invocations can
   optionally provide an existing `TribleSet`.
 - Procedural `namespace!` macro replaces the declarative `NS!` implementation.

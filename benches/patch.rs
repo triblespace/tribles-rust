@@ -81,6 +81,10 @@ fn byte_table_resize_benchmark() {
                     }
                 }
             }
+
+            // Record the fill after the final insertions without a subsequent resize.
+            let index = usize::ilog2(size) as usize - 1;
+            inserted_totals[index] += inserted;
         }
 
         let mut by_size = Vec::new();

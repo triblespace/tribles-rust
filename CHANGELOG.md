@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the ByteTable planner.
 - Restored the simpler `ByteSet` and inlined bucket checks to reduce indirection in the planner.
 - Removed the reified `ByteBucket` abstraction and indexed buckets directly in the byte table.
+- `ByteSet` now stores raw `[u128; 2]` bitsets instead of relying on `VariableSet`.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
@@ -133,6 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
 - Added a `matches!` macro mirroring `find!` for boolean checks.
+- Regular path queries via a new `RegularPathConstraint` and namespaced `path!` macro.
+- `path!` automata now store transitions in a `PATCH` for efficient lookups and set operations.
 - Added a `filter` commit selector with a `history_of` helper.
 
 ### Changed
@@ -242,6 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TimeRange` commit selector now delegates to the generic `filter` selector.
 - Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
   now tracked in this changelog.
+- Canonicalized epsilon closures in regular path queries and documented the
+  Thompson-style automaton construction.
 
 ### Fixed
 - Enforce `PREFIX_LEN <= KEY_LEN` for prefix checks in PATCH.

@@ -35,7 +35,6 @@
 //! current bucket, to the corresponding bucket in the upper half.
 //! Incidentally this might flip the hash function used for this entry.
 
-use crate::query::VariableSet;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::fmt::Debug;
@@ -115,26 +114,26 @@ fn compress_hash(slot_count: usize, hash: u8) -> u8 {
 }
 
 #[derive(Clone, Copy)]
-struct ByteSet([VariableSet; 2]);
+struct ByteSet([u128; 2]);
 
 impl ByteSet {
     fn new_empty() -> Self {
-        ByteSet([VariableSet::new_empty(), VariableSet::new_empty()])
+        ByteSet([0, 0])
     }
 
     fn insert(&mut self, idx: u8) {
-        let bit = (idx & 0b0111_1111) as usize;
-        self.0[(idx >> 7) as usize].set(bit);
+        let bit = (idx & 0b0111_1111) as u32;
+        self.0[(idx >> 7) as usize] |= 1u128 << bit;
     }
 
     fn remove(&mut self, idx: u8) {
-        let bit = (idx & 0b0111_1111) as usize;
-        self.0[(idx >> 7) as usize].unset(bit);
+        let bit = (idx & 0b0111_1111) as u32;
+        self.0[(idx >> 7) as usize] &= !(1u128 << bit);
     }
 
     fn contains(&self, idx: u8) -> bool {
-        let bit = (idx & 0b0111_1111) as usize;
-        self.0[(idx >> 7) as usize].is_set(bit)
+        let bit = (idx & 0b0111_1111) as u32;
+        (self.0[(idx >> 7) as usize] & (1u128 << bit)) != 0
     }
 }
 

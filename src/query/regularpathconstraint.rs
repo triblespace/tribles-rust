@@ -29,6 +29,9 @@ struct Automaton {
 }
 
 impl Automaton {
+    /// Builds an NFA using Thompson's construction as described in
+    /// "Regular expression search algorithm" (Thompson, 1968). The
+    /// sequence of `PathOp`s is expected in postfix order.
     fn new(ops: &[PathOp]) -> Self {
         #[derive(Clone)]
         struct Frag {
@@ -141,6 +144,8 @@ impl Automaton {
         dests
     }
 
+    /// Returns the epsilon-closure of the given states. The resulting set is
+    /// sorted and deduplicated to allow canonical comparisons.
     fn epsilon_closure(&self, states: Vec<u64>) -> Vec<u64> {
         let mut result = states.clone();
         let mut stack = states;
@@ -152,6 +157,8 @@ impl Automaton {
                 }
             }
         }
+        result.sort();
+        result.dedup();
         result
     }
 }
@@ -200,15 +207,9 @@ impl RegularPathConstraint {
         let mut queue: VecDeque<(RawId, Vec<u64>)> = VecDeque::new();
         queue.push_back((*from, start_states.clone()));
         let mut visited: HashSet<(RawId, Vec<u64>)> = HashSet::new();
-        visited.insert((*from, {
-            let mut s = start_states.clone();
-            s.sort();
-            s
-        }));
+        visited.insert((*from, start_states.clone()));
         while let Some((node, states)) = queue.pop_front() {
-            let mut sorted = states.clone();
-            sorted.sort();
-            if sorted.contains(&self.automaton.accept) && node == *to {
+            if states.contains(&self.automaton.accept) && node == *to {
                 return true;
             }
             if let Some(edges) = self.edges.get(&node) {
@@ -220,8 +221,7 @@ impl RegularPathConstraint {
                     if next_states.is_empty() {
                         continue;
                     }
-                    let mut closure = self.automaton.epsilon_closure(next_states);
-                    closure.sort();
+                    let closure = self.automaton.epsilon_closure(next_states);
                     if visited.insert((*dest, closure.clone())) {
                         queue.push_back((*dest, closure));
                     }

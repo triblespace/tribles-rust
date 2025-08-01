@@ -236,6 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TimeRange` commit selector now delegates to the generic `filter` selector.
 - Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
   now tracked in this changelog.
+- Canonicalized epsilon closures in regular path queries and documented the
+  Thompson-style automaton construction.
 
 ### Fixed
 - Enforce `PREFIX_LEN <= KEY_LEN` for prefix checks in PATCH.

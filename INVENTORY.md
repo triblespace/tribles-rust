@@ -19,6 +19,8 @@
 - Benchmark PATCH performance across typical workloads.
 - Investigate the theoretical complexity of PATCH operations.
 - Measure practical space usage for PATCH with varying dataset sizes.
+- Benchmark recursive `ByteTable` displacement planner versus the greedy random insert to measure fill rate and performance across intermediate table sizes.
+- Explore converting the recursive `ByteTable` planner into an iterative search to reduce stack usage.
 - Implement a garbage collection mechanism that scans branch and commit
   archives without fully deserialising them to find reachable blob handles.
   Anything not discovered this way can be forgotten by the underlying store.

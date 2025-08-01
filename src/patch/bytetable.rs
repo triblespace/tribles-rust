@@ -50,7 +50,7 @@ const MAX_SLOT_COUNT: usize = 256;
 
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
-const MAX_RETRIES: usize = 4;
+const MAX_RETRIES: usize = 2;
 
 /// Global randomness used for bucket selection.
 /// Atomic to allow thread-safe updates.

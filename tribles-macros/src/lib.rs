@@ -251,8 +251,8 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     let output = quote! {
         {
-            use #crate_path::query::regularpathconstraint::{RegularPathConstraint, PathOp};
-            RegularPathConstraint::new(#set.clone(), #start, #end, &[#(#ops),*])
+            use #crate_path::query::regularpathconstraint::{PathOp, RegularPathConstraint, ThompsonEngine};
+            RegularPathConstraint::<ThompsonEngine>::new(#set.clone(), #start, #end, &[#(#ops),*])
         }
     };
     Ok(output.into())

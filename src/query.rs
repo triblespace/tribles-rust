@@ -114,7 +114,7 @@ use mask::*;
 
 use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
 
-pub use regularpathconstraint::{PathOp, RegularPathConstraint};
+pub use regularpathconstraint::{PathEngine, PathOp, RegularPathConstraint, ThompsonEngine};
 pub use variableset::VariableSet;
 
 /// Types storing tribles can implement this trait to expose them to queries.

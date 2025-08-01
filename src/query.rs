@@ -99,6 +99,7 @@ pub mod hashsetconstraint;
 pub mod intersectionconstraint;
 pub mod mask;
 pub mod patchconstraint;
+pub mod regularpathconstraint;
 pub mod unionconstraint;
 mod variableset;
 
@@ -113,6 +114,7 @@ use mask::*;
 
 use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
 
+pub use regularpathconstraint::{PathOp, RegularPathConstraint};
 pub use variableset::VariableSet;
 
 /// Types storing tribles can implement this trait to expose them to queries.

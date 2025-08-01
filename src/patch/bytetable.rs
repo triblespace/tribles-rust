@@ -39,7 +39,6 @@ use crate::query::VariableSet;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Once;
 
 /// The number of slots per bucket.
@@ -53,8 +52,6 @@ const MAX_SLOT_COUNT: usize = 256;
 const MAX_RETRIES: usize = 2;
 
 /// Global randomness used for bucket selection.
-/// Atomic to allow thread-safe updates.
-static RAND: AtomicU8 = AtomicU8::new(4); // Choosen by fair dice roll.
 static mut RANDOM_PERMUTATION_RAND: [u8; 256] = [0; 256];
 static mut RANDOM_PERMUTATION_HASH: [u8; 256] = [0; 256];
 static INIT: Once = Once::new();
@@ -92,51 +89,8 @@ pub unsafe trait ByteEntry {
 
 /// Represents the hashtable's internal buckets, which allow for up to
 /// `BUCKET_ENTRY_COUNT` elements to share the same colliding hash values.
-/// This is what allows for the table's compression by reshuffling entries.
-pub trait ByteBucket<T: ByteEntry + Debug> {
-    fn bucket_get(&self, byte_key: u8) -> Option<&T>;
-    fn bucket_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
-    fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T>;
-}
-
-impl<T: ByteEntry + Debug> ByteBucket<T> for [Option<T>] {
-    /// Find the entry associated with the provided byte key if it is stored in
-    /// the table and return a non-exclusive reference to it or `None` otherwise.
-    fn bucket_get(&self, byte_key: u8) -> Option<&T> {
-        for entry in self {
-            if let Some(entry) = entry {
-                if entry.key() == byte_key {
-                    return Some(entry);
-                }
-            }
-        }
-        return None;
-    }
-
-    /// Find the slot associated with the provided byte key if it is stored in
-    /// the table and return it or `None` otherwise.
-    fn bucket_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
-        for slot in self {
-            if let Some(entry) = slot {
-                if entry.key() == byte_key {
-                    return Some(slot);
-                }
-            }
-        }
-        return None;
-    }
-
-    /// Move the provided `entry` into the bucket, displacing an empty slot,
-    /// returns the entry if none is found.
-    fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T> {
-        for entry in self {
-            if entry.is_none() {
-                return entry.replace(shoved_entry);
-            }
-        }
-        return Some(shoved_entry);
-    }
-}
+/// Buckets are laid out implicitly in a flat slice so bucket operations simply
+/// compute offsets into the table rather than delegating to a trait.
 
 /// A cheap hash *cough* identity *cough* function that maps every entry to an
 /// almost linear ordering (modulo `BUCKET_ENTRY_COUNT`) when maximally grown.
@@ -231,8 +185,6 @@ fn plan_insert<T: ByteEntry + Debug>(
 }
 
 pub trait ByteTable<T: ByteEntry + Debug> {
-    fn table_bucket(&self, bucket_index: usize) -> &[Option<T>];
-    fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [Option<T>];
     fn table_get(&self, byte_key: u8) -> Option<&T>;
     fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn table_insert(&mut self, entry: T) -> Option<T>;
@@ -240,29 +192,52 @@ pub trait ByteTable<T: ByteEntry + Debug> {
 }
 
 impl<T: ByteEntry + Debug> ByteTable<T> for [Option<T>] {
-    fn table_bucket(&self, bucket_index: usize) -> &[Option<T>] {
-        &self[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-    }
-
-    fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [Option<T>] {
-        &mut self[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-    }
-
     fn table_get(&self, byte_key: u8) -> Option<&T> {
-        let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
-        let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        let cheap_entry = self.table_bucket(cheap).bucket_get(byte_key);
-        let rand_entry = self.table_bucket(rand).bucket_get(byte_key);
-        cheap_entry.or(rand_entry)
+        let cheap_start =
+            compress_hash(self.len(), cheap_hash(byte_key)) as usize * BUCKET_ENTRY_COUNT;
+        for slot in 0..BUCKET_ENTRY_COUNT {
+            if let Some(entry) = self[cheap_start + slot].as_ref() {
+                if entry.key() == byte_key {
+                    return Some(entry);
+                }
+            }
+        }
+
+        let rand_start =
+            compress_hash(self.len(), rand_hash(byte_key)) as usize * BUCKET_ENTRY_COUNT;
+        for slot in 0..BUCKET_ENTRY_COUNT {
+            if let Some(entry) = self[rand_start + slot].as_ref() {
+                if entry.key() == byte_key {
+                    return Some(entry);
+                }
+            }
+        }
+        None
     }
 
     fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
-        let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
-        let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        if let Some(_) = self.table_bucket_mut(cheap).bucket_get_slot(byte_key) {
-            return self.table_bucket_mut(cheap).bucket_get_slot(byte_key);
+        let cheap_start =
+            compress_hash(self.len(), cheap_hash(byte_key)) as usize * BUCKET_ENTRY_COUNT;
+        for slot in 0..BUCKET_ENTRY_COUNT {
+            let idx = cheap_start + slot;
+            if let Some(entry) = self[idx].as_ref() {
+                if entry.key() == byte_key {
+                    return Some(&mut self[idx]);
+                }
+            }
         }
-        self.table_bucket_mut(rand).bucket_get_slot(byte_key)
+
+        let rand_start =
+            compress_hash(self.len(), rand_hash(byte_key)) as usize * BUCKET_ENTRY_COUNT;
+        for slot in 0..BUCKET_ENTRY_COUNT {
+            let idx = rand_start + slot;
+            if let Some(entry) = self[idx].as_ref() {
+                if entry.key() == byte_key {
+                    return Some(&mut self[idx]);
+                }
+            }
+        }
+        None
     }
 
     /// An entry with the same key must not exist in the table yet.
@@ -299,20 +274,25 @@ impl<T: ByteEntry + Debug> ByteTable<T> for [Option<T>] {
         let grown_len = grown.len();
         let (lower_portion, upper_portion) = grown.split_at_mut(self.len());
         for bucket_index in 0..buckets_len {
-            for entry in self.table_bucket_mut(bucket_index) {
-                if let Some(entry) = entry.take() {
+            let start = bucket_index * BUCKET_ENTRY_COUNT;
+            for slot in 0..BUCKET_ENTRY_COUNT {
+                if let Some(entry) = self[start + slot].take() {
                     let byte_key = entry.key();
                     let cheap_index = compress_hash(grown_len, cheap_hash(byte_key));
                     let rand_index = compress_hash(grown_len, rand_hash(byte_key));
 
-                    if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
-                        _ = lower_portion[bucket_index * BUCKET_ENTRY_COUNT
-                            ..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-                            .bucket_shove_empty_slot(entry);
-                    } else {
-                        _ = upper_portion[bucket_index * BUCKET_ENTRY_COUNT
-                            ..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
-                            .bucket_shove_empty_slot(entry);
+                    let dest_bucket =
+                        if bucket_index as u8 == cheap_index || bucket_index as u8 == rand_index {
+                            &mut lower_portion[start..start + BUCKET_ENTRY_COUNT]
+                        } else {
+                            &mut upper_portion[start..start + BUCKET_ENTRY_COUNT]
+                        };
+
+                    for dest_slot in dest_bucket.iter_mut() {
+                        if dest_slot.is_none() {
+                            *dest_slot = Some(entry);
+                            break;
+                        }
                     }
                 }
             }

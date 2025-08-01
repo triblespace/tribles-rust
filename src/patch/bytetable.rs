@@ -97,13 +97,6 @@ pub trait ByteBucket<T: ByteEntry + Debug> {
     fn bucket_get(&self, byte_key: u8) -> Option<&T>;
     fn bucket_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T>;
-    fn bucket_shove_random_slot(&mut self, shoved_entry: T) -> Option<T>;
-    fn bucket_shove_expensive_slot(
-        &mut self,
-        slot_count: usize,
-        bucket_index: u8,
-        shoved_entry: T,
-    ) -> Option<T>;
 }
 
 impl<T: ByteEntry + Debug> ByteBucket<T> for [Option<T>] {
@@ -138,39 +131,6 @@ impl<T: ByteEntry + Debug> ByteBucket<T> for [Option<T>] {
     fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T> {
         for entry in self {
             if entry.is_none() {
-                return entry.replace(shoved_entry);
-            }
-        }
-        return Some(shoved_entry);
-    }
-
-    /// Move the provided `shoved_entry` into the bucket, displacing and
-    /// returning a random existing entry.
-    fn bucket_shove_random_slot(&mut self, shoved_entry: T) -> Option<T> {
-        let byte_key = shoved_entry.key();
-        let current = RAND.load(Ordering::Relaxed);
-        let new_rand = unsafe { RANDOM_PERMUTATION_RAND[(current ^ byte_key) as usize] };
-        RAND.store(new_rand, Ordering::Relaxed);
-
-        let index = (new_rand as usize) & (BUCKET_ENTRY_COUNT - 1);
-        return self[index].replace(shoved_entry);
-    }
-
-    /// Move the provided `shoved_entry` into the bucket, displacing and
-    /// returning an existing entry that was using the non-cheap random hash.
-    fn bucket_shove_expensive_slot(
-        &mut self,
-        slot_count: usize,
-        bucket_index: u8,
-        shoved_entry: T,
-    ) -> Option<T> {
-        for entry in self {
-            if let Some(entry) = entry {
-                let entry_hash: u8 = compress_hash(slot_count, cheap_hash(entry.key()));
-                if bucket_index != entry_hash {
-                    return Some(std::mem::replace(entry, shoved_entry));
-                }
-            } else {
                 return entry.replace(shoved_entry);
             }
         }

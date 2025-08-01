@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced redundant option check with an `expect` when traversing full buckets in
   the ByteTable planner.
 - Restored the simpler `ByteSet` and inlined bucket checks to reduce indirection in the planner.
+- `ByteSet` now stores raw `[u128; 2]` bitsets instead of relying on `VariableSet`.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

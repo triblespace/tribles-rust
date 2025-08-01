@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
+### Changed
+- `ByteTable` plans insertions by recursively seeking a free slot and shifts entries only after a path is found, returning the entry on failure so callers can grow the table.
+- ByteTable's planner tracks visited keys with a stack-allocated bitset to avoid heap allocations.
+- Simplified the planner and table helpers for clearer ByteTable insertion code.
+- Replaced redundant option check with an `expect` when traversing full buckets in
+  the ByteTable planner.
+- Restored the simpler `ByteSet` and inlined bucket checks to reduce indirection in the planner.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

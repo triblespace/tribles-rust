@@ -35,6 +35,7 @@
 //! current bucket, to the corresponding bucket in the upper half.
 //! Incidentally this might flip the hash function used for this entry.
 
+use crate::query::VariableSet;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::fmt::Debug;
@@ -49,7 +50,7 @@ const MAX_SLOT_COUNT: usize = 256;
 
 /// The maximum number of cuckoo displacements attempted during
 /// insert before the size of the table is increased.
-const MAX_RETRIES: usize = 4;
+const MAX_RETRIES: usize = 2;
 
 /// Global randomness used for bucket selection.
 /// Atomic to allow thread-safe updates.
@@ -92,7 +93,7 @@ pub unsafe trait ByteEntry {
 /// Represents the hashtable's internal buckets, which allow for up to
 /// `BUCKET_ENTRY_COUNT` elements to share the same colliding hash values.
 /// This is what allows for the table's compression by reshuffling entries.
-pub trait ByteBucket<T: ByteEntry + Clone + Debug> {
+pub trait ByteBucket<T: ByteEntry + Debug> {
     fn bucket_get(&self, byte_key: u8) -> Option<&T>;
     fn bucket_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>>;
     fn bucket_shove_empty_slot(&mut self, shoved_entry: T) -> Option<T>;
@@ -105,7 +106,7 @@ pub trait ByteBucket<T: ByteEntry + Clone + Debug> {
     ) -> Option<T>;
 }
 
-impl<T: ByteEntry + Clone + Debug> ByteBucket<T> for [Option<T>] {
+impl<T: ByteEntry + Debug> ByteBucket<T> for [Option<T>] {
     /// Find the entry associated with the provided byte key if it is stored in
     /// the table and return a non-exclusive reference to it or `None` otherwise.
     fn bucket_get(&self, byte_key: u8) -> Option<&T> {
@@ -199,7 +200,77 @@ fn compress_hash(slot_count: usize, hash: u8) -> u8 {
     hash & mask
 }
 
-pub trait ByteTable<T: ByteEntry + Clone + Debug> {
+#[derive(Clone, Copy)]
+struct ByteSet([VariableSet; 2]);
+
+impl ByteSet {
+    fn new_empty() -> Self {
+        ByteSet([VariableSet::new_empty(), VariableSet::new_empty()])
+    }
+
+    fn insert(&mut self, idx: u8) {
+        let bit = (idx & 0b0111_1111) as usize;
+        self.0[(idx >> 7) as usize].set(bit);
+    }
+
+    fn remove(&mut self, idx: u8) {
+        let bit = (idx & 0b0111_1111) as usize;
+        self.0[(idx >> 7) as usize].unset(bit);
+    }
+
+    fn contains(&self, idx: u8) -> bool {
+        let bit = (idx & 0b0111_1111) as usize;
+        self.0[(idx >> 7) as usize].is_set(bit)
+    }
+}
+
+fn plan_insert<T: ByteEntry + Debug>(
+    table: &mut [Option<T>],
+    bucket_idx: usize,
+    depth: usize,
+    visited: &mut ByteSet,
+) -> Option<usize> {
+    let bucket_start = bucket_idx * BUCKET_ENTRY_COUNT;
+
+    for slot_idx in 0..BUCKET_ENTRY_COUNT {
+        if table[bucket_start + slot_idx].is_none() {
+            return Some(bucket_start + slot_idx);
+        }
+    }
+
+    if depth == 0 {
+        return None;
+    }
+
+    for slot_idx in 0..BUCKET_ENTRY_COUNT {
+        let key = table[bucket_start + slot_idx]
+            .as_ref()
+            .expect("slot must be occupied")
+            .key();
+        if visited.contains(key) {
+            continue;
+        }
+        visited.insert(key);
+
+        let cheap = compress_hash(table.len(), cheap_hash(key)) as usize;
+        let rand = compress_hash(table.len(), rand_hash(key)) as usize;
+        // Try the other bucket that the key could occupy.
+        let alt_idx = if bucket_idx == cheap { rand } else { cheap };
+        if alt_idx != bucket_idx {
+            if let Some(hole_idx) = plan_insert(table, alt_idx, depth - 1, visited) {
+                table[hole_idx] = table[bucket_start + slot_idx].take();
+                visited.remove(key);
+                return Some(bucket_start + slot_idx);
+            }
+        }
+
+        visited.remove(key);
+    }
+
+    None
+}
+
+pub trait ByteTable<T: ByteEntry + Debug> {
     fn table_bucket(&self, bucket_index: usize) -> &[Option<T>];
     fn table_bucket_mut(&mut self, bucket_index: usize) -> &mut [Option<T>];
     fn table_get(&self, byte_key: u8) -> Option<&T>;
@@ -208,7 +279,7 @@ pub trait ByteTable<T: ByteEntry + Clone + Debug> {
     fn table_grow(&mut self, grown: &mut Self);
 }
 
-impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
+impl<T: ByteEntry + Debug> ByteTable<T> for [Option<T>] {
     fn table_bucket(&self, bucket_index: usize) -> &[Option<T>] {
         &self[bucket_index * BUCKET_ENTRY_COUNT..(bucket_index + 1) * BUCKET_ENTRY_COUNT]
     }
@@ -228,61 +299,38 @@ impl<T: ByteEntry + Clone + Debug> ByteTable<T> for [Option<T>] {
     fn table_get_slot(&mut self, byte_key: u8) -> Option<&mut Option<T>> {
         let cheap = compress_hash(self.len(), cheap_hash(byte_key)) as usize;
         let rand = compress_hash(self.len(), rand_hash(byte_key)) as usize;
-        if let Some(_) = self
-            .table_bucket_mut(compress_hash(self.len(), cheap_hash(byte_key)) as usize)
-            .bucket_get_slot(byte_key)
-        {
-            // Duplicate call avoids borrow checker issues when returning the slot
+        if let Some(_) = self.table_bucket_mut(cheap).bucket_get_slot(byte_key) {
             return self.table_bucket_mut(cheap).bucket_get_slot(byte_key);
         }
-        if let Some(entry) = self.table_bucket_mut(rand).bucket_get_slot(byte_key) {
-            return Some(entry);
-        }
-        return None;
+        self.table_bucket_mut(rand).bucket_get_slot(byte_key)
     }
 
     /// An entry with the same key must not exist in the table yet.
-    fn table_insert(&mut self, mut inserted: T) -> Option<T> {
-        let mut byte_key = inserted.key();
-        debug_assert!(self.table_get(byte_key).is_none());
+    fn table_insert(&mut self, inserted: T) -> Option<T> {
+        debug_assert!(self.table_get(inserted.key()).is_none());
 
-        let table_size = self.len();
+        let mut visited = ByteSet::new_empty();
+        let key = inserted.key();
+        visited.insert(key);
+        let limit = if self.len() == MAX_SLOT_COUNT {
+            MAX_SLOT_COUNT
+        } else {
+            MAX_RETRIES
+        };
 
-        let max_grown = self.len() == MAX_SLOT_COUNT;
-        let min_grown = self.len() == BUCKET_ENTRY_COUNT;
-
-        let mut use_cheap_hash = true;
-        let mut retries: usize = 0;
-        loop {
-            let hash = if use_cheap_hash {
-                cheap_hash(byte_key)
-            } else {
-                rand_hash(byte_key)
-            };
-            let bucket_index = compress_hash(table_size, hash);
-
-            inserted = self
-                .table_bucket_mut(bucket_index as usize)
-                .bucket_shove_empty_slot(inserted)?;
-
-            if min_grown || retries == MAX_RETRIES {
-                return Some(inserted);
-            }
-
-            if max_grown {
-                inserted = self
-                    .table_bucket_mut(bucket_index as usize)
-                    .bucket_shove_expensive_slot(table_size, bucket_index, inserted)?;
-                byte_key = inserted.key();
-            } else {
-                retries += 1;
-                inserted = self
-                    .table_bucket_mut(bucket_index as usize)
-                    .bucket_shove_random_slot(inserted)?;
-                byte_key = inserted.key();
-                use_cheap_hash = bucket_index != compress_hash(table_size, cheap_hash(byte_key));
-            }
+        let cheap_bucket = compress_hash(self.len(), cheap_hash(key)) as usize;
+        if let Some(slot) = plan_insert(self, cheap_bucket, limit, &mut visited) {
+            self[slot] = Some(inserted);
+            return None;
         }
+
+        let rand_bucket = compress_hash(self.len(), rand_hash(key)) as usize;
+        if let Some(slot) = plan_insert(self, rand_bucket, limit, &mut visited) {
+            self[slot] = Some(inserted);
+            return None;
+        }
+
+        Some(inserted)
     }
 
     fn table_grow(&mut self, grown: &mut Self) {
@@ -403,6 +451,15 @@ mod tests {
             insert_step!(table128, table256, 256);
 
             prop_assert!(displaced.is_none());
+        }
+    }
+
+    #[test]
+    fn sequential_insert_all_keys() {
+        init();
+        let mut table: [Option<DummyEntry>; 256] = [None; 256];
+        for n in 0u8..=255 {
+            assert!(table.table_insert(DummyEntry::new(n)).is_none());
         }
     }
 }

@@ -17,6 +17,10 @@ pub enum PathOp {
     Plus,
 }
 
+pub trait PathEngine {
+    fn has_path(&self, from: &RawId, to: &RawId) -> bool;
+}
+
 const STATE_LEN: usize = core::mem::size_of::<u64>();
 const EDGE_KEY_LEN: usize = STATE_LEN * 2 + ID_LEN;
 const NIL_ID: RawId = [0; ID_LEN];
@@ -163,21 +167,13 @@ impl Automaton {
     }
 }
 
-pub struct RegularPathConstraint {
-    start: VariableId,
-    end: VariableId,
+pub struct ThompsonEngine {
     automaton: Automaton,
     edges: HashMap<RawId, Vec<(RawId, RawId)>>,
-    nodes: Vec<RawValue>,
 }
 
-impl RegularPathConstraint {
-    pub fn new(
-        set: TribleSet,
-        start: Variable<GenId>,
-        end: Variable<GenId>,
-        ops: &[PathOp],
-    ) -> Self {
+impl ThompsonEngine {
+    pub fn new(set: TribleSet, ops: &[PathOp]) -> (Self, Vec<RawValue>) {
         let automaton = Automaton::new(ops);
         let mut edges: HashMap<RawId, Vec<(RawId, RawId)>> = HashMap::new();
         let mut node_set: HashSet<RawId> = HashSet::new();
@@ -193,15 +189,11 @@ impl RegularPathConstraint {
             }
         }
         let nodes: Vec<RawValue> = node_set.iter().map(|id| id_into_value(id)).collect();
-        RegularPathConstraint {
-            start: start.index,
-            end: end.index,
-            automaton,
-            edges,
-            nodes,
-        }
+        (ThompsonEngine { automaton, edges }, nodes)
     }
+}
 
+impl PathEngine for ThompsonEngine {
     fn has_path(&self, from: &RawId, to: &RawId) -> bool {
         let start_states = self.automaton.epsilon_closure(vec![self.automaton.start]);
         let mut queue: VecDeque<(RawId, Vec<u64>)> = VecDeque::new();
@@ -232,7 +224,31 @@ impl RegularPathConstraint {
     }
 }
 
-impl<'a> Constraint<'a> for RegularPathConstraint {
+pub struct RegularPathConstraint<E: PathEngine> {
+    start: VariableId,
+    end: VariableId,
+    engine: E,
+    nodes: Vec<RawValue>,
+}
+
+impl RegularPathConstraint<ThompsonEngine> {
+    pub fn new(
+        set: TribleSet,
+        start: Variable<GenId>,
+        end: Variable<GenId>,
+        ops: &[PathOp],
+    ) -> Self {
+        let (engine, nodes) = ThompsonEngine::new(set, ops);
+        RegularPathConstraint {
+            start: start.index,
+            end: end.index,
+            engine,
+            nodes,
+        }
+    }
+}
+
+impl<'a, E: PathEngine> Constraint<'a> for RegularPathConstraint<E> {
     fn variables(&self) -> VariableSet {
         let mut vars = VariableSet::new_empty();
         vars.set(self.start);
@@ -260,7 +276,7 @@ impl<'a> Constraint<'a> for RegularPathConstraint {
                 if let Some(end_id) = id_from_value(end_val) {
                     proposals.retain(|v| {
                         if let Some(start_id) = id_from_value(v) {
-                            self.has_path(&start_id, &end_id)
+                            self.engine.has_path(&start_id, &end_id)
                         } else {
                             false
                         }
@@ -274,7 +290,7 @@ impl<'a> Constraint<'a> for RegularPathConstraint {
                 if let Some(start_id) = id_from_value(start_val) {
                     proposals.retain(|v| {
                         if let Some(end_id) = id_from_value(v) {
-                            self.has_path(&start_id, &end_id)
+                            self.engine.has_path(&start_id, &end_id)
                         } else {
                             false
                         }

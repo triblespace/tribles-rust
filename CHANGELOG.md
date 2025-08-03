@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restored the simpler `ByteSet` and inlined bucket checks to reduce indirection in the planner.
 - Removed the reified `ByteBucket` abstraction and indexed buckets directly in the byte table.
 - `ByteSet` now stores raw `[u128; 2]` bitsets instead of relying on `VariableSet`.
+- Detailed query engine documentation moved from the `query` module to the book, leaving a concise overview in code.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

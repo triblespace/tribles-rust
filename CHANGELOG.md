@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   percentages by node size.
 - Added a simple `patch` benchmark filling the tree with fake data and printing
   branch occupancy averages.
+- Trible key segmentation and ordering tables are now generated from a
+  declarative segment layout, simplifying maintenance.
 - Added `byte_table_resize_benchmark` measuring average fill ratios that cause
   growth for random vs sequential inserts. It now tracks the number of elements
   inserted at each power-of-two table size to compute per-size and overall

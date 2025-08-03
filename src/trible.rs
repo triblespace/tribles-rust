@@ -329,6 +329,101 @@ impl Trible {
     }
 }
 
+// Helper functions to derive segmentation and ordering maps from a declarative
+// segment description. These operate entirely in `const` context so the
+// resulting translation tables are compiled into the binary without runtime
+// cost.
+const fn build_segmentation<const N: usize, const M: usize>(lens: [usize; M]) -> [usize; N] {
+    let mut res = [0; N];
+    let mut seg = 0;
+    let mut offset = 0;
+    while seg < M {
+        let len = lens[seg];
+        let mut i = 0;
+        while i < len {
+            res[offset + i] = seg;
+            i += 1;
+        }
+        offset += len;
+        seg += 1;
+    }
+    res
+}
+
+const fn build_key_to_tree<const N: usize, const M: usize>(
+    lens: [usize; M],
+    perm: [usize; M],
+) -> [usize; N] {
+    let mut key_starts = [0; M];
+    let mut off = 0;
+    let mut i = 0;
+    while i < M {
+        key_starts[i] = off;
+        off += lens[i];
+        i += 1;
+    }
+
+    let mut tree_starts = [0; M];
+    off = 0;
+    i = 0;
+    while i < M {
+        let seg = perm[i];
+        tree_starts[seg] = off;
+        off += lens[seg];
+        i += 1;
+    }
+
+    let mut res = [0; N];
+    let mut seg = 0;
+    while seg < M {
+        let len = lens[seg];
+        let ks = key_starts[seg];
+        let ts = tree_starts[seg];
+        let mut j = 0;
+        while j < len {
+            res[ks + j] = ts + j;
+            j += 1;
+        }
+        seg += 1;
+    }
+    res
+}
+
+const fn invert<const N: usize>(arr: [usize; N]) -> [usize; N] {
+    let mut res = [0; N];
+    let mut i = 0;
+    while i < N {
+        res[arr[i]] = i;
+        i += 1;
+    }
+    res
+}
+
+// Segment lengths of the trible: entity, attribute and value.
+const TRIBLE_SEG_LENS: [usize; 3] = [16, 16, 32];
+// Precomputed maps derived from the segment description above.
+const TRIBLE_SEGMENTS: [usize; TRIBLE_LEN] = build_segmentation::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS);
+
+const EAV_KEY_TO_TREE: [usize; TRIBLE_LEN] =
+    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [0, 1, 2]);
+const EVA_KEY_TO_TREE: [usize; TRIBLE_LEN] =
+    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [0, 2, 1]);
+const AEV_KEY_TO_TREE: [usize; TRIBLE_LEN] =
+    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [1, 0, 2]);
+const AVE_KEY_TO_TREE: [usize; TRIBLE_LEN] =
+    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [1, 2, 0]);
+const VEA_KEY_TO_TREE: [usize; TRIBLE_LEN] =
+    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [2, 0, 1]);
+const VAE_KEY_TO_TREE: [usize; TRIBLE_LEN] =
+    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [2, 1, 0]);
+
+const EAV_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(EAV_KEY_TO_TREE);
+const EVA_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(EVA_KEY_TO_TREE);
+const AEV_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(AEV_KEY_TO_TREE);
+const AVE_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(AVE_KEY_TO_TREE);
+const VEA_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(VEA_KEY_TO_TREE);
+const VAE_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(VAE_KEY_TO_TREE);
+
 /// A segmentation of the trible into three segments: entity, attribute, and value.
 /// The entity is the first 16 bytes, the attribute is the next 16 bytes, and the value is the last 32 bytes.
 /// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
@@ -339,15 +434,7 @@ pub struct TribleSegmentation {}
 
 impl KeySegmentation<TRIBLE_LEN> for TribleSegmentation {
     fn segment(depth: usize) -> usize {
-        unsafe {
-            [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                2, 2, 2, 2, 2, 2, 2, 2,
-            ]
-            .get_unchecked(depth)
-            .clone()
-        }
+        TRIBLE_SEGMENTS[depth]
     }
 }
 
@@ -360,11 +447,11 @@ pub struct EAVOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EAVOrder {
     fn tree_index(key_index: usize) -> usize {
-        key_index
+        EAV_KEY_TO_TREE[key_index]
     }
 
     fn key_index(tree_index: usize) -> usize {
-        tree_index
+        EAV_TREE_TO_KEY[tree_index]
     }
 }
 
@@ -377,27 +464,11 @@ pub struct EVAOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
     fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 48, 49, 50, 51, 52, 53, 54,
-                55, 56, 57, 58, 59, 60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
+        EVA_KEY_TO_TREE[key_index]
     }
 
     fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38,
-                39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-                60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
+        EVA_TREE_TO_KEY[tree_index]
     }
 }
 
@@ -410,27 +481,11 @@ pub struct AEVOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
     fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5,
-                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
+        AEV_KEY_TO_TREE[key_index]
     }
 
     fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5,
-                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
+        AEV_TREE_TO_KEY[tree_index]
     }
 }
 
@@ -443,27 +498,11 @@ pub struct AVEOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
     fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5,
-                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
+        AVE_KEY_TO_TREE[key_index]
     }
 
     fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
-                58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
+        AVE_TREE_TO_KEY[tree_index]
     }
 }
 
@@ -476,27 +515,11 @@ pub struct VEAOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
     fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
+        VEA_KEY_TO_TREE[key_index]
     }
 
     fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
+        VEA_TREE_TO_KEY[tree_index]
     }
 }
 
@@ -509,27 +532,11 @@ pub struct VAEOrder {}
 
 impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VAEOrder {
     fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 32, 33, 34, 35, 36,
-                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
+        VAE_KEY_TO_TREE[key_index]
     }
 
     fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-                26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
+        VAE_TREE_TO_KEY[tree_index]
     }
 }
 

@@ -24,6 +24,8 @@
 - Implement a garbage collection mechanism that scans branch and commit
   archives without fully deserialising them to find reachable blob handles.
   Anything not discovered this way can be forgotten by the underlying store.
+- Generalise the declarative key description utilities to other key types so
+  segment layouts and orderings can be defined once and generated automatically.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large

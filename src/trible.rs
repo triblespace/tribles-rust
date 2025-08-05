@@ -8,7 +8,6 @@ use std::convert::TryInto;
 
 use crate::{
     id::{ExclusiveId, Id},
-    patch::{KeyOrdering, KeySegmentation},
     value::{Value, ValueSchema},
 };
 
@@ -329,220 +328,19 @@ impl Trible {
     }
 }
 
-// Helper functions to derive segmentation and ordering maps from a declarative
-// segment description. These operate entirely in `const` context so the
-// resulting translation tables are compiled into the binary without runtime
-// cost.
-const fn build_segmentation<const N: usize, const M: usize>(lens: [usize; M]) -> [usize; N] {
-    let mut res = [0; N];
-    let mut seg = 0;
-    let mut offset = 0;
-    while seg < M {
-        let len = lens[seg];
-        let mut i = 0;
-        while i < len {
-            res[offset + i] = seg;
-            i += 1;
-        }
-        offset += len;
-        seg += 1;
-    }
-    res
-}
+crate::key_segmentation!(TribleSegmentation, TRIBLE_LEN, [16, 16, 32]);
 
-const fn build_key_to_tree<const N: usize, const M: usize>(
-    lens: [usize; M],
-    perm: [usize; M],
-) -> [usize; N] {
-    let mut key_starts = [0; M];
-    let mut off = 0;
-    let mut i = 0;
-    while i < M {
-        key_starts[i] = off;
-        off += lens[i];
-        i += 1;
-    }
-
-    let mut tree_starts = [0; M];
-    off = 0;
-    i = 0;
-    while i < M {
-        let seg = perm[i];
-        tree_starts[seg] = off;
-        off += lens[seg];
-        i += 1;
-    }
-
-    let mut res = [0; N];
-    let mut seg = 0;
-    while seg < M {
-        let len = lens[seg];
-        let ks = key_starts[seg];
-        let ts = tree_starts[seg];
-        let mut j = 0;
-        while j < len {
-            res[ks + j] = ts + j;
-            j += 1;
-        }
-        seg += 1;
-    }
-    res
-}
-
-const fn invert<const N: usize>(arr: [usize; N]) -> [usize; N] {
-    let mut res = [0; N];
-    let mut i = 0;
-    while i < N {
-        res[arr[i]] = i;
-        i += 1;
-    }
-    res
-}
-
-// Segment lengths of the trible: entity, attribute and value.
-const TRIBLE_SEG_LENS: [usize; 3] = [16, 16, 32];
-// Precomputed maps derived from the segment description above.
-const TRIBLE_SEGMENTS: [usize; TRIBLE_LEN] = build_segmentation::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS);
-
-const EAV_KEY_TO_TREE: [usize; TRIBLE_LEN] =
-    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [0, 1, 2]);
-const EVA_KEY_TO_TREE: [usize; TRIBLE_LEN] =
-    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [0, 2, 1]);
-const AEV_KEY_TO_TREE: [usize; TRIBLE_LEN] =
-    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [1, 0, 2]);
-const AVE_KEY_TO_TREE: [usize; TRIBLE_LEN] =
-    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [1, 2, 0]);
-const VEA_KEY_TO_TREE: [usize; TRIBLE_LEN] =
-    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [2, 0, 1]);
-const VAE_KEY_TO_TREE: [usize; TRIBLE_LEN] =
-    build_key_to_tree::<TRIBLE_LEN, 3>(TRIBLE_SEG_LENS, [2, 1, 0]);
-
-const EAV_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(EAV_KEY_TO_TREE);
-const EVA_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(EVA_KEY_TO_TREE);
-const AEV_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(AEV_KEY_TO_TREE);
-const AVE_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(AVE_KEY_TO_TREE);
-const VEA_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(VEA_KEY_TO_TREE);
-const VAE_TREE_TO_KEY: [usize; TRIBLE_LEN] = invert(VAE_KEY_TO_TREE);
-
-/// A segmentation of the trible into three segments: entity, attribute, and value.
-/// The entity is the first 16 bytes, the attribute is the next 16 bytes, and the value is the last 32 bytes.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct TribleSegmentation {}
-
-impl KeySegmentation<TRIBLE_LEN> for TribleSegmentation {
-    fn segment(depth: usize) -> usize {
-        TRIBLE_SEGMENTS[depth]
-    }
-}
-
-/// An ordering of the trible with the segments in the order entity, attribute, value.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct EAVOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EAVOrder {
-    fn tree_index(key_index: usize) -> usize {
-        EAV_KEY_TO_TREE[key_index]
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        EAV_TREE_TO_KEY[tree_index]
-    }
-}
-
-/// An ordering of the trible with the segments in the order entity, value, attribute.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct EVAOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
-    fn tree_index(key_index: usize) -> usize {
-        EVA_KEY_TO_TREE[key_index]
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        EVA_TREE_TO_KEY[tree_index]
-    }
-}
-
-/// An ordering of the trible with the segments in the order attribute, entity, value.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct AEVOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
-    fn tree_index(key_index: usize) -> usize {
-        AEV_KEY_TO_TREE[key_index]
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        AEV_TREE_TO_KEY[tree_index]
-    }
-}
-
-/// An ordering of the trible with the segments in the order attribute, value, entity.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct AVEOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
-    fn tree_index(key_index: usize) -> usize {
-        AVE_KEY_TO_TREE[key_index]
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        AVE_TREE_TO_KEY[tree_index]
-    }
-}
-
-/// An ordering of the trible with the segments in the order value, entity, attribute.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct VEAOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
-    fn tree_index(key_index: usize) -> usize {
-        VEA_KEY_TO_TREE[key_index]
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        VEA_TREE_TO_KEY[tree_index]
-    }
-}
-
-/// An ordering of the trible with the segments in the order value, attribute, entity.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct VAEOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VAEOrder {
-    fn tree_index(key_index: usize) -> usize {
-        VAE_KEY_TO_TREE[key_index]
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        VAE_TREE_TO_KEY[tree_index]
-    }
-}
+crate::key_ordering!(EAVOrder, TribleSegmentation, TRIBLE_LEN, [0, 1, 2]);
+crate::key_ordering!(EVAOrder, TribleSegmentation, TRIBLE_LEN, [0, 2, 1]);
+crate::key_ordering!(AEVOrder, TribleSegmentation, TRIBLE_LEN, [1, 0, 2]);
+crate::key_ordering!(AVEOrder, TribleSegmentation, TRIBLE_LEN, [1, 2, 0]);
+crate::key_ordering!(VEAOrder, TribleSegmentation, TRIBLE_LEN, [2, 0, 1]);
+crate::key_ordering!(VAEOrder, TribleSegmentation, TRIBLE_LEN, [2, 1, 0]);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::patch::KeyOrdering;
 
     #[rustfmt::skip]
     #[test]

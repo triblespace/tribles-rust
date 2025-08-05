@@ -26,6 +26,9 @@
   Anything not discovered this way can be forgotten by the underlying store.
 - Generalise the declarative key description utilities to other key types so
   segment layouts and orderings can be defined once and generated automatically.
+- Provide a macro to declare key layouts that emits segmentation and
+  ordering implementations for PATCH at compile time.
+- Expose segment iterators on PATCH using `KeyOrdering`'s segment permutation instead of raw key ranges.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large

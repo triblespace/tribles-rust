@@ -1,6 +1,6 @@
 use crate::{
     id::{id_from_value, id_into_value, ID_LEN},
-    patch::{IdentityOrder, SingleSegmentation, PATCH},
+    patch::{IdentityOrder, PATCH},
     value::{RawValue, ValueSchema, VALUE_LEN},
 };
 
@@ -8,14 +8,11 @@ use super::{Binding, Constraint, ContainsConstraint, Variable, VariableId, Varia
 
 pub struct PatchValueConstraint<'a, T: ValueSchema> {
     variable: Variable<T>,
-    patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>,
+    patch: &'a PATCH<VALUE_LEN, IdentityOrder>,
 }
 
 impl<'a, T: ValueSchema> PatchValueConstraint<'a, T> {
-    pub fn new(
-        variable: Variable<T>,
-        patch: &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>,
-    ) -> Self {
+    pub fn new(variable: Variable<T>, patch: &'a PATCH<VALUE_LEN, IdentityOrder>) -> Self {
         PatchValueConstraint { variable, patch }
     }
 }
@@ -47,9 +44,7 @@ impl<'a, S: ValueSchema> Constraint<'a> for PatchValueConstraint<'a, S> {
     }
 }
 
-impl<'a, S: ValueSchema> ContainsConstraint<'a, S>
-    for &'a PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>
-{
+impl<'a, S: ValueSchema> ContainsConstraint<'a, S> for &'a PATCH<VALUE_LEN, IdentityOrder> {
     type Constraint = PatchValueConstraint<'a, S>;
 
     fn has(self, v: Variable<S>) -> Self::Constraint {
@@ -62,17 +57,14 @@ where
     S: ValueSchema,
 {
     variable: Variable<S>,
-    patch: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>,
+    patch: PATCH<ID_LEN, IdentityOrder>,
 }
 
 impl<'a, S> PatchIdConstraint<S>
 where
     S: ValueSchema,
 {
-    pub fn new(
-        variable: Variable<S>,
-        patch: PATCH<ID_LEN, IdentityOrder, SingleSegmentation>,
-    ) -> Self {
+    pub fn new(variable: Variable<S>, patch: PATCH<ID_LEN, IdentityOrder>) -> Self {
         PatchIdConstraint { variable, patch }
     }
 }
@@ -112,9 +104,7 @@ where
     }
 }
 
-impl<'a, S: ValueSchema> ContainsConstraint<'a, S>
-    for PATCH<ID_LEN, IdentityOrder, SingleSegmentation>
-{
+impl<'a, S: ValueSchema> ContainsConstraint<'a, S> for PATCH<ID_LEN, IdentityOrder> {
     type Constraint = PatchIdConstraint<S>;
 
     fn has(self, v: Variable<S>) -> Self::Constraint {

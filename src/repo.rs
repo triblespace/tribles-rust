@@ -125,7 +125,7 @@ use crate::{
     find,
     id::Id,
     metadata::metadata,
-    patch::{Entry, IdentityOrder, SingleSegmentation, PATCH},
+    patch::{Entry, IdentityOrder, PATCH},
     trible::TribleSet,
     value::VALUE_LEN,
     value::{
@@ -804,7 +804,7 @@ where
 }
 
 type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
-type CommitSet = PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>;
+type CommitSet = PATCH<VALUE_LEN, IdentityOrder>;
 type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 
 /// The Workspace represents the mutable working area or "staging" state.

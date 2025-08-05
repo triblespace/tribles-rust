@@ -81,7 +81,6 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         const PREFIX_LEN: usize,
         const INFIX_LEN: usize,
         O: KeyOrdering<KEY_LEN>,
-        S: KeySegmentation<KEY_LEN>,
         F,
     >(
         leaf: NonNull<Self>,
@@ -94,13 +93,13 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         let leaf = unsafe { leaf.as_ref() };
         let leaf_key = (*leaf).key;
         for depth in at_depth..PREFIX_LEN {
-            if leaf_key[O::key_index(depth)] != prefix[depth] {
+            if leaf_key[O::TREE_TO_KEY[depth]] != prefix[depth] {
                 return;
             }
         }
 
         let infix: [u8; INFIX_LEN] =
-            core::array::from_fn(|i| (*leaf).key[O::key_index(PREFIX_LEN + i)]);
+            core::array::from_fn(|i| (*leaf).key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
         f(&infix);
     }
 
@@ -114,7 +113,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
         let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
         for depth in at_depth..PREFIX_LEN {
-            if leaf_key[O::key_index(depth)] != prefix[depth] {
+            if leaf_key[O::TREE_TO_KEY[depth]] != prefix[depth] {
                 return false;
             }
         }
@@ -128,7 +127,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     ) -> u64 {
         let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
         for depth in at_depth..PREFIX_LEN {
-            let key_depth = O::key_index(depth);
+            let key_depth = O::TREE_TO_KEY[depth];
             if leaf_key[key_depth] != prefix[depth] {
                 return 0;
             }

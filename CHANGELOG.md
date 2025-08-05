@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   percentages by node size.
 - Added a simple `patch` benchmark filling the tree with fake data and printing
   branch occupancy averages.
+- Trible key segmentation and ordering tables are now generated from a
+  declarative segment layout, simplifying maintenance.
+- PATCH exposes const helpers to derive segment maps and ordering
+  permutations from a declarative key layout.
+- Introduced `key_segmentation!` and `key_ordering!` macros to emit
+  `KeySegmentation` and `KeyOrdering` implementations from those declarative
+  layouts.
 - Added `byte_table_resize_benchmark` measuring average fill ratios that cause
   growth for random vs sequential inserts. It now tracks the number of elements
   inserted at each power-of-two table size to compute per-size and overall
@@ -51,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 ### Changed
+- `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
+- Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeyOrdering` to its `KeySegmentation` with an explicit segment permutation.
+- `KeyOrdering` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.
 - `ByteTable` plans insertions by recursively seeking a free slot and shifts entries only after a path is found, returning the entry on failure so callers can grow the table.
 - ByteTable's planner tracks visited keys with a stack-allocated bitset to avoid heap allocations.
 - Simplified the planner and table helpers for clearer ByteTable insertion code.

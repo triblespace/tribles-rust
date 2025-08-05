@@ -23,7 +23,7 @@ pub use rngid::rngid;
 pub use ufoid::ufoid;
 
 use crate::{
-    patch::{Entry, IdentityOrder, SingleSegmentation, PATCH},
+    patch::{Entry, IdentityOrder, PATCH},
     prelude::valueschemas::GenId,
     query::{Constraint, ContainsConstraint, Variable},
     value::{RawValue, VALUE_LEN},
@@ -375,7 +375,7 @@ pub fn local_ids(v: Variable<GenId>) -> impl Constraint<'static> {
 /// ```
 ///
 pub struct IdOwner {
-    owned_ids: RefCell<PATCH<ID_LEN, IdentityOrder, SingleSegmentation>>,
+    owned_ids: RefCell<PATCH<ID_LEN, IdentityOrder>>,
 }
 
 /// An `ExclusiveId` that is associated with an `IdOwner`.
@@ -586,10 +586,8 @@ impl<'a> Drop for OwnedId<'a> {
 }
 
 impl ContainsConstraint<'static, GenId> for &IdOwner {
-    type Constraint = <PATCH<ID_LEN, IdentityOrder, SingleSegmentation> as ContainsConstraint<
-        'static,
-        GenId,
-    >>::Constraint;
+    type Constraint =
+        <PATCH<ID_LEN, IdentityOrder> as ContainsConstraint<'static, GenId>>::Constraint;
 
     fn has(self, v: Variable<GenId>) -> Self::Constraint {
         self.owned_ids.borrow().clone().has(v)

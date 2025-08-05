@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::id::{id_from_value, id_into_value, RawId, ID_LEN};
-use crate::patch::{Entry, IdentityOrder, SingleSegmentation, PATCH};
+use crate::patch::{Entry, IdentityOrder, PATCH};
 use crate::query::{Binding, Constraint, Variable, VariableId, VariableSet};
 use crate::trible::TribleSet;
 use crate::trible::{A_END, A_START, E_END, E_START, V_START};
@@ -27,7 +27,7 @@ const NIL_ID: RawId = [0; ID_LEN];
 
 #[derive(Clone)]
 struct Automaton {
-    transitions: PATCH<EDGE_KEY_LEN, IdentityOrder, SingleSegmentation>,
+    transitions: PATCH<EDGE_KEY_LEN, IdentityOrder>,
     start: u64,
     accept: u64,
 }
@@ -50,7 +50,7 @@ impl Automaton {
         }
 
         fn insert_edge(
-            patch: &mut PATCH<EDGE_KEY_LEN, IdentityOrder, SingleSegmentation>,
+            patch: &mut PATCH<EDGE_KEY_LEN, IdentityOrder>,
             from: &u64,
             label: &RawId,
             to: &u64,
@@ -62,7 +62,7 @@ impl Automaton {
             patch.insert(&Entry::new(&key));
         }
 
-        let mut trans = PATCH::<EDGE_KEY_LEN, IdentityOrder, SingleSegmentation>::new();
+        let mut trans = PATCH::<EDGE_KEY_LEN, IdentityOrder>::new();
         let mut counter: u64 = 0;
         let mut stack: Vec<Frag> = Vec::new();
 

@@ -1165,12 +1165,14 @@ where
 /// The keys are returned in key ordering but in random order.
 pub struct PATCHIterator<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
     stack: ArrayVec<std::slice::Iter<'a, Option<Head<KEY_LEN, O>>>, KEY_LEN>,
+    remaining: usize,
 }
 
 impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHIterator<'a, KEY_LEN, O> {
     fn new(patch: &'a PATCH<KEY_LEN, O>) -> Self {
         let mut r = PATCHIterator {
             stack: ArrayVec::new(),
+            remaining: patch.len().min(usize::MAX as u64) as usize,
         };
         r.stack.push(std::slice::from_ref(&patch.root).iter());
         r
@@ -1187,6 +1189,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator for PATCHIterat
                 if let Some(child) = child {
                     match child.body() {
                         BodyPtr::Leaf(leaf) => unsafe {
+                            self.remaining = self.remaining.saturating_sub(1);
                             return Some(&leaf.as_ref().key);
                         },
                         BodyPtr::Branch(branch) => unsafe {
@@ -1201,18 +1204,34 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator for PATCHIterat
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    ExactSizeIterator for PATCHIterator<'a, KEY_LEN, O, S>
+{
+}
+
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    std::iter::FusedIterator for PATCHIterator<'a, KEY_LEN, O, S>
+{
 }
 
 /// An iterator over all keys in a PATCH that have a given prefix.
 /// The keys are returned in tree ordering and in tree order.
 pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
     stack: Vec<ArrayVec<&'a Head<KEY_LEN, O>, 256>>,
+    remaining: usize
 }
 
 impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHOrderedIterator<'a, KEY_LEN, O> {
     fn new(patch: &'a PATCH<KEY_LEN, O>) -> Self {
         let mut r = PATCHOrderedIterator {
             stack: Vec::with_capacity(KEY_LEN),
+            remaining: patch.len().min(usize::MAX as u64) as usize,
         };
         if let Some(root) = &patch.root {
             r.stack.push(ArrayVec::new());
@@ -1248,6 +1267,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator
             if let Some(child) = level.pop() {
                 match child.body() {
                     BodyPtr::Leaf(leaf) => unsafe {
+                        self.remaining = self.remaining.saturating_sub(1);
                         return Some(&leaf.as_ref().key);
                     },
                     BodyPtr::Branch(branch) => unsafe {
@@ -1269,6 +1289,20 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    ExactSizeIterator for PATCHOrderedIterator<'a, KEY_LEN, O, S>
+{
+}
+
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
+    std::iter::FusedIterator for PATCHOrderedIterator<'a, KEY_LEN, O, S>
+{
 }
 
 /// An iterator over all keys in a PATCH that have a given prefix.

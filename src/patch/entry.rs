@@ -14,9 +14,7 @@ impl<const KEY_LEN: usize> Entry<KEY_LEN> {
         }
     }
 
-    pub(super) fn leaf<O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>(
-        &self,
-    ) -> Head<KEY_LEN, O, S> {
+    pub(super) fn leaf<O: KeyOrdering<KEY_LEN>>(&self) -> Head<KEY_LEN, O> {
         unsafe { Head::new(0, Leaf::rc_inc(self.ptr)) }
     }
 }

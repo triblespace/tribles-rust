@@ -4,11 +4,11 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use tribles::patch::{
     bytetable::{init as table_init, ByteEntry, ByteTable},
-    Entry, IdentityOrder, SingleSegmentation, PATCH,
+    Entry, IdentityOrder, PATCH,
 };
 
 fn patch_fill_benchmark() {
-    let mut patch = PATCH::<64, IdentityOrder, SingleSegmentation>::new();
+    let mut patch = PATCH::<64, IdentityOrder>::new();
 
     for _ in 0..2_000_000 {
         let text: String = Sentence(3..8).fake();

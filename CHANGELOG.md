@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
   and `RegularPathConstraint` is now generic over `PathEngine`.
+- Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
 - Debug-only `debug_branch_fill` method computes average PATCH branch fill

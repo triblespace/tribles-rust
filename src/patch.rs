@@ -983,13 +983,13 @@ where
         assert!(
             <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
                 == <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
-                    [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]],
-            "PREFIX_LEN = {}, INFIX_LEN = {}, {} != {}",
-            PREFIX_LEN,
-            INFIX_LEN,
-            <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]],
-            <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
-                [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
+                    [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
+                && (PREFIX_LEN + INFIX_LEN == KEY_LEN
+                    || <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                        [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
+                        != <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                            [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN]]),
+            "INFIX_LEN must cover a whole segment"
         );
         if let Some(root) = &self.root {
             root.infixes(prefix, 0, &mut for_each);
@@ -1013,6 +1013,18 @@ where
 
     /// Returns the number of unique segments in keys with the given prefix.
     pub fn segmented_len<const PREFIX_LEN: usize>(&self, prefix: &[u8; PREFIX_LEN]) -> u64 {
+        const {
+            assert!(PREFIX_LEN <= KEY_LEN);
+            if PREFIX_LEN > 0 && PREFIX_LEN < KEY_LEN {
+                assert!(
+                    <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                        [O::TREE_TO_KEY[PREFIX_LEN - 1]]
+                        != <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                            [O::TREE_TO_KEY[PREFIX_LEN]],
+                    "PREFIX_LEN must align to segment boundary",
+                );
+            }
+        }
         if let Some(root) = &self.root {
             root.segmented_len(0, prefix)
         } else {

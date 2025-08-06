@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 ### Changed
+- PATCH infix and segment-length operations now require prefixes to align with
+  segment boundaries.
 - `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
 - Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeyOrdering` to its `KeySegmentation` with an explicit segment permutation.
 - `KeyOrdering` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.

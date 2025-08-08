@@ -5,6 +5,8 @@
 
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
+- Helper to derive delta `TribleSet`s for `pattern_changes!` so callers don't
+  have to compute them manually.
 - Explore replacing `CommitSelector` ranges with a set-based API
   built on commit reachability. The goal is to mirror git's revision
   selection semantics (similar to `rev-list` or `rev-parse`).

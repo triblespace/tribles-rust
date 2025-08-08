@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
 - `Workspace::checkout` helper to load commit contents.
+- Documentation and example for incremental queries using `pattern_changes!`
+  plus additional tests.
 - `pattern!` now implemented as a procedural macro in the new `tribles-macros` crate.
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,

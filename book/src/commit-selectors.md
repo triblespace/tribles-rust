@@ -1,14 +1,33 @@
 # Commit Selectors
 
-The current `Workspace::checkout` API accepts a `CommitSelector` trait which is
-implemented for individual handles and standard Rust ranges. While convenient,
-this range-based design makes it difficult to compose complex queries over the
-commit graph. Range selectors follow Git's two‑dot semantics: `a..b` selects
-all commits reachable from `b` that are not reachable from `a`. In set terms it
-computes `ancestors(b) - ancestors(a)`. When the start is omitted, `a`
-defaults to the empty set so `..b` simply yields `ancestors(b)`. When the end is
-omitted, `b` defaults to the current `HEAD` and `a..` resolves to
-`ancestors(HEAD) - ancestors(a)` while `..` expands to `ancestors(HEAD)`.
+The current `Workspace::checkout` API accepts a `CommitSelector` trait with
+implementations for commit handles, lists of handles and several higher-level
+selectors. While convenient, this range-based design makes it difficult to
+compose complex queries over the commit graph. Range selectors follow Git's
+two‑dot semantics: `a..b` selects all commits reachable from `b` that are not
+reachable from `a`. In set terms it computes `ancestors(b) - ancestors(a)`. When
+the start is omitted, `a` defaults to the empty set so `..b` simply yields
+`ancestors(b)`. When the end is omitted, `b` defaults to the current `HEAD` and
+`a..` resolves to `ancestors(HEAD) - ancestors(a)` while `..` expands to
+`ancestors(HEAD)`.
+
+## Implemented selectors
+
+`CommitSelector` is implemented for:
+
+- `CommitHandle` – a single commit.
+- `Vec<CommitHandle>` and `&[CommitHandle]` – explicit lists of commits.
+- `ancestors(commit)` – a commit and all of its ancestors.
+- `symmetric_diff(a, b)` – commits reachable from either `a` or `b` but not
+  both.
+- Standard ranges: `a..b`, `a..`, `..b` and `..` following the two‑dot
+  semantics described above.
+- `filter(selector, predicate)` – retains commits for which `predicate`
+  returns `true`.
+- `history_of(entity)` – commits touching a specific entity (built on
+  `filter`).
+- `time_range(start, end)` – commits whose timestamps intersect the inclusive
+  range.
 
 A future redesign could mirror Git's revision selection semantics.
 Instead of passing ranges, callers would construct *commit sets* derived from
@@ -42,13 +61,13 @@ than commits are listed for completeness but are unlikely to be implemented.
 
 | Git Syntax | Planned Equivalent | Reference | Status |
 |-----------|-------------------|-----------|--------|
-| `A` | `commit(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#_specifying_revisions) | Unimplemented |
+| `A` | `commit(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#_specifying_revisions) | Implemented |
 | `A^`/`A^N` | `nth_parent(A, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510) | Unimplemented |
 | `A~N` | `nth_ancestor(A, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADmaster3) | Unimplemented |
 | `A^@` | `parents(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD) | Unimplemented |
 | `A^!` | `A minus parents(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD-1) | Unimplemented |
 | `A^-N` | `A minus nth_parent(A, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-rev-negHEAD-HEAD-2) | Unimplemented |
-| `A^0` | `commit(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510) | Unimplemented |
+| `A^0` | `commit(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510) | Implemented |
 | `A^{}` | `deref_tag(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegv0998) | Unimplemented |
 | `A^{type}` | `object_of_type(A, type)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revtypeegv0998commit) | Not planned: non-commit object |
 | `A^{/text}` | `search_from(A, text)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revtextegHEADfixnastybug) | Not planned: requires commit message search |

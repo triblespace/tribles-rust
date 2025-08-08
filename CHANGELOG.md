@@ -271,6 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now tracked in this changelog.
 - Canonicalized epsilon closures in regular path queries and documented the
   Thompson-style automaton construction.
+- Documented the currently implemented commit selectors in the book.
 
 ### Fixed
 - Enforce `PREFIX_LEN <= KEY_LEN` for prefix checks in PATCH.

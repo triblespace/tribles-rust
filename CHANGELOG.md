@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
   documentation updates.
+- `parents` commit selector corresponding to Git's `A^@` syntax.
 - `INVENTORY.md` file and instructions for recording future work.
 - README now links to the corresponding chapters on https://triblespace.github.io/tribles-rust.
 - `branch_id_by_name` helper to resolve branch IDs from names. Returns a

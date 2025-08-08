@@ -868,6 +868,14 @@ pub fn nth_ancestor(commit: CommitHandle, n: usize) -> NthAncestor {
     NthAncestor(commit, n)
 }
 
+/// Selector that returns the direct parents of a commit.
+pub struct Parents(pub CommitHandle);
+
+/// Convenience function to create a [`Parents`] selector.
+pub fn parents(commit: CommitHandle) -> Parents {
+    Parents(commit)
+}
+
 /// Selector that returns commits reachable from either of two commits but not
 /// both.
 pub struct SymmetricDiff(pub CommitHandle, pub CommitHandle);
@@ -993,6 +1001,26 @@ where
         let mut patch = CommitSet::new();
         patch.insert(&Entry::new(&current.raw));
         Ok(patch)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for Parents
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let meta: TribleSet = ws.get(self.0).map_err(WorkspaceCheckoutError::Storage)?;
+        let mut result = CommitSet::new();
+        for (parent,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
+            result.insert(&Entry::new(&parent.raw));
+        }
+        Ok(result)
     }
 }
 

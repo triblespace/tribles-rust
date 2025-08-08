@@ -1,58 +1,8 @@
 //! Anything that can be represented as a byte sequence.
 //!
-//! A blob is a immutable sequence of bytes that can be used to represent any kind of data.
-//! It is the fundamental building block of data storage and transmission.
-//! The `BlobSchema` trait is used to define the abstract schema type of a blob.
-//! This is similar to the `Value` type and the `ValueSchema` trait in the [`value`](crate::value) module.
-//!
-//! But while values (and tribles) are used "in the small" to represent individual data items,
-//! blobs are used "in the large" to represent larger data structures like files, images, videos, etc.,
-//! collections of data items, or even entire databases.
-//!
-//! # Example
-//!
-//! ```
-//! use tribles::prelude::*;
-//! use tribles::examples::literature;
-//! use tribles::repo::repo;
-//! use valueschemas::{Handle, Blake3};
-//! use blobschemas::{SimpleArchive, LongString};
-//! use rand::rngs::OsRng;
-//! use ed25519_dalek::{Signature, Signer, SigningKey};
-//!
-//! // Let's build a BlobSet and fill it with some data.
-//! // Note that we are using the Blake3 hash protocol here.
-//! let mut memory_store: MemoryBlobStore<Blake3> = MemoryBlobStore::new();
-//!
-//! let book_author_id = fucid();
-//! let quote_a: Value<Handle<Blake3, LongString>> = memory_store.put("Deep in the human unconscious is a pervasive need for a logical universe that makes sense. But the real universe is always one step beyond logic.").unwrap();
-//! // Note how the type is inferred from it's usage in the [entity!](crate::namespace::entity!) macro.
-//! let quote_b = memory_store.put("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and
-//!  through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.").unwrap();
-//!
-//! let set = literature::entity!({
-//!    title: "Dune",
-//!    author: &book_author_id,
-//!    quote: quote_a,
-//!    quote: quote_b
-//! });
-//!
-//! // Now we can serialize the TribleSet and store it in the BlobSet too.
-//! let archived_set_handle: Value<Handle<Blake3, SimpleArchive>> = memory_store.put(&set).unwrap();
-//!
-//! let mut csprng = OsRng;
-//! let commit_author_key: SigningKey = SigningKey::generate(&mut csprng);
-//! let signature: Signature = commit_author_key.sign(&memory_store.reader().get::<Blob<SimpleArchive>, SimpleArchive>(archived_set_handle).unwrap().bytes);
-//!
-//! // And store the handle in another TribleSet.
-//! let meta_set = repo::entity!({
-//!    content: archived_set_handle,
-//!    short_message: "Initial commit",
-//!    signed_by: commit_author_key.verifying_key(),
-//!    signature_r: signature,
-//!    signature_s: signature,
-//! });
-//! ```
+//! Blobs store larger data items outside tribles and values. For the design
+//! rationale and an extended usage example see the [Blobs
+//! chapter](../book/src/deep-dive/blobs.md) of the Tribles Book.
 
 // Converting Rust types to blobs is infallible in practice, so only `ToBlob`
 // and `TryFromBlob` are used throughout the codebase.  `TryToBlob` and

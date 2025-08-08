@@ -1,10 +1,8 @@
-//! # Persistent Adaptive Trie with Cuckoo-compression and Hash-maintenance
+//! Persistent Adaptive Trie with Cuckoo-compression and
+//! Hash-maintenance (PATCH).
 //!
-//! The PATCH is a novel adaptive trie, that uses cuckoo hashing
-//! as a node compression technique to store between 2 and 256
-//! children wide nodes with a single node type.
-//! It further uses efficient hash maintenance to provide fast
-//! set operations over these tries.
+//! See the [PATCH](../book/src/deep-dive/patch.md) chapter of the Tribles Book
+//! for the full design description and hashing scheme.
 //!
 #![allow(unstable_name_collisions)]
 
@@ -1210,13 +1208,13 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator for PATCHIterat
     }
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
-    ExactSizeIterator for PATCHIterator<'a, KEY_LEN, O, S>
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> ExactSizeIterator
+    for PATCHIterator<'a, KEY_LEN, O>
 {
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
-    std::iter::FusedIterator for PATCHIterator<'a, KEY_LEN, O, S>
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> std::iter::FusedIterator
+    for PATCHIterator<'a, KEY_LEN, O>
 {
 }
 
@@ -1224,7 +1222,7 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_L
 /// The keys are returned in tree ordering and in tree order.
 pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
     stack: Vec<ArrayVec<&'a Head<KEY_LEN, O>, 256>>,
-    remaining: usize
+    remaining: usize,
 }
 
 impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHOrderedIterator<'a, KEY_LEN, O> {
@@ -1295,13 +1293,13 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator
     }
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
-    ExactSizeIterator for PATCHOrderedIterator<'a, KEY_LEN, O, S>
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> ExactSizeIterator
+    for PATCHOrderedIterator<'a, KEY_LEN, O>
 {
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, S: KeySegmentation<KEY_LEN>>
-    std::iter::FusedIterator for PATCHOrderedIterator<'a, KEY_LEN, O, S>
+impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> std::iter::FusedIterator
+    for PATCHOrderedIterator<'a, KEY_LEN, O>
 {
 }
 

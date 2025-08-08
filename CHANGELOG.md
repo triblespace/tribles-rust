@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added remaining rationale from the blob, patch, pile and schema docs to the
   corresponding book chapters so code comments stay concise without losing
   detail.
+### Removed
+- `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

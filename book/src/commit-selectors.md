@@ -19,6 +19,7 @@ the start is omitted, `a` defaults to the empty set so `..b` simply yields
 - `Vec<CommitHandle>` and `&[CommitHandle]` – explicit lists of commits.
 - `ancestors(commit)` – a commit and all of its ancestors.
 - `nth_ancestor(commit, n)` – follows the first-parent chain `n` steps.
+- `parents(commit)` – direct parents of a commit.
 - `symmetric_diff(a, b)` – commits reachable from either `a` or `b` but not
   both.
 - Standard ranges: `a..b`, `a..`, `..b` and `..` following the two‑dot
@@ -65,7 +66,7 @@ than commits are listed for completeness but are unlikely to be implemented.
 | `A` | `commit(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#_specifying_revisions) | Implemented |
 | `A^`/`A^N` | `nth_parent(A, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510) | Not planned |
 | `A~N` | `nth_ancestor(A, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADmaster3) | Implemented |
-| `A^@` | `parents(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD) | Unimplemented |
+| `A^@` | `parents(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD) | Implemented |
 | `A^!` | `A minus parents(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revegHEAD-1) | Unimplemented |
 | `A^-N` | `A minus nth_parent(A, N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-rev-negHEAD-HEAD-2) | Not planned |
 | `A^0` | `commit(A)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-revnegHEADv1510) | Implemented |

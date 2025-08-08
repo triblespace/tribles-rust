@@ -54,6 +54,13 @@ occupancy because of the linear hash, which we now report explicitly instead of
 `0.000`. This keeps memory usage predictable without the specialized node
 formats used by ART.
 
-PATCH nodes maintain a rolling hash which allows efficient union, intersection and difference operations over whole subtrees.
+## Hash maintenance
+
+Each node maintains a 256‑bit rolling hash derived from the keys in its
+subtree. On insert or delete the old influence of a child is XORed out and the
+new one XORed in, yielding an updated hash in constant time. These hashes allow
+set operations such as union, intersection and difference to skip entire
+branches when the hashes differ.
+ 
 Keys can be viewed in different orders with the [`KeyOrdering`](../../src/patch.rs) trait and segmented via [`KeySegmentation`](../../src/patch.rs) to enable prefix based queries.
 All updates use copy‑on‑write semantics, so cloning a tree is cheap and safe.

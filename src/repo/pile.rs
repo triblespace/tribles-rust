@@ -1,53 +1,9 @@
-//! A Pile is a collection of Blobs and Branches stored in a single file,
-//! it is designed to be used as a local storage for a repository.
-//! It is append-only for durability and memory-mapped for fast access.
-//! Blobs are stored in the file as-is, and are identified by their hash.
-//! Branches are stored in the file as a mapping from a branch id to a blob hash.
-//! It can safely be shared between threads.
+//! A Pile is an append-only collection of blobs and branches stored in a single
+//! file. It is designed as a durable local repository storage that can be safely
+//! shared between threads.
 //!
-//! # File Format
-//! ## Blob Storage
-//! ```text
-//!                              8 byte  8 byte
-//!             ┌────16 byte───┐┌──────┐┌──────┐┌────────────32 byte───────────┐
-//!           ┌ ┌──────────────┐┌──────┐┌──────┐┌──────────────────────────────┐
-//!  header   │ │magic number A││ time ││length││             hash             │
-//!           └ └──────────────┘└──────┘└──────┘└──────────────────────────────┘
-//!             ┌────────────────────────────64 byte───────────────────────────┐
-//!           ┌ ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
-//!           │ │                                                              │
-//!  payload  │ │              bytes (64byte aligned and padded)               │
-//!           │ │                                                              │
-//!           └ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
-//! ```
-//!
-//! ## Branch Storage
-//! ```text
-//!             ┌────16 byte───┐┌────16 byte───┐┌────────────32 byte───────────┐
-//!           ┌ ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
-//!  header   │ │magic number B││  branch id   ││             hash             │
-//!           └ └──────────────┘└──────────────┘└──────────────────────────────┘
-//! ```
-//!
-//! A `Pile` stores blobs and branches sequentially in a single append-only file.
-//! Each record begins with a 16 byte magic marker that identifies whether the
-//! block is a blob or a branch. Blob headers additionally contain a timestamp,
-//! the byte length of the payload and the hash of the blob. Branch headers
-//! contain the branch id and the referenced blob hash.
-//!
-//! When opening a file, [`Pile::try_open`] validates that every block header
-//! uses one of the known markers and that the entire block fits into the file.
-//! It does **not** verify any hashes. If a record is truncated or has an unknown
-//! marker, the function returns [`OpenError::CorruptPile { valid_length }`] where
-//! `valid_length` marks the number of bytes that belong to well formed blocks.
-//!
-//! [`Pile::open`] provides a convenience wrapper that attempts the same parsing
-//! but truncates the file to `valid_length` whenever such a corruption error is
-//! encountered. This recovers from interrupted writes by discarding incomplete
-//! bytes so that the file can still be used.
-//!
-//! Hash verification happens lazily when individual blobs are loaded, keeping
-//! the initial opening cost low.
+//! For layout and recovery details see the [Pile
+//! Format](../../book/src/pile-format.md) chapter of the Tribles Book.
 
 use anybytes::Bytes;
 use hex_literal::hex;

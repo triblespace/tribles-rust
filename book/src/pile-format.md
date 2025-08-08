@@ -1,6 +1,6 @@
 # Pile Format
 
-The on-disk pile keeps every blob and branch in one append-only file. This layout provides a simple **write-ahead log** style database where new data is only appended. It allows both blob and branch storage in a single file while remaining resilient to crashes. The pile file can be memory mapped for fast reads and is safely shared between threads.
+The on-disk pile keeps every blob and branch in one append-only file. This layout provides a simple **write-ahead log** style database where new data is only appended. It allows both blob and branch storage in a single file while remaining resilient to crashes. The pile backs local repositories and acts as a durable content‑addressed store. The pile file can be memory mapped for fast reads and is safely shared between threads because existing bytes are never mutated.
 
 While large databases often avoid `mmap` due to pitfalls with partial writes
 and page cache thrashing [[1](https://db.cs.cmu.edu/mmap-cidr2022/)], this
@@ -23,6 +23,14 @@ pile is therefore fast while still catching corruption before data is used.
 Every record begins with a 16&nbsp;byte magic marker that identifies whether it
 stores a blob or a branch. The sections below illustrate the layout of each
 type.
+
+## Usage
+
+A pile typically lives as a `.pile` file on disk. Repositories open it through
+`Pile::open` which performs any necessary recovery and returns a handle for
+appending new blobs or branches. Multiple threads may share the same handle
+thanks to internal synchronisation, making a pile a convenient durable store for
+local development.
 ## Blob Storage
 ```
                              8 byte  8 byte

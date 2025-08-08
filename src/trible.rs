@@ -34,54 +34,12 @@ pub const V_END: usize = 63;
 /// Fundamentally a trible is always a collection of 64 bytes.
 pub type RawTrible = [u8; TRIBLE_LEN];
 
-/// The trible is the fundamental unit of storage in the knowledge graph,
-/// and is stored in [crate::trible::TribleSet]s which index the trible in various ways,
-/// allowing for efficient querying and retrieval of data.
+/// Fundamental 64-byte tuple of entity, attribute and value used throughout the
+/// knowledge graph.
 ///
-/// ``` text
-/// ┌────────────────────────────64 byte───────────────────────────┐
-/// ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
-/// │  entity-id   ││ attribute-id ││        inlined value         │
-/// └──────────────┘└──────────────┘└──────────────────────────────┘
-/// └────16 byte───┘└────16 byte───┘└────────────32 byte───────────┘
-/// ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▶
-/// ```
-///
-/// On a high level, a trible is a triple consisting of an entity, an attribute, and a value.
-/// The entity and attribute are both 128-bit abstract extrinsic identifiers as described in [crate::id],
-/// while the value is an arbitrary 256-bit [crate::value::Value].
-/// The design of tribles is influenced by the need to minimize entropy while ensuring collision resistance.
-/// Entities are abstract because they might have additional facts associated with them in the form of new tribles.
-/// Similarly, attributes are abstract because their meaning is inherently non-grounded; the meaning of the "symbol" is only
-/// the meaning ascribed to it, without any natural meaning.
-/// Values can be any data that fits "inlined" into the fixed width, and they need to be large enough to hold an intrinsic
-/// identifier for larger data. As established in the `id` module documentation, these need to be at least 256 bits / 32 bytes.
-/// Counter-intuitively, their size and thus the size of "inline" data is determined by the scenario where data is too large
-/// to be inlined. See [blob](crate::blob)s for a way to store larger data.
-///
-/// The trible is stored as a contiguous 64-byte array, with the entity taking the first 16 bytes,
-/// the attribute taking the next 16 bytes, and the value taking the last 32 bytes.
-///
-/// The name trible is a portmanteau of triple and byte, and is pronounced like "tribble" from Star Trek.
-/// This is also the reason why the mascot of the knowledge graph is Robert the tribble.
-///
-/// The minimalistic design of the trible has a number of advantages:
-/// - It is very easy to define an order on tribles, which allows for efficient storage
-///   and easy canonicalization of data.
-/// - It is very easy to define a segmentation on tribles, which allows for efficient
-///   indexing and querying of data, without then need for an interning mechanism,
-///   that translates values to an internal integer representation. This simplifies
-///   the implementation, saves memory and an additional lookup, prevents the single
-///   registry from becoming a bottleneck, allowing for easy parallelization, and
-///   obviates the need for a garbage collection mechanism.
-/// - It is very easy to define a schema for the value, which allows for efficient
-///   serialization and deserialization of data.
-/// - On a high level, it is very easy to reason about the data stored in the knowledge graph.
-///   Additionally, it is possible to estimate the physical size of the data stored in the knowledge graph
-///   in terms of the number of bytes, as a function of the number of tribles stored.
-/// - Due to the fundamental principles of minimizing entropy and ensuring collision resistance, it is likely that this format
-///   will be independently discovered through convergent evolution, making it a strong candidate for a universal data interchange format.
-///   And who knows, it might even be useful if we ever make contact with extra-terrestrial intelligences!
+/// See the [Trible Structure](../book/src/deep-dive/trible-structure.md)
+/// chapter of the Tribles Book for a detailed discussion of the layout and its
+/// design rationale.
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
 pub struct Trible {

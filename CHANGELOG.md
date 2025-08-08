@@ -73,6 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the reified `ByteBucket` abstraction and indexed buckets directly in the byte table.
 - `ByteSet` now stores raw `[u128; 2]` bitsets instead of relying on `VariableSet`.
 - Detailed query engine documentation moved from the `query` module to the book, leaving a concise overview in code.
+- Moved verbose inline documentation for Pile, Trible, Blob and PATCH modules
+  into the book.
+- Expanded Trible Structure deep-dive with design rationale and advantages
+  previously kept inline.
+- Added remaining rationale from the blob, patch, pile and schema docs to the
+  corresponding book chapters so code comments stay concise without losing
+  detail.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

@@ -34,6 +34,34 @@ first 16 bytes, the attribute the next 16 and the value the final 32 bytes. The
 name "trible" is a portmanteau of *triple* and *byte* and is pronounced like
 "tribble" from Star Trek – hence the project's mascot, Robert the tribble.
 
+## Index permutations
+
+`TribleSet`s index each fact under all six permutations of entity (E), attribute
+(A) and value (V) so any combination of bound variables can be resolved
+efficiently:
+
+```text
+┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐
+│ EAV │  │ EVA │  │ AEV │  │ AVE │  │ VEA │  │ VAE │
+└──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘
+   │        │        │        │        │        │
+┌───────────────────────────────────────────────────────┐
+│            order-specific inner nodes                 │
+└───────────────────────────────────────────────────────┘ 
+   │        │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼        ▼
+
+┌───────────────────────────────────────────────────────┐
+│                   SHARED LEAVES                       │
+│     single canonical E–A–V tribles used by all        │
+└───────────────────────────────────────────────────────┘
+```
+
+Each permutation has its own inner nodes, but all six share leaf nodes
+containing the 64‑byte trible. This avoids a naïve six‑fold memory cost while
+still letting the query planner pick the most selective ordering, keeping joins
+resistant to skew.
+
 ## Advantages
 
 - A total order over tribles enables efficient storage and canonicalisation.

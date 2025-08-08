@@ -1,7 +1,9 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{ancestors, history_of, memoryrepo::MemoryRepo, symmetric_diff, Repository};
+use tribles::repo::{
+    ancestors, history_of, memoryrepo::MemoryRepo, nth_ancestor, symmetric_diff, Repository,
+};
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -231,6 +233,39 @@ fn workspace_checkout_head_collects_history() {
     expected.union(sets[2].clone());
 
     assert_eq!(result, expected);
+}
+
+#[test]
+fn workspace_nth_ancestor_selector() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main").expect("create branch");
+
+    let mut sets = Vec::new();
+    for i in 0..3i128 {
+        let e = ufoid();
+        let a = ufoid();
+        let v: Value<R256> = i.to_value();
+        let t = Trible::new(&e, &a, &v);
+        let mut s = TribleSet::new();
+        s.insert(&t);
+        ws.commit(s.clone(), None);
+        sets.push(s);
+    }
+
+    let head = ws.head().unwrap();
+
+    let result = ws
+        .checkout(nth_ancestor(head, 2))
+        .expect("checkout nth ancestor");
+    assert_eq!(result, sets[0]);
+
+    let empty = ws
+        .checkout(nth_ancestor(head, 3))
+        .expect("checkout past root");
+    assert_eq!(empty.len(), 0);
 }
 
 #[test]

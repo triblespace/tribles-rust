@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added remaining rationale from the blob, patch, pile and schema docs to the
   corresponding book chapters so code comments stay concise without losing
   detail.
+- Refined the book's introduction with a clearer overview of Trible Space and
+  its flexible, lightweight query engine, plus links to later chapters.
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed

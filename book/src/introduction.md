@@ -12,6 +12,7 @@ enable efficient sharing across systems.
 
 While this book walks you through the basics, the crate documentation offers a
 complete API reference. Use the links throughout the text to jump directly to
-the modules that interest you.
+the modules that interest you. A [Glossary](glossary.md) is provided for quick
+reference to common terms.
 
 If you would like to work on Tribles yourself, check out [Developing Locally](contributing.md).

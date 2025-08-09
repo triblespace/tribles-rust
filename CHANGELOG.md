@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Glossary chapter in the book for quick reference to core terminology.
 - `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
   documentation updates.
 - `parents` commit selector corresponding to Git's `A^@` syntax.

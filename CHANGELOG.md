@@ -66,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 - Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
 ### Changed
+- Clarified the query engine book chapter with improved wording and examples.
+- Expanded discussion on RDF's per-value typing limitations in the query engine chapter.
 - Expanded Architecture chapter's blob storage section for clearer responsibilities and examples.
 - Expanded the "Developing Locally" book chapter with guidance on helper scripts and local setup.
 - Expanded the "Getting Started" book section with dependency setup and run instructions.

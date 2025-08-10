@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Glossary chapter in the book for quick reference to core terminology.
 - `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
   documentation updates.
 - `parents` commit selector corresponding to Git's `A^@` syntax.
@@ -67,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Clarified the query engine book chapter with improved wording and examples.
 - Expanded discussion on RDF's per-value typing limitations in the query engine chapter.
+- Expanded Architecture chapter's blob storage section for clearer responsibilities and examples.
+- Expanded the "Developing Locally" book chapter with guidance on helper scripts and local setup.
+- Expanded the "Getting Started" book section with dependency setup and run instructions.
 - PATCH infix and segment-length operations now require prefixes to align with
   segment boundaries.
 - `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
@@ -88,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added remaining rationale from the blob, patch, pile and schema docs to the
   corresponding book chapters so code comments stay concise without losing
   detail.
+- Refined the book's introduction with a clearer overview of Trible Space and
+  its flexible, lightweight query engine, plus links to later chapters.
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed

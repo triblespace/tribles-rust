@@ -50,6 +50,9 @@ use crate::value::ValueSchema;
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
 
+const BLOB_HEADER_LEN: usize = std::mem::size_of::<BlobHeader>();
+const BLOB_ALIGNMENT: usize = BLOB_HEADER_LEN;
+
 enum PileOps<H: HashProtocol> {
     Insert(Value<Hash<H>>, Bytes),
     UpdateBranch(Id, Value<Handle<H, SimpleArchive>>),
@@ -144,8 +147,8 @@ pub(crate) struct PileAux<const MAX_PILE_SIZE: usize, H: HashProtocol> {
 }
 
 fn new_length_and_padding(current_length: usize, blob_size: usize) -> (usize, usize) {
-    let padding = (64 - (blob_size % 64)) % 64;
-    let new_length = current_length + 64 + blob_size + padding;
+    let padding = (BLOB_ALIGNMENT - (blob_size % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
+    let new_length = current_length + BLOB_HEADER_LEN + blob_size + padding;
     (new_length, padding)
 }
 
@@ -186,10 +189,10 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                     .expect("failed to write blob bytes");
                 auxiliary
                     .file
-                    .write_all(&[0; 64][0..padding])
+                    .write_all(&[0; BLOB_ALIGNMENT][0..padding])
                     .expect("failed to write padding");
 
-                let header_len = std::mem::size_of::<BlobHeader>();
+                let header_len = BLOB_HEADER_LEN;
                 let written_bytes = unsafe {
                     let start = old_length + header_len;
                     let written_slice =
@@ -542,7 +545,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                         });
                     };
                     let data_len = header.length as usize;
-                    let pad = (64 - (data_len % 64)) % 64;
+                    let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
                     let hash = Value::new(header.hash);
                     let blob_bytes = bytes.take_prefix(data_len).ok_or(OpenError::CorruptPile {
                         valid_length: start_offset,
@@ -701,11 +704,12 @@ where
 
         let aux = self.w_handle.auxiliary_mut();
         let blob_size = blob.bytes.len();
-        if aux.pending_length + blob_size + 64 > MAX_PILE_SIZE {
+        let (new_length, _) = new_length_and_padding(aux.pending_length, blob_size);
+        if new_length > MAX_PILE_SIZE {
             return Err(InsertError::PileTooLarge);
         }
 
-        aux.pending_length += blob_size + 64;
+        aux.pending_length = new_length;
 
         let handle: Value<Handle<H, S>> = blob.get_handle();
         let hash = handle.into();

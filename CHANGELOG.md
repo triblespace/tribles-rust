@@ -121,6 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch heads when crashes occur before pending blobs flush.
 - Applied branch head updates immediately and sized branch records using
   `size_of` to preserve compare-and-swap semantics without magic numbers.
+- Removed remaining 64-byte assumptions from blob writes by computing header
+  length and padding with `size_of::<BlobHeader>()`.
 - `ignore!` now hides variables correctly by subtracting them from inner constraints.
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

@@ -20,15 +20,8 @@ fn patch_fill_benchmark() {
         patch.insert(&entry);
     }
 
-    #[cfg(debug_assertions)]
-    {
-        let avg = patch.debug_branch_fill();
-        println!("Average fill: {:?}", avg);
-    }
-    #[cfg(not(debug_assertions))]
-    {
-        println!("Recompile with debug assertions to compute branch fill");
-    }
+    let avg = patch.debug_branch_fill();
+    println!("Average fill: {:?}", avg);
 }
 
 fn byte_table_resize_benchmark() {

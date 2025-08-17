@@ -125,6 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified that accidental collisions are practically impossible given 32-byte
   hashes, explaining why the collector can treat any matching value as a real
   reference.
+- Expanded the book's garbage collection chapter with clearer reachability
+  description, traversal overview and handle-based pruning.
 - Repository workflows chapter covering branching, merging, CLI usage and an improved push/merge diagram.
 - Separate `verify.sh` script for running Kani verification.
 - Documented conflict resolution loop and clarified that returned workspaces

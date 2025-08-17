@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Procedural `namespace!` macro replaces the declarative `NS!` implementation.
 - Implemented a procedural `delta!` macro for incremental query support.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
+- Expanded Query Language chapter with iterator examples and clarified that
+  `ignore!` skips variables so their constraints aren't checked, enabling
+  existential or don't-care matches.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
 - `Workspace::checkout` now accepts commit ranges for convenient history queries.
 - Git-based terminology notes in the repository guide and a clearer workspace example.
@@ -65,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 - Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
 ### Changed
+- Renamed `mask!` macro to `ignore!` for clarity.
 - PATCH infix and segment-length operations now require prefixes to align with
   segment boundaries.
 - `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
@@ -89,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed
+- `ignore!` now hides variables correctly by subtracting them from inner constraints.
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
   `local_ids` queries to return no results with overridden estimates.

@@ -1,13 +1,25 @@
 # Query Language
 
 This chapter introduces the basic query facilities provided by `tribles`.
+Queries are declared in a small declarative language that describes which
+values should match rather than how to iterate them.
 
-The [`find!`](crate::prelude::find) macro builds a [`Query`](crate::query::Query)
-by declaring variables and a constraint expression.  A minimal invocation looks
-like:
+The [`find!`](crate::prelude::find) macro builds a
+[`Query`](crate::query::Query) by declaring variables and a constraint
+expression. A minimal invocation looks like:
 
 ```rust
 let results = find!((a), a.is(1.into())).collect::<Vec<_>>();
+```
+
+`find!` returns an [`Iterator`](core::iter::Iterator) over tuples of the bound
+variables. Matches can be consumed lazily or collected into common
+collections:
+
+```rust
+for (a,) in find!((a), a.is(1.into())) {
+    println!("match: {a}");
+}
 ```
 
 Variables can optionally specify a concrete type to convert the underlying
@@ -33,7 +45,10 @@ language for matching tribles:
 - [`or!`](crate::prelude::or) constructs a
   [`UnionConstraint`](crate::query::unionconstraint::UnionConstraint)
   accepting any satisfied alternative.
-- [`mask!`](crate::prelude::mask) hides variables from a sub-query.
+- [`ignore!`](crate::ignore) tells the query engine to ignore variables in
+  a sub-query. Constraints mentioning ignored variables are evaluated without
+  checking those positions, so their bindings neither join with surrounding
+  constraints nor appear in the result set.
 - Collection types such as [`TribleSet`](crate::tribleset::TribleSet) provide a
   `has` method yielding a
   [`ContainsConstraint`](crate::query::hashsetconstraint::ContainsConstraint) for
@@ -42,6 +57,28 @@ language for matching tribles:
 Any data structure that can iterate its contents, test membership and report its
 size can implement `ContainsConstraint`, so queries have no inherent ordering
 requirements.
+
+Ignored variables are handy when a sub-expression references fields you want to
+drop. The engine skips checking them entirely, effectively treating the
+positions as wildcards. If the underlying constraint guarantees some value,
+ignoring works like existential quantification; otherwise the ignored portion is
+simply discarded. Without ignoring, those variables would leak into the outer
+scope and either appear in the results or unintentionally join with other
+constraints.
+
+Alternatives are expressed with `or!` and temporary variables can be hidden
+with `ignore!`:
+
+```rust
+find!((x), or!(x.is(1.into()), x.is(2.into())));
+
+find!((x),
+      ignore!((y), and!(x.is(1.into()), y.is(2.into()))));
+```
+
+In the second query `y` is ignored entirely—the engine never checks the
+`y.is(2.into())` part—so the outer query only enforces `x.is(1.into())`
+regardless of whether any `y` equals `2`.
 
 ## Example
 

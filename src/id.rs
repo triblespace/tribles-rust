@@ -101,23 +101,23 @@ impl Id {
 
 impl PartialOrd for Id {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let s: &RawId = &self;
-        let o: &RawId = &other;
+        let s: &RawId = self;
+        let o: &RawId = other;
         PartialOrd::partial_cmp(s, o)
     }
 }
 
 impl Ord for Id {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let s: &RawId = &self;
-        let o: &RawId = &other;
+        let s: &RawId = self;
+        let o: &RawId = other;
         Ord::cmp(s, o)
     }
 }
 
 impl Hash for Id {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let s: &RawId = &self;
+        let s: &RawId = self;
         Hash::hash(s, state);
     }
 }
@@ -270,7 +270,7 @@ impl ExclusiveId {
     /// # Arguments
     ///
     /// * `id` - A reference to the `Id` to be transmuted.
-    pub fn as_transmute_force<'a>(id: &'a Id) -> &'a Self {
+    pub fn as_transmute_force(id: &Id) -> &Self {
         unsafe { std::mem::transmute(id) }
     }
 
@@ -385,6 +385,12 @@ pub struct OwnedId<'a> {
     owner: &'a IdOwner,
 }
 
+impl Default for IdOwner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdOwner {
     /// Creates a new `IdOwner`.
     ///
@@ -450,7 +456,7 @@ impl IdOwner {
     ///
     /// * `id` - The `Id` to be forced into an `ExclusiveId`.
     pub fn force_insert(&self, id: &Id) {
-        let entry = Entry::new(&id);
+        let entry = Entry::new(id);
         self.owned_ids.borrow_mut().insert(&entry);
     }
 

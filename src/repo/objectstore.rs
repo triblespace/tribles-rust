@@ -90,7 +90,7 @@ impl<H> Eq for ObjectStoreReader<H> {}
 impl<H> ObjectStoreRemote<H> {
     /// Creates a repository pointing at the object store described by `url`.
     pub fn with_url(url: &Url) -> Result<ObjectStoreRemote<H>, object_store::Error> {
-        let (store, path) = parse_url(&url)?;
+        let (store, path) = parse_url(url)?;
         Ok(ObjectStoreRemote {
             store: Arc::from(store),
             prefix: path,
@@ -160,7 +160,7 @@ where
                     .location
                     .filename()
                     .ok_or(ListBranchesErr::NotAFile("no filename"))?;
-                let digest = RawId::from_hex(name).map_err(|e| ListBranchesErr::BadNameHex(e))?;
+                let digest = RawId::from_hex(name).map_err(ListBranchesErr::BadNameHex)?;
                 let Some(id) = Id::new(digest) else {
                     return Err(ListBranchesErr::BadId);
                 };
@@ -172,7 +172,7 @@ where
     }
 
     fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
-        let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(&id));
+        let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(id));
         let result = block_on(async { self.store.get(&path).await });
         match result {
             Ok(object) => {
@@ -191,7 +191,7 @@ where
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
     ) -> Result<PushResult<H>, Self::UpdateError> {
-        let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(&id));
+        let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(id));
         let new_bytes = bytes::Bytes::copy_from_slice(&new.raw);
         if let Some(old_hash) = old {
             let mut result = block_on(async { self.store.get(&path).await });
@@ -280,7 +280,7 @@ where
                     .filename()
                     .ok_or(ListBlobsErr::NotAFile("no filename"))?;
                 let digest =
-                    RawValue::from_hex(blob_name).map_err(|e| ListBlobsErr::BadNameHex(e))?;
+                    RawValue::from_hex(blob_name).map_err(ListBlobsErr::BadNameHex)?;
                 Ok(Value::new(digest))
             }
             Err(e) => Err(ListBlobsErr::List(e)),
@@ -298,8 +298,8 @@ pub enum GetBlobErr<E: Error> {
 impl<E: Error> fmt::Display for GetBlobErr<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Store(e) => write!(f, "object store error: {}", e),
-            Self::Conversion(e) => write!(f, "conversion error: {}", e),
+            Self::Store(e) => write!(f, "object store error: {e}"),
+            Self::Conversion(e) => write!(f, "conversion error: {e}"),
         }
     }
 }
@@ -339,7 +339,7 @@ where
         let bytes = block_on(object.bytes())?;
         let bytes: Bytes = bytes.into();
         let blob: Blob<S> = Blob::new(bytes);
-        blob.try_from_blob().map_err(|e| GetBlobErr::Conversion(e))
+        blob.try_from_blob().map_err(GetBlobErr::Conversion)
     }
 }
 
@@ -353,9 +353,9 @@ pub enum ListBlobsErr {
 impl fmt::Display for ListBlobsErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::List(e) => write!(f, "list failed: {}", e),
-            Self::NotAFile(e) => write!(f, "list failed: {}", e),
-            Self::BadNameHex(e) => write!(f, "list failed: {}", e),
+            Self::List(e) => write!(f, "list failed: {e}"),
+            Self::NotAFile(e) => write!(f, "list failed: {e}"),
+            Self::BadNameHex(e) => write!(f, "list failed: {e}"),
         }
     }
 }
@@ -372,9 +372,9 @@ pub enum ListBranchesErr {
 impl fmt::Display for ListBranchesErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::List(e) => write!(f, "list failed: {}", e),
-            Self::NotAFile(e) => write!(f, "list failed: {}", e),
-            Self::BadNameHex(e) => write!(f, "list failed: {}", e),
+            Self::List(e) => write!(f, "list failed: {e}"),
+            Self::NotAFile(e) => write!(f, "list failed: {e}"),
+            Self::BadNameHex(e) => write!(f, "list failed: {e}"),
             Self::BadId => write!(f, "list failed: bad id"),
         }
     }
@@ -390,8 +390,8 @@ pub enum PullBranchErr {
 impl fmt::Display for PullBranchErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::StoreErr(e) => write!(f, "pull failed: {}", e),
-            Self::ValidationErr(e) => write!(f, "pull failed: {}", e),
+            Self::StoreErr(e) => write!(f, "pull failed: {e}"),
+            Self::ValidationErr(e) => write!(f, "pull failed: {e}"),
         }
     }
 }
@@ -419,8 +419,8 @@ pub enum PushBranchErr {
 impl fmt::Display for PushBranchErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::ValidationErr(e) => write!(f, "commit failed: {}", e),
-            Self::StoreErr(e) => write!(f, "commit failed: {}", e),
+            Self::ValidationErr(e) => write!(f, "commit failed: {e}"),
+            Self::StoreErr(e) => write!(f, "commit failed: {e}"),
         }
     }
 }

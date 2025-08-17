@@ -274,7 +274,7 @@ impl<T: ValueSchema> Copy for Value<T> {}
 impl<T: ValueSchema> Clone for Value<T> {
     fn clone(&self) -> Self {
         Self {
-            raw: self.raw.clone(),
+            raw: self.raw,
             _schema: PhantomData,
         }
     }
@@ -453,6 +453,6 @@ impl<'a, S: ValueSchema> FromValue<'a, S> for Value<S> {
 
 impl<'a, S: ValueSchema> FromValue<'a, S> for () {
     fn from_value(_v: &'a Value<S>) -> Self {
-        ()
+        
     }
 }

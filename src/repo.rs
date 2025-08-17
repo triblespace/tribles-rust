@@ -337,11 +337,11 @@ where
             Value<Handle<HS, UnknownBlob>>,
             <BS as BlobStoreList<HS>>::Err,
         >| {
-            let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
+            let source_handle = source_handle.map_err(TransferError::List)?;
             let blob: Blob<UnknownBlob> = source
                 .get(source_handle)
-                .map_err(|e| TransferError::Load(e))?;
-            let target_handle = target.put(blob).map_err(|e| TransferError::Store(e))?;
+                .map_err(TransferError::Load)?;
+            let target_handle = target.put(blob).map_err(TransferError::Store)?;
             Ok((source_handle, target_handle))
         },
     )
@@ -360,9 +360,9 @@ pub enum CreateCommitError<BlobErr: Error + Debug + Send + Sync + 'static> {
 impl<BlobErr: Error + Debug + Send + Sync + 'static> fmt::Display for CreateCommitError<BlobErr> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CreateCommitError::ContentStorageError(e) => write!(f, "Content storage failed: {}", e),
+            CreateCommitError::ContentStorageError(e) => write!(f, "Content storage failed: {e}"),
             CreateCommitError::CommitStorageError(e) => {
-                write!(f, "Commit metadata storage failed: {}", e)
+                write!(f, "Commit metadata storage failed: {e}")
             }
         }
     }
@@ -940,7 +940,7 @@ where
     }
 }
 
-impl<'a, Blobs> CommitSelector<Blobs> for &'a [CommitHandle]
+impl<Blobs> CommitSelector<Blobs> for &[CommitHandle]
 where
     Blobs: BlobStore<Blake3>,
 {
@@ -1390,7 +1390,7 @@ pub enum WorkspaceCheckoutError<GetErr: Error> {
 impl<E: Error + fmt::Debug> fmt::Display for WorkspaceCheckoutError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WorkspaceCheckoutError::Storage(e) => write!(f, "storage error: {}", e),
+            WorkspaceCheckoutError::Storage(e) => write!(f, "storage error: {e}"),
             WorkspaceCheckoutError::BadCommitMetadata() => {
                 write!(f, "commit metadata missing content field")
             }

@@ -76,7 +76,7 @@ impl FromValue<'_, R256BE> for Ratio<i128> {
         match Ratio::try_from_value(v) {
             Ok(ratio) => ratio,
             Err(RatioError::NonCanonical(n, d)) => {
-                panic!("Non canonical ratio: {}/{}", n, d);
+                panic!("Non canonical ratio: {n}/{d}");
             }
             Err(RatioError::ZeroDenominator) => {
                 panic!("Zero denominator ratio");
@@ -135,7 +135,7 @@ impl FromValue<'_, R256LE> for Ratio<i128> {
         match Ratio::try_from_value(v) {
             Ok(ratio) => ratio,
             Err(RatioError::NonCanonical(n, d)) => {
-                panic!("Non canonical ratio: {}/{}", n, d);
+                panic!("Non canonical ratio: {n}/{d}");
             }
             Err(RatioError::ZeroDenominator) => {
                 panic!("Zero denominator ratio");

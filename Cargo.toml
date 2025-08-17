@@ -88,5 +88,5 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)', 'cfg(kani)'] }
 [package.metadata.kani.flags]
 default-unwind = "1"
 
-[workspace.metadata.kani.flags]
-default-unwind = "1"
+## Removed workspace.metadata to allow this crate to be used as a path dependency
+## inside the surrounding workspace without creating nested workspace roots.

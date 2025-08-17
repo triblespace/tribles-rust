@@ -100,11 +100,17 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
     /// The iteration order is unspecified and should not be relied on.
     pub fn iter(&self) -> MemoryBlobStoreIter<H> {
         let read_handle = self.read_handle.clone();
-        let iter = MemoryBlobStoreIter {
+        
+        MemoryBlobStoreIter {
             read_handle,
             cursor: None,
-        };
-        iter
+        }
+    }
+}
+
+impl<H: HashProtocol> Default for MemoryBlobStore<H> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -197,7 +203,7 @@ impl<E: Error> fmt::Display for MemoryStoreGetError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MemoryStoreGetError::NotFound() => write!(f, "Blob not found in memory store"),
-            MemoryStoreGetError::ConversionFailed(e) => write!(f, "Blob conversion failed: {}", e),
+            MemoryStoreGetError::ConversionFailed(e) => write!(f, "Blob conversion failed: {e}"),
         }
     }
 }
@@ -236,8 +242,8 @@ where
         };
 
         let (handle, blob) = iter.next()?;
-        self.cursor = Some(handle.clone());
-        return Some((handle.clone(), blob.clone()));
+        self.cursor = Some(*handle);
+        Some((*handle, blob.clone()))
         // Note: we may want to use batching in the future to gain more performance and amortize
         // the cost of creating the iterator over the BTreeMap.
     }

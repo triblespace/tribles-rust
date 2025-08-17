@@ -39,7 +39,7 @@ where
     H: HashProtocol,
 {
     pub fn digest(blob: &Bytes) -> Value<Self> {
-        Value::new(H::digest(&blob).into())
+        Value::new(H::digest(blob).into())
     }
 
     pub fn from_hex(hex: &str) -> Result<Value<Self>, FromHexError> {

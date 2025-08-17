@@ -88,7 +88,7 @@ impl TryToValue<ShortString> for &str {
         if bytes.len() > 32 {
             return Err(FromStrError::TooLong);
         }
-        if bytes.iter().any(|&b| b == 0) {
+        if bytes.contains(&0) {
             return Err(FromStrError::InteriorNul);
         }
 

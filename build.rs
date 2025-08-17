@@ -1,4 +1,3 @@
-use rustversion;
 
 fn main() {
     if rustversion::cfg!(nightly) {

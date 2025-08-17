@@ -89,7 +89,7 @@ impl TribleSet {
     }
 
     pub fn len(&self) -> usize {
-        return self.eav.len() as usize;
+        self.eav.len() as usize
     }
 
     pub fn insert(&mut self, trible: &Trible) {
@@ -154,8 +154,8 @@ impl FromIterator<Trible> for TribleSet {
 impl TriblePattern for TribleSet {
     type PatternConstraint<'a> = TribleSetConstraint;
 
-    fn pattern<'a, V: ValueSchema>(
-        &'a self,
+    fn pattern<V: ValueSchema>(
+        &self,
         e: Variable<GenId>,
         a: Variable<GenId>,
         v: Variable<V>,
@@ -238,7 +238,7 @@ mod tests {
                     }),
                 ]
             })
-            .reduce(|| TribleSet::new(), |a, b| a + b);
+            .reduce(TribleSet::new, |a, b| a + b);
         assert_eq!(kb.len(), 4000);
     }
 
@@ -269,8 +269,8 @@ mod tests {
         let intersection = kb1.intersect(&kb2);
         // Verify that the intersection contains only elements present in both kb1 and kb2
         for trible in &intersection {
-            assert!(kb1.contains(&trible));
-            assert!(kb2.contains(&trible));
+            assert!(kb1.contains(trible));
+            assert!(kb2.contains(trible));
         }
     }
 
@@ -326,10 +326,10 @@ mod tests {
         kb += book_tribles.clone();
 
         for trible in &author_tribles {
-            assert!(kb.contains(&trible));
+            assert!(kb.contains(trible));
         }
         for trible in &book_tribles {
-            assert!(kb.contains(&trible));
+            assert!(kb.contains(trible));
         }
 
         let non_existent_trible = literature::entity!(&ufoid(), {
@@ -338,7 +338,7 @@ mod tests {
         });
 
         for trible in &non_existent_trible {
-            assert!(!kb.contains(&trible));
+            assert!(!kb.contains(trible));
         }
     }
 }

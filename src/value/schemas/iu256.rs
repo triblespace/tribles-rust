@@ -116,7 +116,7 @@ impl ToValue<U256LE> for u64 {
 
 impl ToValue<U256LE> for u128 {
     fn to_value(self) -> Value<U256LE> {
-        Value::new(ethnum::U256::new(self.into()).to_le_bytes())
+        Value::new(ethnum::U256::new(self).to_le_bytes())
     }
 }
 
@@ -146,7 +146,7 @@ impl ToValue<U256BE> for u64 {
 
 impl ToValue<U256BE> for u128 {
     fn to_value(self) -> Value<U256BE> {
-        Value::new(ethnum::U256::new(self.into()).to_be_bytes())
+        Value::new(ethnum::U256::new(self).to_be_bytes())
     }
 }
 
@@ -176,7 +176,7 @@ impl ToValue<I256LE> for i64 {
 
 impl ToValue<I256LE> for i128 {
     fn to_value(self) -> Value<I256LE> {
-        Value::new(ethnum::I256::new(self.into()).to_le_bytes())
+        Value::new(ethnum::I256::new(self).to_le_bytes())
     }
 }
 
@@ -200,6 +200,6 @@ impl ToValue<I256BE> for i64 {
 
 impl ToValue<I256BE> for i128 {
     fn to_value(self) -> Value<I256BE> {
-        Value::new(ethnum::I256::new(self.into()).to_be_bytes())
+        Value::new(ethnum::I256::new(self).to_be_bytes())
     }
 }

@@ -69,6 +69,12 @@ pub struct VariableContext {
     pub next_index: VariableId,
 }
 
+impl Default for VariableContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VariableContext {
     /// Create a new variable context.
     /// The context starts with an index of 0.
@@ -166,7 +172,7 @@ pub struct Binding {
 impl Binding {
     /// Create a new empty binding.
     pub fn set(&mut self, variable: VariableId, value: &RawValue) {
-        self.values[variable as usize] = *value;
+        self.values[variable] = *value;
         self.bound.set(variable);
     }
 
@@ -179,7 +185,7 @@ impl Binding {
     /// Check if a variable is bound in the binding.
     pub fn get(&self, variable: VariableId) -> Option<&RawValue> {
         if self.bound.is_set(variable) {
-            Some(&self.values[variable as usize])
+            Some(&self.values[variable])
         } else {
             None
         }
@@ -478,14 +484,14 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                     let estimate = self.estimates[variable];
 
                     self.stack.push(variable);
-                    let values = self.values[variable as usize].get_or_insert(Vec::new());
+                    let values = self.values[variable].get_or_insert(Vec::new());
                     values.clear();
                     values.reserve_exact(estimate.saturating_sub(values.capacity()));
                     self.constraint.propose(variable, &self.binding, values);
                 }
                 Search::NextValue => {
                     if let Some(&variable) = self.stack.last() {
-                        if let Some(assignment) = self.values[variable as usize]
+                        if let Some(assignment) = self.values[variable]
                             .as_mut()
                             .expect("values should be initialized")
                             .pop()

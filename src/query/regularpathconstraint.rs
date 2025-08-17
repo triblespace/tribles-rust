@@ -188,7 +188,7 @@ impl ThompsonEngine {
                 node_set.insert(dest);
             }
         }
-        let nodes: Vec<RawValue> = node_set.iter().map(|id| id_into_value(id)).collect();
+        let nodes: Vec<RawValue> = node_set.iter().map(id_into_value).collect();
         (ThompsonEngine { automaton, edges }, nodes)
     }
 }

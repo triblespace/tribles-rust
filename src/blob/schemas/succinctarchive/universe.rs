@@ -1,11 +1,11 @@
-use crate::value::{RawValue, VALUE_LEN};
+use crate::value::RawValue;
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::convert::{Infallible, TryInto};
 
 use indxvec::Search;
-use jerky::int_vectors::{Access as IAccess, Build as IBuild, DacsByte, NumVals};
+use jerky::int_vectors::{Access as IAccess, Build as IBuild, NumVals};
 use quick_cache::sync::Cache;
 
 pub trait Universe {

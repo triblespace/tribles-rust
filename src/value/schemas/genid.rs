@@ -85,9 +85,9 @@ impl<'a> TryFromValue<'a, GenId> for &'a Id {
             return Err(IdParseError::BadFormat);
         }
         if let Some(id) = Id::as_transmute_raw(value.raw[16..32].try_into().unwrap()) {
-            return Ok(id);
+            Ok(id)
         } else {
-            return Err(IdParseError::IsNil);
+            Err(IdParseError::IsNil)
         }
     }
 }
@@ -234,7 +234,7 @@ impl proptest::strategy::Strategy for RandomGenId {
         let mut id = [0; 16];
         rng.fill_bytes(&mut id[..]);
 
-        Ok(IdValueTree(id.into()))
+        Ok(IdValueTree(id))
     }
 }
 

@@ -373,7 +373,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
                 return child.has_prefix(node_end_depth, prefix);
             }
             // This node doesn't have a child matching the prefix.
-            return false;
+            false
         }
     }
 
@@ -405,7 +405,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
             if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
                 return child.segmented_len(node_end_depth, prefix);
             }
-            return 0;
+            0
         }
     }
 }

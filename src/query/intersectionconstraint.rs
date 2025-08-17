@@ -37,7 +37,7 @@ where
             .iter()
             .filter_map(|c| Some((c.estimate(variable, binding)?, c)))
             .collect();
-        if relevant_constraints.len() == 0 {
+        if relevant_constraints.is_empty() {
             return;
         }
         relevant_constraints.sort_unstable_by_key(|(estimate, _)| *estimate);

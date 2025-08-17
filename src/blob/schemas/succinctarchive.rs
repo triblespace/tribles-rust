@@ -293,7 +293,7 @@ where
         let changed_e_a = {
             let mut b = BitVectorBuilder::new();
             b.extend_bits(set.eav.iter_prefix_count::<32>().flat_map(|(_, c)| {
-                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+                iter::once(true).chain(std::iter::repeat_n(false, c as usize - 1))
             }));
             b.freeze::<Rank9SelIndex>()
         };
@@ -301,7 +301,7 @@ where
         let changed_e_v = {
             let mut b = BitVectorBuilder::new();
             b.extend_bits(set.eva.iter_prefix_count::<48>().flat_map(|(_, c)| {
-                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+                iter::once(true).chain(std::iter::repeat_n(false, c as usize - 1))
             }));
             b.freeze::<Rank9SelIndex>()
         };
@@ -309,7 +309,7 @@ where
         let changed_a_e = {
             let mut b = BitVectorBuilder::new();
             b.extend_bits(set.aev.iter_prefix_count::<32>().flat_map(|(_, c)| {
-                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+                iter::once(true).chain(std::iter::repeat_n(false, c as usize - 1))
             }));
             b.freeze::<Rank9SelIndex>()
         };
@@ -317,7 +317,7 @@ where
         let changed_a_v = {
             let mut b = BitVectorBuilder::new();
             b.extend_bits(set.ave.iter_prefix_count::<48>().flat_map(|(_, c)| {
-                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+                iter::once(true).chain(std::iter::repeat_n(false, c as usize - 1))
             }));
             b.freeze::<Rank9SelIndex>()
         };
@@ -325,7 +325,7 @@ where
         let changed_v_e = {
             let mut b = BitVectorBuilder::new();
             b.extend_bits(set.vea.iter_prefix_count::<48>().flat_map(|(_, c)| {
-                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+                iter::once(true).chain(std::iter::repeat_n(false, c as usize - 1))
             }));
             b.freeze::<Rank9SelIndex>()
         };
@@ -333,7 +333,7 @@ where
         let changed_v_a = {
             let mut b = BitVectorBuilder::new();
             b.extend_bits(set.vae.iter_prefix_count::<48>().flat_map(|(_, c)| {
-                iter::once(true).chain(iter::repeat(false).take(c as usize - 1))
+                iter::once(true).chain(std::iter::repeat_n(false, c as usize - 1))
             }));
             b.freeze::<Rank9SelIndex>()
         };

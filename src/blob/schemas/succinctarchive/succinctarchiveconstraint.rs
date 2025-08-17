@@ -101,58 +101,58 @@ where
             (None, None, None, false, true, false) => self.archive.attribute_count,
             (None, None, None, false, false, true) => self.archive.value_count,
             (Some(e), None, None, false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 self.archive.distinct_in(&self.archive.changed_e_a, &r)
             }
             (Some(e), None, None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 self.archive.distinct_in(&self.archive.changed_e_v, &r)
             }
             (None, Some(a), None, true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 self.archive.distinct_in(&self.archive.changed_a_e, &r)
             }
             (None, Some(a), None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 self.archive.distinct_in(&self.archive.changed_a_v, &r)
             }
             (None, None, Some(v), true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.v_a, &v);
+                let r = base_range(&self.archive.domain, &self.archive.v_a, v);
                 self.archive.distinct_in(&self.archive.changed_v_e, &r)
             }
             (None, None, Some(v), false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.v_a, &v);
+                let r = base_range(&self.archive.domain, &self.archive.v_a, v);
                 self.archive.distinct_in(&self.archive.changed_v_a, &r)
             }
             (None, Some(a), Some(v), true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 let r = restrict_range(
                     &self.archive.domain,
                     &self.archive.v_a,
                     &self.archive.aev_c,
-                    &v,
+                    v,
                     &r,
                 );
                 r.len()
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 let r = restrict_range(
                     &self.archive.domain,
                     &self.archive.v_a,
                     &self.archive.eav_c,
-                    &v,
+                    v,
                     &r,
                 );
                 r.len()
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 let r = restrict_range(
                     &self.archive.domain,
                     &self.archive.a_a,
                     &self.archive.eva_c,
-                    &a,
+                    a,
                     &r,
                 );
                 r.len()
@@ -272,13 +272,13 @@ where
                 )
             }
             (None, Some(a), Some(v), true, false, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.a_a, &a);
+                let r = base_range(&self.archive.domain, &self.archive.a_a, a);
                 proposals.extend(
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.v_a,
                         &self.archive.aev_c,
-                        &v,
+                        v,
                         &r,
                     )
                     .map(|e| self.archive.vae_c.access(e).unwrap())
@@ -287,13 +287,13 @@ where
                 )
             }
             (Some(e), None, Some(v), false, true, false) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 proposals.extend(
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.v_a,
                         &self.archive.eav_c,
-                        &v,
+                        v,
                         &r,
                     )
                     .map(|a| self.archive.vea_c.access(a).unwrap())
@@ -302,13 +302,13 @@ where
                 )
             }
             (Some(e), Some(a), None, false, false, true) => {
-                let r = base_range(&self.archive.domain, &self.archive.e_a, &e);
+                let r = base_range(&self.archive.domain, &self.archive.e_a, e);
                 proposals.extend(
                     restrict_range(
                         &self.archive.domain,
                         &self.archive.a_a,
                         &self.archive.eva_c,
-                        &a,
+                        a,
                         &r,
                     )
                     .map(|v| self.archive.aev_c.access(v).unwrap())

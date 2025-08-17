@@ -48,7 +48,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
-            let Some(e) = id_from_value(&e) else {
+            let Some(e) = id_from_value(e) else {
                 return Some(0);
             };
             Some(e)
@@ -56,7 +56,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
-            let Some(a) = id_from_value(&a) else {
+            let Some(a) = id_from_value(a) else {
                 return Some(0);
             };
             Some(a)
@@ -127,7 +127,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
-            let Some(e) = id_from_value(&e) else {
+            let Some(e) = id_from_value(e) else {
                 return;
             };
             Some(e)
@@ -135,7 +135,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
-            let Some(a) = id_from_value(&a) else {
+            let Some(a) = id_from_value(a) else {
                 return;
             };
             Some(a)
@@ -186,12 +186,12 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             (None, None, Some(v), true, false, false) => {
                 self.set
                     .vea
-                    .infixes(&v, &mut |e: &[u8; 16]| proposals.push(id_into_value(e)));
+                    .infixes(v, &mut |e: &[u8; 16]| proposals.push(id_into_value(e)));
             }
             (None, None, Some(v), false, true, false) => {
                 self.set
                     .vae
-                    .infixes(&v, &mut |a: &[u8; 16]| proposals.push(id_into_value(a)));
+                    .infixes(v, &mut |a: &[u8; 16]| proposals.push(id_into_value(a)));
             }
             (None, Some(a), Some(v), true, false, false) => {
                 let mut prefix = [0u8; ID_LEN + VALUE_LEN];
@@ -227,7 +227,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
         let v_var = self.variable_v == variable;
 
         let e_bound = if let Some(e) = binding.get(self.variable_e) {
-            let Some(e) = id_from_value(&e) else {
+            let Some(e) = id_from_value(e) else {
                 proposals.clear();
                 return;
             };
@@ -236,7 +236,7 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
             None
         };
         let a_bound = if let Some(a) = binding.get(self.variable_a) {
-            let Some(a) = id_from_value(&a) else {
+            let Some(a) = id_from_value(a) else {
                 proposals.clear();
                 return;
             };

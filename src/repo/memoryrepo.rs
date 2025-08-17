@@ -15,19 +15,12 @@ use crate::value::ValueSchema;
 ///
 /// Useful for unit tests or ephemeral repositories where persistence is not
 /// required.
+#[derive(Default)]
 pub struct MemoryRepo {
     pub blobs: MemoryBlobStore<Blake3>,
     pub branches: HashMap<Id, Value<Handle<Blake3, SimpleArchive>>>,
 }
 
-impl Default for MemoryRepo {
-    fn default() -> Self {
-        Self {
-            blobs: MemoryBlobStore::new(),
-            branches: HashMap::new(),
-        }
-    }
-}
 
 impl crate::repo::BlobStorePut<Blake3> for MemoryRepo {
     type PutError = <MemoryBlobStore<Blake3> as crate::repo::BlobStorePut<Blake3>>::PutError;

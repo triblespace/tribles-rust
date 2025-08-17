@@ -1,12 +1,12 @@
 # Schemas
 
-Trible Space stores data in strongly typed values and blobs.  A *schema*
-describes a language‑agnostic data type with a specific byte representation:
-exactly 32&nbsp;bytes for a [`Value`] and an arbitrary number of bytes for a
-[`Blob`].  These abstract types can be converted to the concrete types of your
-application but decouple stored data from any particular implementation.  This
-also means you can refactor to new libraries or frameworks without rewriting
-what's already stored. The crate ships with a collection of ready‑made schemas located in
+Trible Space stores data in strongly typed values and blobs. A *schema* defines
+the language‑agnostic byte layout for these types: [`Value`]s always occupy
+exactly 32&nbsp;bytes while [`Blob`]s may be any length. Schemas translate those
+raw bytes to concrete application types and decouple persisted data from a
+particular implementation. This separation lets you refactor to new libraries
+or frameworks without rewriting what's already stored. The crate ships with a
+collection of ready‑made schemas located in
 [`src/value/schemas`](../src/value/schemas) and
 [`src/blob/schemas`](../src/blob/schemas).
 
@@ -27,9 +27,13 @@ the schema types rather than on `Value` itself, avoiding orphan‑rule issues wh
 supporting external data types. The `Value` wrapper treats its bytes as opaque;
 schemas may validate them or reject invalid patterns during conversion.
 
-Every schema declares a unique identifier such as `VALUE_SCHEMA_ID` (and
-optionally `BLOB_SCHEMA_ID` for blob handles). These IDs let applications store
-metadata about schemas in the graph and look them up at runtime.
+### Schema identifiers
+
+Every schema declares a unique 128‑bit identifier such as `VALUE_SCHEMA_ID`
+(and optionally `BLOB_SCHEMA_ID` for blob handles). Persisting these IDs allows
+applications to look up the appropriate schema at runtime, even when they were
+built against different code. The `schema_id` method on `Value` and `Blob`
+returns the identifier so callers can dispatch to the correct conversion logic.
 
 ## Built‑in value schemas
 

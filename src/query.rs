@@ -14,8 +14,8 @@
 pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;
+pub mod ignore;
 pub mod intersectionconstraint;
-pub mod mask;
 pub mod patchconstraint;
 pub mod regularpathconstraint;
 pub mod unionconstraint;
@@ -28,7 +28,7 @@ use std::{fmt, usize};
 
 use arrayvec::ArrayVec;
 use constantconstraint::*;
-use mask::*;
+pub use ignore::IgnoreConstraint;
 
 use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
 
@@ -609,6 +609,7 @@ pub use matches;
 mod tests {
     use valueschemas::ShortString;
 
+    use crate::ignore;
     use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
@@ -749,6 +750,22 @@ mod tests {
             (a: Value<_>),
             and!(a.is(I256BE::value_from(1)), a.is(I256BE::value_from(2)))
         ));
+    }
+
+    #[test]
+    fn ignore_skips_variables() {
+        let results: Vec<_> = find!(
+            (x: Value<_>),
+            ignore!(
+                __local_find_context!(),
+                (y),
+                and!(x.is(I256BE::value_from(1)), y.is(I256BE::value_from(2)))
+            )
+        )
+        .collect();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0, I256BE::value_from(1));
     }
 
     #[test]

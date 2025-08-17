@@ -1,19 +1,24 @@
 use super::*;
 
-pub struct MaskConstraint<'a> {
-    mask: VariableSet,
+pub struct IgnoreConstraint<'a> {
+    ignored: VariableSet,
     constraint: Box<dyn Constraint<'a> + 'a>,
 }
 
-impl<'a> MaskConstraint<'a> {
-    pub fn new(mask: VariableSet, constraint: Box<dyn Constraint<'a> + 'a>) -> Self {
-        MaskConstraint { mask, constraint }
+impl<'a> IgnoreConstraint<'a> {
+    pub fn new(ignored: VariableSet, constraint: Box<dyn Constraint<'a> + 'a>) -> Self {
+        IgnoreConstraint {
+            ignored,
+            constraint,
+        }
     }
 }
 
-impl<'a> Constraint<'a> for MaskConstraint<'a> {
+impl<'a> Constraint<'a> for IgnoreConstraint<'a> {
     fn variables(&self) -> VariableSet {
-        self.constraint.variables().intersect(self.mask)
+        // Remove ignored variables so they neither join with outer
+        // constraints nor appear in the result set.
+        self.constraint.variables().subtract(self.ignored)
     }
 
     fn estimate(&self, variable: VariableId, binding: &Binding) -> Option<usize> {
@@ -30,15 +35,13 @@ impl<'a> Constraint<'a> for MaskConstraint<'a> {
 }
 
 #[macro_export]
-macro_rules! mask {
+macro_rules! ignore {
     ($ctx:expr, ($($Var:ident),+), $c:expr) => (
         {
-            let mut mask = $crate::query::VariableSet::new_empty();
+            let mut ignored = $crate::query::VariableSet::new_empty();
             $(let $Var = $ctx.next_variable();
-              mask.set($Var.index);)*
-            $crate::query::MaskConstraint::new(mask, Box::new($c))
+              ignored.set($Var.index);)*
+            $crate::query::IgnoreConstraint::new(ignored, Box::new($c))
         }
     )
 }
-
-pub use mask;

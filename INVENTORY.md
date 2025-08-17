@@ -32,6 +32,7 @@
 - Provide a macro to declare key layouts that emits segmentation and
   ordering implementations for PATCH at compile time.
 - Expose segment iterators on PATCH using `KeyOrdering`'s segment permutation instead of raw key ranges.
+- Consolidate pile header size constants to avoid repeated magic numbers.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large

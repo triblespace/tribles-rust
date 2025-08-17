@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `RegularPathConstraint` is now generic over `PathEngine`.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
+- Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
 - Debug-only `debug_branch_fill` method computes average PATCH branch fill
@@ -115,6 +116,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed
+- Corrected blob offsets in `Pile` so retrieved blobs no longer include headers or
+  branch records.
+- Scheduled branch writes through the pile's write handle to avoid orphaned
+  branch heads when crashes occur before pending blobs flush.
+- Applied branch head updates immediately and sized branch records using
+  `size_of` to preserve compare-and-swap semantics without magic numbers.
+- Removed remaining 64-byte assumptions from blob writes by computing header
+  length and padding with `size_of::<BlobHeader>()`.
 - `ignore!` now hides variables correctly by subtracting them from inner constraints.
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

@@ -7,15 +7,7 @@ pub mod rngid;
 pub mod ufoid;
 
 use std::{
-    borrow::Borrow,
-    cell::RefCell,
-    convert::TryInto,
-    fmt::{Display, LowerHex, UpperHex},
-    hash::Hash,
-    marker::PhantomData,
-    mem,
-    num::NonZero,
-    ops::Deref,
+    borrow::Borrow, cell::RefCell, convert::TryInto, error::Error, fmt::{self, Display, LowerHex, UpperHex}, hash::Hash, marker::PhantomData, mem, num::NonZero, ops::Deref
 };
 
 pub use fucid::{fucid, FUCIDsource};
@@ -191,6 +183,7 @@ impl From<Id> for uuid::Uuid {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NilUuidError;
 
 impl TryFrom<uuid::Uuid> for Id {
@@ -201,6 +194,14 @@ impl TryFrom<uuid::Uuid> for Id {
         Id::new(bytes).ok_or(NilUuidError)
     }
 }
+
+impl fmt::Display for NilUuidError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "UUID conversion failed: the UUID is nil (all zero bytes)")
+    }
+}
+
+impl Error for NilUuidError {}
 
 #[doc(hidden)]
 pub use hex_literal::hex as _hex_literal_hex;

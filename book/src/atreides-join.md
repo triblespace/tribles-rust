@@ -1,36 +1,20 @@
 # The Atreides Family of Worst-case Optimal Join Algorithms
 
-The heart of the system is a constraint-solving approach based on the theory
-of worst-case optimal joins, specifically a family of novel join algorithms
-we call the "Atreides Family".
+The heart of the system is a constraint-solving approach based on the theory of worst-case optimal joins. Queries are represented as sets of constraints over variables, and the join algorithm explores this search space by binding one variable at a time.
 
-The key insight is that size estimations, normally used by query optimizers,
-can directly guide the join algorithm to retrieve bounds that typically require
-sorted indexes for random access.
+Size estimates, normally used only by query optimizers, directly guide the join. Instead of building explicit join plans, the engine asks each constraint for cardinality bounds and chooses the next variable with the smallest estimated result. Traditional databases rely on sorted indexes to efficiently find corresponding values. Atreides still uses random lookups when confirming each candidate, but the bounds let it enumerate the most specific constraint sequentially and probe only a few possibilities in the larger ones, offering similar pruning power without maintaining sorted indexes everywhere.
 
-This shifts much of the execution cost to cardinality estimation, so we developed
-novel data structures to efficiently maintain these estimates in O(1) time.
+Maintaining accurate estimates is crucial. We therefore provide data structures that update cardinalities in **O(1)** time so the algorithm can adapt quickly as bindings accumulate.
 
-We focus on three specific instantiations of the "Atreides Family",
-which differ in the quality of the cardinality estimation provided, i.e.,
-the clarity the algorithm has when looking into the future.
+We currently expose four variants of the Atreides family, each with a descriptive name and a playful Dune nickname. They differ in how much information they consider when predicting the remaining search space:
 
-Given a _partial_ Binding:
+- **Row-count Join (Jessica)** – uses per-constraint row counts to pick the variable with the smallest number of matching rows.
+- **Distinct-value Join (Paul)** – estimates the smallest number of distinct values for the variable across one column.
+- **Partial-binding Join (Ghanima)** – refines the estimate using the current partial binding but ignores yet-to-be-bound variables.
+- **Exact-result Join (Leto)** – the ideal algorithm that knows the exact result size even for unbound variables.
 
-- *Jessica's Join* - Estimates the smallest number of rows matching the variable.
-- *Paul's Join* - Estimates the smallest number of distinct values from one column matching the variable.
-- *Ghanima's Join* - Estimates the number of values matching the variable with the given binding, without considering yet-to-be-bound variables.
-- *Leto's Join* - Estimates the true number of values matching the variable with the given binding, considering all variables, even those not yet bound.
+Each variant trades complexity for precision. More accurate estimates let the engine prune failing paths earlier.
 
-The algorithm uses a depth-first search, where the query engine tries to find
-a solution by iteratively proposing values for the variables and backtracking when it reaches a dead end.
-The constraints are not evaluated in a fixed order; instead, the query engine uses the
-estimates provided by the constraints to guide the search.
-This allows for a more flexible and efficient exploration of the search space,
-as the query engine can focus on the most promising parts.
-This also obviates the need for complex query optimization techniques, as the
-constraints themselves provide the necessary information to guide the search,
-and the query engine can adapt dynamically to the data and the query, providing
-skew-resistance and predictable performance. Meaning that the query engine can
-handle queries that have a wide range of variances in the cardinalities of the variables,
-without suffering from performance degradation.
+For example, given constraints that relate `?person` to `?parent` and `?city`, the Distinct-value Join (Paul) will bind whichever variable has the fewest distinct candidates. If `?city` only has a handful of possibilities, the search tries them first and backtracks quickly when they fail.
+
+The join proceeds as a depth-first search. At every step the engine binds a value, evaluates the affected constraints, and backtracks when a constraint reports no matches. Because estimates come directly from the constraints, the engine avoids complex query planning and remains resistant to data skew — even wildly imbalanced cardinalities do not degrade performance.

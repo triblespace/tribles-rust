@@ -71,6 +71,7 @@ Formats with solid memory-mapping support in the Rust ecosystem should be
 prioritized for efficient zero-copy access.
 
 ## Documentation
+- Add diagrams or pseudocode to the Atreides Join chapter illustrating variable selection and search.
 - Move the "Portability & Common Formats" overview from `src/value.rs` into a
   dedicated chapter of the book.
 - Migrate the blob module introduction in `src/blob.rs` so the crate docs focus

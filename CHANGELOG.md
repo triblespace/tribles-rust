@@ -66,6 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 - Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
 ### Changed
+- Expanded the Atreides Join chapter with an example, clearer algorithm explanations, and a note that random access remains only for confirming candidates.
+- Rephrased Atreides Join discussion of sorted indexes to highlight efficient value lookup.
+- Gave each Atreides join variant a descriptive name alongside its Dune nickname.
 - Clarified the query engine book chapter with improved wording and examples.
 - Expanded discussion on RDF's per-value typing limitations in the query engine chapter.
 - Expanded Architecture chapter's blob storage section for clearer responsibilities and examples.

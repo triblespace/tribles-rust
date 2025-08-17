@@ -1,15 +1,25 @@
 # Commit Selectors
 
-The current `Workspace::checkout` API accepts a `CommitSelector` trait with
-implementations for commit handles, lists of handles and several higher-level
-selectors. While convenient, this range-based design makes it difficult to
-compose complex queries over the commit graph. Range selectors follow Git's
-two‑dot semantics: `a..b` selects all commits reachable from `b` that are not
-reachable from `a`. In set terms it computes `ancestors(b) - ancestors(a)`. When
-the start is omitted, `a` defaults to the empty set so `..b` simply yields
-`ancestors(b)`. When the end is omitted, `b` defaults to the current `HEAD` and
-`a..` resolves to `ancestors(HEAD) - ancestors(a)` while `..` expands to
-`ancestors(HEAD)`.
+Commit selectors describe which commits to load from a workspace. The
+`Workspace::checkout` method accepts any type implementing the
+`CommitSelector` trait and returns a `TribleSet` containing data from those
+commits. It currently supports individual commit handles, lists of handles and a
+handful of higher level selectors.
+
+Most selectors operate on ranges inspired by Git's two‑dot syntax. `a..b`
+selects all commits reachable from `b` that are not reachable from `a`. In set
+terms it computes `ancestors(b) - ancestors(a)`. Omitting the start defaults `a`
+to the empty set so `..b` yields `ancestors(b)`. Omitting the end defaults `b`
+to the current `HEAD`, making `a..` resolve to `ancestors(HEAD) - ancestors(a)`
+while `..` expands to `ancestors(HEAD)`.
+
+```rust
+// Check out the entire history of the current branch
+let history = ws.checkout(ancestors(ws.head()))?;
+```
+
+While convenient, the range-based design makes it difficult to compose complex
+queries over the commit graph.
 
 ## Implemented selectors
 

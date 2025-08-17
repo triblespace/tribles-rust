@@ -115,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed
+- Corrected blob offsets in `Pile` so retrieved blobs no longer include headers or
+  branch records.
+- Scheduled branch writes through the pile's write handle to avoid orphaned
+  branch heads when crashes occur before pending blobs flush.
+- Applied branch head updates immediately and sized branch records using
+  `size_of` to preserve compare-and-swap semantics without magic numbers.
 - `ignore!` now hides variables correctly by subtracting them from inner constraints.
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing

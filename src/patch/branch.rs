@@ -1,8 +1,14 @@
 use super::*;
 use core::sync::atomic;
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout};
-use std::ptr::{addr_of, addr_of_mut};
+use core::sync::atomic::Ordering::Acquire;
+use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::Release;
+use std::alloc::alloc_zeroed;
+use std::alloc::dealloc;
+use std::alloc::handle_alloc_error;
+use std::alloc::Layout;
+use std::ptr::addr_of;
+use std::ptr::addr_of_mut;
 
 const BRANCH_ALIGN: usize = 16;
 const BRANCH_BASE_SIZE: usize = 48;

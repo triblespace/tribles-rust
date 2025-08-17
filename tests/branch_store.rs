@@ -1,7 +1,9 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{self, memoryrepo::MemoryRepo, PushResult};
+use tribles::repo::memoryrepo::MemoryRepo;
+use tribles::repo::PushResult;
+use tribles::repo::{self};
 
 #[test]
 fn branch_update_success_and_conflict() {

@@ -1,10 +1,25 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 
-use crate::id::{id_from_value, id_into_value, RawId, ID_LEN};
-use crate::patch::{Entry, IdentityOrder, PATCH};
-use crate::query::{Binding, Constraint, Variable, VariableId, VariableSet};
+use crate::id::id_from_value;
+use crate::id::id_into_value;
+use crate::id::RawId;
+use crate::id::ID_LEN;
+use crate::patch::Entry;
+use crate::patch::IdentityOrder;
+use crate::patch::PATCH;
+use crate::query::Binding;
+use crate::query::Constraint;
+use crate::query::Variable;
+use crate::query::VariableId;
+use crate::query::VariableSet;
 use crate::trible::TribleSet;
-use crate::trible::{A_END, A_START, E_END, E_START, V_START};
+use crate::trible::A_END;
+use crate::trible::A_START;
+use crate::trible::E_END;
+use crate::trible::E_START;
+use crate::trible::V_START;
 use crate::value::schemas::genid::GenId;
 use crate::value::RawValue;
 

@@ -1,12 +1,18 @@
 use crate::blob::BlobSchema;
 use crate::id::Id;
 use crate::id_hex;
-use crate::value::{FromValue, RawValue, TryToValue, Value, ValueSchema};
+use crate::value::FromValue;
+use crate::value::RawValue;
+use crate::value::TryToValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 use std::convert::Infallible;
 
 use anybytes::Bytes;
-use digest::{typenum::U32, Digest};
-use hex::{FromHex, FromHexError};
+use digest::typenum::U32;
+use digest::Digest;
+use hex::FromHex;
+use hex::FromHexError;
 use std::marker::PhantomData;
 
 /// A trait for hash functions.

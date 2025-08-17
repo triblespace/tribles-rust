@@ -1,9 +1,18 @@
 use core::panic;
 
-use crate::id::{id_from_value, id_into_value, ID_LEN};
-use crate::query::{Binding, Constraint, Variable, VariableId, VariableSet};
+use crate::id::id_from_value;
+use crate::id::id_into_value;
+use crate::id::ID_LEN;
+use crate::query::Binding;
+use crate::query::Constraint;
+use crate::query::Variable;
+use crate::query::VariableId;
+use crate::query::VariableSet;
 use crate::trible::TribleSet;
-use crate::value::{schemas::genid::GenId, RawValue, ValueSchema, VALUE_LEN};
+use crate::value::schemas::genid::GenId;
+use crate::value::RawValue;
+use crate::value::ValueSchema;
+use crate::value::VALUE_LEN;
 
 pub struct TribleSetConstraint {
     variable_e: VariableId,
@@ -344,13 +353,14 @@ impl<'a> Constraint<'a> for TribleSetConstraint {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        find,
-        id::rngid,
-        query::{TriblePattern, Variable},
-        trible::{Trible, TribleSet},
-        value::{schemas::UnknownValue, Value},
-    };
+    use crate::find;
+    use crate::id::rngid;
+    use crate::query::TriblePattern;
+    use crate::query::Variable;
+    use crate::trible::Trible;
+    use crate::trible::TribleSet;
+    use crate::value::schemas::UnknownValue;
+    use crate::value::Value;
 
     #[test]
     fn constant() {

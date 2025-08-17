@@ -11,21 +11,18 @@
 mod memoryblobstore;
 pub mod schemas;
 
-use crate::{
-    id::Id,
-    value::{
-        schemas::hash::{Handle, HashProtocol},
-        Value, ValueSchema,
-    },
-};
+use crate::id::Id;
+use crate::value::schemas::hash::Handle;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
-use std::{
-    convert::Infallible,
-    error::Error,
-    fmt::{self, Debug},
-    hash::Hash,
-    marker::PhantomData,
-};
+use std::convert::Infallible;
+use std::error::Error;
+use std::fmt::Debug;
+use std::fmt::{self};
+use std::hash::Hash;
+use std::marker::PhantomData;
 
 pub use memoryblobstore::MemoryBlobStore;
 

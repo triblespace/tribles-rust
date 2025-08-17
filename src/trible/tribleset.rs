@@ -4,15 +4,24 @@ use triblesetconstraint::*;
 
 use crate::query::TriblePattern;
 
-use crate::patch::{Entry, PATCH};
+use crate::patch::Entry;
+use crate::patch::PATCH;
 use crate::query::Variable;
-use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder, TRIBLE_LEN,
-};
-use crate::value::{schemas::genid::GenId, ValueSchema};
+use crate::trible::AEVOrder;
+use crate::trible::AVEOrder;
+use crate::trible::EAVOrder;
+use crate::trible::EVAOrder;
+use crate::trible::Trible;
+use crate::trible::VAEOrder;
+use crate::trible::VEAOrder;
+use crate::trible::TRIBLE_LEN;
+use crate::value::schemas::genid::GenId;
+use crate::value::ValueSchema;
 
-use std::iter::{FromIterator, Map};
-use std::ops::{Add, AddAssign};
+use std::iter::FromIterator;
+use std::iter::Map;
+use std::ops::Add;
+use std::ops::AddAssign;
 
 /// A collection of [Trible]s.
 ///
@@ -193,14 +202,14 @@ mod tests {
     use crate::prelude::*;
 
     use super::*;
-    use fake::{
-        faker::lorem::en::Words,
-        faker::name::raw::{FirstName, LastName},
-        locales::EN,
-        Fake,
-    };
+    use fake::faker::lorem::en::Words;
+    use fake::faker::name::raw::FirstName;
+    use fake::faker::name::raw::LastName;
+    use fake::locales::EN;
+    use fake::Fake;
 
-    use rayon::iter::{IntoParallelIterator, ParallelIterator};
+    use rayon::iter::IntoParallelIterator;
+    use rayon::iter::ParallelIterator;
 
     #[test]
     fn union() {

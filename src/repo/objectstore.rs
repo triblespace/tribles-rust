@@ -7,25 +7,42 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use anybytes::Bytes;
-use futures::executor::{block_on, block_on_stream, BlockingStream};
-use futures::{Stream, StreamExt};
+use futures::executor::block_on;
+use futures::executor::block_on_stream;
+use futures::executor::BlockingStream;
+use futures::Stream;
+use futures::StreamExt;
 
+use object_store::parse_url;
+use object_store::path::Path;
+use object_store::ObjectStore;
+use object_store::PutMode;
 use object_store::UpdateVersion;
-use object_store::{self, parse_url, path::Path, ObjectStore, PutMode};
+use object_store::{self};
 use url::Url;
 
 use hex::FromHex;
 
 use crate::blob::schemas::UnknownBlob;
-use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
-use crate::id::{Id, RawId};
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
+use crate::id::Id;
+use crate::id::RawId;
 use crate::prelude::blobschemas::SimpleArchive;
-use crate::value::{
-    schemas::hash::{Handle, HashProtocol},
-    RawValue, Value, ValueSchema,
-};
+use crate::value::schemas::hash::Handle;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::RawValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
-use super::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore, PushResult};
+use super::BlobStore;
+use super::BlobStoreGet;
+use super::BlobStoreList;
+use super::BlobStorePut;
+use super::BranchStore;
+use super::PushResult;
 
 const BRANCH_INFIX: &str = "branches";
 const BLOB_INFIX: &str = "blobs";
@@ -279,8 +296,7 @@ where
                     .location
                     .filename()
                     .ok_or(ListBlobsErr::NotAFile("no filename"))?;
-                let digest =
-                    RawValue::from_hex(blob_name).map_err(ListBlobsErr::BadNameHex)?;
+                let digest = RawValue::from_hex(blob_name).map_err(ListBlobsErr::BadNameHex)?;
                 Ok(Value::new(digest))
             }
             Err(e) => Err(ListBlobsErr::List(e)),

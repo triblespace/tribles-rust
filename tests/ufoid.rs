@@ -1,6 +1,7 @@
 use proptest::prelude::*;
 use std::collections::HashSet;
-use tribles::id::ufoid::{self, timestamp_distance};
+use tribles::id::ufoid::timestamp_distance;
+use tribles::id::ufoid::{self};
 
 proptest! {
     #[test]

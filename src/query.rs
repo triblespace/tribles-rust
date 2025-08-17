@@ -22,17 +22,24 @@ pub mod unionconstraint;
 mod variableset;
 
 use std::cmp::Reverse;
+use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::{fmt, usize};
+use std::usize;
 
 use arrayvec::ArrayVec;
 use constantconstraint::*;
 pub use ignore::IgnoreConstraint;
 
-use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
+use crate::value::schemas::genid::GenId;
+use crate::value::RawValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
-pub use regularpathconstraint::{PathEngine, PathOp, RegularPathConstraint, ThompsonEngine};
+pub use regularpathconstraint::PathEngine;
+pub use regularpathconstraint::PathOp;
+pub use regularpathconstraint::RegularPathConstraint;
+pub use regularpathconstraint::ThompsonEngine;
 pub use variableset::VariableSet;
 
 /// Types storing tribles can implement this trait to expose them to queries.
@@ -615,7 +622,8 @@ mod tests {
 
     use crate::examples::literature;
 
-    use fake::faker::lorem::en::{Sentence, Words};
+    use fake::faker::lorem::en::Sentence;
+    use fake::faker::lorem::en::Words;
     use fake::faker::name::raw::*;
     use fake::locales::*;
     use fake::Fake;

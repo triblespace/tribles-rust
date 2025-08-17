@@ -1,10 +1,18 @@
-use crate::{
-    id::{id_from_value, id_into_value, ID_LEN},
-    patch::{IdentityOrder, PATCH},
-    value::{RawValue, ValueSchema, VALUE_LEN},
-};
+use crate::id::id_from_value;
+use crate::id::id_into_value;
+use crate::id::ID_LEN;
+use crate::patch::IdentityOrder;
+use crate::patch::PATCH;
+use crate::value::RawValue;
+use crate::value::ValueSchema;
+use crate::value::VALUE_LEN;
 
-use super::{Binding, Constraint, ContainsConstraint, Variable, VariableId, VariableSet};
+use super::Binding;
+use super::Constraint;
+use super::ContainsConstraint;
+use super::Variable;
+use super::VariableId;
+use super::VariableSet;
 
 pub struct PatchValueConstraint<'a, T: ValueSchema> {
     variable: Variable<T>,

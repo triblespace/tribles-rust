@@ -1,9 +1,15 @@
-use crate::blob::{BlobSchema, ToBlob};
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
 use crate::id::Id;
 use crate::prelude::blobschemas::SimpleArchive;
-use crate::repo::{BlobStore, BlobStorePut, BranchStore, PushResult};
-use crate::value::schemas::hash::{Handle, HashProtocol};
-use crate::value::{Value, ValueSchema};
+use crate::repo::BlobStore;
+use crate::repo::BlobStorePut;
+use crate::repo::BranchStore;
+use crate::repo::PushResult;
+use crate::value::schemas::hash::Handle;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
 /// Store that delegates blob and branch operations to two independent stores.
 ///

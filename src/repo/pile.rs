@@ -8,29 +8,44 @@
 use anybytes::Bytes;
 use hex_literal::hex;
 use memmap2::MmapOptions;
-use reft_light::{Apply, ReadHandle, WriteHandle};
+use reft_light::Apply;
+use reft_light::ReadHandle;
+use reft_light::WriteHandle;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::ops::Bound;
 use std::path::Path;
 use std::ptr::slice_from_raw_parts;
-use std::sync::{Arc, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-};
-use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
+use std::sync::Arc;
+use std::sync::OnceLock;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
+use zerocopy::TryFromBytes;
 
 use crate::blob::schemas::UnknownBlob;
-use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
-use crate::id::{Id, RawId};
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
+use crate::id::Id;
+use crate::id::RawId;
 use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::valueschemas::Handle;
-use crate::value::schemas::hash::{Blake3, Hash, HashProtocol};
-use crate::value::{RawValue, Value, ValueSchema};
+use crate::value::schemas::hash::Blake3;
+use crate::value::schemas::hash::Hash;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::RawValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
@@ -61,11 +76,7 @@ struct IndexEntry {
 impl IndexEntry {
     fn new(bytes: Bytes, timestamp: u64, validation: Option<ValidationState>) -> Self {
         Self {
-            state: Arc::new(
-                validation
-                    .map(OnceLock::from)
-                    .unwrap_or_default(),
-            ),
+            state: Arc::new(validation.map(OnceLock::from).unwrap_or_default()),
             bytes,
             timestamp,
         }
@@ -178,12 +189,10 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                     .expect("failed to write padding");
 
                 let written_bytes = unsafe {
-                    let written_slice = slice_from_raw_parts(
-                        auxiliary.mmap.as_ptr().add(old_length),
-                        bytes.len(),
-                    )
-                    .as_ref()
-                    .unwrap();
+                    let written_slice =
+                        slice_from_raw_parts(auxiliary.mmap.as_ptr().add(old_length), bytes.len())
+                            .as_ref()
+                            .unwrap();
                     Bytes::from_raw_parts(written_slice, auxiliary.mmap.clone())
                 };
 
@@ -327,9 +336,7 @@ where
                     Err(e) => Err(GetBlobError::ConversionError(e)),
                 }
             }
-            ValidationState::Invalid => {
-                Err(GetBlobError::ValidationError(entry.bytes.clone()))
-            }
+            ValidationState::Invalid => Err(GetBlobError::ValidationError(entry.bytes.clone())),
         }
     }
 }
@@ -580,7 +587,12 @@ where
     }
 }
 
-use super::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore, PushResult};
+use super::BlobStore;
+use super::BlobStoreGet;
+use super::BlobStoreList;
+use super::BlobStorePut;
+use super::BranchStore;
+use super::PushResult;
 
 /// Iterator returned by [`PileReader::iter`].
 ///

@@ -1,18 +1,20 @@
 use ed25519::Signature;
-use ed25519_dalek::{SignatureError, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::SignatureError;
+use ed25519_dalek::SigningKey;
+use ed25519_dalek::Verifier;
+use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
 
 use ed25519::signature::Signer;
 
 use super::repo;
 
-use crate::{
-    blob::{schemas::simplearchive::SimpleArchive, Blob},
-    prelude::valueschemas::Handle,
-    query::find,
-    trible::TribleSet,
-    value::Value,
-};
+use crate::blob::schemas::simplearchive::SimpleArchive;
+use crate::blob::Blob;
+use crate::prelude::valueschemas::Handle;
+use crate::query::find;
+use crate::trible::TribleSet;
+use crate::value::Value;
 
 use crate::value::schemas::hash::Blake3;
 use hifitime::Epoch;

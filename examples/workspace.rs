@@ -1,7 +1,8 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{memoryrepo::MemoryRepo, Repository};
+use tribles::repo::memoryrepo::MemoryRepo;
+use tribles::repo::Repository;
 
 fn main() {
     let mut repo = Repository::new(MemoryRepo::default(), SigningKey::generate(&mut OsRng));

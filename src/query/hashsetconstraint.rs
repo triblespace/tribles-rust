@@ -1,6 +1,10 @@
-use std::{collections::HashSet, ops::Deref, rc::Rc, sync::Arc};
+use std::collections::HashSet;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::value::{FromValue, ToValue};
+use crate::value::FromValue;
+use crate::value::ToValue;
 
 use super::*;
 

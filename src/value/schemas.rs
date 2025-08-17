@@ -11,7 +11,8 @@ pub mod time;
 
 use crate::id::Id;
 use crate::id_hex;
-use crate::value::{Value, ValueSchema};
+use crate::value::Value;
+use crate::value::ValueSchema;
 use std::convert::Infallible;
 
 /// A value schema for an unknown value.

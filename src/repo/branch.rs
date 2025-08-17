@@ -1,17 +1,19 @@
-use ed25519::{signature::Signer, Signature};
+use ed25519::signature::Signer;
+use ed25519::Signature;
+use ed25519_dalek::SignatureError;
+use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
-use ed25519_dalek::{SignatureError, SigningKey, VerifyingKey};
+use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
 
-use crate::{
-    blob::Blob,
-    find,
-    id::{rngid, Id},
-    metadata::metadata,
-    prelude::blobschemas::SimpleArchive,
-    trible::TribleSet,
-    value::Value,
-};
+use crate::blob::Blob;
+use crate::find;
+use crate::id::rngid;
+use crate::id::Id;
+use crate::metadata::metadata;
+use crate::prelude::blobschemas::SimpleArchive;
+use crate::trible::TribleSet;
+use crate::value::Value;
 
 use super::repo;
 

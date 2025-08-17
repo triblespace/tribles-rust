@@ -917,7 +917,7 @@ where
 impl<const KEY_LEN: usize, O> Default for PATCH<KEY_LEN, O>
 where
     O: KeyOrdering<KEY_LEN>,
- {
+{
     fn default() -> Self {
         Self::new()
     }

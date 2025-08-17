@@ -6,28 +6,32 @@ pub mod fucid;
 pub mod rngid;
 pub mod ufoid;
 
-use std::{
-    borrow::Borrow,
-    cell::RefCell,
-    convert::TryInto,
-    fmt::{Display, LowerHex, UpperHex},
-    hash::Hash,
-    marker::PhantomData,
-    mem,
-    num::NonZero,
-    ops::Deref,
-};
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::convert::TryInto;
+use std::fmt::Display;
+use std::fmt::LowerHex;
+use std::fmt::UpperHex;
+use std::hash::Hash;
+use std::marker::PhantomData;
+use std::mem;
+use std::num::NonZero;
+use std::ops::Deref;
 
-pub use fucid::{fucid, FUCIDsource};
+pub use fucid::fucid;
+pub use fucid::FUCIDsource;
 pub use rngid::rngid;
 pub use ufoid::ufoid;
 
-use crate::{
-    patch::{Entry, IdentityOrder, PATCH},
-    prelude::valueschemas::GenId,
-    query::{Constraint, ContainsConstraint, Variable},
-    value::{RawValue, VALUE_LEN},
-};
+use crate::patch::Entry;
+use crate::patch::IdentityOrder;
+use crate::patch::PATCH;
+use crate::prelude::valueschemas::GenId;
+use crate::query::Constraint;
+use crate::query::ContainsConstraint;
+use crate::query::Variable;
+use crate::value::RawValue;
+use crate::value::VALUE_LEN;
 
 thread_local!(static OWNED_IDS: IdOwner = IdOwner::new());
 
@@ -605,7 +609,8 @@ mod tests {
     use crate::examples::literature;
     use crate::id::ExclusiveId;
     use crate::prelude::*;
-    use crate::query::{Query, VariableContext};
+    use crate::query::Query;
+    use crate::query::VariableContext;
     use crate::value::schemas::genid::GenId;
     use crate::value::schemas::shortstring::ShortString;
 

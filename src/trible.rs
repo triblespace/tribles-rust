@@ -6,10 +6,10 @@ mod tribleset;
 
 use std::convert::TryInto;
 
-use crate::{
-    id::{ExclusiveId, Id},
-    value::{Value, ValueSchema},
-};
+use crate::id::ExclusiveId;
+use crate::id::Id;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
 pub use tribleset::TribleSet;
 

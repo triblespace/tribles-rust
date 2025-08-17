@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 
-use crate::blob::{BlobSchema, MemoryBlobStore, ToBlob};
+use crate::blob::BlobSchema;
+use crate::blob::MemoryBlobStore;
+use crate::blob::ToBlob;
 use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::*;
-use crate::repo::{BranchStore, PushResult};
+use crate::repo::BranchStore;
+use crate::repo::PushResult;
 use crate::value::schemas::hash::Blake3;
 
 use crate::value::schemas::hash::Handle;
@@ -20,7 +23,6 @@ pub struct MemoryRepo {
     pub blobs: MemoryBlobStore<Blake3>,
     pub branches: HashMap<Id, Value<Handle<Blake3, SimpleArchive>>>,
 }
-
 
 impl crate::repo::BlobStorePut<Blake3> for MemoryRepo {
     type PutError = <MemoryBlobStore<Blake3> as crate::repo::BlobStorePut<Blake3>>::PutError;

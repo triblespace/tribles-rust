@@ -29,11 +29,21 @@
 //! directly outside of the `tribles` codebase.
 
 use proc_macro::TokenStream;
-use proc_macro2::{Delimiter, Span, TokenStream as TokenStream2, TokenTree};
-use quote::{format_ident, quote};
-use syn::parse::{Parse, ParseStream};
-use syn::{braced, bracketed, parenthesized, Token};
-use syn::{Expr, Ident, Path};
+use proc_macro2::Delimiter;
+use proc_macro2::Span;
+use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::TokenTree;
+use quote::format_ident;
+use quote::quote;
+use syn::braced;
+use syn::bracketed;
+use syn::parenthesized;
+use syn::parse::Parse;
+use syn::parse::ParseStream;
+use syn::Expr;
+use syn::Ident;
+use syn::Path;
+use syn::Token;
 
 mod namespace;
 

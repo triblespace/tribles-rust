@@ -1,11 +1,14 @@
-use crate::{
-    blob::{Blob, BlobSchema, ToBlob, TryFromBlob},
-    id::Id,
-    id_hex,
-    trible::{Trible, TribleSet},
-};
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
+use crate::id::Id;
+use crate::id_hex;
+use crate::trible::Trible;
+use crate::trible::TribleSet;
 
-use anybytes::{Bytes, View};
+use anybytes::Bytes;
+use anybytes::View;
 
 pub struct SimpleArchive;
 

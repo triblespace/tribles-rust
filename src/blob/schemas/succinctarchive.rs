@@ -1,12 +1,17 @@
 mod succinctarchiveconstraint;
 mod universe;
 
-use crate::id::{id_from_value, id_into_value, Id};
+use crate::id::id_from_value;
+use crate::id::id_into_value;
+use crate::id::Id;
 use crate::query::TriblePattern;
-use crate::trible::{Trible, TribleSet};
+use crate::trible::Trible;
+use crate::trible::TribleSet;
+use crate::value::schemas::genid::GenId;
 use crate::value::schemas::UnknownValue;
+use crate::value::RawValue;
 use crate::value::Value;
-use crate::value::{schemas::genid::GenId, RawValue, ValueSchema};
+use crate::value::ValueSchema;
 use succinctarchiveconstraint::*;
 
 pub use universe::*;
@@ -17,7 +22,11 @@ use std::iter;
 use itertools::Itertools;
 
 use jerky::bit_vector::rank9sel::Rank9SelIndex;
-use jerky::bit_vector::{BitVector, BitVectorBuilder, NumBits, Rank, Select};
+use jerky::bit_vector::BitVector;
+use jerky::bit_vector::BitVectorBuilder;
+use jerky::bit_vector::NumBits;
+use jerky::bit_vector::Rank;
+use jerky::bit_vector::Select;
 use jerky::char_sequences::WaveletMatrix;
 use jerky::int_vectors::CompactVector;
 
@@ -398,8 +407,9 @@ mod tests {
     use crate::namespace::NS;
     use crate::query::find;
     use crate::trible::Trible;
+    use crate::value::schemas::shortstring::ShortString;
     use crate::value::ToValue;
-    use crate::value::{schemas::shortstring::ShortString, TryToValue};
+    use crate::value::TryToValue;
 
     use super::*;
     use itertools::Itertools;

@@ -31,17 +31,36 @@
 pub mod blobschemas;
 pub mod valueschemas;
 
+pub use crate::blob::Blob;
 pub use crate::blob::BlobSchema;
-pub use crate::blob::{Blob, MemoryBlobStore, ToBlob, TryFromBlob};
-pub use crate::id::{fucid, local_ids, rngid, ufoid, ExclusiveId, Id, IdOwner, RawId};
+pub use crate::blob::MemoryBlobStore;
+pub use crate::blob::ToBlob;
+pub use crate::blob::TryFromBlob;
+pub use crate::id::fucid;
+pub use crate::id::local_ids;
+pub use crate::id::rngid;
+pub use crate::id::ufoid;
+pub use crate::id::ExclusiveId;
+pub use crate::id::Id;
+pub use crate::id::IdOwner;
+pub use crate::id::RawId;
 pub use crate::namespace::NS;
-pub use crate::query::{
-    find,
-    intersectionconstraint::{and, IntersectionConstraint},
-    matches,
-};
+pub use crate::query::find;
+pub use crate::query::intersectionconstraint::and;
+pub use crate::query::intersectionconstraint::IntersectionConstraint;
+pub use crate::query::matches;
 pub use crate::repo::pile::Pile;
-pub use crate::repo::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore};
-pub use crate::trible::{Trible, TribleSet};
-pub use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema};
+pub use crate::repo::BlobStore;
+pub use crate::repo::BlobStoreGet;
+pub use crate::repo::BlobStoreList;
+pub use crate::repo::BlobStorePut;
+pub use crate::repo::BranchStore;
+pub use crate::trible::Trible;
+pub use crate::trible::TribleSet;
+pub use crate::value::FromValue;
+pub use crate::value::ToValue;
+pub use crate::value::TryFromValue;
+pub use crate::value::TryToValue;
+pub use crate::value::Value;
+pub use crate::value::ValueSchema;
 pub use anybytes::View;

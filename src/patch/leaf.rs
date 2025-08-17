@@ -1,7 +1,12 @@
 use core::sync::atomic;
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use core::sync::atomic::Ordering::Acquire;
+use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::Release;
 use siphasher::sip128::SipHasher24;
-use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
+use std::alloc::alloc;
+use std::alloc::dealloc;
+use std::alloc::handle_alloc_error;
+use std::alloc::Layout;
 use std::ptr::addr_of;
 
 use super::*;

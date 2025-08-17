@@ -2,10 +2,13 @@ use crate::value::RawValue;
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
-use std::convert::{Infallible, TryInto};
+use std::convert::Infallible;
+use std::convert::TryInto;
 
 use indxvec::Search;
-use jerky::int_vectors::{Access as IAccess, Build as IBuild, NumVals};
+use jerky::int_vectors::Access as IAccess;
+use jerky::int_vectors::Build as IBuild;
+use jerky::int_vectors::NumVals;
 use quick_cache::sync::Cache;
 
 pub trait Universe {
@@ -172,9 +175,14 @@ mod tests {
 
     use jerky::int_vectors::DacsByte;
 
-    use crate::id::{fucid, id_into_value, rngid, ufoid};
+    use crate::id::fucid;
+    use crate::id::id_into_value;
+    use crate::id::rngid;
+    use crate::id::ufoid;
 
-    use super::{CompressedUniverse, OrderedUniverse, Universe};
+    use super::CompressedUniverse;
+    use super::OrderedUniverse;
+    use super::Universe;
 
     #[test]
     fn ids_compressed() {

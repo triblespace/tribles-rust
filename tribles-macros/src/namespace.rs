@@ -1,7 +1,15 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::parse::{Parse, ParseStream};
-use syn::{braced, Attribute, Ident, LitStr, Path, Token, Type, Visibility};
+use syn::braced;
+use syn::parse::Parse;
+use syn::parse::ParseStream;
+use syn::Attribute;
+use syn::Ident;
+use syn::LitStr;
+use syn::Path;
+use syn::Token;
+use syn::Type;
+use syn::Visibility;
 
 mod kw {
     syn::custom_keyword!(namespace);

@@ -10,7 +10,9 @@ use crate::blob::BlobSchema;
 use crate::id::Id;
 use crate::id_hex;
 
-use super::{Blob, ToBlob, TryFromBlob};
+use super::Blob;
+use super::ToBlob;
+use super::TryFromBlob;
 
 /// A blob schema for an unknown blob.
 /// This blob schema is used as a fallback when the blob schema is not known.

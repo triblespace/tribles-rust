@@ -4,15 +4,24 @@ use triblesetconstraint::*;
 
 use crate::query::TriblePattern;
 
-use crate::patch::{Entry, PATCH};
+use crate::patch::Entry;
+use crate::patch::PATCH;
 use crate::query::Variable;
-use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder, TRIBLE_LEN,
-};
-use crate::value::{schemas::genid::GenId, ValueSchema};
+use crate::trible::AEVOrder;
+use crate::trible::AVEOrder;
+use crate::trible::EAVOrder;
+use crate::trible::EVAOrder;
+use crate::trible::Trible;
+use crate::trible::VAEOrder;
+use crate::trible::VEAOrder;
+use crate::trible::TRIBLE_LEN;
+use crate::value::schemas::genid::GenId;
+use crate::value::ValueSchema;
 
-use std::iter::{FromIterator, Map};
-use std::ops::{Add, AddAssign};
+use std::iter::FromIterator;
+use std::iter::Map;
+use std::ops::Add;
+use std::ops::AddAssign;
 
 /// A collection of [Trible]s.
 ///
@@ -89,7 +98,7 @@ impl TribleSet {
     }
 
     pub fn len(&self) -> usize {
-        return self.eav.len() as usize;
+        self.eav.len() as usize
     }
 
     pub fn insert(&mut self, trible: &Trible) {
@@ -154,8 +163,8 @@ impl FromIterator<Trible> for TribleSet {
 impl TriblePattern for TribleSet {
     type PatternConstraint<'a> = TribleSetConstraint;
 
-    fn pattern<'a, V: ValueSchema>(
-        &'a self,
+    fn pattern<V: ValueSchema>(
+        &self,
         e: Variable<GenId>,
         a: Variable<GenId>,
         v: Variable<V>,
@@ -193,14 +202,14 @@ mod tests {
     use crate::prelude::*;
 
     use super::*;
-    use fake::{
-        faker::lorem::en::Words,
-        faker::name::raw::{FirstName, LastName},
-        locales::EN,
-        Fake,
-    };
+    use fake::faker::lorem::en::Words;
+    use fake::faker::name::raw::FirstName;
+    use fake::faker::name::raw::LastName;
+    use fake::locales::EN;
+    use fake::Fake;
 
-    use rayon::iter::{IntoParallelIterator, ParallelIterator};
+    use rayon::iter::IntoParallelIterator;
+    use rayon::iter::ParallelIterator;
 
     #[test]
     fn union() {
@@ -238,7 +247,7 @@ mod tests {
                     }),
                 ]
             })
-            .reduce(|| TribleSet::new(), |a, b| a + b);
+            .reduce(TribleSet::new, |a, b| a + b);
         assert_eq!(kb.len(), 4000);
     }
 
@@ -269,8 +278,8 @@ mod tests {
         let intersection = kb1.intersect(&kb2);
         // Verify that the intersection contains only elements present in both kb1 and kb2
         for trible in &intersection {
-            assert!(kb1.contains(&trible));
-            assert!(kb2.contains(&trible));
+            assert!(kb1.contains(trible));
+            assert!(kb2.contains(trible));
         }
     }
 
@@ -326,10 +335,10 @@ mod tests {
         kb += book_tribles.clone();
 
         for trible in &author_tribles {
-            assert!(kb.contains(&trible));
+            assert!(kb.contains(trible));
         }
         for trible in &book_tribles {
-            assert!(kb.contains(&trible));
+            assert!(kb.contains(trible));
         }
 
         let non_existent_trible = literature::entity!(&ufoid(), {
@@ -338,7 +347,7 @@ mod tests {
         });
 
         for trible in &non_existent_trible {
-            assert!(!kb.contains(&trible));
+            assert!(!kb.contains(trible));
         }
     }
 }

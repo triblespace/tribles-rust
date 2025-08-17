@@ -1,5 +1,8 @@
 pub mod query {
-    use crate::query::{Binding, Constraint, VariableId, VariableSet};
+    use crate::query::Binding;
+    use crate::query::Constraint;
+    use crate::query::VariableId;
+    use crate::query::VariableSet;
     use crate::value::RawValue;
     use std::cell::RefCell;
     use std::rc::Rc;

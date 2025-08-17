@@ -10,6 +10,12 @@ pub struct FUCIDsource {
     counter: u128,
 }
 
+impl Default for FUCIDsource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FUCIDsource {
     pub fn new() -> Self {
         Self {

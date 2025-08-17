@@ -1,14 +1,20 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::criterion_group;
+use criterion::criterion_main;
+use criterion::BenchmarkId;
+use criterion::Criterion;
+use criterion::Throughput;
 use jerky::bit_vector::rank9sel::Rank9SelIndex;
 use jerky::int_vectors::DacsByte;
-use rand::{thread_rng, Rng};
+use rand::thread_rng;
+use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::hint::black_box;
 use std::iter::FromIterator;
-use tribles::blob::schemas::succinctarchive::{
-    CachedUniverse, CompressedUniverse, SuccinctArchive, Universe,
-};
+use tribles::blob::schemas::succinctarchive::CachedUniverse;
+use tribles::blob::schemas::succinctarchive::CompressedUniverse;
+use tribles::blob::schemas::succinctarchive::SuccinctArchive;
+use tribles::blob::schemas::succinctarchive::Universe;
 use tribles::blob::schemas::UnknownBlob;
 use tribles::repo::BlobStorePut;
 
@@ -16,11 +22,14 @@ use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
-use tribles::patch::{Entry, IdentityOrder, PATCH};
+use tribles::patch::Entry;
+use tribles::patch::IdentityOrder;
+use tribles::patch::PATCH;
 
 use im::OrdSet;
 
-use fake::faker::lorem::en::{Sentence, Words};
+use fake::faker::lorem::en::Sentence;
+use fake::faker::lorem::en::Words;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;

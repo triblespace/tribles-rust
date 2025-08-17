@@ -57,9 +57,22 @@ commit sets without complicating the core API.
 
 The `filter` selector wraps another selector and keeps only the commits for
 which a user provided closure returns `true`. The closure receives the commit
-metadata and its payload. Higher level helpers can build on this primitive. For
-example `history_of(entity)` filters `ancestors(HEAD)` to commits touching a
-specific entity:
+metadata and its payload, allowing inspection of authors, timestamps or the
+data itself. Selectors compose, so you can further narrow a range:
+
+```rust
+use hifitime::Epoch;
+use tribles::repo::{filter, time_range};
+
+let since = Epoch::from_unix_seconds(1_609_459_200.0); // 2020-12-01
+let now = Epoch::now().unwrap();
+let recent = ws.checkout(filter(time_range(since, now), |_, payload| {
+    payload.iter().any(|t| t.e() == &my_entity)
+}))?;
+```
+
+Higher level helpers can build on this primitive. For example `history_of(entity)` filters
+`ancestors(HEAD)` to commits touching a specific entity:
 
 ```rust
 let changes = ws.checkout(history_of(my_entity))?;

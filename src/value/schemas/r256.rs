@@ -1,6 +1,10 @@
 use crate::id::Id;
 use crate::id_hex;
-use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
+use crate::value::FromValue;
+use crate::value::ToValue;
+use crate::value::TryFromValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 use std::convert::Infallible;
 
 use std::convert::TryInto;
@@ -76,7 +80,7 @@ impl FromValue<'_, R256BE> for Ratio<i128> {
         match Ratio::try_from_value(v) {
             Ok(ratio) => ratio,
             Err(RatioError::NonCanonical(n, d)) => {
-                panic!("Non canonical ratio: {}/{}", n, d);
+                panic!("Non canonical ratio: {n}/{d}");
             }
             Err(RatioError::ZeroDenominator) => {
                 panic!("Zero denominator ratio");
@@ -135,7 +139,7 @@ impl FromValue<'_, R256LE> for Ratio<i128> {
         match Ratio::try_from_value(v) {
             Ok(ratio) => ratio,
             Err(RatioError::NonCanonical(n, d)) => {
-                panic!("Non canonical ratio: {}/{}", n, d);
+                panic!("Non canonical ratio: {n}/{d}");
             }
             Err(RatioError::ZeroDenominator) => {
                 panic!("Zero denominator ratio");

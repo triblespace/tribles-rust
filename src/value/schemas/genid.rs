@@ -1,6 +1,15 @@
-use crate::id::{ExclusiveId, Id, OwnedId, RawId};
+use crate::id::ExclusiveId;
+use crate::id::Id;
+use crate::id::OwnedId;
+use crate::id::RawId;
 use crate::id_hex;
-use crate::value::{FromValue, ToValue, TryFromValue, TryToValue, Value, ValueSchema, VALUE_LEN};
+use crate::value::FromValue;
+use crate::value::ToValue;
+use crate::value::TryFromValue;
+use crate::value::TryToValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
+use crate::value::VALUE_LEN;
 
 use std::convert::TryInto;
 
@@ -85,9 +94,9 @@ impl<'a> TryFromValue<'a, GenId> for &'a Id {
             return Err(IdParseError::BadFormat);
         }
         if let Some(id) = Id::as_transmute_raw(value.raw[16..32].try_into().unwrap()) {
-            return Ok(id);
+            Ok(id)
         } else {
-            return Err(IdParseError::IsNil);
+            Err(IdParseError::IsNil)
         }
     }
 }
@@ -234,7 +243,7 @@ impl proptest::strategy::Strategy for RandomGenId {
         let mut id = [0; 16];
         rng.fill_bytes(&mut id[..]);
 
-        Ok(IdValueTree(id.into()))
+        Ok(IdValueTree(id))
     }
 }
 

@@ -1,7 +1,10 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{commit, memoryrepo::MemoryRepo, LookupError, Repository};
+use tribles::repo::commit;
+use tribles::repo::memoryrepo::MemoryRepo;
+use tribles::repo::LookupError;
+use tribles::repo::Repository;
 
 #[test]
 fn branch_from_and_pull_with_key() {

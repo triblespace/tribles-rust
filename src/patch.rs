@@ -393,7 +393,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
 
     pub(crate) fn end_depth(&self) -> usize {
         match self.body() {
-            BodyPtr::Leaf(_) => KEY_LEN as usize,
+            BodyPtr::Leaf(_) => KEY_LEN,
             BodyPtr::Branch(branch) => unsafe { branch.as_ref().end_depth as usize },
         }
     }
@@ -405,7 +405,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
         }
     }
 
-    pub(crate) fn childleaf_key<'a>(&'a self) -> &'a [u8; KEY_LEN] {
+    pub(crate) fn childleaf_key(&self) -> &[u8; KEY_LEN] {
         unsafe { &(*self.childleaf()).key }
     }
 
@@ -454,7 +454,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
                                 // ^ Note that the leaf_count can never be <= 1 here, because we're in a branch
                                 // at least one other child must exist.
                             } else {
-                                branch.leaf_count = branch.leaf_count - old_child_leaf_count;
+                                branch.leaf_count -= old_child_leaf_count;
                                 match branch.leaf_count {
                                     0 => {
                                         panic!("branch should have been collected previously")
@@ -476,9 +476,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
                                                 .expect("child should exist");
                                             branch.childleaf = child.childleaf();
                                         }
-                                        branch.hash = branch.hash ^ old_child_hash;
-                                        branch.segment_count =
-                                            branch.segment_count - old_child_segment_count;
+                                        branch.hash ^= old_child_hash;
+                                        branch.segment_count -= old_child_segment_count;
                                     }
                                 }
                             }
@@ -915,6 +914,15 @@ where
     root: Option<Head<KEY_LEN, O>>,
 }
 
+impl<const KEY_LEN: usize, O> Default for PATCH<KEY_LEN, O>
+where
+    O: KeyOrdering<KEY_LEN>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const KEY_LEN: usize, O> PATCH<KEY_LEN, O>
 where
     O: KeyOrdering<KEY_LEN>,
@@ -1085,21 +1093,21 @@ where
     pub fn difference(&self, other: &Self) -> Self {
         if let Some(root) = &self.root {
             if let Some(other_root) = &other.root {
-                return Self {
+                Self {
                     root: root.difference(other_root, 0),
-                };
+                }
             } else {
-                return self.clone();
+                self.clone()
             }
         } else {
-            return other.clone();
+            other.clone()
         }
     }
 
     /// Calculates the average fill level for branch nodes grouped by their
     /// branching factor. The returned array contains eight entries for branch
     /// sizes `2`, `4`, `8`, `16`, `32`, `64`, `128` and `256` in that order.
-    #[cfg(debug_assertions)]
+    //#[cfg(debug_assertions)]
     pub fn debug_branch_fill(&self) -> [f32; 8] {
         let mut counts = [0u64; 8];
         let mut used = [0u64; 8];

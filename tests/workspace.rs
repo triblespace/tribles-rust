@@ -1,10 +1,13 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{
-    ancestors, history_of, memoryrepo::MemoryRepo, nth_ancestor, parents, symmetric_diff,
-    Repository,
-};
+use tribles::repo::ancestors;
+use tribles::repo::history_of;
+use tribles::repo::memoryrepo::MemoryRepo;
+use tribles::repo::nth_ancestor;
+use tribles::repo::parents;
+use tribles::repo::symmetric_diff;
+use tribles::repo::Repository;
 
 #[test]
 fn workspace_commit_updates_head() {

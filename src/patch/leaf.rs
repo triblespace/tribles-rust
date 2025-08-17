@@ -1,7 +1,12 @@
 use core::sync::atomic;
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use core::sync::atomic::Ordering::Acquire;
+use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::Release;
 use siphasher::sip128::SipHasher24;
-use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
+use std::alloc::alloc;
+use std::alloc::dealloc;
+use std::alloc::handle_alloc_error;
+use std::alloc::Layout;
 use std::ptr::addr_of;
 
 use super::*;
@@ -91,7 +96,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         F: FnMut(&[u8; INFIX_LEN]),
     {
         let leaf = unsafe { leaf.as_ref() };
-        let leaf_key = (*leaf).key;
+        let leaf_key = leaf.key;
         for depth in at_depth..PREFIX_LEN {
             if leaf_key[O::TREE_TO_KEY[depth]] != prefix[depth] {
                 return;
@@ -99,7 +104,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         }
 
         let infix: [u8; INFIX_LEN] =
-            core::array::from_fn(|i| (*leaf).key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
+            core::array::from_fn(|i| leaf.key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
         f(&infix);
     }
 
@@ -117,7 +122,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub(crate) fn segmented_len<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
@@ -132,6 +137,6 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 return 0;
             }
         }
-        return 1;
+        1
     }
 }

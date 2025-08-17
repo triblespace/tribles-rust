@@ -14,25 +14,32 @@
 pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;
+pub mod ignore;
 pub mod intersectionconstraint;
-pub mod mask;
 pub mod patchconstraint;
 pub mod regularpathconstraint;
 pub mod unionconstraint;
 mod variableset;
 
 use std::cmp::Reverse;
+use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::{fmt, usize};
+use std::usize;
 
 use arrayvec::ArrayVec;
 use constantconstraint::*;
-use mask::*;
+pub use ignore::IgnoreConstraint;
 
-use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
+use crate::value::schemas::genid::GenId;
+use crate::value::RawValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
-pub use regularpathconstraint::{PathEngine, PathOp, RegularPathConstraint, ThompsonEngine};
+pub use regularpathconstraint::PathEngine;
+pub use regularpathconstraint::PathOp;
+pub use regularpathconstraint::RegularPathConstraint;
+pub use regularpathconstraint::ThompsonEngine;
 pub use variableset::VariableSet;
 
 /// Types storing tribles can implement this trait to expose them to queries.
@@ -67,6 +74,12 @@ pub type VariableId = usize;
 #[derive(Debug)]
 pub struct VariableContext {
     pub next_index: VariableId,
+}
+
+impl Default for VariableContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VariableContext {
@@ -166,7 +179,7 @@ pub struct Binding {
 impl Binding {
     /// Create a new empty binding.
     pub fn set(&mut self, variable: VariableId, value: &RawValue) {
-        self.values[variable as usize] = *value;
+        self.values[variable] = *value;
         self.bound.set(variable);
     }
 
@@ -179,7 +192,7 @@ impl Binding {
     /// Check if a variable is bound in the binding.
     pub fn get(&self, variable: VariableId) -> Option<&RawValue> {
         if self.bound.is_set(variable) {
-            Some(&self.values[variable as usize])
+            Some(&self.values[variable])
         } else {
             None
         }
@@ -478,14 +491,14 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> Iterator for Query<C, P, R>
                     let estimate = self.estimates[variable];
 
                     self.stack.push(variable);
-                    let values = self.values[variable as usize].get_or_insert(Vec::new());
+                    let values = self.values[variable].get_or_insert(Vec::new());
                     values.clear();
                     values.reserve_exact(estimate.saturating_sub(values.capacity()));
                     self.constraint.propose(variable, &self.binding, values);
                 }
                 Search::NextValue => {
                     if let Some(&variable) = self.stack.last() {
-                        if let Some(assignment) = self.values[variable as usize]
+                        if let Some(assignment) = self.values[variable]
                             .as_mut()
                             .expect("values should be initialized")
                             .pop()
@@ -603,12 +616,14 @@ pub use matches;
 mod tests {
     use valueschemas::ShortString;
 
+    use crate::ignore;
     use crate::prelude::valueschemas::*;
     use crate::prelude::*;
 
     use crate::examples::literature;
 
-    use fake::faker::lorem::en::{Sentence, Words};
+    use fake::faker::lorem::en::Sentence;
+    use fake::faker::lorem::en::Words;
     use fake::faker::name::raw::*;
     use fake::locales::*;
     use fake::Fake;
@@ -743,6 +758,22 @@ mod tests {
             (a: Value<_>),
             and!(a.is(I256BE::value_from(1)), a.is(I256BE::value_from(2)))
         ));
+    }
+
+    #[test]
+    fn ignore_skips_variables() {
+        let results: Vec<_> = find!(
+            (x: Value<_>),
+            ignore!(
+                __local_find_context!(),
+                (y),
+                and!(x.is(I256BE::value_from(1)), y.is(I256BE::value_from(2)))
+            )
+        )
+        .collect();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0, I256BE::value_from(1));
     }
 
     #[test]

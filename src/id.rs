@@ -6,28 +6,32 @@ pub mod fucid;
 pub mod rngid;
 pub mod ufoid;
 
-use std::{
-    borrow::Borrow,
-    cell::RefCell,
-    convert::TryInto,
-    fmt::{Display, LowerHex, UpperHex},
-    hash::Hash,
-    marker::PhantomData,
-    mem,
-    num::NonZero,
-    ops::Deref,
-};
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::convert::TryInto;
+use std::fmt::Display;
+use std::fmt::LowerHex;
+use std::fmt::UpperHex;
+use std::hash::Hash;
+use std::marker::PhantomData;
+use std::mem;
+use std::num::NonZero;
+use std::ops::Deref;
 
-pub use fucid::{fucid, FUCIDsource};
+pub use fucid::fucid;
+pub use fucid::FUCIDsource;
 pub use rngid::rngid;
 pub use ufoid::ufoid;
 
-use crate::{
-    patch::{Entry, IdentityOrder, PATCH},
-    prelude::valueschemas::GenId,
-    query::{Constraint, ContainsConstraint, Variable},
-    value::{RawValue, VALUE_LEN},
-};
+use crate::patch::Entry;
+use crate::patch::IdentityOrder;
+use crate::patch::PATCH;
+use crate::prelude::valueschemas::GenId;
+use crate::query::Constraint;
+use crate::query::ContainsConstraint;
+use crate::query::Variable;
+use crate::value::RawValue;
+use crate::value::VALUE_LEN;
 
 thread_local!(static OWNED_IDS: IdOwner = IdOwner::new());
 
@@ -101,23 +105,23 @@ impl Id {
 
 impl PartialOrd for Id {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let s: &RawId = &self;
-        let o: &RawId = &other;
+        let s: &RawId = self;
+        let o: &RawId = other;
         PartialOrd::partial_cmp(s, o)
     }
 }
 
 impl Ord for Id {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let s: &RawId = &self;
-        let o: &RawId = &other;
+        let s: &RawId = self;
+        let o: &RawId = other;
         Ord::cmp(s, o)
     }
 }
 
 impl Hash for Id {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let s: &RawId = &self;
+        let s: &RawId = self;
         Hash::hash(s, state);
     }
 }
@@ -191,6 +195,7 @@ impl From<Id> for uuid::Uuid {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NilUuidError;
 
 impl TryFrom<uuid::Uuid> for Id {
@@ -201,6 +206,14 @@ impl TryFrom<uuid::Uuid> for Id {
         Id::new(bytes).ok_or(NilUuidError)
     }
 }
+
+impl std::fmt::Display for NilUuidError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "UUID conversion failed: the UUID is nil (all zero bytes)")
+    }
+}
+
+impl std::error::Error for NilUuidError {}
 
 #[doc(hidden)]
 pub use hex_literal::hex as _hex_literal_hex;
@@ -270,7 +283,7 @@ impl ExclusiveId {
     /// # Arguments
     ///
     /// * `id` - A reference to the `Id` to be transmuted.
-    pub fn as_transmute_force<'a>(id: &'a Id) -> &'a Self {
+    pub fn as_transmute_force(id: &Id) -> &Self {
         unsafe { std::mem::transmute(id) }
     }
 
@@ -385,6 +398,12 @@ pub struct OwnedId<'a> {
     owner: &'a IdOwner,
 }
 
+impl Default for IdOwner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdOwner {
     /// Creates a new `IdOwner`.
     ///
@@ -450,7 +469,7 @@ impl IdOwner {
     ///
     /// * `id` - The `Id` to be forced into an `ExclusiveId`.
     pub fn force_insert(&self, id: &Id) {
-        let entry = Entry::new(&id);
+        let entry = Entry::new(id);
         self.owned_ids.borrow_mut().insert(&entry);
     }
 
@@ -599,7 +618,8 @@ mod tests {
     use crate::examples::literature;
     use crate::id::ExclusiveId;
     use crate::prelude::*;
-    use crate::query::{Query, VariableContext};
+    use crate::query::Query;
+    use crate::query::VariableContext;
     use crate::value::schemas::genid::GenId;
     use crate::value::schemas::shortstring::ShortString;
 

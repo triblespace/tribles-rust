@@ -1,10 +1,15 @@
-use ed25519::{ComponentBytes, Signature};
+use ed25519::ComponentBytes;
+use ed25519::Signature;
 use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::VerifyingKey;
 
 use crate::id::Id;
 use crate::id_hex;
-use crate::value::{FromValue, ToValue, TryFromValue, Value, ValueSchema};
+use crate::value::FromValue;
+use crate::value::ToValue;
+use crate::value::TryFromValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 use std::convert::Infallible;
 
 /// A value schema for the R component of an Ed25519 signature.

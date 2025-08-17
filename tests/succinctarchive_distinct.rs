@@ -1,4 +1,5 @@
-use tribles::blob::schemas::succinctarchive::{OrderedUniverse, SuccinctArchive};
+use tribles::blob::schemas::succinctarchive::OrderedUniverse;
+use tribles::blob::schemas::succinctarchive::SuccinctArchive;
 use tribles::prelude::*;
 use tribles::value::schemas::UnknownValue;
 

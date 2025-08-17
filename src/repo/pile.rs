@@ -8,29 +8,44 @@
 use anybytes::Bytes;
 use hex_literal::hex;
 use memmap2::MmapOptions;
-use reft_light::{Apply, ReadHandle, WriteHandle};
+use reft_light::Apply;
+use reft_light::ReadHandle;
+use reft_light::WriteHandle;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::ops::Bound;
 use std::path::Path;
 use std::ptr::slice_from_raw_parts;
-use std::sync::{Arc, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-};
-use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
+use std::sync::Arc;
+use std::sync::OnceLock;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
+use zerocopy::TryFromBytes;
 
 use crate::blob::schemas::UnknownBlob;
-use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
-use crate::id::{Id, RawId};
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
+use crate::id::Id;
+use crate::id::RawId;
 use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::valueschemas::Handle;
-use crate::value::schemas::hash::{Blake3, Hash, HashProtocol};
-use crate::value::{RawValue, Value, ValueSchema};
+use crate::value::schemas::hash::Blake3;
+use crate::value::schemas::hash::Hash;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::RawValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
@@ -61,11 +76,7 @@ struct IndexEntry {
 impl IndexEntry {
     fn new(bytes: Bytes, timestamp: u64, validation: Option<ValidationState>) -> Self {
         Self {
-            state: Arc::new(
-                validation
-                    .map(|state| OnceLock::from(state))
-                    .unwrap_or_default(),
-            ),
+            state: Arc::new(validation.map(OnceLock::from).unwrap_or_default()),
             bytes,
             timestamp,
         }
@@ -178,12 +189,10 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                     .expect("failed to write padding");
 
                 let written_bytes = unsafe {
-                    let written_slice = slice_from_raw_parts(
-                        auxiliary.mmap.as_ptr().offset(old_length as _),
-                        bytes.len(),
-                    )
-                    .as_ref()
-                    .unwrap();
+                    let written_slice =
+                        slice_from_raw_parts(auxiliary.mmap.as_ptr().add(old_length), bytes.len())
+                            .as_ref()
+                            .unwrap();
                     Bytes::from_raw_parts(written_slice, auxiliary.mmap.clone())
                 };
 
@@ -323,13 +332,11 @@ where
             ValidationState::Validated => {
                 let blob: Blob<S> = Blob::new(entry.bytes.clone());
                 match blob.try_from_blob() {
-                    Ok(value) => return Ok(value),
-                    Err(e) => return Err(GetBlobError::ConversionError(e)),
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(GetBlobError::ConversionError(e)),
                 }
             }
-            ValidationState::Invalid => {
-                return Err(GetBlobError::ValidationError(entry.bytes.clone()));
-            }
+            ValidationState::Invalid => Err(GetBlobError::ValidationError(entry.bytes.clone())),
         }
     }
 }
@@ -352,10 +359,10 @@ pub enum OpenError {
 impl std::fmt::Display for OpenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OpenError::IoError(err) => write!(f, "IO error: {}", err),
+            OpenError::IoError(err) => write!(f, "IO error: {err}"),
             OpenError::PileTooLarge => write!(f, "Pile too large"),
             OpenError::CorruptPile { valid_length } => {
-                write!(f, "Corrupt pile at byte {}", valid_length)
+                write!(f, "Corrupt pile at byte {valid_length}")
             }
         }
     }
@@ -377,7 +384,7 @@ pub enum InsertError {
 impl std::fmt::Display for InsertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InsertError::IoError(err) => write!(f, "IO error: {}", err),
+            InsertError::IoError(err) => write!(f, "IO error: {err}"),
             InsertError::PileTooLarge => write!(f, "Pile too large"),
         }
     }
@@ -403,7 +410,7 @@ unsafe impl Sync for UpdateBranchError {}
 impl std::fmt::Debug for UpdateBranchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UpdateBranchError::IoError(err) => write!(f, "IO error: {}", err),
+            UpdateBranchError::IoError(err) => write!(f, "IO error: {err}"),
             UpdateBranchError::PileTooLarge => write!(f, "Pile too large"),
         }
     }
@@ -412,7 +419,7 @@ impl std::fmt::Debug for UpdateBranchError {
 impl std::fmt::Display for UpdateBranchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UpdateBranchError::IoError(err) => write!(f, "IO error: {}", err),
+            UpdateBranchError::IoError(err) => write!(f, "IO error: {err}"),
             UpdateBranchError::PileTooLarge => write!(f, "Pile too large"),
         }
     }
@@ -435,7 +442,7 @@ impl<E: Error> std::fmt::Display for GetBlobError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GetBlobError::BlobNotFound => write!(f, "Blob not found"),
-            GetBlobError::ConversionError(err) => write!(f, "Conversion error: {}", err),
+            GetBlobError::ConversionError(err) => write!(f, "Conversion error: {err}"),
             GetBlobError::ValidationError(_) => write!(f, "Validation error"),
         }
     }
@@ -463,7 +470,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                 // Truncate the file at the first valid offset and try again.
                 OpenOptions::new()
                     .write(true)
-                    .open(&path)?
+                    .open(path)?
                     .set_len(valid_length as u64)?;
                 Self::try_open(path)
             }
@@ -482,7 +489,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             .read(true)
             .append(true)
             .create(true)
-            .open(&path)?;
+            .open(path)?;
         let length = file.metadata()?.len() as usize;
         if length > MAX_PILE_SIZE {
             return Err(OpenError::PileTooLarge);
@@ -502,7 +509,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
         let mut blobs = BTreeMap::new();
         let mut branches = HashMap::new();
 
-        while bytes.len() > 0 {
+        while !bytes.is_empty() {
             let start_offset = length - bytes.len();
             if bytes.len() < 16 {
                 return Err(OpenError::CorruptPile {
@@ -580,7 +587,12 @@ where
     }
 }
 
-use super::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut, BranchStore, PushResult};
+use super::BlobStore;
+use super::BlobStoreGet;
+use super::BlobStoreList;
+use super::BlobStorePut;
+use super::BranchStore;
+use super::PushResult;
 
 /// Iterator returned by [`PileReader::iter`].
 ///
@@ -618,7 +630,7 @@ where
         self.cursor = Some(*hash);
 
         let bytes = entry.bytes.clone();
-        return Some(((*hash).into(), Blob::new(bytes)));
+        Some(((*hash).into(), Blob::new(bytes)))
         // Note: we may want to use batching in the future to gain more performance and amortize
         // the cost of creating the iterator over the BTreeMap.
     }
@@ -830,7 +842,7 @@ mod tests {
 
         match Pile::<MAX_PILE_SIZE>::try_open(&path) {
             Err(OpenError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
-            other => panic!("unexpected result: {:?}", other),
+            other => panic!("unexpected result: {other:?}"),
         }
     }
 
@@ -885,7 +897,7 @@ mod tests {
             Err(OpenError::CorruptPile { valid_length }) => {
                 assert_eq!(valid_length as u64, file_len)
             }
-            other => panic!("unexpected result: {:?}", other),
+            other => panic!("unexpected result: {other:?}"),
         }
     }
 

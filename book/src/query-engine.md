@@ -1,28 +1,30 @@
 # Query Engine
 
-Queries retrieve data by describing the patterns you are looking for. The engine
-pursues extreme simplicity, low and predictable latency, skew resistance and
-requires no tuning. New constraints implement the
-[`Constraint`](crate::query::Constraint) trait so different operators,
-sub-languages and data sources can be composed.
+Queries describe the patterns you want to retrieve. The engine favors extreme
+simplicity and aims for predictable latency and skew resistance without any
+tuning. Every constraint implements the
+[`Constraint`](crate::query::Constraint) trait so operators, sub-languages and
+even alternative data sources can compose cleanly.
 
 ## Queries as Schemas
 
-You might have noticed that trible.space does not have a concept of an ontology
-or schema specification beyond associating attributes with
-[`ValueSchema`](crate::value::ValueSchema) and
-[`BlobSchema`](crate::prelude::BlobSchema). This is deliberate. One of our
-lessons from the semantic web was that it is too loose in typing individual
-values, but too strict and computationally infeasible in describing larger
-structures. Any system dealing with real-world data must handle cases of
-missing, duplicate or additional fields, which conflicts with strong
-constraints like classes.
+You might notice that trible.space does not define a global ontology or schema
+beyond associating attributes with a
+[`ValueSchema`](crate::value::ValueSchema) or
+[`BlobSchema`](crate::prelude::BlobSchema). This is deliberate. The semantic web
+taught us that per-value typing, while desirable, was awkward in RDF: literal
+datatypes are optional, custom types need globally scoped IRIs and there is no
+enforcement, so most data degenerates into untyped strings. Trying to regain
+structure through global ontologies and class hierarchies made schemas rigid
+and reasoning computationally infeasible. Real-world data often arrives with
+missing, duplicate or additional fields, which clashes with these global,
+class-based constraints.
 
 Our approach is to be sympathetic to edge cases and have the system deal only
-with the data it declares capable of handling. These "application-specific
-schema declarations" are exactly the shapes and constraints described by our
-queries[^1]. Data not conforming to these queries/schemas is simply ignored by
-definition (as a query only returns data conforming to its constraints).[^2]
+with the data it declares capable of handling. These application-specific
+schema declarations are exactly the shapes and constraints expressed by our
+queries[^1]. Data not conforming to these queries is simply ignored by
+definition, as a query only returns data satisfying its constraints.[^2]
 
 ## Join Strategy
 
@@ -34,27 +36,23 @@ Join](atreides-join.md) chapter.
 
 ## Query Languages
 
-There is no query language in the traditional sense, but rather a set of
-constraints that can be combined using logical operators like `and` and `or`.
-The constraints are designed to be simple and flexible, allowing for a wide
-range of constraints to be implemented while still permitting efficient
-exploration of the search space by the query engine.
+Instead of a single query language, the engine exposes small composable
+constraints that combine with logical operators such as `and` and `or`. These
+constraints are simple yet flexible, enabling a wide variety of operators while
+still allowing the engine to explore the search space efficiently.
 
-The query engine and data model is flexible enough to allow for the exploration
-of a wide range of query languages, including graph queries, relational queries
-and document queries.
+The query engine and data model are flexible enough to support many query
+styles, including graph, relational and document-oriented queries.
 
-For example the [`namespace`](crate::namespace) module provides a set of macros
-that allow for the easy creation of constraints for a given trible pattern, with
-a syntax similar to query-by-example languages like SPARQL or GraphQL,
-tailored to a document-graph oriented data model. But it would also be possible
-to implement a property graph query language like Cypher, or a relational query
-language like Datalog, on top of the query engine.[^3]
+For example, the [`namespace`](crate::namespace) module offers macros that
+generate constraints for a given trible pattern in a query-by-example style
+reminiscent of SPARQL or GraphQL but tailored to a document-graph data model.
+It would also be possible to layer a property-graph language like Cypher or a
+relational language like Datalog on top of the engine.[^3]
 
 Great care has been taken to ensure that query languages with different styles
-and semantics can be easily implemented on top of the query engine, while
-allowing them to be mixed and matched with other languages and data models in
-the same query. For practical examples of the current facilities, see the
+and semantics can coexist and even be mixed with other languages and data models
+within the same query. For practical examples of the current facilities, see the
 [Query Language](query-language.md) chapter.
 
 [^1]: Note that this query-schema isomorphism isn't necessarily true in all

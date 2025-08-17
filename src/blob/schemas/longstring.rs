@@ -1,8 +1,12 @@
-use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
 use crate::id::Id;
 use crate::id_hex;
 
-use anybytes::{view::ViewError, View};
+use anybytes::view::ViewError;
+use anybytes::View;
 
 pub struct LongString {}
 
@@ -38,15 +42,14 @@ impl ToBlob<LongString> for String {
 
 #[cfg(test)]
 mod tests {
-    use anybytes::{Bytes, View};
+    use anybytes::Bytes;
+    use anybytes::View;
 
-    use crate::{
-        blob::{schemas::longstring::LongString, ToBlob},
-        value::{
-            schemas::hash::{Blake3, Handle},
-            Value,
-        },
-    };
+    use crate::blob::schemas::longstring::LongString;
+    use crate::blob::ToBlob;
+    use crate::value::schemas::hash::Blake3;
+    use crate::value::schemas::hash::Handle;
+    use crate::value::Value;
 
     #[test]
     fn string_handle() {

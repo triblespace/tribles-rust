@@ -106,10 +106,18 @@ pub mod schemas;
 use crate::id::Id;
 
 use core::fmt;
-use std::{borrow::Borrow, cmp::Ordering, fmt::Debug, hash::Hash, marker::PhantomData};
+use std::borrow::Borrow;
+use std::cmp::Ordering;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::marker::PhantomData;
 
 use hex::ToHex;
-use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes, Unaligned};
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
+use zerocopy::TryFromBytes;
+use zerocopy::Unaligned;
 
 /// The length of a value in bytes.
 pub const VALUE_LEN: usize = 32;
@@ -274,7 +282,7 @@ impl<T: ValueSchema> Copy for Value<T> {}
 impl<T: ValueSchema> Clone for Value<T> {
     fn clone(&self) -> Self {
         Self {
-            raw: self.raw.clone(),
+            raw: self.raw,
             _schema: PhantomData,
         }
     }
@@ -452,7 +460,5 @@ impl<'a, S: ValueSchema> FromValue<'a, S> for Value<S> {
 }
 
 impl<'a, S: ValueSchema> FromValue<'a, S> for () {
-    fn from_value(_v: &'a Value<S>) -> Self {
-        ()
-    }
+    fn from_value(_v: &'a Value<S>) -> Self {}
 }

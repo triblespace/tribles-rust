@@ -1,18 +1,27 @@
+use crate::blob::schemas::UnknownBlob;
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
 use crate::blob::ToBlob;
-use crate::blob::{schemas::UnknownBlob, Blob, BlobSchema};
-use crate::repo::{BlobStore, BlobStoreGet, BlobStoreList, BlobStorePut};
+use crate::repo::BlobStore;
+use crate::repo::BlobStoreGet;
+use crate::repo::BlobStoreList;
+use crate::repo::BlobStorePut;
 use crate::trible::TribleSet;
-use crate::value::schemas::hash::{Handle, HashProtocol};
+use crate::value::schemas::hash::Handle;
+use crate::value::schemas::hash::HashProtocol;
 use crate::value::Value;
 
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::error::Error;
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
+use std::fmt::{self};
 use std::iter::FromIterator;
 use std::ops::Bound;
 
-use reft_light::{Apply, ReadHandle, WriteHandle};
+use reft_light::Apply;
+use reft_light::ReadHandle;
+use reft_light::WriteHandle;
 
 use super::TryFromBlob;
 
@@ -100,11 +109,17 @@ impl<H: HashProtocol> MemoryBlobStoreReader<H> {
     /// The iteration order is unspecified and should not be relied on.
     pub fn iter(&self) -> MemoryBlobStoreIter<H> {
         let read_handle = self.read_handle.clone();
-        let iter = MemoryBlobStoreIter {
+
+        MemoryBlobStoreIter {
             read_handle,
             cursor: None,
-        };
-        iter
+        }
+    }
+}
+
+impl<H: HashProtocol> Default for MemoryBlobStore<H> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -197,7 +212,7 @@ impl<E: Error> fmt::Display for MemoryStoreGetError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MemoryStoreGetError::NotFound() => write!(f, "Blob not found in memory store"),
-            MemoryStoreGetError::ConversionFailed(e) => write!(f, "Blob conversion failed: {}", e),
+            MemoryStoreGetError::ConversionFailed(e) => write!(f, "Blob conversion failed: {e}"),
         }
     }
 }
@@ -236,8 +251,8 @@ where
         };
 
         let (handle, blob) = iter.next()?;
-        self.cursor = Some(handle.clone());
-        return Some((handle.clone(), blob.clone()));
+        self.cursor = Some(*handle);
+        Some((*handle, blob.clone()))
         // Note: we may want to use batching in the future to gain more performance and amortize
         // the cost of creating the iterator over the BTreeMap.
     }
@@ -335,16 +350,17 @@ impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        blob::schemas::longstring::LongString,
-        trible::TribleSet,
-        value::schemas::hash::{Blake3, Handle},
-        NS,
-    };
+    use crate::blob::schemas::longstring::LongString;
+    use crate::trible::TribleSet;
+    use crate::value::schemas::hash::Blake3;
+    use crate::value::schemas::hash::Handle;
+    use crate::NS;
 
     use super::*;
     use anybytes::Bytes;
-    use fake::{faker::name::raw::Name, locales::EN, Fake};
+    use fake::faker::name::raw::Name;
+    use fake::locales::EN;
+    use fake::Fake;
 
     NS! {
         pub namespace knights2 {

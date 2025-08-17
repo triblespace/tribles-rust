@@ -5,6 +5,8 @@
 
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
+- Helper to derive delta `TribleSet`s for `pattern_changes!` so callers don't
+  have to compute them manually.
 - Explore replacing `CommitSelector` ranges with a set-based API
   built on commit reachability. The goal is to mirror git's revision
   selection semantics (similar to `rev-list` or `rev-parse`).
@@ -24,6 +26,11 @@
 - Implement a garbage collection mechanism that scans branch and commit
   archives without fully deserialising them to find reachable blob handles.
   Anything not discovered this way can be forgotten by the underlying store.
+- Generalise the declarative key description utilities to other key types so
+  segment layouts and orderings can be defined once and generated automatically.
+- Provide a macro to declare key layouts that emits segmentation and
+  ordering implementations for PATCH at compile time.
+- Expose segment iterators on PATCH using `KeyOrdering`'s segment permutation instead of raw key ranges.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large
@@ -72,6 +79,7 @@ prioritized for efficient zero-copy access.
   into the book.
 - Split out the lengthy explanation of trible structure from `src/trible.rs`
   and consolidate it with the deep dive chapter.
+- Add a FAQ chapter to the book summarising common questions.
 
 ## Discovered Issues
 - No open issues recorded yet.

@@ -10,6 +10,72 @@ Instance of `Trible`s are stored in `TribleSet`s which index the trible in vario
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▶
 ```
 
+On a high level, a trible is a triple consisting of an entity, an attribute,
+and a value. The entity and attribute are both 128‑bit abstract extrinsic
+identifiers as described in [crate::id], while the value is an arbitrary
+256‑bit [crate::value::Value]. The width of the value is chosen so that it can
+hold an entire intrinsic identifier, allowing larger payloads to be referenced
+via blobs without inflating the inlined representation.
+
+## Abstract identifiers
+
+Entities and attributes are purely extrinsic; their identifiers do not encode
+any meaning beyond uniqueness. An entity may accrue additional tribles over
+time and attributes simply name relationships without prescribing a schema.
+This keeps the format agnostic to external ontologies and minimises accidental
+coupling between datasets.
+
+The value slot can carry any 256‑bit payload. Its size is dictated by the need
+to embed an intrinsic identifier for out‑of‑line data. When a fact exceeds this
+space the value typically stores a blob handle pointing to the larger payload.
+
+Tribles are stored as a contiguous 64‑byte array with the entity occupying the
+first 16 bytes, the attribute the next 16 and the value the final 32 bytes. The
+name "trible" is a portmanteau of *triple* and *byte* and is pronounced like
+"tribble" from Star Trek – hence the project's mascot, Robert the tribble.
+
+## Index permutations
+
+`TribleSet`s index each fact under all six permutations of entity (E), attribute
+(A) and value (V) so any combination of bound variables can be resolved
+efficiently:
+
+```text
+┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐
+│ EAV │  │ EVA │  │ AEV │  │ AVE │  │ VEA │  │ VAE │
+└──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘
+   │        │        │        │        │        │
+┌───────────────────────────────────────────────────────┐
+│            order-specific inner nodes                 │
+└───────────────────────────────────────────────────────┘ 
+   │        │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼        ▼
+
+┌───────────────────────────────────────────────────────┐
+│                   SHARED LEAVES                       │
+│     single canonical E–A–V tribles used by all        │
+└───────────────────────────────────────────────────────┘
+```
+
+Each permutation has its own inner nodes, but all six share leaf nodes
+containing the 64‑byte trible. This avoids a naïve six‑fold memory cost while
+still letting the query planner pick the most selective ordering, keeping joins
+resistant to skew.
+
+## Advantages
+
+- A total order over tribles enables efficient storage and canonicalisation.
+- Simple byte‑wise segmentation supports indexing and querying without an
+  interning mechanism, keeping memory usage low and parallelisation easy while
+  avoiding the need for garbage collection.
+- Schemas describe the value portion directly, making serialisation and
+  deserialisation straightforward.
+- The fixed 64‑byte layout makes it easy to estimate the physical size of a
+  dataset as a function of the number of tribles stored.
+- The minimalistic design aims to minimise entropy while retaining collision
+  resistance, making it likely that a similar format would emerge through
+  convergent evolution and could serve as a universal data interchange format.
+
 # Direction and Consistency
 
 In other triple stores the direction of the edge drawn by a triple is often

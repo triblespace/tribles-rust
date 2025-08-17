@@ -16,8 +16,7 @@ use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
-use tribles::patch::{Entry, IdentityOrder};
-use tribles::patch::{SingleSegmentation, PATCH};
+use tribles::patch::{Entry, IdentityOrder, PATCH};
 
 use im::OrdSet;
 

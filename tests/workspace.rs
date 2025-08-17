@@ -1,7 +1,10 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{ancestors, history_of, memoryrepo::MemoryRepo, symmetric_diff, Repository};
+use tribles::repo::{
+    ancestors, history_of, memoryrepo::MemoryRepo, nth_ancestor, parents, symmetric_diff,
+    Repository,
+};
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -229,6 +232,91 @@ fn workspace_checkout_head_collects_history() {
     let mut expected = sets[0].clone();
     expected.union(sets[1].clone());
     expected.union(sets[2].clone());
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn workspace_nth_ancestor_selector() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.branch("main").expect("create branch");
+
+    let mut sets = Vec::new();
+    for i in 0..3i128 {
+        let e = ufoid();
+        let a = ufoid();
+        let v: Value<R256> = i.to_value();
+        let t = Trible::new(&e, &a, &v);
+        let mut s = TribleSet::new();
+        s.insert(&t);
+        ws.commit(s.clone(), None);
+        sets.push(s);
+    }
+
+    let head = ws.head().unwrap();
+
+    let result = ws
+        .checkout(nth_ancestor(head, 2))
+        .expect("checkout nth ancestor");
+    assert_eq!(result, sets[0]);
+
+    let empty = ws
+        .checkout(nth_ancestor(head, 3))
+        .expect("checkout past root");
+    assert_eq!(empty.len(), 0);
+}
+
+#[test]
+fn workspace_parents_selector() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+
+    // Base commit so both workspaces share a common ancestor.
+    let mut ws_main = repo.branch("main").expect("create branch");
+    let e0 = ufoid();
+    let a0 = ufoid();
+    let v0: Value<R256> = 0i128.to_value();
+    let t0 = Trible::new(&e0, &a0, &v0);
+    let mut s0 = TribleSet::new();
+    s0.insert(&t0);
+    ws_main.commit(s0, None);
+    repo.push(&mut ws_main).expect("push base");
+
+    // Fork a second workspace from the same base commit.
+    let mut ws_feature = repo.pull(ws_main.branch_id()).expect("pull branch state");
+
+    // Divergent commits on both workspaces.
+    let e1 = ufoid();
+    let a1 = ufoid();
+    let v1: Value<R256> = 1i128.to_value();
+    let t1 = Trible::new(&e1, &a1, &v1);
+    let mut s1 = TribleSet::new();
+    s1.insert(&t1);
+    ws_main.commit(s1.clone(), None);
+
+    let e2 = ufoid();
+    let a2 = ufoid();
+    let v2: Value<R256> = 2i128.to_value();
+    let t2 = Trible::new(&e2, &a2, &v2);
+    let mut s2 = TribleSet::new();
+    s2.insert(&t2);
+    ws_feature.commit(s2.clone(), None);
+
+    // Merge the feature workspace into main to create a commit with two parents.
+    ws_main.merge(&mut ws_feature).expect("merge workspaces");
+    let merge_commit = ws_main.head().expect("merge head");
+
+    let result = ws_main
+        .checkout(parents(merge_commit))
+        .expect("checkout parents");
+
+    let mut expected = s1;
+    expected.union(s2);
 
     assert_eq!(result, expected);
 }

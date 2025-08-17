@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Glossary chapter in the book for quick reference to core terminology.
+- `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
+  documentation updates.
+- `parents` commit selector corresponding to Git's `A^@` syntax.
 - `INVENTORY.md` file and instructions for recording future work.
 - README now links to the corresponding chapters on https://triblespace.github.io/tribles-rust.
 - `branch_id_by_name` helper to resolve branch IDs from names. Returns a
@@ -15,14 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
 - `Workspace::checkout` helper to load commit contents.
+- Documentation and example for incremental queries using `pattern_changes!`
+  plus additional tests.
 - `pattern!` now implemented as a procedural macro in the new `tribles-macros` crate.
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
+- `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
+  and `RegularPathConstraint` is now generic over `PathEngine`.
+- Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
 - Debug-only `debug_branch_fill` method computes average PATCH branch fill
   percentages by node size.
 - Added a simple `patch` benchmark filling the tree with fake data and printing
   branch occupancy averages.
+- Trible key segmentation and ordering tables are now generated from a
+  declarative segment layout, simplifying maintenance.
+- PATCH exposes const helpers to derive segment maps and ordering
+  permutations from a declarative key layout.
+- Introduced `key_segmentation!` and `key_ordering!` macros to emit
+  `KeySegmentation` and `KeyOrdering` implementations from those declarative
+  layouts.
 - Added `byte_table_resize_benchmark` measuring average fill ratios that cause
   growth for random vs sequential inserts. It now tracks the number of elements
   inserted at each power-of-two table size to compute per-size and overall
@@ -48,13 +64,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git-based terminology notes in the repository guide and a clearer workspace example.
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
+- Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
 ### Changed
+- Clarified the query engine book chapter with improved wording and examples.
+- Expanded discussion on RDF's per-value typing limitations in the query engine chapter.
+- Expanded Architecture chapter's blob storage section for clearer responsibilities and examples.
+- Expanded the "Developing Locally" book chapter with guidance on helper scripts and local setup.
+- Expanded the "Getting Started" book section with dependency setup and run instructions.
+- PATCH infix and segment-length operations now require prefixes to align with
+  segment boundaries.
+- `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
+- Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeyOrdering` to its `KeySegmentation` with an explicit segment permutation.
+- `KeyOrdering` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.
 - `ByteTable` plans insertions by recursively seeking a free slot and shifts entries only after a path is found, returning the entry on failure so callers can grow the table.
 - ByteTable's planner tracks visited keys with a stack-allocated bitset to avoid heap allocations.
 - Simplified the planner and table helpers for clearer ByteTable insertion code.
 - Replaced redundant option check with an `expect` when traversing full buckets in
   the ByteTable planner.
 - Restored the simpler `ByteSet` and inlined bucket checks to reduce indirection in the planner.
+- Removed the reified `ByteBucket` abstraction and indexed buckets directly in the byte table.
+- `ByteSet` now stores raw `[u128; 2]` bitsets instead of relying on `VariableSet`.
+- Detailed query engine documentation moved from the `query` module to the book, leaving a concise overview in code.
+- Moved verbose inline documentation for Pile, Trible, Blob and PATCH modules
+  into the book.
+- Expanded Trible Structure deep-dive with design rationale and advantages
+  previously kept inline.
+- Added remaining rationale from the blob, patch, pile and schema docs to the
+  corresponding book chapters so code comments stay concise without losing
+  detail.
+- Refined the book's introduction with a clearer overview of Trible Space and
+  its flexible, lightweight query engine, plus links to later chapters.
+### Removed
+- `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed
 - ByteTable resize benchmark now reports load factor for fully populated 256-slot tables.
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
@@ -132,6 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compressed zero-copy archives are now complete.
 - Incremental queries use a new `pattern_changes!` macro.
 - Added a `matches!` macro mirroring `find!` for boolean checks.
+- Regular path queries via a new `RegularPathConstraint` and namespaced `path!` macro.
+- `path!` automata now store transitions in a `PATCH` for efficient lookups and set operations.
 - Added a `filter` commit selector with a `history_of` helper.
 
 ### Changed
@@ -241,6 +284,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TimeRange` commit selector now delegates to the generic `filter` selector.
 - Removed the `Completed Work` section from `INVENTORY.md`; finished tasks are
   now tracked in this changelog.
+- Canonicalized epsilon closures in regular path queries and documented the
+  Thompson-style automaton construction.
+- Documented the currently implemented commit selectors in the book.
 
 ### Fixed
 - Enforce `PREFIX_LEN <= KEY_LEN` for prefix checks in PATCH.

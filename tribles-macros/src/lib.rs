@@ -29,7 +29,7 @@
 //! directly outside of the `tribles` codebase.
 
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro2::{Delimiter, Span, TokenStream as TokenStream2, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::{braced, bracketed, parenthesized, Token};
@@ -43,6 +43,219 @@ pub fn namespace(input: TokenStream) -> TokenStream {
         Ok(ts) => ts,
         Err(e) => e.to_compile_error().into(),
     }
+}
+
+#[proc_macro]
+pub fn path(input: TokenStream) -> TokenStream {
+    match path_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+struct PathInput {
+    crate_path: Path,
+    ns: Path,
+    set: Expr,
+    rest: TokenStream2,
+}
+
+impl Parse for PathInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let crate_path: Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let ns: Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let set: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let rest: TokenStream2 = input.parse()?;
+        Ok(PathInput {
+            crate_path,
+            ns,
+            set,
+            rest,
+        })
+    }
+}
+
+fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
+    let PathInput {
+        crate_path,
+        ns,
+        set,
+        rest,
+    } = syn::parse(input)?;
+    let tokens: Vec<TokenTree> = rest.into_iter().collect();
+    if tokens.len() < 2 {
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "expected start, regex, end",
+        ));
+    }
+    let start = match &tokens[0] {
+        TokenTree::Ident(id) => id.clone(),
+        _ => {
+            return Err(syn::Error::new(
+                tokens[0].span(),
+                "expected start identifier",
+            ))
+        }
+    };
+    let end = match &tokens[tokens.len() - 1] {
+        TokenTree::Ident(id) => id.clone(),
+        _ => {
+            return Err(syn::Error::new(
+                tokens[tokens.len() - 1].span(),
+                "expected end identifier",
+            ))
+        }
+    };
+    let regex_tokens = &tokens[1..tokens.len() - 1];
+
+    #[derive(Clone)]
+    enum Tok {
+        Sym(Ident),
+        Or,
+        Star,
+        Plus,
+        LParen,
+        RParen,
+    }
+
+    fn lex(ts: &[TokenTree]) -> syn::Result<Vec<Tok>> {
+        let mut out = Vec::new();
+        let mut i = 0usize;
+        while i < ts.len() {
+            match &ts[i] {
+                TokenTree::Ident(id) => {
+                    out.push(Tok::Sym(id.clone()));
+                    i += 1;
+                }
+                TokenTree::Punct(p) if p.as_char() == '|' => {
+                    out.push(Tok::Or);
+                    i += 1;
+                }
+                TokenTree::Punct(p) if p.as_char() == '*' => {
+                    out.push(Tok::Star);
+                    i += 1;
+                }
+                TokenTree::Punct(p) if p.as_char() == '+' => {
+                    out.push(Tok::Plus);
+                    i += 1;
+                }
+                TokenTree::Group(g) if g.delimiter() == Delimiter::Parenthesis => {
+                    i += 1;
+                    out.push(Tok::LParen);
+                    out.extend(lex(&g.stream().into_iter().collect::<Vec<_>>())?);
+                    out.push(Tok::RParen);
+                }
+                t => return Err(syn::Error::new(t.span(), "unexpected token in regex")),
+            }
+        }
+        Ok(out)
+    }
+
+    let lexed = lex(regex_tokens)?;
+
+    fn needs_concat(a: &Tok, b: &Tok) -> bool {
+        matches!(a, Tok::Sym(_) | Tok::RParen | Tok::Star | Tok::Plus)
+            && matches!(b, Tok::Sym(_) | Tok::LParen)
+    }
+
+    #[derive(Clone)]
+    enum OpTok {
+        Sym(Ident),
+        Or,
+        Concat,
+        Star,
+        Plus,
+        LParen,
+        RParen,
+    }
+
+    let mut infix = Vec::new();
+    for i in 0..lexed.len() {
+        match &lexed[i] {
+            Tok::Sym(p) => infix.push(OpTok::Sym(p.clone())),
+            Tok::Or => infix.push(OpTok::Or),
+            Tok::Star => infix.push(OpTok::Star),
+            Tok::Plus => infix.push(OpTok::Plus),
+            Tok::LParen => infix.push(OpTok::LParen),
+            Tok::RParen => infix.push(OpTok::RParen),
+        }
+        if i + 1 < lexed.len() && needs_concat(&lexed[i], &lexed[i + 1]) {
+            infix.push(OpTok::Concat);
+        }
+    }
+
+    fn prec(t: &OpTok) -> u8 {
+        match t {
+            OpTok::Star | OpTok::Plus => 3,
+            OpTok::Concat => 2,
+            OpTok::Or => 1,
+            _ => 0,
+        }
+    }
+    fn right_assoc(t: &OpTok) -> bool {
+        matches!(t, OpTok::Star | OpTok::Plus)
+    }
+
+    let mut output = Vec::<OpTok>::new();
+    let mut stack = Vec::<OpTok>::new();
+    for token in infix {
+        match token {
+            OpTok::Sym(_) => output.push(token),
+            OpTok::LParen => stack.push(OpTok::LParen),
+            OpTok::RParen => {
+                while let Some(op) = stack.pop() {
+                    if matches!(op, OpTok::LParen) {
+                        break;
+                    } else {
+                        output.push(op);
+                    }
+                }
+            }
+            OpTok::Or | OpTok::Concat | OpTok::Star | OpTok::Plus => {
+                while let Some(op) = stack.last() {
+                    if matches!(op, OpTok::LParen) {
+                        break;
+                    }
+                    if prec(op) > prec(&token) || (!right_assoc(&token) && prec(op) == prec(&token))
+                    {
+                        output.push(stack.pop().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+                stack.push(token);
+            }
+        }
+    }
+    while let Some(op) = stack.pop() {
+        output.push(op);
+    }
+
+    let ops: Vec<TokenStream2> = output
+        .into_iter()
+        .map(|t| match t {
+            OpTok::Sym(ident) => {
+                quote! { PathOp::Attr(#crate_path::id::RawId::from(#ns::ids::#ident)) }
+            }
+            OpTok::Or => quote! { PathOp::Union },
+            OpTok::Concat => quote! { PathOp::Concat },
+            OpTok::Star => quote! { PathOp::Star },
+            OpTok::Plus => quote! { PathOp::Plus },
+            _ => panic!(),
+        })
+        .collect();
+
+    let output = quote! {
+        {
+            use #crate_path::query::regularpathconstraint::{PathOp, RegularPathConstraint, ThompsonEngine};
+            RegularPathConstraint::<ThompsonEngine>::new(#set.clone(), #start, #end, &[#(#ops),*])
+        }
+    };
+    Ok(output.into())
 }
 
 /// Parsed input for the [`pattern`] macro.

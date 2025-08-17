@@ -7,8 +7,7 @@ use crate::query::TriblePattern;
 use crate::patch::{Entry, PATCH};
 use crate::query::Variable;
 use crate::trible::{
-    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, TribleSegmentation, VAEOrder, VEAOrder,
-    TRIBLE_LEN,
+    AEVOrder, AVEOrder, EAVOrder, EVAOrder, Trible, VAEOrder, VEAOrder, TRIBLE_LEN,
 };
 use crate::value::{schemas::genid::GenId, ValueSchema};
 
@@ -31,19 +30,16 @@ use std::ops::{Add, AddAssign};
 /// and not to remove elements from the set. A subtle but important distinction.
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    pub eav: PATCH<TRIBLE_LEN, EAVOrder, TribleSegmentation>,
-    pub vea: PATCH<TRIBLE_LEN, VEAOrder, TribleSegmentation>,
-    pub ave: PATCH<TRIBLE_LEN, AVEOrder, TribleSegmentation>,
-    pub vae: PATCH<TRIBLE_LEN, VAEOrder, TribleSegmentation>,
-    pub eva: PATCH<TRIBLE_LEN, EVAOrder, TribleSegmentation>,
-    pub aev: PATCH<TRIBLE_LEN, AEVOrder, TribleSegmentation>,
+    pub eav: PATCH<TRIBLE_LEN, EAVOrder>,
+    pub vea: PATCH<TRIBLE_LEN, VEAOrder>,
+    pub ave: PATCH<TRIBLE_LEN, AVEOrder>,
+    pub vae: PATCH<TRIBLE_LEN, VAEOrder>,
+    pub eva: PATCH<TRIBLE_LEN, EVAOrder>,
+    pub aev: PATCH<TRIBLE_LEN, AEVOrder>,
 }
 
 pub struct TribleSetIterator<'a> {
-    inner: Map<
-        crate::patch::PATCHIterator<'a, 64, EAVOrder, TribleSegmentation>,
-        fn(&[u8; 64]) -> &Trible,
-    >,
+    inner: Map<crate::patch::PATCHIterator<'a, 64, EAVOrder>, fn(&[u8; 64]) -> &Trible>,
 }
 
 impl TribleSet {

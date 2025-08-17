@@ -1,104 +1,23 @@
-//! Queries allow you to retrieve data by describing the patterns you are looking for.
+//! Query facilities for matching tribles by declaring patterns of constraints.
+//! Build queries with the [`find!`](crate::prelude::find) macro which binds variables and
+//! combines constraint expressions:
 //!
-//! The query engine provided here is designed with goals of extreme simplicity,
-//! low, consistent, and predictable latency, skew resistance, and no required (or possible) tuning.
+//! ```
+//! # use tribles::prelude::*;
+//! # use tribles::prelude::valueschemas::ShortString;
+//! let results = find!((x: Value<ShortString>), x.is("foo".to_value())).collect::<Vec<_>>();
+//! ```
 //!
-//! New constraints can be implemented via the [Constraint] trait,
-//! providing great flexibility in composing different query operators,
-//! sub-languages, and data sources.
-//!
-//! # Queries as Schemas
-//!
-//! You might have noticed that trible.space does not have a concept
-//! of an ontology or schema specification beyond associating attributes
-//! with [ValueSchema] and [crate::prelude::BlobSchema]. This is deliberate. One of our
-//! lessons from the semantic web was that it is too loose in typing
-//! individual values, but too strict and computationally infeasible in describing
-//! larger structures. Any system dealing with real-world data
-//! must handle cases of missing, duplicate, or additional fields, which conflicts
-//! with strong constraints like classes.
-//!
-//! Our approach is to be sympathetic to edge cases and have the system deal
-//! only with the data it declares capable of handling. These "application-specific schema declarations"
-//! are exactly the shapes and constraints described by our queries[^1]. Data not conforming to these
-//! queries/schemas is simply ignored by definition (as a query only returns
-//! data conforming to its constraints).[^2]
-//!
-//! # The Atreides Family of Worst-case Optimal Join Algorithms
-//!
-//! The heart of the system is a constraint-solving approach based on the theory
-//! of worst-case optimal joins, specifically a family of novel join algorithms
-//! we call the "Atreides Family".
-//!
-//! The key insight is that size estimations, normally used by query optimizers,
-//! can directly guide the join algorithm to retrieve bounds that typically require
-//! sorted indexes for random access.
-//!
-//! This shifts much of the execution cost to cardinality estimation, so we developed
-//! novel data structures to efficiently maintain these estimates in O(1) time.
-//!
-//! We focus on three specific instantiations of the "Atreides Family",
-//! which differ in the quality of the cardinality estimation provided, i.e.,
-//! the clarity the algorithm has when looking into the future.
-//!
-//! Given a _partial_ Binding:
-//!
-//! - *Jessica's Join* - Estimates the smallest number of rows matching the variable.
-//! - *Paul's Join* - Estimates the smallest number of distinct values from one column matching the variable.
-//! - *Ghanima's Join* - Estimates the number of values matching the variable with the given binding, without considering yet-to-be-bound variables.
-//! - *Leto's Join* - Estimates the true number of values matching the variable with the given binding, considering all variables, even those not yet bound.
-//!
-//! The algorithm uses a depth-first search, where the query engine tries to find
-//! a solution by iteratively proposing values for the variables, and backtracking when it reaches a dead end.
-//! The constraints are not evaluated in a fixed order, but rather the query engine uses the
-//! estimates provided by the constraints to guide the search.
-//! This allows for a more flexible and efficient exploration of the search space,
-//! as the query engine can focus on the most promising parts.
-//! This also obviates the need for complex query optimization techniques, as the
-//! constraints themselves provide the necessary information to guide the search,
-//! and the query engine can adapt dynamically to the data and the query, providing
-//! skew-resistance and predictable performance. Meaning that the query engine can
-//! handle queries that have a wide range of variances in the cardinalities of the variables,
-//! without suffering from performance degradation.
-//!
-//! # Query Languages
-//!
-//! There is no query language in the traditional sense, but rather a set of
-//! constraints that can be combined using logical operators like `and` and `or`.
-//! The constraints are designed to be simple and flexible, allowing for a wide range of
-//! constraints to be implemented, while still allowing for efficient exploration of the
-//! search space by the query engine.
-//!
-//! The query engine and data model is flexible enough to allow for the exploration of a wide range of
-//! query languages, including graph queries, relational queries, and document queries.
-//!
-//! For example the [crate::namespace] module provides a set of macros that allow for the easy creation of
-//! constraints for a given trible pattern, with a syntax that similar to query by example
-//! languages like SPARQL or GraphQL, tailored to a document-graph oriented data model.
-//! But it would also be possible to implement a property graph query language like Cypher,
-//! or a relational query language like Datalog, on top of the query engine.[^3]
-//!
-//! Great care has been taken to ensure that query languages with different styles and
-//! semantics can be easily implemented on top of the query engine, while allowing for
-//! them to be mixed and matched with other languages and data models in the same query.
-//!
-//! [^1]: Note that this query-schema isomorphism isn't necessarily true in all
-//! databases or query languages, e.g., it does not hold for SQL.
-//! [^2]: In RDF terminology:
-//! We challenge the classical A-Box & T-Box dichotomy by replacing the T-Box with
-//! a "Q-Box", which is descriptive and open rather than prescriptive and closed.
-//! This Q-Box naturally evolves with new and changing requirements,
-//! contexts, and applications.
-//! [^3]: SQL would be a bit more challenging, as it is surprisingly imperative
-//! e.g. with its explicit JOINs and ORDER BYs, and its lack of a clear declarative
-//! semantics. This makes it harder to implement on top of a constraint-based query engine,
-//! tailored towards a more declarative and functional style.
+//! For a tour of the language see the "Query Language" chapter in the book.
+//! Conceptual background on schemas and join strategy appears in the
+//! "Query Engine" and "Atreides Join" chapters.
 pub mod constantconstraint;
 pub mod hashmapconstraint;
 pub mod hashsetconstraint;
 pub mod intersectionconstraint;
 pub mod mask;
 pub mod patchconstraint;
+pub mod regularpathconstraint;
 pub mod unionconstraint;
 mod variableset;
 
@@ -113,6 +32,7 @@ use mask::*;
 
 use crate::value::{schemas::genid::GenId, RawValue, Value, ValueSchema};
 
+pub use regularpathconstraint::{PathEngine, PathOp, RegularPathConstraint, ThompsonEngine};
 pub use variableset::VariableSet;
 
 /// Types storing tribles can implement this trait to expose them to queries.

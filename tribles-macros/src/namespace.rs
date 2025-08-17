@@ -128,6 +128,15 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
         }
     };
 
+    let path_macro = quote! {
+        #[macro_pub::macro_pub]
+        macro_rules! path {
+            ($set:expr, $($rest:tt)*) => {{
+                ::tribles_macros::path!(::tribles, #mod_name, $set, $($rest)*)
+            }};
+        }
+    };
+
     let output = quote! {
         #(#attrs)*
         #vis mod #mod_name {
@@ -154,6 +163,7 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
             #entity_macro
             #pattern_macro
             #pattern_changes_macro
+            #path_macro
         }
     };
 

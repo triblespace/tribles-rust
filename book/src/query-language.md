@@ -79,3 +79,33 @@ Every building block implements the
 [`Constraint`](crate::query::Constraint) trait.  You can implement this trait on
 your own types to integrate custom data sources or query operators with the
 solver.
+
+## Regular path queries
+
+The `path!` macro lets you search for graph paths matching a regular
+expression over edge attributes.  It expands to a
+[`RegularPathConstraint`](crate::query::RegularPathConstraint) and can be
+combined with other constraints.  Invoke it through a namespace module
+(`social::path!`) to implicitly resolve attribute names:
+
+```rust
+use tribles::prelude::*;
+NS! { namespace social {
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: GenId;
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: GenId;
+} }
+let mut kb = TribleSet::new();
+let a = fucid(); let b = fucid(); let c = fucid();
+kb += social::entity!(&a, { follows: &b });
+kb += social::entity!(&b, { likes: &c });
+
+let results: Vec<_> = find!((s: Value<_>, e: Value<_>),
+    social::path!(&kb, s (follows | likes)+ e)).collect();
+```
+
+The middle section uses a familiar regex syntax to describe allowed edge
+sequences.  Editors with Rust macro expansion support provide highlighting and
+validation of the regular expression at compile time. Paths reference
+attributes from a single namespace; to traverse edges across multiple
+namespaces, create a new namespace that re-exports the desired attributes and
+invoke `path!` through it.

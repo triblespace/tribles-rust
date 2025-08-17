@@ -20,9 +20,14 @@ The fundamental unit of information is a [`Trible`](https://docs.rs/tribles/late
 
 `TribleSet`s provide fast querying and cheap copy‑on‑write semantics.  They can be merged, diffed and searched entirely in memory.  When durability is needed the set is serialised into a blob and tracked by the repository layer.
 
+To keep joins skew‑resistant, each set maintains all six orderings of entity,
+attribute and value.  The trees reuse the same leaf nodes so a trible is stored
+only once, avoiding a naïve six‑fold memory cost while still letting the query
+planner pick the most selective permutation.
+
 ## Blob Storage
 
-All persistent data lives in a [`BlobStore`](https://docs.rs/tribles/latest/tribles/blob/index.html).  Every blob is addressed by the hash of its contents.  This content addressing means the same data is never stored twice and its integrity can be verified on read.  Different implementations handle where bytes actually reside: an in‑memory [`MemoryBlobStore`](https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html), an on‑disk [`Pile`](https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html) described in [Pile Format](pile-format.md) or a remote object store.  Trible sets, user blobs and commit records all share this mechanism.
+All persistent data lives in a [`BlobStore`](https://docs.rs/tribles/latest/tribles/blob/index.html).  Each blob is addressed by the hash of its contents, so identical data occupies space only once and readers can verify integrity by recomputing the hash.  The trait exposes simple `get` and `put` operations, leaving caching and eviction strategies to the backend.  Implementations decide where bytes reside: an in‑memory [`MemoryBlobStore`](https://docs.rs/tribles/latest/tribles/blob/struct.MemoryBlobStore.html), an on‑disk [`Pile`](https://docs.rs/tribles/latest/tribles/repo/pile/struct.Pile.html) described in [Pile Format](pile-format.md) or a remote object store.  Because handles are just 32‑byte hashes, repositories can copy or cache blobs without coordination.  Trible sets, user blobs and commit records all share this mechanism.
 
 ## Branch Store
 

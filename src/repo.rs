@@ -125,7 +125,7 @@ use crate::{
     find,
     id::Id,
     metadata::metadata,
-    patch::{Entry, IdentityOrder, SingleSegmentation, PATCH},
+    patch::{Entry, IdentityOrder, PATCH},
     trible::TribleSet,
     value::VALUE_LEN,
     value::{
@@ -804,7 +804,7 @@ where
 }
 
 type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
-type CommitSet = PATCH<VALUE_LEN, IdentityOrder, SingleSegmentation>;
+type CommitSet = PATCH<VALUE_LEN, IdentityOrder>;
 type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 
 /// The Workspace represents the mutable working area or "staging" state.
@@ -858,6 +858,22 @@ pub struct Ancestors(pub CommitHandle);
 /// Convenience function to create an [`Ancestors`] selector.
 pub fn ancestors(commit: CommitHandle) -> Ancestors {
     Ancestors(commit)
+}
+
+/// Selector that returns the Nth ancestor along the first-parent chain.
+pub struct NthAncestor(pub CommitHandle, pub usize);
+
+/// Convenience function to create an [`NthAncestor`] selector.
+pub fn nth_ancestor(commit: CommitHandle, n: usize) -> NthAncestor {
+    NthAncestor(commit, n)
+}
+
+/// Selector that returns the direct parents of a commit.
+pub struct Parents(pub CommitHandle);
+
+/// Convenience function to create a [`Parents`] selector.
+pub fn parents(commit: CommitHandle) -> Parents {
+    Parents(commit)
 }
 
 /// Selector that returns commits reachable from either of two commits but not
@@ -955,6 +971,56 @@ where
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         collect_reachable(ws, self.0)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for NthAncestor
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let mut current = self.0;
+        let mut remaining = self.1;
+
+        while remaining > 0 {
+            let meta: TribleSet = ws.get(current).map_err(WorkspaceCheckoutError::Storage)?;
+            let mut parents = find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }]));
+            let Some((parent,)) = parents.next() else {
+                return Ok(CommitSet::new());
+            };
+            current = parent;
+            remaining -= 1;
+        }
+
+        let mut patch = CommitSet::new();
+        patch.insert(&Entry::new(&current.raw));
+        Ok(patch)
+    }
+}
+
+impl<Blobs> CommitSelector<Blobs> for Parents
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let meta: TribleSet = ws.get(self.0).map_err(WorkspaceCheckoutError::Storage)?;
+        let mut result = CommitSet::new();
+        for (parent,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
+            result.insert(&Entry::new(&parent.raw));
+        }
+        Ok(result)
     }
 }
 

@@ -8,7 +8,6 @@ use std::convert::TryInto;
 
 use crate::{
     id::{ExclusiveId, Id},
-    patch::{KeyOrdering, KeySegmentation},
     value::{Value, ValueSchema},
 };
 
@@ -35,54 +34,12 @@ pub const V_END: usize = 63;
 /// Fundamentally a trible is always a collection of 64 bytes.
 pub type RawTrible = [u8; TRIBLE_LEN];
 
-/// The trible is the fundamental unit of storage in the knowledge graph,
-/// and is stored in [crate::trible::TribleSet]s which index the trible in various ways,
-/// allowing for efficient querying and retrieval of data.
+/// Fundamental 64-byte tuple of entity, attribute and value used throughout the
+/// knowledge graph.
 ///
-/// ``` text
-/// ┌────────────────────────────64 byte───────────────────────────┐
-/// ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
-/// │  entity-id   ││ attribute-id ││        inlined value         │
-/// └──────────────┘└──────────────┘└──────────────────────────────┘
-/// └────16 byte───┘└────16 byte───┘└────────────32 byte───────────┘
-/// ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▶
-/// ```
-///
-/// On a high level, a trible is a triple consisting of an entity, an attribute, and a value.
-/// The entity and attribute are both 128-bit abstract extrinsic identifiers as described in [crate::id],
-/// while the value is an arbitrary 256-bit [crate::value::Value].
-/// The design of tribles is influenced by the need to minimize entropy while ensuring collision resistance.
-/// Entities are abstract because they might have additional facts associated with them in the form of new tribles.
-/// Similarly, attributes are abstract because their meaning is inherently non-grounded; the meaning of the "symbol" is only
-/// the meaning ascribed to it, without any natural meaning.
-/// Values can be any data that fits "inlined" into the fixed width, and they need to be large enough to hold an intrinsic
-/// identifier for larger data. As established in the `id` module documentation, these need to be at least 256 bits / 32 bytes.
-/// Counter-intuitively, their size and thus the size of "inline" data is determined by the scenario where data is too large
-/// to be inlined. See [blob](crate::blob)s for a way to store larger data.
-///
-/// The trible is stored as a contiguous 64-byte array, with the entity taking the first 16 bytes,
-/// the attribute taking the next 16 bytes, and the value taking the last 32 bytes.
-///
-/// The name trible is a portmanteau of triple and byte, and is pronounced like "tribble" from Star Trek.
-/// This is also the reason why the mascot of the knowledge graph is Robert the tribble.
-///
-/// The minimalistic design of the trible has a number of advantages:
-/// - It is very easy to define an order on tribles, which allows for efficient storage
-///   and easy canonicalization of data.
-/// - It is very easy to define a segmentation on tribles, which allows for efficient
-///   indexing and querying of data, without then need for an interning mechanism,
-///   that translates values to an internal integer representation. This simplifies
-///   the implementation, saves memory and an additional lookup, prevents the single
-///   registry from becoming a bottleneck, allowing for easy parallelization, and
-///   obviates the need for a garbage collection mechanism.
-/// - It is very easy to define a schema for the value, which allows for efficient
-///   serialization and deserialization of data.
-/// - On a high level, it is very easy to reason about the data stored in the knowledge graph.
-///   Additionally, it is possible to estimate the physical size of the data stored in the knowledge graph
-///   in terms of the number of bytes, as a function of the number of tribles stored.
-/// - Due to the fundamental principles of minimizing entropy and ensuring collision resistance, it is likely that this format
-///   will be independently discovered through convergent evolution, making it a strong candidate for a universal data interchange format.
-///   And who knows, it might even be useful if we ever make contact with extra-terrestrial intelligences!
+/// See the [Trible Structure](../book/src/deep-dive/trible-structure.md)
+/// chapter of the Tribles Book for a detailed discussion of the layout and its
+/// design rationale.
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(transparent)]
 pub struct Trible {
@@ -329,213 +286,19 @@ impl Trible {
     }
 }
 
-/// A segmentation of the trible into three segments: entity, attribute, and value.
-/// The entity is the first 16 bytes, the attribute is the next 16 bytes, and the value is the last 32 bytes.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct TribleSegmentation {}
+crate::key_segmentation!(TribleSegmentation, TRIBLE_LEN, [16, 16, 32]);
 
-impl KeySegmentation<TRIBLE_LEN> for TribleSegmentation {
-    fn segment(depth: usize) -> usize {
-        unsafe {
-            [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                2, 2, 2, 2, 2, 2, 2, 2,
-            ]
-            .get_unchecked(depth)
-            .clone()
-        }
-    }
-}
-
-/// An ordering of the trible with the segments in the order entity, attribute, value.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct EAVOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EAVOrder {
-    fn tree_index(key_index: usize) -> usize {
-        key_index
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        tree_index
-    }
-}
-
-/// An ordering of the trible with the segments in the order entity, value, attribute.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct EVAOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for EVAOrder {
-    fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 48, 49, 50, 51, 52, 53, 54,
-                55, 56, 57, 58, 59, 60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38,
-                39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-                60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
-    }
-}
-
-/// An ordering of the trible with the segments in the order attribute, entity, value.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct AEVOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AEVOrder {
-    fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5,
-                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5,
-                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-                44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
-    }
-}
-
-/// An ordering of the trible with the segments in the order attribute, value, entity.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct AVEOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for AVEOrder {
-    fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5,
-                6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
-                58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
-    }
-}
-
-/// An ordering of the trible with the segments in the order value, entity, attribute.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct VEAOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VEAOrder {
-    fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
-    }
-}
-
-/// An ordering of the trible with the segments in the order value, attribute, entity.
-/// This is used by the [crate::patch::PATCH] to efficiently index and query data in the [crate::trible::TribleSet].
-///
-/// This is a type-level constant and never instantiated.
-#[derive(Copy, Clone, Debug)]
-pub struct VAEOrder {}
-
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for VAEOrder {
-    fn tree_index(key_index: usize) -> usize {
-        unsafe {
-            [
-                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 32, 33, 34, 35, 36,
-                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]
-            .get_unchecked(key_index)
-            .clone()
-        }
-    }
-
-    fn key_index(tree_index: usize) -> usize {
-        unsafe {
-            [
-                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-                26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            ]
-            .get_unchecked(tree_index)
-            .clone()
-        }
-    }
-}
+crate::key_ordering!(EAVOrder, TribleSegmentation, TRIBLE_LEN, [0, 1, 2]);
+crate::key_ordering!(EVAOrder, TribleSegmentation, TRIBLE_LEN, [0, 2, 1]);
+crate::key_ordering!(AEVOrder, TribleSegmentation, TRIBLE_LEN, [1, 0, 2]);
+crate::key_ordering!(AVEOrder, TribleSegmentation, TRIBLE_LEN, [1, 2, 0]);
+crate::key_ordering!(VEAOrder, TribleSegmentation, TRIBLE_LEN, [2, 0, 1]);
+crate::key_ordering!(VAEOrder, TribleSegmentation, TRIBLE_LEN, [2, 1, 0]);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::patch::KeyOrdering;
 
     #[rustfmt::skip]
     #[test]

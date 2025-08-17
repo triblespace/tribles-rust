@@ -10,6 +10,27 @@ what's already stored. The crate ships with a collection of ready‑made schemas
 [`src/value/schemas`](../src/value/schemas) and
 [`src/blob/schemas`](../src/blob/schemas).
 
+### Why 32 bytes?
+
+Storing arbitrary Rust types requires a portable representation. Instead of
+human‑readable identifiers like RDF's URIs, Tribles uses a fixed 32‑byte array
+for all values. This size provides enough entropy to embed intrinsic
+identifiers—typically cryptographic hashes—when a value references data stored
+elsewhere in a blob. Keeping the width constant avoids platform‑specific
+encoding concerns and makes it easy to reason about memory usage.
+
+### Conversion traits
+
+Schemas define how to convert between raw bytes and concrete Rust types. The
+conversion traits `ToValue`/`FromValue` and their fallible counterparts live on
+the schema types rather than on `Value` itself, avoiding orphan‑rule issues when
+supporting external data types. The `Value` wrapper treats its bytes as opaque;
+schemas may validate them or reject invalid patterns during conversion.
+
+Every schema declares a unique identifier such as `VALUE_SCHEMA_ID` (and
+optionally `BLOB_SCHEMA_ID` for blob handles). These IDs let applications store
+metadata about schemas in the graph and look them up at runtime.
+
 ## Built‑in value schemas
 
 The crate provides the following value schemas out of the box:

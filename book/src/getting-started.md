@@ -1,10 +1,12 @@
 # Getting Started
 
-First add the crate to your project:
+First add the required crates to your project:
 
 ```bash
-cargo add tribles
+cargo add tribles ed25519-dalek rand
 ```
+
+This example uses `ed25519-dalek` to generate a signing key and `rand` for randomness.
 
 Next create a simple repository and commit some data:
 
@@ -28,6 +30,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+Running this program with `cargo run` creates an `example.pile` file in the current
+directory and pushes a single entity to the `main` branch.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.

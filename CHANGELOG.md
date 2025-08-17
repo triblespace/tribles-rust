@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 - Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
 ### Changed
+- Expanded Schemas chapter with additional context on schema identifiers and runtime lookup.
 - PATCH infix and segment-length operations now require prefixes to align with
   segment boundaries.
 - `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.

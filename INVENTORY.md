@@ -5,6 +5,7 @@
 
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
+- Include a cross-namespace regular path query example in the book.
 - Helper to derive delta `TribleSet`s for `pattern_changes!` so callers don't
   have to compute them manually.
 - Explore replacing `CommitSelector` ranges with a set-based API

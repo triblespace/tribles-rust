@@ -71,6 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional example in the Commit Selectors chapter demonstrating how to
   compose `filter` with `time_range`.
 ### Changed
+- Expanded commit selector documentation with an overview, example and clearer
+  wording about loading commits from a workspace.
 - Expanded repository workflows chapter with clearer branching steps and a
   dedicated history section.
 - Expanded Schemas chapter with additional context on schema identifiers and runtime lookup.

@@ -921,6 +921,53 @@ mod tests {
     }
 
     #[test]
+    fn put_and_get_preserves_blob_bytes() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let data = vec![42u8; 100];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle = pile.put(blob).unwrap();
+
+        {
+            let reader = pile.reader();
+            let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
+            assert_eq!(fetched.bytes.as_ref(), data.as_slice());
+        }
+
+        pile.flush().unwrap();
+        drop(pile);
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let reader = pile.reader();
+        let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
+        assert_eq!(fetched.bytes.as_ref(), data.as_slice());
+    }
+
+    #[test]
+    fn blob_after_branch_is_clean() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+
+        let branch_id = Id::new([1; 16]).unwrap();
+        let head = Value::<Handle<Blake3, SimpleArchive>>::new([2; 32]);
+        pile.update(branch_id, None, head).unwrap();
+
+        let data = vec![3u8; 8];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle = pile.put(blob).unwrap();
+        pile.flush().unwrap();
+
+        let stored: Blob<UnknownBlob> = pile.reader().get(handle).unwrap();
+        assert_eq!(stored.bytes.as_ref(), &data[..]);
+    }
+
+    #[test]
     fn insert_after_branch_preserves_head() {
         const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();

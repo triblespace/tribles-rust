@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation and example for incremental queries using `pattern_changes!`
   plus additional tests.
 - `pattern!` now implemented as a procedural macro in the new `tribles-macros` crate.
+- Regression test ensuring `PATCHOrderedIterator` returns keys in sorted order.
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
   and `RegularPathConstraint` is now generic over `PathEngine`.

@@ -1099,7 +1099,7 @@ where
     /// Calculates the average fill level for branch nodes grouped by their
     /// branching factor. The returned array contains eight entries for branch
     /// sizes `2`, `4`, `8`, `16`, `32`, `64`, `128` and `256` in that order.
-    #[cfg(debug_assertions)]
+    //#[cfg(debug_assertions)]
     pub fn debug_branch_fill(&self) -> [f32; 8] {
         let mut counts = [0u64; 8];
         let mut used = [0u64; 8];

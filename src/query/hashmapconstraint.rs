@@ -3,9 +3,17 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::query::{Binding, Constraint, ContainsConstraint, Variable, VariableId, VariableSet};
+use crate::query::Binding;
+use crate::query::Constraint;
+use crate::query::ContainsConstraint;
+use crate::query::Variable;
+use crate::query::VariableId;
+use crate::query::VariableSet;
+use crate::value::FromValue;
 use crate::value::RawValue;
-use crate::value::{FromValue, ToValue, Value, ValueSchema};
+use crate::value::ToValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
 pub struct KeysConstraint<S: ValueSchema, R, K, V>
 where

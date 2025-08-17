@@ -1,7 +1,8 @@
 #![cfg(kani)]
 
 use crate::prelude::*;
-use crate::value::schemas::{genid::GenId, UnknownValue};
+use crate::value::schemas::genid::GenId;
+use crate::value::schemas::UnknownValue;
 
 NS! {
     /// Namespace used by the query harness with unconstrained values.

@@ -1,19 +1,31 @@
 # Repository Workflows
 
-Tribles borrows a lot of terminology from Git. A `Repository` stores the history
-of your data, while a `Workspace` is the mutable view that you operate on much
-like a working directory and index combined. Commits live in a `BlobStore` and
-branch metadata in a `BranchStore`; these stores can be purely in memory,
-persisted to disk or backed by a remote service. The examples in
-`examples/repo.rs` and `examples/workspace.rs` showcase this API and should feel
-familiar to anyone comfortable with Git.
+Tribles borrows much of its vocabulary from Git:
+
+* **Repository** – top-level object that tracks history through a `BlobStore`
+  and `BranchStore`.
+* **Workspace** – mutable view of a branch, similar to Git's working directory
+  and index combined.
+* **BlobStore** – stores commits and blobs.
+* **BranchStore** – records branch metadata.
+
+Both stores can be in memory, on disk or backed by a remote service. The
+examples in `examples/repo.rs` and `examples/workspace.rs` showcase this API and
+should feel familiar to anyone comfortable with Git.
 
 ## Branching
 
 A branch records a line of history. Creating one writes initial metadata to the
-underlying store and yields a `Workspace` pointing at that branch. While
-`Repository::branch` is a convenient way to start a fresh branch, most workflows
-use `Repository::pull` to obtain a workspace for an existing branch:
+underlying store and yields a `Workspace` pointing at that branch. Typical steps
+look like:
+
+1. Create a repository backed by blob and branch stores.
+2. Open or create a branch to obtain a `Workspace`.
+3. Commit changes in the workspace.
+4. Push the workspace to publish those commits.
+
+While `Repository::branch` is a convenient way to start a fresh branch, most
+workflows use `Repository::pull` to obtain a workspace for an existing branch:
 
 ```rust
 let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
@@ -28,13 +40,15 @@ ws.commit(change, Some("initial commit"));
 repo.push(&mut ws)?;
 ```
 
-You can inspect previous commits using `Workspace::checkout` which returns a
+## Inspecting History
+
+You can explore previous commits using `Workspace::checkout` which returns a
 `TribleSet` with the union of the specified commit contents. Passing a single
 commit returns just that commit. To include its history you can use the
-`ancestors` helper. Commit ranges are supported for convenience. The
-expression `a..b` yields every commit reachable from `b` that is not
-reachable from `a`, treating missing endpoints as empty (`..b`) or the current
-`HEAD` (`a..` and `..`):
+`ancestors` helper. Commit ranges are supported for convenience. The expression
+`a..b` yields every commit reachable from `b` that is not reachable from `a`,
+treating missing endpoints as empty (`..b`) or the current `HEAD` (`a..` and
+`..`):
 
 ```rust
 let history = ws.checkout(commit_a..commit_b)?;
@@ -42,7 +56,8 @@ let full = ws.checkout(ancestors(commit_b))?;
 ```
 
 The [`history_of`](../src/repo.rs) helper builds on the `filter` selector to
-retrieve only the commits affecting a specific entity:
+retrieve only the commits affecting a specific entity. Commit selectors are
+covered in more detail in the next chapter:
 
 ```rust
 let entity_changes = ws.checkout(history_of(my_entity))?;
@@ -51,8 +66,8 @@ let entity_changes = ws.checkout(history_of(my_entity))?;
 ## Merging and Conflict Handling
 
 When pushing a workspace another client might have already updated the branch.
-`Repository::push` returns an optional conflicting `Workspace`. The usual loop
-looks like:
+`Repository::push` attempts to update the branch atomically and returns an
+optional conflicting `Workspace` if the head moved. The usual loop looks like:
 
 ```rust
 while let Some(mut incoming) = repo.push(&mut ws)? {
@@ -63,7 +78,9 @@ while let Some(mut incoming) = repo.push(&mut ws)? {
 
 This snippet is taken from [`examples/workspace.rs`](../examples/workspace.rs).
 The [`examples/repo.rs`](../examples/repo.rs) example demonstrates the same
-pattern with two separate workspaces.
+pattern with two separate workspaces. The returned `Workspace` already contains
+the remote commits, so after merging your changes you push that new workspace to
+continue.
 
 ## Typical CLI Usage
 

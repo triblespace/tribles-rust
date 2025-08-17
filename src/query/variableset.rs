@@ -26,7 +26,7 @@ impl VariableSet {
     pub fn new_singleton(index: usize) -> Self {
         let mut set = Self::new_empty();
         set.set(index);
-        return set;
+        set
     }
 
     /// Check if the set is empty.
@@ -76,7 +76,7 @@ impl VariableSet {
         if self.bits != 0 {
             return Some(self.bits.trailing_zeros() as usize);
         }
-        return None;
+        None
     }
     /// Finds the index of the last set bit.
     /// If no bits are set, returns `None`.
@@ -85,7 +85,7 @@ impl VariableSet {
         if self.bits != 0 {
             return Some(127 - (self.bits.leading_zeros() as usize));
         }
-        return None;
+        None
     }
     /// Returns the index of the next set bit
     /// in the bit set, in ascending order, while unseting it.
@@ -178,11 +178,11 @@ impl fmt::Debug for VariableSet {
                 if needs_comma {
                     write!(f, ", ",)?;
                 }
-                write!(f, "{}", byte)?;
+                write!(f, "{byte}")?;
                 needs_comma = true;
             }
         }
-        write!(f, "}}\n")?;
+        writeln!(f, "}}")?;
         Ok(())
     }
 }

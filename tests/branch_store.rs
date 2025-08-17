@@ -1,7 +1,9 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::{self, memoryrepo::MemoryRepo, PushResult};
+use tribles::repo::memoryrepo::MemoryRepo;
+use tribles::repo::PushResult;
+use tribles::repo::{self};
 
 #[test]
 fn branch_update_success_and_conflict() {
@@ -21,7 +23,7 @@ fn branch_update_success_and_conflict() {
 
     match store.update(branch_id, None, h2) {
         Ok(PushResult::Conflict(Some(existing))) => assert_eq!(existing, h1),
-        r => panic!("unexpected result: {:?}", r),
+        r => panic!("unexpected result: {r:?}"),
     }
 
     match store.update(branch_id, Some(h1), h2) {

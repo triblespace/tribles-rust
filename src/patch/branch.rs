@@ -1,8 +1,14 @@
 use super::*;
 use core::sync::atomic;
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use std::alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout};
-use std::ptr::{addr_of, addr_of_mut};
+use core::sync::atomic::Ordering::Acquire;
+use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::Release;
+use std::alloc::alloc_zeroed;
+use std::alloc::dealloc;
+use std::alloc::handle_alloc_error;
+use std::alloc::Layout;
+use std::ptr::addr_of;
+use std::ptr::addr_of_mut;
 
 const BRANCH_ALIGN: usize = 16;
 const BRANCH_BASE_SIZE: usize = 48;
@@ -373,7 +379,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
                 return child.has_prefix(node_end_depth, prefix);
             }
             // This node doesn't have a child matching the prefix.
-            return false;
+            false
         }
     }
 
@@ -405,7 +411,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
             if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
                 return child.segmented_len(node_end_depth, prefix);
             }
-            return 0;
+            0
         }
     }
 }

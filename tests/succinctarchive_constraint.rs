@@ -1,8 +1,13 @@
 use std::collections::HashSet;
-use tribles::blob::schemas::succinctarchive::{OrderedUniverse, SuccinctArchive};
+use tribles::blob::schemas::succinctarchive::OrderedUniverse;
+use tribles::blob::schemas::succinctarchive::SuccinctArchive;
 use tribles::prelude::*;
-use tribles::query::{Binding, Constraint, TriblePattern, VariableContext};
-use tribles::value::schemas::{genid::GenId, UnknownValue};
+use tribles::query::Binding;
+use tribles::query::Constraint;
+use tribles::query::TriblePattern;
+use tribles::query::VariableContext;
+use tribles::value::schemas::genid::GenId;
+use tribles::value::schemas::UnknownValue;
 
 #[test]
 fn propose_and_confirm() {

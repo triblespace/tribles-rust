@@ -105,42 +105,46 @@ pub mod memoryrepo;
 pub mod objectstore;
 pub mod pile;
 
-use std::{
-    collections::HashSet,
-    convert::Infallible,
-    error::Error,
-    fmt::{self, Debug},
-};
+use std::collections::HashSet;
+use std::convert::Infallible;
+use std::error::Error;
+use std::fmt::Debug;
+use std::fmt::{self};
 
 use commit::commit;
 use hifitime::Epoch;
 use itertools::Itertools;
 
-use crate::{blob::MemoryBlobStore, repo::branch::branch};
-use crate::{
-    blob::{
-        schemas::{simplearchive::UnarchiveError, UnknownBlob},
-        Blob, BlobSchema, ToBlob, TryFromBlob,
-    },
-    find,
-    id::Id,
-    metadata::metadata,
-    patch::{Entry, IdentityOrder, PATCH},
-    trible::TribleSet,
-    value::VALUE_LEN,
-    value::{
-        schemas::hash::{Handle, HashProtocol},
-        Value, ValueSchema,
-    },
-    NS,
-};
-use crate::{id::ufoid, prelude::valueschemas::GenId};
+use crate::blob::schemas::simplearchive::UnarchiveError;
+use crate::blob::schemas::UnknownBlob;
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::MemoryBlobStore;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
+use crate::find;
+use crate::id::ufoid;
+use crate::id::Id;
+use crate::metadata::metadata;
+use crate::patch::Entry;
+use crate::patch::IdentityOrder;
+use crate::patch::PATCH;
+use crate::prelude::valueschemas::GenId;
+use crate::repo::branch::branch;
+use crate::trible::TribleSet;
+use crate::value::schemas::hash::Handle;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::Value;
+use crate::value::ValueSchema;
+use crate::value::VALUE_LEN;
+use crate::NS;
 use ed25519_dalek::SigningKey;
 
-use crate::{
-    blob::schemas::simplearchive::SimpleArchive,
-    value::schemas::{ed25519 as ed, hash::Blake3, shortstring::ShortString, time::NsTAIInterval},
-};
+use crate::blob::schemas::simplearchive::SimpleArchive;
+use crate::value::schemas::ed25519 as ed;
+use crate::value::schemas::hash::Blake3;
+use crate::value::schemas::shortstring::ShortString;
+use crate::value::schemas::time::NsTAIInterval;
 
 NS! {
     /// The `commits` namespace contains attributes describing commits in a repository.
@@ -337,11 +341,9 @@ where
             Value<Handle<HS, UnknownBlob>>,
             <BS as BlobStoreList<HS>>::Err,
         >| {
-            let source_handle = source_handle.map_err(|e| TransferError::List(e))?;
-            let blob: Blob<UnknownBlob> = source
-                .get(source_handle)
-                .map_err(|e| TransferError::Load(e))?;
-            let target_handle = target.put(blob).map_err(|e| TransferError::Store(e))?;
+            let source_handle = source_handle.map_err(TransferError::List)?;
+            let blob: Blob<UnknownBlob> = source.get(source_handle).map_err(TransferError::Load)?;
+            let target_handle = target.put(blob).map_err(TransferError::Store)?;
             Ok((source_handle, target_handle))
         },
     )
@@ -360,9 +362,9 @@ pub enum CreateCommitError<BlobErr: Error + Debug + Send + Sync + 'static> {
 impl<BlobErr: Error + Debug + Send + Sync + 'static> fmt::Display for CreateCommitError<BlobErr> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CreateCommitError::ContentStorageError(e) => write!(f, "Content storage failed: {}", e),
+            CreateCommitError::ContentStorageError(e) => write!(f, "Content storage failed: {e}"),
             CreateCommitError::CommitStorageError(e) => {
-                write!(f, "Commit metadata storage failed: {}", e)
+                write!(f, "Commit metadata storage failed: {e}")
             }
         }
     }
@@ -940,7 +942,7 @@ where
     }
 }
 
-impl<'a, Blobs> CommitSelector<Blobs> for &'a [CommitHandle]
+impl<Blobs> CommitSelector<Blobs> for &[CommitHandle]
 where
     Blobs: BlobStore<Blake3>,
 {
@@ -1390,7 +1392,7 @@ pub enum WorkspaceCheckoutError<GetErr: Error> {
 impl<E: Error + fmt::Debug> fmt::Display for WorkspaceCheckoutError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WorkspaceCheckoutError::Storage(e) => write!(f, "storage error: {}", e),
+            WorkspaceCheckoutError::Storage(e) => write!(f, "storage error: {e}"),
             WorkspaceCheckoutError::BadCommitMetadata() => {
                 write!(f, "commit metadata missing content field")
             }

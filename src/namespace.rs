@@ -32,7 +32,9 @@ mod tests {
     use crate::examples::literature;
     use crate::prelude::*;
 
-    use fake::{faker::name::raw::Name, locales::EN, Fake};
+    use fake::faker::name::raw::Name;
+    use fake::locales::EN;
+    use fake::Fake;
 
     #[test]
     fn ns_entity() {

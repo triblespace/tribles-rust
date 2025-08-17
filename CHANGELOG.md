@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the repository example to store actual data and simplified the conflict loop.
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 - Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
+- Additional example in the Commit Selectors chapter demonstrating how to
+  compose `filter` with `time_range`.
 ### Changed
 - PATCH infix and segment-length operations now require prefixes to align with
   segment boundaries.

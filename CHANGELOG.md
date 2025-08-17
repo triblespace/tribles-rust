@@ -69,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Failing test `ns_local_ids_bad_estimates_panics` shows mis-ordered variables return no results when a panic is expected.
 - Diagram and explanation of six trible permutations and shared leaves for skew‑resistant joins.
 ### Changed
+- Expanded Schemas chapter with additional context on schema identifiers and runtime lookup.
 - Renamed `mask!` macro to `ignore!` for clarity.
 - Expanded the Atreides Join chapter with an example, clearer algorithm explanations, and a note that random access remains only for confirming candidates.
 - Rephrased Atreides Join discussion of sorted indexes to highlight efficient value lookup.

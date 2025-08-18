@@ -16,5 +16,8 @@ NS! {
         "2E26F8BA886495A8DF04ACF0ED3ACBD4" as name: crate::prelude::valueschemas::ShortString;
         "213F89E3F49628A105B3830BD3A6612C" as attr_value_schema: crate::prelude::valueschemas::GenId;
         "02FAF947325161918C6D2E7D9DBA3485" as attr_blob_schema: crate::prelude::valueschemas::GenId;
+        // Generic tag edge: link any entity to a tag entity (by Id). Reusable across domains.
+        // Id generated via `trible genid`: 91C50E9FBB1F73E892EBD5FFDE46C251
+        "91C50E9FBB1F73E892EBD5FFDE46C251" as tag: crate::prelude::valueschemas::GenId;
     }
 }

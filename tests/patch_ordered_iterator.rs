@@ -1,9 +1,12 @@
-use rand::{rngs::StdRng, RngCore, SeedableRng};
+use rand::rngs::StdRng;
 use rand::rngs::ThreadRng;
+use rand::RngCore;
+use rand::SeedableRng;
 use std::collections::HashSet;
+use tribles::patch::Entry;
 use tribles::patch::IdentityOrder;
+use tribles::patch::PATCH;
 use tribles::trible::EAVOrder;
-use tribles::patch::{Entry, PATCH};
 
 #[test]
 fn iter_ordered_returns_sorted_keys_eav() {

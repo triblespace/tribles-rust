@@ -209,7 +209,10 @@ impl TryFrom<uuid::Uuid> for Id {
 
 impl std::fmt::Display for NilUuidError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "UUID conversion failed: the UUID is nil (all zero bytes)")
+        write!(
+            f,
+            "UUID conversion failed: the UUID is nil (all zero bytes)"
+        )
     }
 }
 

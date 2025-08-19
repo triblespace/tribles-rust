@@ -107,40 +107,40 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
     );
 
     let entity_macro = quote! {
-        #[macro_pub::macro_pub]
+        #[#crate_path::macro_pub::macro_pub]
         macro_rules! entity {
             ($entity:tt) => {{
-                ::tribles_macros::entity!(::tribles, #mod_name, $entity)
+                #crate_path::macros::entity!(#crate_path, #mod_name, $entity)
             }};
             ($entity_id:expr, $entity:tt) => {{
-                ::tribles_macros::entity!(::tribles, #mod_name, $entity_id, $entity)
+                #crate_path::macros::entity!(#crate_path, #mod_name, $entity_id, $entity)
             }};
         }
     };
 
     let pattern_macro = quote! {
-        #[macro_pub::macro_pub]
+        #[#crate_path::macro_pub::macro_pub]
         macro_rules! pattern {
             ($set:expr, $pattern: tt) => {{
-                ::tribles_macros::pattern!(::tribles, #mod_name, $set, $pattern)
+                #crate_path::macros::pattern!(#crate_path, #mod_name, $set, $pattern)
             }};
         }
     };
 
     let pattern_changes_macro = quote! {
-        #[macro_pub::macro_pub]
+        #[#crate_path::macro_pub::macro_pub]
         macro_rules! pattern_changes {
             ($curr:expr, $changes:expr, $pattern: tt) => {{
-                ::tribles_macros::pattern_changes!(::tribles, #mod_name, $curr, $changes, $pattern)
+                #crate_path::macros::pattern_changes!(#crate_path, #mod_name, $curr, $changes, $pattern)
             }};
         }
     };
 
     let path_macro = quote! {
-        #[macro_pub::macro_pub]
+        #[#crate_path::macro_pub::macro_pub]
         macro_rules! path {
             ($set:expr, $($rest:tt)*) => {{
-                ::tribles_macros::path!(::tribles, #mod_name, $set, $($rest)*)
+                #crate_path::macros::path!(#crate_path, #mod_name, $set, $($rest)*)
             }};
         }
     };

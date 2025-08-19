@@ -18,6 +18,12 @@ pub mod value;
 pub mod debug;
 pub mod examples;
 
+// Re-export dependencies used by generated macros so consumers
+// don't need to add them explicitly.
+pub use arrayvec;
+pub use macro_pub;
+pub use tribles_macros as macros;
+
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]
 mod proofs;

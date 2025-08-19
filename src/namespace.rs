@@ -21,7 +21,7 @@ pub use hex_literal;
 #[macro_export]
 macro_rules! NS {
     ($($tt:tt)*) => {
-        ::tribles_macros::namespace!(::tribles, $($tt)*);
+        ::tribles::macros::namespace!(::tribles, $($tt)*);
     };
 }
 

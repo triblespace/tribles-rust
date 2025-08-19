@@ -9,6 +9,7 @@ use ed25519::signature::Signer;
 
 use super::repo;
 
+use crate::blob::schemas::longstring::LongString;
 use crate::blob::schemas::simplearchive::SimpleArchive;
 use crate::blob::Blob;
 use crate::prelude::valueschemas::Handle;
@@ -35,11 +36,11 @@ impl From<SignatureError> for ValidationError {
 ///
 /// The resulting [`TribleSet`] is signed using `signing_key` so that its
 /// authenticity can later be verified. If `msg` is provided it is stored as a
-/// short commit message.
+/// long commit message via a LongString blob handle.
 pub fn commit(
     signing_key: &SigningKey,
     parents: impl IntoIterator<Item = Value<Handle<Blake3, SimpleArchive>>>,
-    msg: Option<&str>,
+    msg: Option<Value<Handle<Blake3, LongString>>>,
     content: Option<Blob<SimpleArchive>>,
 ) -> TribleSet {
     let mut commit = TribleSet::new();
@@ -61,10 +62,10 @@ pub fn commit(
         });
     }
 
-    if let Some(msg) = msg {
+    if let Some(h) = msg {
         commit += repo::entity!(&commit_entity,
         {
-            short_message: msg,
+            message: h,
         });
     }
 

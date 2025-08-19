@@ -140,6 +140,7 @@ use crate::value::VALUE_LEN;
 use crate::NS;
 use ed25519_dalek::SigningKey;
 
+use crate::blob::schemas::longstring::LongString;
 use crate::blob::schemas::simplearchive::SimpleArchive;
 use crate::value::schemas::ed25519 as ed;
 use crate::value::schemas::hash::Blake3;
@@ -158,6 +159,9 @@ NS! {
         "4DD4DDD05CC31734B03ABB4E43188B1F" as content: Handle<Blake3, SimpleArchive>;
         /// A commit that this commit is based on.
         "317044B612C690000D798CA660ECFD2A" as parent: Handle<Blake3, SimpleArchive>;
+        /// A (potentially long) message describing the commit.
+        /// Stored as a LongString blob handle to avoid length limits.
+        "B59D147839100B6ED4B165DF76EDF3BB" as message: Handle<Blake3, LongString>;
         /// A short message describing the commit.
         /// Used by tools displaying the commit history.
         "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
@@ -1260,11 +1264,14 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     pub fn commit(&mut self, content: TribleSet, message: Option<&str>) {
         // 1. Create a commit blob from the current head, content and the commit message (if any).
         let content_blob = content.to_blob();
+        // If a message is provided, store it as a LongString blob and pass the handle.
+        let message_handle = message.map(|m| self.put::<LongString, String>(m.to_string()));
         let parents = self.head.iter().copied();
+
         let commit_set = crate::repo::commit::commit(
             &self.signing_key,
             parents,
-            message,
+            message_handle,
             Some(content_blob.clone()),
         );
         // 2. Store the content and commit blobs in `self.local_blobs`.

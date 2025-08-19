@@ -39,6 +39,6 @@ fn iter_ordered_returns_sorted_keys_identity() {
         keys.push(key);
     }
     keys.sort();
-    let iter_keys: Vec<[u8; 64]> = patch.iter_ordered().map(|k| *k).collect();
+    let iter_keys: Vec<[u8; 64]> = patch.iter_ordered().copied().collect();
     assert_eq!(keys, iter_keys);
 }

@@ -120,3 +120,77 @@ A simplified view of the push/merge cycle:
 Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts
 remain.
+
+## Attaching a Foreign History (merge-import)
+
+Sometimes you want to graft an existing branch from another pile into your
+current repository without rewriting its commits. Tribles supports a
+conservative, schema‑agnostic import followed by a single merge commit:
+
+1. Copy all reachable blobs from the source branch head into the target pile
+   using `copy_reachable`, which walks every 32‑byte aligned chunk in each
+   blob and enqueues any candidate that dereferences in the source.
+2. Create a single merge commit that has two parents: your current branch head
+   and the imported head. No content is attached to the merge; it simply ties
+   the DAGs together.
+
+This yields a faithful attachment of the foreign history — commits and their
+content are copied verbatim, and a one‑off merge connects both histories.
+
+The `trible` CLI exposes this as:
+
+```sh
+trible branch merge-import \
+  --from-pile /path/to/src.pile --from-name source-branch \
+  --to-pile   /path/to/dst.pile --to-name   self
+```
+
+Internally this uses `repo::copy_reachable` and `Workspace::merge_commit`.
+Because `copy_reachable` scans aligned 32‑byte chunks, it is forward‑compatible
+with new formats as long as embedded handles remain 32‑aligned.
+
+### Programmatic example (Rust)
+
+The same flow can be used directly from Rust when you have two piles on disk and
+want to attach the history of one branch to another:
+
+```rust,ignore
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::prelude::*;
+use tribles::repo::pile::Pile;
+use tribles::repo::Repository;
+use tribles::value::schemas::hash::Blake3;
+use tribles::value::schemas::hash::Handle;
+
+fn merge_import_example(
+    src_path: &std::path::Path,
+    src_branch_id: tribles::id::Id,
+    dst_path: &std::path::Path,
+    dst_branch_id: tribles::id::Id,
+) -> anyhow::Result<()> {
+    // 1) Open source (read) and destination (write) piles
+    let mut src: Pile<{ 1 << 44 }, Blake3> = Pile::open(src_path)?;
+    let mut dst: Pile<{ 1 << 44 }, Blake3> = Pile::open(dst_path)?;
+
+    // 2) Resolve source head commit handle
+    let src_head: Value<Handle<Blake3, blobschemas::SimpleArchive>> =
+        src.head(src_branch_id)?.ok_or_else(|| anyhow::anyhow!("source head not found"))?;
+
+    // 3) Conservatively copy all reachable blobs from source → destination
+    let stats = repo::copy_reachable(&src.reader(), &mut dst, [src_head.transmute()])?;
+    eprintln!("copied: visited={} stored={}", stats.visited, stats.stored);
+
+    // 4) Attach via a single merge commit in the destination branch
+    let mut repo = Repository::new(dst, SigningKey::generate(&mut OsRng));
+    let mut ws = repo.pull(dst_branch_id)?;
+    ws.merge_commit(src_head)?; // parents = { current HEAD, src_head }
+
+    // 5) Push with standard conflict resolution
+    while let Some(mut incoming) = repo.push(&mut ws)? {
+        incoming.merge(&mut ws)?;
+        ws = incoming;
+    }
+    Ok(())
+}
+```

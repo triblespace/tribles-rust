@@ -353,6 +353,121 @@ where
     )
 }
 
+/// Statistics returned by `copy_reachable`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CopyReachableStats {
+    /// Number of distinct blob handles discovered (visited).
+    pub visited: usize,
+    /// Number of blobs written into the target store (including de‑duped writes).
+    pub stored: usize,
+}
+
+/// Error type for `copy_reachable` operations.
+#[derive(Debug)]
+pub enum CopyReachableError<LoadErr, StoreErr>
+where
+    LoadErr: Error + Debug + 'static,
+    StoreErr: Error + Debug + 'static,
+{
+    Load(LoadErr),
+    Store(StoreErr),
+}
+
+impl<LoadErr, StoreErr> fmt::Display for CopyReachableError<LoadErr, StoreErr>
+where
+    LoadErr: Error + Debug + 'static,
+    StoreErr: Error + Debug + 'static,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Load(e) => write!(f, "load error: {e}"),
+            Self::Store(e) => write!(f, "store error: {e}"),
+        }
+    }
+}
+
+impl<LoadErr, StoreErr> Error for CopyReachableError<LoadErr, StoreErr>
+where
+    LoadErr: Error + Debug + 'static,
+    StoreErr: Error + Debug + 'static,
+{
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Load(e) => Some(e),
+            Self::Store(e) => Some(e),
+        }
+    }
+}
+
+/// Conservatively copy all blobs reachable from the provided root handles in `source`
+/// into `target` by scanning each loaded blob's bytes for 32‑byte aligned chunks and
+/// attempting to treat each as a hash handle in the same hash protocol.
+///
+/// - Requires no schema/namespace knowledge and is robust to future additions.
+/// - Duplicate blobs are naturally de‑duplicated by the target store's hashing.
+/// - The traversal starts from the provided roots (e.g., a branch head commit handle).
+pub fn copy_reachable<BS, BT, H>(
+    source: &BS,
+    target: &mut BT,
+    roots: impl IntoIterator<Item = Value<Handle<H, UnknownBlob>>>,
+) -> Result<CopyReachableStats, CopyReachableError<
+    <BS as BlobStoreGet<H>>::GetError<Infallible>,
+    <BT as BlobStorePut<H>>::PutError,
+>>
+where
+    BS: BlobStoreGet<H>,
+    BT: BlobStorePut<H>,
+    H: 'static + HashProtocol,
+{
+    use std::collections::{HashSet, VecDeque};
+
+    let mut visited: HashSet<[u8; 32]> = HashSet::new();
+    let mut queue: VecDeque<Value<Handle<H, UnknownBlob>>> = VecDeque::new();
+    for r in roots.into_iter() {
+        queue.push_back(r);
+    }
+
+    let mut stats = CopyReachableStats::default();
+
+    while let Some(handle) = queue.pop_front() {
+        let raw: [u8; 32] = handle.raw;
+        if !visited.insert(raw) {
+            continue;
+        }
+        stats.visited += 1;
+
+        // Load blob from source; skip if missing.
+        let blob: Blob<UnknownBlob> = match source.get(handle) {
+            Ok(b) => b,
+            Err(_e) => {
+                // Not present in source; ignore.
+                continue;
+            }
+        };
+
+        // Store into target (de‑dup handled by storage layer).
+        let _ = target.put(blob.clone()).map_err(CopyReachableError::Store)?;
+        stats.stored += 1;
+
+        // Scan bytes for 32‑byte aligned candidates; push if load succeeds.
+        let bytes: &[u8] = blob.bytes.as_ref();
+        let mut i = 0usize;
+        while i + 32 <= bytes.len() {
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(&bytes[i..i + 32]);
+            let cand: Value<Handle<H, UnknownBlob>> = Value::new(arr);
+            if !visited.contains(&arr) {
+                if source.get::<anybytes::Bytes, UnknownBlob>(cand).is_ok() {
+                    queue.push_back(cand);
+                }
+            }
+            i += 32;
+        }
+    }
+
+    Ok(stats)
+}
+
 /// An error that can occur when creating a commit.
 /// This error can be caused by a failure to store the content or metadata blobs.
 #[derive(Debug)]
@@ -1322,6 +1437,30 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             .expect("failed to put merge commit blob");
         self.head = Some(commit_handle);
 
+        Ok(commit_handle)
+    }
+
+    /// Create a merge commit that ties this workspace's current head and an
+    /// arbitrary other commit (already present in the underlying blob store)
+    /// together without requiring another `Workspace` instance.
+    ///
+    /// This does not attach any content to the merge commit.
+    pub fn merge_commit(
+        &mut self,
+        other: Value<Handle<Blake3, SimpleArchive>>,
+    ) -> Result<CommitHandle, MergeError> {
+        // Validate that `other` can be loaded from either local or base blobs.
+        // If it cannot be loaded we still proceed with the merge; dereference
+        // failures will surface later when reading history. Callers should
+        // ensure `copy_reachable` was used beforehand when importing.
+
+        let parents = self.head.iter().copied().chain(Some(other));
+        let merge_commit = commit(&self.signing_key, parents, None, None);
+        let commit_handle = self
+            .local_blobs
+            .put(merge_commit)
+            .expect("failed to put merge commit blob");
+        self.head = Some(commit_handle);
         Ok(commit_handle)
     }
 

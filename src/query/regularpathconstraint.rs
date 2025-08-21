@@ -7,7 +7,7 @@ use crate::id::id_into_value;
 use crate::id::RawId;
 use crate::id::ID_LEN;
 use crate::patch::Entry;
-use crate::patch::IdentityOrder;
+use crate::patch::IdentitySchema;
 use crate::patch::PATCH;
 use crate::query::Binding;
 use crate::query::Constraint;
@@ -42,7 +42,7 @@ const NIL_ID: RawId = [0; ID_LEN];
 
 #[derive(Clone)]
 struct Automaton {
-    transitions: PATCH<EDGE_KEY_LEN, IdentityOrder>,
+    transitions: PATCH<EDGE_KEY_LEN, IdentitySchema, ()>,
     start: u64,
     accept: u64,
 }
@@ -65,7 +65,7 @@ impl Automaton {
         }
 
         fn insert_edge(
-            patch: &mut PATCH<EDGE_KEY_LEN, IdentityOrder>,
+            patch: &mut PATCH<EDGE_KEY_LEN, IdentitySchema, ()>,
             from: &u64,
             label: &RawId,
             to: &u64,
@@ -77,7 +77,7 @@ impl Automaton {
             patch.insert(&Entry::new(&key));
         }
 
-        let mut trans = PATCH::<EDGE_KEY_LEN, IdentityOrder>::new();
+        let mut trans = PATCH::<EDGE_KEY_LEN, IdentitySchema, ()>::new();
         let mut counter: u64 = 0;
         let mut stack: Vec<Frag> = Vec::new();
 

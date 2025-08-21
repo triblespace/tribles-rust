@@ -1,3 +1,5 @@
+#![cfg(feature = "succinct-archive")]
+
 use std::collections::HashSet;
 use tribles::blob::schemas::succinctarchive::OrderedUniverse;
 use tribles::blob::schemas::succinctarchive::SuccinctArchive;

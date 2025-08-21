@@ -23,7 +23,7 @@ use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use tribles::patch::Entry;
-use tribles::patch::IdentityOrder;
+use tribles::patch::IdentitySchema;
 use tribles::patch::PATCH;
 
 use im::OrdSet;

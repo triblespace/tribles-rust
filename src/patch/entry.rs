@@ -2,24 +2,37 @@ use super::*;
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct Entry<const KEY_LEN: usize> {
-    ptr: NonNull<Leaf<KEY_LEN>>,
+pub struct Entry<const KEY_LEN: usize, V = ()> {
+    ptr: NonNull<Leaf<KEY_LEN, V>>,
 }
 
 impl<const KEY_LEN: usize> Entry<KEY_LEN> {
     pub fn new(key: &[u8; KEY_LEN]) -> Self {
         unsafe {
-            let ptr = Leaf::<KEY_LEN>::new(key);
+            let ptr = Leaf::<KEY_LEN, ()>::new(key, ());
+            Self { ptr }
+        }
+    }
+}
+
+impl<const KEY_LEN: usize, V> Entry<KEY_LEN, V> {
+    pub fn with_value(key: &[u8; KEY_LEN], value: V) -> Self {
+        unsafe {
+            let ptr = Leaf::<KEY_LEN, V>::new(key, value);
             Self { ptr }
         }
     }
 
-    pub(super) fn leaf<O: KeyOrdering<KEY_LEN>>(&self) -> Head<KEY_LEN, O> {
+    pub fn value(&self) -> &V {
+        unsafe { &self.ptr.as_ref().value }
+    }
+
+    pub(super) fn leaf<O: KeySchema<KEY_LEN>>(&self) -> Head<KEY_LEN, O, V> {
         unsafe { Head::new(0, Leaf::rc_inc(self.ptr)) }
     }
 }
 
-impl<const KEY_LEN: usize> Clone for Entry<KEY_LEN> {
+impl<const KEY_LEN: usize, V> Clone for Entry<KEY_LEN, V> {
     fn clone(&self) -> Self {
         unsafe {
             Self {
@@ -29,7 +42,7 @@ impl<const KEY_LEN: usize> Clone for Entry<KEY_LEN> {
     }
 }
 
-impl<const KEY_LEN: usize> Drop for Entry<KEY_LEN> {
+impl<const KEY_LEN: usize, V> Drop for Entry<KEY_LEN, V> {
     fn drop(&mut self) {
         unsafe {
             Leaf::rc_dec(self.ptr);

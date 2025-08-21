@@ -6,11 +6,11 @@ use tribles::patch::bytetable::init as table_init;
 use tribles::patch::bytetable::ByteEntry;
 use tribles::patch::bytetable::ByteTable;
 use tribles::patch::Entry;
-use tribles::patch::IdentityOrder;
+use tribles::patch::IdentitySchema;
 use tribles::patch::PATCH;
 
 fn patch_fill_benchmark() {
-    let mut patch = PATCH::<64, IdentityOrder>::new();
+    let mut patch = PATCH::<64, IdentitySchema>::new();
 
     for _ in 0..2_000_000 {
         let text: String = Sentence(3..8).fake();

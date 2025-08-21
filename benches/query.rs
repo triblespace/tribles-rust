@@ -1,3 +1,5 @@
+#![cfg(feature = "succinct-archive")]
+
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::BenchmarkId;

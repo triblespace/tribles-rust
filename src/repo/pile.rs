@@ -6,6 +6,7 @@
 //! Format](../../book/src/pile-format.md) chapter of the Tribles Book.
 
 use anybytes::Bytes;
+use fs4::fs_std::FileExt;
 use hex_literal::hex;
 use memmap2::MmapOptions;
 use reft_light::Apply;
@@ -18,7 +19,7 @@ use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{IoSlice, Seek, SeekFrom, Write};
 use std::ops::Bound;
 use std::path::Path;
 use std::ptr::slice_from_raw_parts;
@@ -55,7 +56,7 @@ const BLOB_ALIGNMENT: usize = BLOB_HEADER_LEN;
 
 enum PileOps<H: HashProtocol> {
     Insert(Value<Hash<H>>, Bytes),
-    UpdateBranch(Id, Value<Handle<H, SimpleArchive>>),
+    Load(Value<Hash<H>>, Bytes, u64),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -136,20 +137,55 @@ pub(crate) struct PileSwap<H: HashProtocol> {
 
 /// Additional state kept alongside [`PileSwap`] while writing to the pile.
 ///
-/// It tracks the current file handle, memory mapping and pending write lengths
-/// to enforce the maximum pile size.
+/// It tracks the current file handle and memory mapping while keeping the latest
+/// branch heads observed in the pile.
 pub(crate) struct PileAux<const MAX_PILE_SIZE: usize, H: HashProtocol> {
-    pending_length: usize,
-    applied_length: usize,
     file: File,
     mmap: Arc<memmap2::MmapRaw>,
     branches: HashMap<Id, Value<Handle<H, SimpleArchive>>>,
+    applied_length: usize,
 }
 
-fn new_length_and_padding(current_length: usize, blob_size: usize) -> (usize, usize) {
-    let padding = (BLOB_ALIGNMENT - (blob_size % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
-    let new_length = current_length + BLOB_HEADER_LEN + blob_size + padding;
-    (new_length, padding)
+fn padding_for_blob(blob_size: usize) -> usize {
+    (BLOB_ALIGNMENT - ((BLOB_HEADER_LEN + blob_size) % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT
+}
+
+fn refresh_range<const MAX_PILE_SIZE: usize, H: HashProtocol>(
+    aux: &mut PileAux<MAX_PILE_SIZE, H>,
+    start: usize,
+    end: usize,
+) -> Vec<PileOps<H>> {
+    let mut bytes = unsafe {
+        let slice = slice_from_raw_parts(aux.mmap.as_ptr().add(start), end - start)
+            .as_ref()
+            .unwrap();
+        Bytes::from_raw_parts(slice, aux.mmap.clone())
+    };
+    let mut ops = Vec::new();
+    while !bytes.is_empty() {
+        let magic = bytes[0..16].try_into().unwrap();
+        match magic {
+            MAGIC_MARKER_BLOB => {
+                let header = bytes.view_prefix::<BlobHeader>().unwrap();
+                let data_len = header.length as usize;
+                let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
+                let blob_bytes = bytes.take_prefix(data_len).unwrap();
+                bytes.take_prefix(pad).unwrap();
+                let hash = Value::new(header.hash);
+                let ts = header.timestamp;
+                ops.push(PileOps::Load(hash, blob_bytes, ts));
+            }
+            MAGIC_MARKER_BRANCH => {
+                let header = bytes.view_prefix::<BranchHeader>().unwrap();
+                let branch_id = Id::new(header.branch_id).unwrap();
+                let hash = Value::new(header.hash);
+                aux.branches.insert(branch_id, hash);
+            }
+            _ => break,
+        }
+    }
+    aux.applied_length = end;
+    ops
 }
 
 impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX_PILE_SIZE, H>>
@@ -163,13 +199,8 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
     ) {
         match self {
             PileOps::Insert(hash, bytes) => {
-                let old_length = auxiliary.applied_length;
-                let (new_length, padding) = new_length_and_padding(old_length, bytes.len());
-
-                // This should never happen, because we check the length before appending the operation.
-                assert!(new_length <= MAX_PILE_SIZE);
-
-                auxiliary.applied_length = new_length;
+                let old = auxiliary.applied_length;
+                let padding = padding_for_blob(bytes.len());
 
                 let now_in_sys = SystemTime::now();
                 let now_since_epoch = now_in_sys
@@ -178,30 +209,43 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                 let now_in_ms = now_since_epoch.as_millis();
 
                 let header = BlobHeader::new(now_in_ms as u64, bytes.len() as u64, *hash);
+                let padding_buf = [0u8; BLOB_ALIGNMENT];
+                let slices = [
+                    IoSlice::new(header.as_bytes()),
+                    IoSlice::new(bytes.as_ref()),
+                    IoSlice::new(&padding_buf[..padding]),
+                ];
+                let expected = BLOB_HEADER_LEN + bytes.len() + padding;
+                let written = auxiliary
+                    .file
+                    .write_vectored(&slices)
+                    .expect("failed to write blob record");
+                assert_eq!(written, expected, "failed to write blob record");
 
-                auxiliary
+                let end = auxiliary
                     .file
-                    .write_all(header.as_bytes())
-                    .expect("failed to write header");
-                auxiliary
-                    .file
-                    .write_all(bytes)
-                    .expect("failed to write blob bytes");
-                auxiliary
-                    .file
-                    .write_all(&[0; BLOB_ALIGNMENT][0..padding])
-                    .expect("failed to write padding");
+                    .seek(SeekFrom::Current(0))
+                    .expect("failed to get file position") as usize;
+                assert_eq!(end % BLOB_ALIGNMENT, 0, "pile misaligned after blob write");
+                let start = end - written;
 
-                let header_len = BLOB_HEADER_LEN;
+                if start != old {
+                    let ops = refresh_range(auxiliary, old, start);
+                    for op in ops {
+                        if let PileOps::Load(hash, bytes, ts) = op {
+                            first.blobs.insert(hash, IndexEntry::new(bytes, ts, None));
+                        }
+                    }
+                }
+
+                let blob_start = start + BLOB_HEADER_LEN;
                 let written_bytes = unsafe {
-                    let start = old_length + header_len;
                     let written_slice =
-                        slice_from_raw_parts(auxiliary.mmap.as_ptr().add(start), bytes.len())
+                        slice_from_raw_parts(auxiliary.mmap.as_ptr().add(blob_start), bytes.len())
                             .as_ref()
                             .unwrap();
                     Bytes::from_raw_parts(written_slice, auxiliary.mmap.clone())
                 };
-
                 first.blobs.insert(
                     *hash,
                     IndexEntry {
@@ -210,19 +254,12 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
                         timestamp: now_in_ms as u64,
                     },
                 );
+                auxiliary.applied_length = end;
             }
-            PileOps::UpdateBranch(id, new) => {
-                let old_length = auxiliary.applied_length;
-                let header_len = std::mem::size_of::<BranchHeader>();
-                let new_length = old_length + header_len;
-                assert!(new_length <= MAX_PILE_SIZE);
-                auxiliary.applied_length = new_length;
-
-                let header = BranchHeader::new(*id, *new);
-                auxiliary
-                    .file
-                    .write_all(header.as_bytes())
-                    .expect("failed to write branch header");
+            PileOps::Load(hash, bytes, timestamp) => {
+                first
+                    .blobs
+                    .insert(*hash, IndexEntry::new(bytes.clone(), *timestamp, None));
             }
         }
     }
@@ -233,20 +270,16 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Apply<PileSwap<H>, PileAux<MAX
         second: &mut PileSwap<H>,
         _auxiliary: &mut PileAux<MAX_PILE_SIZE, H>,
     ) {
-        match self {
-            PileOps::Insert(hash, _blob) => {
-                // This operation is idempotent, so we can just
-                // ignore it if the blob is already present.
-
-                let first = first.blobs.get(&hash).expect("handle must exist in first");
-                second.blobs.entry(hash).or_insert_with(|| IndexEntry {
-                    state: first.state.clone(),
-                    bytes: first.bytes.clone(),
-                    timestamp: first.timestamp,
-                });
-            }
-            PileOps::UpdateBranch(_, _) => {}
-        }
+        let hash = match self {
+            PileOps::Insert(hash, _) => hash,
+            PileOps::Load(hash, _, _) => hash,
+        };
+        let first = first.blobs.get(&hash).expect("handle must exist in first");
+        second.blobs.entry(hash).or_insert_with(|| IndexEntry {
+            state: first.state.clone(),
+            bytes: first.bytes.clone(),
+            timestamp: first.timestamp,
+        });
     }
 }
 
@@ -580,14 +613,31 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             w_handle: reft_light::new(
                 PileSwap { blobs },
                 PileAux {
-                    pending_length: length,
-                    applied_length: length,
                     file,
                     mmap,
                     branches,
+                    applied_length: length,
                 },
             ),
         })
+    }
+
+    /// Refreshes in-memory state from newly appended records.
+    pub fn refresh(&mut self) -> Result<(), std::io::Error> {
+        let ops = {
+            let aux = self.w_handle.auxiliary_mut();
+            let file_len = aux.file.metadata()?.len() as usize;
+            if file_len <= aux.applied_length {
+                Vec::new()
+            } else {
+                refresh_range(aux, aux.applied_length, file_len)
+            }
+        };
+        if !ops.is_empty() {
+            self.w_handle.extend(ops);
+            self.w_handle.flush();
+        }
+        Ok(())
     }
 
     /// Persists any queued writes to the underlying pile file.
@@ -702,14 +752,16 @@ where
     {
         let blob = ToBlob::to_blob(item);
 
+        self.refresh().map_err(InsertError::IoError)?;
+
         let aux = self.w_handle.auxiliary_mut();
         let blob_size = blob.bytes.len();
-        let (new_length, _) = new_length_and_padding(aux.pending_length, blob_size);
+        let file_len = aux.file.metadata()?.len() as usize;
+        let padding = padding_for_blob(blob_size);
+        let new_length = file_len + BLOB_HEADER_LEN + blob_size + padding;
         if new_length > MAX_PILE_SIZE {
             return Err(InsertError::PileTooLarge);
         }
-
-        aux.pending_length = new_length;
 
         let handle: Value<Handle<H, S>> = blob.get_handle();
         let hash = handle.into();
@@ -760,25 +812,64 @@ where
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
     ) -> Result<super::PushResult<H>, Self::UpdateError> {
-        let aux = self.w_handle.auxiliary_mut();
+        self.flush().map_err(|e| match e {
+            FlushError::IoError(err) => UpdateBranchError::IoError(err),
+        })?;
+        self.refresh().map_err(UpdateBranchError::IoError)?;
 
-        let current_hash = aux.branches.get(&id);
-        if current_hash != old.as_ref() {
-            return Ok(PushResult::Conflict(current_hash.cloned()));
+        {
+            let file = &self.w_handle.auxiliary().file;
+            file.lock_exclusive()?;
         }
 
-        let header_len = std::mem::size_of::<BranchHeader>();
-        let new_length = aux.pending_length + header_len;
-        if new_length > MAX_PILE_SIZE {
-            return Err(UpdateBranchError::PileTooLarge);
-        }
+        self.refresh().map_err(UpdateBranchError::IoError)?;
 
-        aux.pending_length = new_length;
-        aux.branches.insert(id, new);
+        let result = {
+            let aux = self.w_handle.auxiliary_mut();
+            let current_hash = aux.branches.get(&id);
+            if current_hash != old.as_ref() {
+                FileExt::unlock(&aux.file)?;
+                return Ok(PushResult::Conflict(current_hash.cloned()));
+            }
 
-        self.w_handle.append(PileOps::UpdateBranch(id, new));
+            let header_len = std::mem::size_of::<BranchHeader>();
+            let file_len = aux.file.metadata()?.len() as usize;
+            let new_length = file_len + header_len;
+            if new_length > MAX_PILE_SIZE {
+                FileExt::unlock(&aux.file)?;
+                return Err(UpdateBranchError::PileTooLarge);
+            }
 
-        Ok(PushResult::Success())
+            aux.branches.insert(id, new);
+
+            let header = BranchHeader::new(id, new);
+            let expected = header_len;
+            let written = match aux.file.write(header.as_bytes()) {
+                Ok(n) => n,
+                Err(e) => {
+                    FileExt::unlock(&aux.file)?;
+                    return Err(UpdateBranchError::IoError(e));
+                }
+            };
+            if written != expected {
+                FileExt::unlock(&aux.file)?;
+                return Err(UpdateBranchError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "failed to write branch header",
+                )));
+            }
+            let end = aux.file.seek(SeekFrom::Current(0))? as usize;
+            assert_eq!(
+                end % BLOB_ALIGNMENT,
+                0,
+                "pile misaligned after branch write"
+            );
+            aux.applied_length = end;
+            FileExt::unlock(&aux.file)?;
+            Ok(PushResult::Success())
+        };
+
+        result
     }
 }
 
@@ -991,24 +1082,25 @@ mod tests {
     }
 
     #[test]
-    fn branch_update_without_flush_leaves_no_head() {
+    fn branch_update_without_flush_keeps_head() {
         const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         let branch_id = Id::new([1u8; 16]).unwrap();
 
-        {
+        let handle = {
             let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![3u8; 5]));
             let handle = pile.put(blob).unwrap();
             pile.update(branch_id, None, handle.transmute()).unwrap();
             std::mem::forget(pile);
-        }
+            handle
+        };
 
         let pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
-        assert_eq!(pile.head(branch_id).unwrap(), None);
-        assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
+        assert_eq!(pile.head(branch_id).unwrap(), Some(handle.transmute()));
+        assert!(std::fs::metadata(&path).unwrap().len() > 0);
     }
 
     // recover_grow test removed as growth strategy no longer exists

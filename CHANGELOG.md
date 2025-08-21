@@ -74,8 +74,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional example in the Commit Selectors chapter demonstrating how to
   compose `filter` with `time_range`.
 ### Changed
+- Blob appends now issue a single `write_vectored` `O_APPEND` call to stream header, data and padding without extra copies or retries.
+- Simplified vectored blob appends by always including a padding slice.
+- Branch updates now perform `flush → refresh → lock → refresh → append → unlock` directly instead of queuing.
+- Branch headers are written with a single `write` call to avoid partial updates.
+- Max-size checks and mmap offsets now derive from the file's actual length instead of tracked counters.
+- Restored an `applied_length` tracker to incrementally refresh new blobs and branches without rescanning the entire pile.
+- Blob inserts now compare the write start with the previous `applied_length`, ingesting any intervening records before advancing.
 - Expanded commit selector documentation with an overview, example and clearer
   wording about loading commits from a workspace.
+- Temporarily gate the `SuccinctArchive` schema behind a feature to restore
+  compilation while its Jerky dependency is updated.
 - Expanded repository workflows chapter with clearer branching steps and a
   dedicated history section.
 - Expanded Schemas chapter with additional context on schema identifiers and runtime lookup.

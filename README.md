@@ -27,6 +27,7 @@ Our goal is to re-invent data storage from first principles and overcome the sho
 - **Compile-Time Typed Queries**: Automatic type inference, type-checking, and auto-completion make writing queries a breeze. You can even create queries that span multiple datasets and native Rust data structures.
 - **Low Overall Complexity**: We aim for a design that feels obvious (in the best way) and makes good use of existing language facilities. A serverless design makes it completely self-sufficient for local use and requires only an S3-compatible service for distribution.
 - **Easy Implementation**: The spec is designed to be friendly to high- and low-level languages, or even hardware implementations.
+- **Lock-Free Blob Writes**: Blob data is appended with a single `O_APPEND` write. Each handle advances an in-memory `applied_length` only if no other writer has appended in between, scanning any gap to ingest missing records. Concurrent writers may duplicate blobs, but hashes guarantee consistency. Updating branch heads uses a short `flush → refresh → lock → refresh → append → unlock` sequence.
 
 # Community
 

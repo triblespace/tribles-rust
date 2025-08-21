@@ -30,7 +30,12 @@ A pile typically lives as a `.pile` file on disk. Repositories open it through
 `Pile::open` which performs any necessary recovery and returns a handle for
 appending new blobs or branches. Multiple threads may share the same handle
 thanks to internal synchronisation, making a pile a convenient durable store for
-local development.
+local development. Blob appends use a single `O_APPEND` write. Each handle
+remembers the last offset it processed and, after appending, scans any gap left
+by concurrent writes before advancing this `applied_length`. Writers may race
+and duplicate blobs, but content addressing keeps the data consistent. Updating
+branch heads requires a brief critical section: `flush → refresh → lock →
+refresh → append → unlock`.
 ## Blob Storage
 ```
                              8 byte  8 byte

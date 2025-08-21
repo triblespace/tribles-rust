@@ -4,20 +4,20 @@ use rand::RngCore;
 use rand::SeedableRng;
 use std::collections::HashSet;
 use tribles::patch::Entry;
-use tribles::patch::IdentityOrder;
+use tribles::patch::IdentitySchema;
 use tribles::patch::PATCH;
 use tribles::trible::EAVOrder;
 
 #[test]
 fn iter_ordered_returns_sorted_keys_eav() {
-    let mut patch: PATCH<64, EAVOrder> = PATCH::new();
+    let mut patch: PATCH<64, EAVOrder, ()> = PATCH::new();
     let mut rng = StdRng::seed_from_u64(0);
     let mut keys = HashSet::new();
     while keys.len() < 1000 {
         let mut key = [0u8; 64];
         rng.fill_bytes(&mut key);
         if keys.insert(key) {
-            patch.insert(&Entry::new(&key));
+            patch.insert(&Entry::with_value(&key, ()));
         }
     }
     let mut sorted_keys: Vec<[u8; 64]> = keys.iter().cloned().collect();
@@ -30,7 +30,7 @@ fn iter_ordered_returns_sorted_keys_eav() {
 fn iter_ordered_returns_sorted_keys_identity() {
     const N: usize = 128;
     let mut rng = ThreadRng::default();
-    let mut patch: PATCH<64, IdentityOrder> = PATCH::new();
+    let mut patch: PATCH<64, IdentitySchema, ()> = PATCH::new();
     let mut keys: Vec<[u8; 64]> = Vec::with_capacity(N);
     for _ in 0..N {
         let mut key = [0u8; 64];

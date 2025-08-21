@@ -23,6 +23,9 @@
 - Benchmark PATCH performance across typical workloads.
 - Investigate the theoretical complexity of PATCH operations.
 - Measure practical space usage for PATCH with varying dataset sizes.
+- Extend PATCH to associate values with keys, turning it into a map structure.
+- Expose value-aware PATCH iterators and lookup helpers so callers can access
+  stored payloads.
 - Benchmark recursive `ByteTable` displacement planner versus the greedy random insert to measure fill rate and performance across intermediate table sizes.
 - Explore converting the recursive `ByteTable` planner into an iterative search to reduce stack usage.
 - Implement a garbage collection mechanism that scans branch and commit
@@ -32,7 +35,7 @@
   segment layouts and orderings can be defined once and generated automatically.
 - Provide a macro to declare key layouts that emits segmentation and
   ordering implementations for PATCH at compile time.
-- Expose segment iterators on PATCH using `KeyOrdering`'s segment permutation instead of raw key ranges.
+- Expose segment iterators on PATCH using `KeySchema`'s segment permutation instead of raw key ranges.
 - Consolidate pile header size constants to avoid repeated magic numbers.
 
 ## Additional Built-in Schemas
@@ -91,3 +94,5 @@ prioritized for efficient zero-copy access.
 - Enforce `PREFIX_LEN` never exceeds `KEY_LEN` when checking prefixes.
 - Update `SuccinctArchive` schema to the latest Jerky API and re-enable the
   associated benchmarks and tests.
+- `succinctarchive` schema is temporarily disabled; update to the latest
+  `jerky` APIs and remove the feature gate.

@@ -4,6 +4,11 @@
 //! See the [PATCH](../book/src/deep-dive/patch.md) chapter of the Tribles Book
 //! for the full design description and hashing scheme.
 //!
+//! Values stored in leaves are not part of hashing or equality comparisons.
+//! Two `PATCH`es are considered equal if they contain the same set of keys,
+//! even if the associated values differ. This allows using the structure as an
+//! idempotent blobstore where a value's hash determines its key.
+//!
 #![allow(unstable_name_collisions)]
 
 mod branch;
@@ -154,18 +159,18 @@ macro_rules! key_segmentation {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! key_ordering {
+macro_rules! key_schema {
     (@count $($e:expr),* $(,)?) => {
-        <[()]>::len(&[$($crate::key_ordering!(@sub $e)),*])
+        <[()]>::len(&[$($crate::key_schema!(@sub $e)),*])
     };
     (@sub $e:expr) => { () };
     ($name:ident, $seg:ty, $len:expr, [$($perm:expr),+ $(,)?]) => {
         #[derive(Copy, Clone, Debug)]
         pub struct $name;
-        impl $crate::patch::KeyOrdering<$len> for $name {
+        impl $crate::patch::KeySchema<$len> for $name {
             type Segmentation = $seg;
             const SEGMENT_PERM: &'static [usize] = &[$($perm),*];
-            const KEY_TO_TREE: [usize; $len] = $crate::patch::build_key_to_tree::<$len, {$crate::key_ordering!(@count $($perm),*)}>(<$seg>::SEG_LENS, [$($perm),*]);
+            const KEY_TO_TREE: [usize; $len] = $crate::patch::build_key_to_tree::<$len, {$crate::key_schema!(@count $($perm),*)}>(<$seg>::SEG_LENS, [$($perm),*]);
             const TREE_TO_KEY: [usize; $len] = $crate::patch::invert(Self::KEY_TO_TREE);
         }
     };
@@ -174,7 +179,7 @@ macro_rules! key_ordering {
 /// A trait is used to provide a re-ordered view of the keys stored in the PATCH.
 /// This allows for different PATCH instances share the same leaf nodes,
 /// independent of the key ordering used in the tree.
-pub trait KeyOrdering<const KEY_LEN: usize>: Copy + Clone + Debug {
+pub trait KeySchema<const KEY_LEN: usize>: Copy + Clone + Debug {
     /// The segmentation this ordering operates over.
     type Segmentation: KeySegmentation<KEY_LEN>;
     /// Order of segments from key layout to tree layout.
@@ -222,18 +227,18 @@ pub trait KeySegmentation<const KEY_LEN: usize>: Copy + Clone + Debug {
     const SEGMENTS: [usize; KEY_LEN];
 }
 
-/// A `KeyOrdering` that does not reorder the keys.
+/// A `KeySchema` that does not reorder the keys.
 /// This is useful for keys that are already ordered in the desired way.
 /// This is the default ordering.
 #[derive(Copy, Clone, Debug)]
-pub struct IdentityOrder {}
+pub struct IdentitySchema {}
 
 /// A `KeySegmentation` that does not segment the keys.
 /// This is useful for keys that do not have a segment structure.
 /// This is the default segmentation.
 #[derive(Copy, Clone, Debug)]
 pub struct SingleSegmentation {}
-impl<const KEY_LEN: usize> KeyOrdering<KEY_LEN> for IdentityOrder {
+impl<const KEY_LEN: usize> KeySchema<KEY_LEN> for IdentitySchema {
     type Segmentation = SingleSegmentation;
     const SEGMENT_PERM: &'static [usize] = &[0];
     const KEY_TO_TREE: [usize; KEY_LEN] = identity_map::<KEY_LEN>();
@@ -260,9 +265,9 @@ pub(crate) enum HeadTag {
     Leaf = 16,
 }
 
-pub(crate) enum BodyPtr<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
-    Leaf(NonNull<Leaf<KEY_LEN>>),
-    Branch(NonNull<Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>>),
+pub(crate) enum BodyPtr<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    Leaf(NonNull<Leaf<KEY_LEN, V>>),
+    Branch(NonNull<Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>>),
 }
 
 pub(crate) trait Body {
@@ -270,16 +275,17 @@ pub(crate) trait Body {
 }
 
 #[repr(C)]
-pub(crate) struct Head<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
+pub(crate) struct Head<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
     tptr: std::ptr::NonNull<u8>,
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<O::Segmentation>,
+    value: PhantomData<V>,
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Send for Head<KEY_LEN, O> {}
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Sync for Head<KEY_LEN, O> {}
+unsafe impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Send for Head<KEY_LEN, O, V> {}
+unsafe impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Sync for Head<KEY_LEN, O, V> {}
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     pub(crate) fn new<T: Body + ?Sized>(key: u8, body: NonNull<T>) -> Self {
         unsafe {
             let tptr =
@@ -292,6 +298,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
                 tptr,
                 key_ordering: PhantomData,
                 key_segments: PhantomData,
+                value: PhantomData,
             }
         }
     }
@@ -326,14 +333,14 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
         }
     }
 
-    pub(crate) fn with_start(self, new_start_depth: usize) -> Head<KEY_LEN, O> {
+    pub(crate) fn with_start(self, new_start_depth: usize) -> Head<KEY_LEN, O, V> {
         let leaf_key = self.childleaf_key();
         let i = O::TREE_TO_KEY[new_start_depth];
         let key = leaf_key[i];
         self.with_key(key)
     }
 
-    pub(crate) fn body(&self) -> BodyPtr<KEY_LEN, O> {
+    pub(crate) fn body(&self) -> BodyPtr<KEY_LEN, O, V> {
         unsafe {
             let ptr = NonNull::new_unchecked(
                 self.tptr
@@ -348,13 +355,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
                         ptr.as_ptr(),
                         count,
                     )
-                        as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>))
+                        as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>))
                 }
             }
         }
     }
 
-    pub(crate) fn body_mut(&mut self) -> BodyPtr<KEY_LEN, O> {
+    pub(crate) fn body_mut(&mut self) -> BodyPtr<KEY_LEN, O, V> {
         unsafe {
             match self.body() {
                 BodyPtr::Leaf(leaf) => BodyPtr::Leaf(leaf),
@@ -398,7 +405,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
         }
     }
 
-    pub(crate) fn childleaf(&self) -> *const Leaf<KEY_LEN> {
+    pub(crate) fn childleaf(&self) -> *const Leaf<KEY_LEN, V> {
         match self.body() {
             BodyPtr::Leaf(leaf) => leaf.as_ptr(),
             BodyPtr::Branch(branch) => unsafe { branch.as_ref().childleaf },
@@ -552,6 +559,16 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
         match self.body() {
             BodyPtr::Leaf(leaf) => Leaf::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix),
             BodyPtr::Branch(branch) => branch::Branch::has_prefix(branch, at_depth, prefix),
+        }
+    }
+
+    pub(crate) fn get<'a>(&'a self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<&'a V>
+    where
+        O: 'a,
+    {
+        match self.body() {
+            BodyPtr::Leaf(leaf) => Leaf::get::<O>(leaf, at_depth, key),
+            BodyPtr::Branch(branch) => branch::Branch::get(branch, at_depth, key),
         }
     }
 
@@ -857,19 +874,19 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Head<KEY_LEN, O> {
     }
 }
 
-unsafe impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> ByteEntry for Head<KEY_LEN, O> {
+unsafe impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> ByteEntry for Head<KEY_LEN, O, V> {
     fn key(&self) -> u8 {
         self.key()
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> fmt::Debug for Head<KEY_LEN, O> {
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> fmt::Debug for Head<KEY_LEN, O, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.tag().fmt(f)
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Clone for Head<KEY_LEN, O> {
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Clone for Head<KEY_LEN, O, V> {
     fn clone(&self) -> Self {
         unsafe {
             match self.body() {
@@ -880,7 +897,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Clone for Head<KEY_LEN, O> {
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Drop for Head<KEY_LEN, O> {
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Drop for Head<KEY_LEN, O, V> {
     fn drop(&mut self) {
         unsafe {
             match self.body() {
@@ -906,26 +923,37 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Drop for Head<KEY_LEN, O> {
 /// compared to other adaptive trie implementations, like ARTs or Judy Arrays
 ///
 /// The PATCH allows for cheap copy-on-write operations, with `clone` being O(1).
-#[derive(Debug, Clone)]
-pub struct PATCH<const KEY_LEN: usize, O = IdentityOrder>
+#[derive(Debug)]
+pub struct PATCH<const KEY_LEN: usize, O = IdentitySchema, V = ()>
 where
-    O: KeyOrdering<KEY_LEN>,
+    O: KeySchema<KEY_LEN>,
 {
-    root: Option<Head<KEY_LEN, O>>,
+    root: Option<Head<KEY_LEN, O, V>>,
 }
 
-impl<const KEY_LEN: usize, O> Default for PATCH<KEY_LEN, O>
+impl<const KEY_LEN: usize, O, V> Clone for PATCH<KEY_LEN, O, V>
 where
-    O: KeyOrdering<KEY_LEN>,
+    O: KeySchema<KEY_LEN>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            root: self.root.clone(),
+        }
+    }
+}
+
+impl<const KEY_LEN: usize, O, V> Default for PATCH<KEY_LEN, O, V>
+where
+    O: KeySchema<KEY_LEN>,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<const KEY_LEN: usize, O> PATCH<KEY_LEN, O>
+impl<const KEY_LEN: usize, O, V> PATCH<KEY_LEN, O, V>
 where
-    O: KeyOrdering<KEY_LEN>,
+    O: KeySchema<KEY_LEN>,
 {
     /// Creates a new empty PATCH.
     pub fn new() -> Self {
@@ -939,7 +967,7 @@ where
     /// and inserted into multiple PATCH instances.
     ///
     /// If the key is already present, this is a no-op.
-    pub fn insert(&mut self, entry: &Entry<KEY_LEN>) {
+    pub fn insert(&mut self, entry: &Entry<KEY_LEN, V>) {
         if self.root.is_some() {
             Head::insert_leaf(&mut self.root, entry.leaf(), 0);
         } else {
@@ -961,6 +989,11 @@ where
         } else {
             0
         }
+    }
+
+    /// Returns the value associated with `key` if present.
+    pub fn get(&self, key: &[u8; KEY_LEN]) -> Option<&V> {
+        self.root.as_ref().and_then(|root| root.get(0, key))
     }
 
     /// Allows iteratig over all infixes of a given length with a given prefix.
@@ -987,13 +1020,13 @@ where
             assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
         }
         assert!(
-            <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
-                == <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+            <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
+                == <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                     [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
                 && (PREFIX_LEN + INFIX_LEN == KEY_LEN
-                    || <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                    || <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                         [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
-                        != <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                        != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                             [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN]]),
             "INFIX_LEN must cover a whole segment"
         );
@@ -1023,9 +1056,9 @@ where
             assert!(PREFIX_LEN <= KEY_LEN);
             if PREFIX_LEN > 0 && PREFIX_LEN < KEY_LEN {
                 assert!(
-                    <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                    <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                         [O::TREE_TO_KEY[PREFIX_LEN - 1]]
-                        != <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                        != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                             [O::TREE_TO_KEY[PREFIX_LEN]],
                     "PREFIX_LEN must align to segment boundary",
                 );
@@ -1040,13 +1073,13 @@ where
 
     /// Iterates over all keys in the PATCH.
     /// The keys are returned in key ordering but random order.
-    pub fn iter<'a>(&'a self) -> PATCHIterator<'a, KEY_LEN, O> {
+    pub fn iter<'a>(&'a self) -> PATCHIterator<'a, KEY_LEN, O, V> {
         PATCHIterator::new(self)
     }
 
     /// Iterates over all keys in the PATCH.
     /// The keys are returned in key ordering and tree order.
-    pub fn iter_ordered<'a>(&'a self) -> PATCHOrderedIterator<'a, KEY_LEN, O> {
+    pub fn iter_ordered<'a>(&'a self) -> PATCHOrderedIterator<'a, KEY_LEN, O, V> {
         PATCHOrderedIterator::new(self)
     }
 
@@ -1055,7 +1088,7 @@ where
     /// A count of the number of elements for the given prefix is also returned.
     pub fn iter_prefix_count<'a, const PREFIX_LEN: usize>(
         &'a self,
-    ) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O> {
+    ) -> PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, V> {
         PATCHPrefixIterator::new(self)
     }
 
@@ -1097,10 +1130,10 @@ where
                     root: root.difference(other_root, 0),
                 }
             } else {
-                self.clone()
+                (*self).clone()
             }
         } else {
-            other.clone()
+            (*other).clone()
         }
     }
 
@@ -1144,23 +1177,23 @@ where
     }
 }
 
-impl<const KEY_LEN: usize, O> PartialEq for PATCH<KEY_LEN, O>
+impl<const KEY_LEN: usize, O, V> PartialEq for PATCH<KEY_LEN, O, V>
 where
-    O: KeyOrdering<KEY_LEN>,
+    O: KeySchema<KEY_LEN>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.root.as_ref().map(|root| root.hash()) == other.root.as_ref().map(|root| root.hash())
     }
 }
 
-impl<const KEY_LEN: usize, O> Eq for PATCH<KEY_LEN, O> where O: KeyOrdering<KEY_LEN> {}
+impl<const KEY_LEN: usize, O, V> Eq for PATCH<KEY_LEN, O, V> where O: KeySchema<KEY_LEN> {}
 
-impl<'a, const KEY_LEN: usize, O> IntoIterator for &'a PATCH<KEY_LEN, O>
+impl<'a, const KEY_LEN: usize, O, V> IntoIterator for &'a PATCH<KEY_LEN, O, V>
 where
-    O: KeyOrdering<KEY_LEN>,
+    O: KeySchema<KEY_LEN>,
 {
     type Item = &'a [u8; KEY_LEN];
-    type IntoIter = PATCHIterator<'a, KEY_LEN, O>;
+    type IntoIter = PATCHIterator<'a, KEY_LEN, O, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         PATCHIterator::new(self)
@@ -1169,13 +1202,13 @@ where
 
 /// An iterator over all keys in a PATCH.
 /// The keys are returned in key ordering but in random order.
-pub struct PATCHIterator<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
-    stack: ArrayVec<std::slice::Iter<'a, Option<Head<KEY_LEN, O>>>, KEY_LEN>,
+pub struct PATCHIterator<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    stack: ArrayVec<std::slice::Iter<'a, Option<Head<KEY_LEN, O, V>>>, KEY_LEN>,
     remaining: usize,
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHIterator<'a, KEY_LEN, O> {
-    fn new(patch: &'a PATCH<KEY_LEN, O>) -> Self {
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCHIterator<'a, KEY_LEN, O, V> {
+    fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
         let mut r = PATCHIterator {
             stack: ArrayVec::new(),
             remaining: patch.len().min(usize::MAX as u64) as usize,
@@ -1185,7 +1218,9 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHIterator<'a, KEY_LE
     }
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator for PATCHIterator<'a, KEY_LEN, O> {
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
+    for PATCHIterator<'a, KEY_LEN, O, V>
+{
     type Item = &'a [u8; KEY_LEN];
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1216,25 +1251,25 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator for PATCHIterat
     }
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> ExactSizeIterator
-    for PATCHIterator<'a, KEY_LEN, O>
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> ExactSizeIterator
+    for PATCHIterator<'a, KEY_LEN, O, V>
 {
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> std::iter::FusedIterator
-    for PATCHIterator<'a, KEY_LEN, O>
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> std::iter::FusedIterator
+    for PATCHIterator<'a, KEY_LEN, O, V>
 {
 }
 
 /// An iterator over all keys in a PATCH that have a given prefix.
 /// The keys are returned in tree ordering and in tree order.
-pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> {
-    stack: Vec<ArrayVec<&'a Head<KEY_LEN, O>, 256>>,
+pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    stack: Vec<ArrayVec<&'a Head<KEY_LEN, O, V>, 256>>,
     remaining: usize,
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHOrderedIterator<'a, KEY_LEN, O> {
-    fn new(patch: &'a PATCH<KEY_LEN, O>) -> Self {
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCHOrderedIterator<'a, KEY_LEN, O, V> {
+    fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
         let mut r = PATCHOrderedIterator {
             stack: Vec::with_capacity(KEY_LEN),
             remaining: patch.len().min(usize::MAX as u64) as usize,
@@ -1262,8 +1297,8 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> PATCHOrderedIterator<'a,
     }
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator
-    for PATCHOrderedIterator<'a, KEY_LEN, O>
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
+    for PATCHOrderedIterator<'a, KEY_LEN, O, V>
 {
     type Item = &'a [u8; KEY_LEN];
 
@@ -1301,13 +1336,13 @@ impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator
     }
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> ExactSizeIterator
-    for PATCHOrderedIterator<'a, KEY_LEN, O>
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> ExactSizeIterator
+    for PATCHOrderedIterator<'a, KEY_LEN, O, V>
 {
 }
 
-impl<'a, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> std::iter::FusedIterator
-    for PATCHOrderedIterator<'a, KEY_LEN, O>
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> std::iter::FusedIterator
+    for PATCHOrderedIterator<'a, KEY_LEN, O, V>
 {
 }
 
@@ -1317,15 +1352,16 @@ pub struct PATCHPrefixIterator<
     'a,
     const KEY_LEN: usize,
     const PREFIX_LEN: usize,
-    O: KeyOrdering<KEY_LEN>,
+    O: KeySchema<KEY_LEN>,
+    V,
 > {
-    stack: Vec<ArrayVec<&'a Head<KEY_LEN, O>, 256>>,
+    stack: Vec<ArrayVec<&'a Head<KEY_LEN, O, V>, 256>>,
 }
 
-impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>>
-    PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O>
+impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeySchema<KEY_LEN>, V>
+    PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, V>
 {
-    fn new(patch: &'a PATCH<KEY_LEN, O>) -> Self {
+    fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
         const {
             assert!(PREFIX_LEN <= KEY_LEN);
         }
@@ -1357,8 +1393,8 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>>
     }
 }
 
-impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeyOrdering<KEY_LEN>> Iterator
-    for PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O>
+impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
+    for PATCHPrefixIterator<'a, KEY_LEN, PREFIX_LEN, O, V>
 {
     type Item = ([u8; PREFIX_LEN], u64);
 
@@ -1407,7 +1443,7 @@ mod tests {
 
     #[test]
     fn head_tag() {
-        let head = Head::<64, IdentityOrder>::new::<Leaf<64>>(0, NonNull::dangling());
+        let head = Head::<64, IdentitySchema, ()>::new::<Leaf<64, ()>>(0, NonNull::dangling());
         assert_eq!(head.tag(), HeadTag::Leaf);
         mem::forget(head);
     }
@@ -1415,7 +1451,7 @@ mod tests {
     #[test]
     fn head_key() {
         for k in 0..=255 {
-            let head = Head::<64, IdentityOrder>::new::<Leaf<64>>(k, NonNull::dangling());
+            let head = Head::<64, IdentitySchema, ()>::new::<Leaf<64, ()>>(k, NonNull::dangling());
             assert_eq!(head.key(), k);
             mem::forget(head);
         }
@@ -1423,18 +1459,18 @@ mod tests {
 
     #[test]
     fn head_size() {
-        assert_eq!(mem::size_of::<Head<64, IdentityOrder>>(), 8);
+        assert_eq!(mem::size_of::<Head<64, IdentitySchema, ()>>(), 8);
     }
 
     #[test]
     fn empty_tree() {
-        let _tree = PATCH::<64, IdentityOrder>::new();
+        let _tree = PATCH::<64, IdentitySchema, ()>::new();
     }
 
     #[test]
     fn tree_put_one() {
         const KEY_SIZE: usize = 64;
-        let mut tree = PATCH::<KEY_SIZE, IdentityOrder>::new();
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, ()>::new();
         let entry = Entry::new(&[0; KEY_SIZE]);
         tree.insert(&entry);
     }
@@ -1442,7 +1478,7 @@ mod tests {
     #[test]
     fn tree_put_same() {
         const KEY_SIZE: usize = 64;
-        let mut tree = PATCH::<KEY_SIZE, IdentityOrder>::new();
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, ()>::new();
         let entry = Entry::new(&[0; KEY_SIZE]);
         tree.insert(&entry);
         tree.insert(&entry);
@@ -1451,35 +1487,48 @@ mod tests {
     #[test]
     fn branch_size() {
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 2]>>(),
+            mem::size_of::<Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 2], ()>>(
+            ),
             64
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 4]>>(),
+            mem::size_of::<Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 4], ()>>(
+            ),
             48 + 16 * 2
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 8]>>(),
+            mem::size_of::<Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 8], ()>>(
+            ),
             48 + 16 * 4
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 16]>>(),
+            mem::size_of::<
+                Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 16], ()>,
+            >(),
             48 + 16 * 8
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<32, IdentityOrder>>; 32]>>(),
+            mem::size_of::<
+                Branch<64, IdentitySchema, [Option<Head<32, IdentitySchema, ()>>; 32], ()>,
+            >(),
             48 + 16 * 16
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 64]>>(),
+            mem::size_of::<
+                Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 64], ()>,
+            >(),
             48 + 16 * 32
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 128]>>(),
+            mem::size_of::<
+                Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 128], ()>,
+            >(),
             48 + 16 * 64
         );
         assert_eq!(
-            mem::size_of::<Branch<64, IdentityOrder, [Option<Head<64, IdentityOrder>>; 256]>>(),
+            mem::size_of::<
+                Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 256], ()>,
+            >(),
             48 + 16 * 128
         );
     }
@@ -1489,8 +1538,8 @@ mod tests {
     #[test]
     fn tree_union_single() {
         const KEY_SIZE: usize = 8;
-        let mut left = PATCH::<KEY_SIZE, IdentityOrder>::new();
-        let mut right = PATCH::<KEY_SIZE, IdentityOrder>::new();
+        let mut left = PATCH::<KEY_SIZE, IdentitySchema, ()>::new();
+        let mut right = PATCH::<KEY_SIZE, IdentitySchema, ()>::new();
         let left_entry = Entry::new(&[0, 0, 0, 0, 0, 0, 0, 0]);
         let right_entry = Entry::new(&[0, 0, 0, 0, 0, 0, 0, 1]);
         left.insert(&left_entry);
@@ -1502,7 +1551,7 @@ mod tests {
     proptest! {
         #[test]
         fn tree_insert(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder>::new();
+            let mut tree = PATCH::<64, IdentitySchema, ()>::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();
                 let entry = Entry::new(&key);
@@ -1512,7 +1561,7 @@ mod tests {
 
         #[test]
         fn tree_len(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder>::new();
+            let mut tree = PATCH::<64, IdentitySchema, ()>::new();
             let mut set = HashSet::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();
@@ -1526,7 +1575,7 @@ mod tests {
 
         #[test]
         fn tree_infixes(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder>::new();
+            let mut tree = PATCH::<64, IdentitySchema, ()>::new();
             let mut set = HashSet::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();
@@ -1546,7 +1595,7 @@ mod tests {
 
         #[test]
         fn tree_iter(keys in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 1..1024)) {
-            let mut tree = PATCH::<64, IdentityOrder>::new();
+            let mut tree = PATCH::<64, IdentitySchema, ()>::new();
             let mut set = HashSet::new();
             for key in keys {
                 let key: [u8; 64] = key.try_into().unwrap();
@@ -1571,7 +1620,7 @@ mod tests {
                         right in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 200)) {
             let mut set = HashSet::new();
 
-            let mut left_tree = PATCH::<64, IdentityOrder>::new();
+            let mut left_tree = PATCH::<64, IdentitySchema, ()>::new();
             for entry in left {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
@@ -1580,7 +1629,7 @@ mod tests {
                 set.insert(key);
             }
 
-            let mut right_tree = PATCH::<64, IdentityOrder>::new();
+            let mut right_tree = PATCH::<64, IdentitySchema, ()>::new();
             for entry in right {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
@@ -1605,7 +1654,7 @@ mod tests {
         fn tree_union_empty(left in prop::collection::vec(prop::collection::vec(0u8..=255, 64), 2)) {
             let mut set = HashSet::new();
 
-            let mut left_tree = PATCH::<64, IdentityOrder>::new();
+            let mut left_tree = PATCH::<64, IdentitySchema, ()>::new();
             for entry in left {
                 let mut key = [0; 64];
                 key.iter_mut().set_from(entry.iter().cloned());
@@ -1614,7 +1663,7 @@ mod tests {
                 set.insert(key);
             }
 
-            let right_tree = PATCH::<64, IdentityOrder>::new();
+            let right_tree = PATCH::<64, IdentitySchema, ()>::new();
 
             left_tree.union(right_tree);
 
@@ -1639,7 +1688,7 @@ mod tests {
             // which might not be affected by nodes in lower levels being changed accidentally.
             // Instead we need to iterate over the keys and check if they are the same.
 
-            let mut tree = PATCH::<8, IdentityOrder>::new();
+            let mut tree = PATCH::<8, IdentitySchema, ()>::new();
             for key in base_keys {
                 let key: [u8; 8] = key[..].try_into().unwrap();
                 let entry = Entry::new(&key);
@@ -1665,7 +1714,7 @@ mod tests {
             // which might not be affected by nodes in lower levels being changed accidentally.
             // Instead we need to iterate over the keys and check if they are the same.
 
-            let mut tree = PATCH::<8, IdentityOrder>::new();
+            let mut tree = PATCH::<8, IdentitySchema, ()>::new();
             for key in base_keys {
                 let key: [u8; 8] = key[..].try_into().unwrap();
                 let entry = Entry::new(&key);
@@ -1674,7 +1723,7 @@ mod tests {
             let base_tree_content: Vec<[u8; 8]> = tree.iter().copied().collect();
 
             let mut tree_clone = tree.clone();
-            let mut new_tree = PATCH::<8, IdentityOrder>::new();
+            let mut new_tree = PATCH::<8, IdentitySchema, ()>::new();
             for key in new_keys {
                 let key: [u8; 8] = key[..].try_into().unwrap();
                 let entry = Entry::new(&key);

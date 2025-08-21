@@ -24,29 +24,29 @@ fn dst_len<T>(ptr: *const [T]) -> usize {
 
 #[derive(Debug)]
 #[repr(C, align(16))]
-pub(crate) struct Branch<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>, Table: ?Sized> {
+pub(crate) struct Branch<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, Table: ?Sized, V> {
     key_ordering: PhantomData<O>,
     key_segments: PhantomData<O::Segmentation>,
 
     rc: atomic::AtomicU32,
     pub end_depth: u32,
-    pub childleaf: *const Leaf<KEY_LEN>,
+    pub childleaf: *const Leaf<KEY_LEN, V>,
     pub leaf_count: u64,
     pub segment_count: u64,
     pub hash: u128,
     pub child_table: Table,
 }
 
-impl<const BRANCHING_FACTOR: usize, const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Body
-    for Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>; BRANCHING_FACTOR]>
+impl<const BRANCHING_FACTOR: usize, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Body
+    for Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>; BRANCHING_FACTOR], V>
 {
     fn tag(_body: NonNull<Self>) -> HeadTag {
         unsafe { transmute(BRANCHING_FACTOR as u8) }
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Body
-    for Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Body
+    for Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>
 {
     fn tag(body: NonNull<Self>) -> HeadTag {
         unsafe {
@@ -56,11 +56,13 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Body
     }
 }
 
-impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]> {
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
+    Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>
+{
     pub(super) fn new(
         end_depth: usize,
-        lchild: Head<KEY_LEN, O>,
-        rchild: Head<KEY_LEN, O>,
+        lchild: Head<KEY_LEN, O, V>,
+        rchild: Head<KEY_LEN, O, V>,
     ) -> NonNull<Self> {
         unsafe {
             let size = 2;
@@ -72,7 +74,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
             );
             let Some(ptr) =
                 NonNull::new(std::ptr::slice_from_raw_parts(alloc_zeroed(layout), size)
-                    as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>)
+                    as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>)
             else {
                 handle_alloc_error(layout);
             };
@@ -147,7 +149,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
                 );
                 if let Some(ptr) =
                     NonNull::new(std::ptr::slice_from_raw_parts(alloc_zeroed(layout), size)
-                        as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>)
+                        as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>)
                 {
                     addr_of_mut!((*ptr.as_ptr()).rc).write(atomic::AtomicU32::new(1));
                     addr_of_mut!((*ptr.as_ptr()).end_depth).write((*branch).end_depth);
@@ -185,7 +187,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
                 alloc_zeroed(layout),
                 new_size,
             )
-                as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>)
+                as *mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>)
             {
                 addr_of_mut!((*ptr.as_ptr()).rc).write(atomic::AtomicU32::new(1));
                 addr_of_mut!((*ptr.as_ptr()).end_depth).write((*branch).end_depth);
@@ -199,9 +201,9 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
                     .child_table
                     .table_grow(&mut (*ptr.as_ptr()).child_table);
 
-                Branch::<KEY_LEN, O, [Option<Head<KEY_LEN, O>>]>::rc_dec(NonNull::new_unchecked(
-                    branch,
-                ));
+                Branch::<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>::rc_dec(
+                    NonNull::new_unchecked(branch),
+                );
 
                 ptr
             } else {
@@ -210,7 +212,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
         }
     }
 
-    pub fn insert_child(branch: NonNull<Self>, child: Head<KEY_LEN, O>) -> NonNull<Self> {
+    pub fn insert_child(branch: NonNull<Self>, child: Head<KEY_LEN, O, V>) -> NonNull<Self> {
         unsafe {
             let mut branch = branch.as_ptr();
             let end_depth = (*branch).end_depth as usize;
@@ -232,11 +234,11 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
     #[must_use]
     pub fn upsert_child<F>(
         branch: NonNull<Self>,
-        inserted: Head<KEY_LEN, O>,
+        inserted: Head<KEY_LEN, O, V>,
         update: F,
     ) -> NonNull<Self>
     where
-        F: FnOnce(&mut Option<Head<KEY_LEN, O>>, Head<KEY_LEN, O>),
+        F: FnOnce(&mut Option<Head<KEY_LEN, O, V>>, Head<KEY_LEN, O, V>),
     {
         unsafe {
             let ptr = branch.as_ptr();
@@ -265,7 +267,7 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
 
     pub fn update_child<F>(branch: NonNull<Self>, key: u8, update: F)
     where
-        F: FnOnce(Head<KEY_LEN, O>) -> Option<Head<KEY_LEN, O>>,
+        F: FnOnce(Head<KEY_LEN, O, V>) -> Option<Head<KEY_LEN, O, V>>,
     {
         unsafe {
             let ptr = branch.as_ptr();
@@ -297,8 +299,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
     pub fn count_segment(branch: NonNull<Self>, at_depth: usize) -> u64 {
         unsafe {
             let branch = branch.as_ptr();
-            if <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[at_depth]]
-                != <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+            if <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[at_depth]]
+                != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                     [O::TREE_TO_KEY[(*branch).end_depth as usize]]
             {
                 1
@@ -383,6 +385,36 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
         }
     }
 
+    pub(super) fn get<'a>(
+        branch: NonNull<Self>,
+        at_depth: usize,
+        key: &[u8; KEY_LEN],
+    ) -> Option<&'a V>
+    where
+        O: 'a,
+    {
+        unsafe {
+            let branch = branch.as_ptr();
+            let node_end_depth = (*branch).end_depth as usize;
+            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
+            for depth in at_depth..std::cmp::min(node_end_depth, KEY_LEN) {
+                let idx = O::TREE_TO_KEY[depth];
+                if leaf_key[idx] != key[idx] {
+                    return None;
+                }
+            }
+
+            if node_end_depth >= KEY_LEN {
+                return Some(&(*(*branch).childleaf).value);
+            }
+
+            if let Some(child) = (*branch).child_table.table_get(key[node_end_depth]) {
+                return child.get(node_end_depth, key);
+            }
+            None
+        }
+    }
+
     pub(super) fn segmented_len<const PREFIX_LEN: usize>(
         branch: NonNull<Self>,
         at_depth: usize,
@@ -399,8 +431,8 @@ impl<const KEY_LEN: usize, O: KeyOrdering<KEY_LEN>> Branch<KEY_LEN, O, [Option<H
                 }
             }
             if PREFIX_LEN <= node_end_depth {
-                if <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
-                    != <O as KeyOrdering<KEY_LEN>>::Segmentation::SEGMENTS
+                if <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
+                    != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
                         [O::TREE_TO_KEY[node_end_depth]]
                 {
                     return 1;

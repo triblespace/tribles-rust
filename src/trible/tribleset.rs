@@ -39,16 +39,16 @@ use std::ops::AddAssign;
 /// and not to remove elements from the set. A subtle but important distinction.
 #[derive(Debug, Clone)]
 pub struct TribleSet {
-    pub eav: PATCH<TRIBLE_LEN, EAVOrder>,
-    pub vea: PATCH<TRIBLE_LEN, VEAOrder>,
-    pub ave: PATCH<TRIBLE_LEN, AVEOrder>,
-    pub vae: PATCH<TRIBLE_LEN, VAEOrder>,
-    pub eva: PATCH<TRIBLE_LEN, EVAOrder>,
-    pub aev: PATCH<TRIBLE_LEN, AEVOrder>,
+    pub eav: PATCH<TRIBLE_LEN, EAVOrder, ()>,
+    pub vea: PATCH<TRIBLE_LEN, VEAOrder, ()>,
+    pub ave: PATCH<TRIBLE_LEN, AVEOrder, ()>,
+    pub vae: PATCH<TRIBLE_LEN, VAEOrder, ()>,
+    pub eva: PATCH<TRIBLE_LEN, EVAOrder, ()>,
+    pub aev: PATCH<TRIBLE_LEN, AEVOrder, ()>,
 }
 
 pub struct TribleSetIterator<'a> {
-    inner: Map<crate::patch::PATCHIterator<'a, 64, EAVOrder>, fn(&[u8; 64]) -> &Trible>,
+    inner: Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, ()>, fn(&[u8; 64]) -> &Trible>,
 }
 
 impl TribleSet {
@@ -88,12 +88,12 @@ impl TribleSet {
 
     pub fn new() -> TribleSet {
         TribleSet {
-            eav: PATCH::new(),
-            eva: PATCH::new(),
-            aev: PATCH::new(),
-            ave: PATCH::new(),
-            vea: PATCH::new(),
-            vae: PATCH::new(),
+            eav: PATCH::<TRIBLE_LEN, EAVOrder, ()>::new(),
+            eva: PATCH::<TRIBLE_LEN, EVAOrder, ()>::new(),
+            aev: PATCH::<TRIBLE_LEN, AEVOrder, ()>::new(),
+            ave: PATCH::<TRIBLE_LEN, AVEOrder, ()>::new(),
+            vea: PATCH::<TRIBLE_LEN, VEAOrder, ()>::new(),
+            vae: PATCH::<TRIBLE_LEN, VAEOrder, ()>::new(),
         }
     }
 

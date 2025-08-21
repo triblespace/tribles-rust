@@ -39,8 +39,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declarative segment layout, simplifying maintenance.
 - PATCH exposes const helpers to derive segment maps and ordering
   permutations from a declarative key layout.
-- Introduced `key_segmentation!` and `key_ordering!` macros to emit
-  `KeySegmentation` and `KeyOrdering` implementations from those declarative
+- `Entry` now supports an optional value via `with_value`, preparing `PATCH`
+  for key-value mappings.
+- Set semantics now use the zero-sized unit `()` value instead of a dummy
+  byte to avoid extra storage.
+- `PATCH::get` retrieves the value associated with a key, if present.
+- `Leaf` stores the associated value and `PATCH`/`Head`/`Branch` now carry a
+  value type parameter so keys can map to arbitrary payloads.
+- Moved the value type parameter to the end of generic parameter lists for a
+  more ergonomic `PATCH<KEY_LEN, Order, Value>` API.
+- Documented that hashing and equality ignore leaf values and added a
+  regression test verifying patches with identical keys but different values
+  compare equal.
+- Introduced `key_segmentation!` and `key_schema!` macros to emit
+  `KeySegmentation` and `KeySchema` implementations from those declarative
   layouts.
 - Added `byte_table_resize_benchmark` measuring average fill ratios that cause
   growth for random vs sequential inserts. It now tracks the number of elements
@@ -74,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional example in the Commit Selectors chapter demonstrating how to
   compose `filter` with `time_range`.
 ### Changed
+- `succinctarchive` schema is now gated behind an optional `succinct-archive`
+  feature until it aligns with upstream `jerky` APIs.
 - Expanded commit selector documentation with an overview, example and clearer
   wording about loading commits from a workspace.
 - Expanded repository workflows chapter with clearer branching steps and a
@@ -90,9 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the "Getting Started" book section with dependency setup and run instructions.
 - PATCH infix and segment-length operations now require prefixes to align with
   segment boundaries.
-- `KeyOrdering` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
-- Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeyOrdering` to its `KeySegmentation` with an explicit segment permutation.
-- `KeyOrdering` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.
+- `KeySchema` and `KeySegmentation` now expose translation tables as associated const arrays instead of methods.
+- Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeySchema` to its `KeySegmentation` with an explicit segment permutation.
+- `KeySchema` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.
+- Renamed `KeyOrdering` trait and `key_ordering!` macro to `KeySchema` and `key_schema!` for clearer terminology.
 - `ByteTable` plans insertions by recursively seeking a free slot and shifts entries only after a path is found, returning the entry on failure so callers can grow the table.
 - ByteTable's planner tracks visited keys with a stack-allocated bitset to avoid heap allocations.
 - Simplified the planner and table helpers for clearer ByteTable insertion code.

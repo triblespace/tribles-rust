@@ -23,7 +23,7 @@ use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use tribles::patch::Entry;
-use tribles::patch::IdentityOrder;
+use tribles::patch::IdentitySchema;
 use tribles::patch::PATCH;
 
 use im::OrdSet;
@@ -122,7 +122,7 @@ fn patch_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("put", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
             b.iter(|| {
-                let mut patch = PATCH::<64, IdentityOrder>::new();
+                let mut patch = PATCH::<64, IdentitySchema>::new();
                 for t in black_box(&samples) {
                     let entry: Entry<64> = Entry::new(&t.data);
                     patch.insert(&entry);
@@ -132,7 +132,7 @@ fn patch_benchmark(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("iter", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut patch = PATCH::<64, IdentityOrder>::new();
+            let mut patch = PATCH::<64, IdentitySchema>::new();
             for t in black_box(&samples) {
                 let entry: Entry<64> = Entry::new(&t.data);
                 patch.insert(&entry);
@@ -141,7 +141,7 @@ fn patch_benchmark(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("infixes", i), i, |b, &i| {
             let samples = random_tribles(i as usize);
-            let mut patch = PATCH::<64, IdentityOrder>::new();
+            let mut patch = PATCH::<64, IdentitySchema>::new();
             for t in black_box(&samples) {
                 let entry: Entry<64> = Entry::new(&t.data);
                 patch.insert(&entry);
@@ -162,7 +162,7 @@ fn patch_benchmark(c: &mut Criterion) {
             let patchs: Vec<_> = samples
                 .chunks(total_unioned / i)
                 .map(|samples| {
-                    let mut patch: PATCH<64, IdentityOrder> = PATCH::<64, IdentityOrder>::new();
+                    let mut patch: PATCH<64, IdentitySchema> = PATCH::<64, IdentitySchema>::new();
                     for t in samples {
                         let entry: Entry<64> = Entry::new(&t.data);
                         patch.insert(&entry);
@@ -173,7 +173,7 @@ fn patch_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 black_box(&patchs)
                     .iter()
-                    .fold(PATCH::<64, IdentityOrder>::new(), |mut a, p| {
+                    .fold(PATCH::<64, IdentitySchema>::new(), |mut a, p| {
                         a.union(p.clone());
                         a
                     })

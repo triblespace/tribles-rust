@@ -127,7 +127,7 @@ use crate::id::ufoid;
 use crate::id::Id;
 use crate::metadata::metadata;
 use crate::patch::Entry;
-use crate::patch::IdentityOrder;
+use crate::patch::IdentitySchema;
 use crate::patch::PATCH;
 use crate::prelude::valueschemas::GenId;
 use crate::repo::branch::branch;
@@ -929,7 +929,7 @@ where
 }
 
 type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
-type CommitSet = PATCH<VALUE_LEN, IdentityOrder>;
+type CommitSet = PATCH<VALUE_LEN, IdentitySchema, ()>;
 type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 
 /// The Workspace represents the mutable working area or "staging" state.

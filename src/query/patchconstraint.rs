@@ -1,7 +1,7 @@
 use crate::id::id_from_value;
 use crate::id::id_into_value;
 use crate::id::ID_LEN;
-use crate::patch::IdentityOrder;
+use crate::patch::IdentitySchema;
 use crate::patch::PATCH;
 use crate::value::RawValue;
 use crate::value::ValueSchema;
@@ -16,11 +16,11 @@ use super::VariableSet;
 
 pub struct PatchValueConstraint<'a, T: ValueSchema> {
     variable: Variable<T>,
-    patch: &'a PATCH<VALUE_LEN, IdentityOrder>,
+    patch: &'a PATCH<VALUE_LEN, IdentitySchema, ()>,
 }
 
 impl<'a, T: ValueSchema> PatchValueConstraint<'a, T> {
-    pub fn new(variable: Variable<T>, patch: &'a PATCH<VALUE_LEN, IdentityOrder>) -> Self {
+    pub fn new(variable: Variable<T>, patch: &'a PATCH<VALUE_LEN, IdentitySchema, ()>) -> Self {
         PatchValueConstraint { variable, patch }
     }
 }
@@ -52,7 +52,7 @@ impl<'a, S: ValueSchema> Constraint<'a> for PatchValueConstraint<'a, S> {
     }
 }
 
-impl<'a, S: ValueSchema> ContainsConstraint<'a, S> for &'a PATCH<VALUE_LEN, IdentityOrder> {
+impl<'a, S: ValueSchema> ContainsConstraint<'a, S> for &'a PATCH<VALUE_LEN, IdentitySchema, ()> {
     type Constraint = PatchValueConstraint<'a, S>;
 
     fn has(self, v: Variable<S>) -> Self::Constraint {
@@ -65,14 +65,14 @@ where
     S: ValueSchema,
 {
     variable: Variable<S>,
-    patch: PATCH<ID_LEN, IdentityOrder>,
+    patch: PATCH<ID_LEN, IdentitySchema, ()>,
 }
 
 impl<'a, S> PatchIdConstraint<S>
 where
     S: ValueSchema,
 {
-    pub fn new(variable: Variable<S>, patch: PATCH<ID_LEN, IdentityOrder>) -> Self {
+    pub fn new(variable: Variable<S>, patch: PATCH<ID_LEN, IdentitySchema, ()>) -> Self {
         PatchIdConstraint { variable, patch }
     }
 }
@@ -112,7 +112,7 @@ where
     }
 }
 
-impl<'a, S: ValueSchema> ContainsConstraint<'a, S> for PATCH<ID_LEN, IdentityOrder> {
+impl<'a, S: ValueSchema> ContainsConstraint<'a, S> for PATCH<ID_LEN, IdentitySchema, ()> {
     type Constraint = PatchIdConstraint<S>;
 
     fn has(self, v: Variable<S>) -> Self::Constraint {

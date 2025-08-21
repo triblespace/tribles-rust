@@ -1,3 +1,5 @@
+#![cfg(feature = "succinct-archive")]
+
 use tribles::blob::schemas::succinctarchive::OrderedUniverse;
 use tribles::blob::schemas::succinctarchive::SuccinctArchive;
 use tribles::prelude::*;

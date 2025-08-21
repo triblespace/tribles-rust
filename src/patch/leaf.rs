@@ -13,20 +13,21 @@ use super::*;
 
 #[derive(Debug)]
 #[repr(C)]
-pub(crate) struct Leaf<const KEY_LEN: usize> {
+pub(crate) struct Leaf<const KEY_LEN: usize, V> {
     pub key: [u8; KEY_LEN],
     pub hash: u128,
     rc: atomic::AtomicU32,
+    pub value: V,
 }
 
-impl<const KEY_LEN: usize> Body for Leaf<KEY_LEN> {
+impl<const KEY_LEN: usize, V> Body for Leaf<KEY_LEN, V> {
     fn tag(_body: NonNull<Self>) -> HeadTag {
         HeadTag::Leaf
     }
 }
 
-impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
-    pub(super) unsafe fn new(key: &[u8; KEY_LEN]) -> NonNull<Self> {
+impl<const KEY_LEN: usize, V> Leaf<KEY_LEN, V> {
+    pub(super) unsafe fn new(key: &[u8; KEY_LEN], value: V) -> NonNull<Self> {
         unsafe {
             let layout = Layout::new::<Self>();
             let Some(ptr) = NonNull::new(alloc(layout) as *mut Self) else {
@@ -40,6 +41,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
                 key: *key,
                 hash,
                 rc: atomic::AtomicU32::new(1),
+                value,
             });
 
             ptr
@@ -85,7 +87,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
     pub(crate) fn infixes<
         const PREFIX_LEN: usize,
         const INFIX_LEN: usize,
-        O: KeyOrdering<KEY_LEN>,
+        O: KeySchema<KEY_LEN>,
         F,
     >(
         leaf: NonNull<Self>,
@@ -108,7 +110,7 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         f(&infix);
     }
 
-    pub(crate) fn has_prefix<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
+    pub(crate) fn has_prefix<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(
         leaf: NonNull<Self>,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
@@ -125,7 +127,22 @@ impl<const KEY_LEN: usize> Leaf<KEY_LEN> {
         true
     }
 
-    pub(crate) fn segmented_len<O: KeyOrdering<KEY_LEN>, const PREFIX_LEN: usize>(
+    pub(crate) fn get<'a, O: KeySchema<KEY_LEN>>(
+        leaf: NonNull<Self>,
+        at_depth: usize,
+        key: &[u8; KEY_LEN],
+    ) -> Option<&'a V> {
+        let leaf = unsafe { leaf.as_ref() };
+        for depth in at_depth..KEY_LEN {
+            let idx = O::TREE_TO_KEY[depth];
+            if leaf.key[idx] != key[idx] {
+                return None;
+            }
+        }
+        Some(&leaf.value)
+    }
+
+    pub(crate) fn segmented_len<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(
         leaf: NonNull<Self>,
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],

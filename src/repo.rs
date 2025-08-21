@@ -127,7 +127,7 @@ use crate::id::ufoid;
 use crate::id::Id;
 use crate::metadata::metadata;
 use crate::patch::Entry;
-use crate::patch::IdentityOrder;
+use crate::patch::IdentitySchema;
 use crate::patch::PATCH;
 use crate::prelude::valueschemas::GenId;
 use crate::repo::branch::branch;
@@ -410,10 +410,13 @@ pub fn copy_reachable<BS, BT, H>(
     source: &BS,
     target: &mut BT,
     roots: impl IntoIterator<Item = Value<Handle<H, UnknownBlob>>>,
-) -> Result<CopyReachableStats, CopyReachableError<
-    <BS as BlobStoreGet<H>>::GetError<Infallible>,
-    <BT as BlobStorePut<H>>::PutError,
->>
+) -> Result<
+    CopyReachableStats,
+    CopyReachableError<
+        <BS as BlobStoreGet<H>>::GetError<Infallible>,
+        <BT as BlobStorePut<H>>::PutError,
+    >,
+>
 where
     BS: BlobStoreGet<H>,
     BT: BlobStorePut<H>,
@@ -446,7 +449,9 @@ where
         };
 
         // Store into target (de‑dup handled by storage layer).
-        let _ = target.put(blob.clone()).map_err(CopyReachableError::Store)?;
+        let _ = target
+            .put(blob.clone())
+            .map_err(CopyReachableError::Store)?;
         stats.stored += 1;
 
         // Scan bytes for 32‑byte aligned candidates; push if load succeeds.
@@ -925,7 +930,7 @@ where
 }
 
 type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
-type CommitSet = PATCH<VALUE_LEN, IdentityOrder>;
+type CommitSet = PATCH<VALUE_LEN, IdentitySchema, ()>;
 type BranchMetaHandle = Value<Handle<Blake3, SimpleArchive>>;
 
 /// The Workspace represents the mutable working area or "staging" state.

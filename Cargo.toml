@@ -46,6 +46,7 @@ uuid = "1.15.1"
 reft-light = "0.3.1"
 tribles-macros = { path = "tribles-macros" }
 fs4 = "0.13.1"
+crossbeam-channel = "0.5"
 
 #[dev-dependencies]
 im = "15.1.0"
@@ -64,7 +65,6 @@ default = ["proptest"]
 proptest = ["dep:proptest"]
 succinct-archive = ["dep:jerky"]
 kani = []
-succinct-archive = []
 
 [[bench]]
 name = "benchmark"

@@ -532,6 +532,46 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         }
     }
 
+    pub(crate) fn replace_leaf(slot: &mut Option<Self>, leaf: Self, start_depth: usize) {
+        let this = slot.as_mut().expect("slot should not be empty");
+        let this_key = this.childleaf_key();
+        let leaf_key = leaf.childleaf_key();
+
+        let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
+        for depth in start_depth..end_depth {
+            let i = O::TREE_TO_KEY[depth];
+            let this_byte_key = this_key[i];
+            let leaf_byte_key = leaf_key[i];
+            if this_byte_key != leaf_byte_key {
+                let old_key = this.key();
+                let new_body = Branch::new(
+                    depth,
+                    slot.take().unwrap().with_key(this_byte_key),
+                    leaf.with_key(leaf_byte_key),
+                );
+
+                if slot.replace(Head::new(old_key, new_body)).is_some() {
+                    unreachable!();
+                }
+
+                return;
+            }
+        }
+
+        if end_depth == KEY_LEN {
+            let old_key = this.key();
+            slot.replace(leaf.with_key(old_key));
+        } else {
+            let BodyPtr::Branch(body) = this.body_mut() else {
+                unreachable!();
+            };
+            let new_body = Branch::upsert_child(body, leaf, |slot, inserted| {
+                Head::replace_leaf(slot, inserted, end_depth)
+            });
+            this.set_body(new_body);
+        }
+    }
+
     pub(crate) fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
         &self,
         prefix: &[u8; PREFIX_LEN],
@@ -970,6 +1010,15 @@ where
     pub fn insert(&mut self, entry: &Entry<KEY_LEN, V>) {
         if self.root.is_some() {
             Head::insert_leaf(&mut self.root, entry.leaf(), 0);
+        } else {
+            self.root.replace(entry.leaf());
+        }
+    }
+
+    /// Inserts a key into the PATCH, replacing the value if it already exists.
+    pub fn replace(&mut self, entry: &Entry<KEY_LEN, V>) {
+        if self.root.is_some() {
+            Head::replace_leaf(&mut self.root, entry.leaf(), 0);
         } else {
             self.root.replace(entry.leaf());
         }
@@ -1482,6 +1531,34 @@ mod tests {
         let entry = Entry::new(&[0; KEY_SIZE]);
         tree.insert(&entry);
         tree.insert(&entry);
+    }
+
+    #[test]
+    fn tree_replace_existing() {
+        const KEY_SIZE: usize = 64;
+        let key = [1u8; KEY_SIZE];
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+        let entry1 = Entry::with_value(&key, 1);
+        tree.insert(&entry1);
+        let entry2 = Entry::with_value(&key, 2);
+        tree.replace(&entry2);
+        assert_eq!(tree.get(&key), Some(&2));
+    }
+
+    #[test]
+    fn tree_replace_childleaf_updates_branch() {
+        const KEY_SIZE: usize = 64;
+        let key1 = [0u8; KEY_SIZE];
+        let key2 = [1u8; KEY_SIZE];
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+        let entry1 = Entry::with_value(&key1, 1);
+        let entry2 = Entry::with_value(&key2, 2);
+        tree.insert(&entry1);
+        tree.insert(&entry2);
+        let entry1b = Entry::with_value(&key1, 3);
+        tree.replace(&entry1b);
+        assert_eq!(tree.get(&key1), Some(&3));
+        assert_eq!(tree.get(&key2), Some(&2));
     }
 
     #[test]

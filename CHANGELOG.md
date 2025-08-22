@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `RegularPathConstraint` is now generic over `PathEngine`.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
+- `PATCH::replace` method replaces existing keys without removing/ reinserting.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
@@ -37,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch occupancy averages.
 - Trible key segmentation and ordering tables are now generated from a
   declarative segment layout, simplifying maintenance.
+
+### Changed
+- `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
 - PATCH exposes const helpers to derive segment maps and ordering
   permutations from a declarative key layout.
 - `Entry` now supports an optional value via `with_value`, preparing `PATCH`
@@ -86,6 +90,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional example in the Commit Selectors chapter demonstrating how to
   compose `filter` with `time_range`.
 ### Changed
+- `Branch::upsert_child` now always refreshes `childleaf`, removing the `replaced_leafchild` check.
+- Blob index now uses value-aware `PATCH` for cheap reader clones.
+- Inlined `refresh_range` logic into `refresh`, removing the partial-range helper.
 - Blob appends now issue a single `write_vectored` `O_APPEND` call to stream header, data and padding without extra copies or retries.
 - Simplified vectored blob appends by always including a padding slice.
 - Branch updates now perform `flush → refresh → lock → refresh → append → unlock` directly instead of queuing.
@@ -93,8 +100,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Max-size checks and mmap offsets now derive from the file's actual length instead of tracked counters.
 - Restored an `applied_length` tracker to incrementally refresh new blobs and branches without rescanning the entire pile.
 - Blob inserts now compare the write start with the previous `applied_length`, ingesting any intervening records before advancing.
+- `refresh` now uses the same framing parser as `try_open` to detect truncated or malformed records while deferring blob hash checks to reads.
+- `try_open` now reuses `refresh` for log scanning, unifying corruption checks.
 - `succinctarchive` schema is now gated behind an optional `succinct-archive`
   feature until it aligns with upstream `jerky` APIs.
+- `refresh` retains existing blob entries when encountering duplicates instead of
+  replacing validated records.
+- `refresh` now uses `PATCH::replace` to update blob entries without explicit remove/insert.
 - Expanded commit selector documentation with an overview, example and clearer
   wording about loading commits from a workspace.
 - Temporarily gate the `SuccinctArchive` schema behind a feature to restore
@@ -117,6 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeySchema` to its `KeySegmentation` with an explicit segment permutation.
 - `KeySchema` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.
 - Renamed `KeyOrdering` trait and `key_ordering!` macro to `KeySchema` and `key_schema!` for clearer terminology.
+- Blob writes are now synchronous; `put` records an `InFlight` entry so repeated writes of the same blob are deduplicated until a refresh.
+- Pile size limits are enforced during `refresh` rather than on each write.
 - `ByteTable` plans insertions by recursively seeking a free slot and shifts entries only after a path is found, returning the entry on failure so callers can grow the table.
 - ByteTable's planner tracks visited keys with a stack-allocated bitset to avoid heap allocations.
 - Simplified the planner and table helpers for clearer ByteTable insertion code.
@@ -140,6 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 ### Fixed
+- Removed duplicate `succinct-archive` feature declarations that prevented
+  builds.
 - Corrected blob offsets in `Pile` so retrieved blobs no longer include headers or
   branch records.
 - Scheduled branch writes through the pile's write handle to avoid orphaned

@@ -178,7 +178,7 @@ fn merge_import_example(
         src.head(src_branch_id)?.ok_or_else(|| anyhow::anyhow!("source head not found"))?;
 
     // 3) Conservatively copy all reachable blobs from source → destination
-    let stats = repo::copy_reachable(&src.reader(), &mut dst, [src_head.transmute()])?;
+    let stats = repo::copy_reachable(&src.reader()?, &mut dst, [src_head.transmute()])?;
     eprintln!("copied: visited={} stored={}", stats.visited, stats.stored);
 
     // 4) Attach via a single merge commit in the destination branch

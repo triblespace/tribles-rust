@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Replaced fs4 with Rust std file-locking APIs.
+- Declared Rust 1.89 as the minimum supported toolchain.
 - Dropped the inventory item about validating externally appended blobs during
   `refresh`; blob data is verified lazily on read.
 - `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.

@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
-#![cfg_attr(nightly, feature(rustc_attrs))]
-#![cfg_attr(nightly, feature(decl_macro))]
+#![cfg_attr(nightly, feature(rustc_attrs, decl_macro, file_lock))]
 
 extern crate self as tribles;
 

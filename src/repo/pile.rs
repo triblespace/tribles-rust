@@ -7,74 +7,46 @@
 
 use anybytes::Bytes;
 use hex_literal::hex;
-use memmap2::{MmapOptions, MmapRaw};
+use memmap2::MmapOptions;
+use memmap2::MmapRaw;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::{Seek, SeekFrom, Write};
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
 use std::path::Path;
 use std::ptr::slice_from_raw_parts;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::time::{SystemTime, UNIX_EPOCH};
-use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
+use zerocopy::TryFromBytes;
 
 use crate::blob::schemas::UnknownBlob;
-use crate::blob::{Blob, BlobSchema, ToBlob, TryFromBlob};
-use crate::id::{Id, RawId};
-use crate::patch::{Entry, IdentitySchema, PATCHIterator, PATCH};
+use crate::blob::Blob;
+use crate::blob::BlobSchema;
+use crate::blob::ToBlob;
+use crate::blob::TryFromBlob;
+use crate::id::Id;
+use crate::id::RawId;
+use crate::patch::Entry;
+use crate::patch::IdentitySchema;
+use crate::patch::PATCHIterator;
+use crate::patch::PATCH;
 use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::valueschemas::Handle;
-use crate::value::schemas::hash::{Blake3, Hash, HashProtocol};
-use crate::value::{RawValue, Value, ValueSchema};
-
-#[cfg(unix)]
-trait FileLockExt {
-    fn lock_exclusive(&self) -> std::io::Result<()>;
-    fn unlock(&self) -> std::io::Result<()>;
-}
-
-#[cfg(unix)]
-impl FileLockExt for File {
-    fn lock_exclusive(&self) -> std::io::Result<()> {
-        use std::os::unix::io::AsRawFd;
-        let fd = self.as_raw_fd();
-        let res = unsafe { libc::flock(fd, libc::LOCK_EX) };
-        if res == 0 {
-            Ok(())
-        } else {
-            Err(std::io::Error::last_os_error())
-        }
-    }
-    fn unlock(&self) -> std::io::Result<()> {
-        use std::os::unix::io::AsRawFd;
-        let fd = self.as_raw_fd();
-        let res = unsafe { libc::flock(fd, libc::LOCK_UN) };
-        if res == 0 {
-            Ok(())
-        } else {
-            Err(std::io::Error::last_os_error())
-        }
-    }
-}
-
-#[cfg(not(unix))]
-trait FileLockExt {
-    fn lock_exclusive(&self) -> std::io::Result<()>;
-    fn unlock(&self) -> std::io::Result<()>;
-}
-
-#[cfg(not(unix))]
-impl FileLockExt for File {
-    fn lock_exclusive(&self) -> std::io::Result<()> {
-        Ok(())
-    }
-    fn unlock(&self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
+use crate::value::schemas::hash::Blake3;
+use crate::value::schemas::hash::Hash;
+use crate::value::schemas::hash::HashProtocol;
+use crate::value::RawValue;
+use crate::value::Value;
+use crate::value::ValueSchema;
 
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
@@ -688,7 +660,7 @@ where
         self.refresh().map_err(UpdateBranchError::from)?;
 
         {
-            self.file.lock_exclusive()?;
+            self.file.lock()?;
         }
 
         self.refresh().map_err(UpdateBranchError::from)?;

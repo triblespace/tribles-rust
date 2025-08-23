@@ -46,7 +46,6 @@ uuid = "1.15.1"
 reft-light = "0.3.1"
 tribles-macros = { path = "tribles-macros" }
 crossbeam-channel = "0.5"
-libc = "0.2"
 
 #[dev-dependencies]
 im = "15.1.0"

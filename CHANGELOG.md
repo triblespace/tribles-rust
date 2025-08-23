@@ -157,6 +157,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its flexible, lightweight query engine, plus links to later chapters.
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
+- Unused `crossbeam-channel` dependency.
 ### Fixed
 - Removed duplicate `succinct-archive` feature declarations that prevented
   builds.

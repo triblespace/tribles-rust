@@ -63,7 +63,7 @@ its hash. The payload is padded so the next record begins on a
 ```
 Branch entries map a branch identifier to the hash of a blob.
 ## Recovery
-When [`Pile::try_open`] scans an existing file it checks that every header uses a known marker and that the whole record fits. It does not verify any hashes. If a truncated or unknown block is found the function reports the number of bytes that were valid so far using [`OpenError::CorruptPile`].
+When [`Pile::try_open`] scans an existing file it checks that every header uses a known marker and that the whole record fits. It does not verify any hashes. If a truncated or unknown block is found the function reports the number of bytes that were valid so far using [`ReadError::CorruptPile`].
 
 The convenience wrapper [`Pile::open`] re-runs the same validation and truncates
 the file to the valid length if corruption is encountered. This recovers from

@@ -5,7 +5,7 @@
 
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
-- Validate externally appended blobs during `refresh` to guard against corruption.
+- Return a dedicated error when accessing in-flight blobs so callers can distinguish them from missing data.
 - Include a cross-namespace regular path query example in the book.
 - Helper to derive delta `TribleSet`s for `pattern_changes!` so callers don't
   have to compute them manually.

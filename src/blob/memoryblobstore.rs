@@ -342,9 +342,12 @@ where
 
 impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
     type Reader = MemoryBlobStoreReader<H>;
+    type ReaderError = Infallible;
 
-    fn reader(&mut self) -> Self::Reader {
-        MemoryBlobStoreReader::new(self.write_handle.publish().clone())
+    fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
+        Ok(MemoryBlobStoreReader::new(
+            self.write_handle.publish().clone(),
+        ))
     }
 }
 

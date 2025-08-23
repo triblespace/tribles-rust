@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
-#![cfg_attr(nightly, feature(rustc_attrs))]
-#![cfg_attr(nightly, feature(decl_macro))]
+#![cfg_attr(nightly, feature(rustc_attrs, decl_macro, file_lock))]
 
 extern crate self as tribles;
 
@@ -78,7 +77,7 @@ mod readme_example {
                 quote: quote
             }]))
         {
-            let q: View<str> = blobs.reader().get(q).unwrap();
+            let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
             let q = q.as_ref();
 
             println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())

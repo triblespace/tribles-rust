@@ -5,6 +5,7 @@
 
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
+- Return a dedicated error when accessing in-flight blobs so callers can distinguish them from missing data.
 - Include a cross-namespace regular path query example in the book.
 - Helper to derive delta `TribleSet`s for `pattern_changes!` so callers don't
   have to compute them manually.
@@ -91,5 +92,7 @@ prioritized for efficient zero-copy access.
 ## Discovered Issues
 - No open issues recorded yet.
 - Enforce `PREFIX_LEN` never exceeds `KEY_LEN` when checking prefixes.
+- Update `SuccinctArchive` schema to the latest Jerky API and re-enable the
+  associated benchmarks and tests.
 - `succinctarchive` schema is temporarily disabled; update to the latest
   `jerky` APIs and remove the feature gate.

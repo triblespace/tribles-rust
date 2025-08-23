@@ -38,7 +38,8 @@ impl crate::repo::BlobStorePut<Blake3> for MemoryRepo {
 
 impl crate::repo::BlobStore<Blake3> for MemoryRepo {
     type Reader = <MemoryBlobStore<Blake3> as crate::repo::BlobStore<Blake3>>::Reader;
-    fn reader(&mut self) -> Self::Reader {
+    type ReaderError = <MemoryBlobStore<Blake3> as crate::repo::BlobStore<Blake3>>::ReaderError;
+    fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
         self.blobs.reader()
     }
 }

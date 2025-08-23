@@ -249,10 +249,10 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
                 let old_child_hash = child.hash();
                 let old_child_segment_count = child.count_segment((*ptr).end_depth as usize);
                 let old_child_leaf_count = child.count();
-
                 update(slot, inserted);
 
                 let child = slot.as_ref().expect("upsert may not remove child");
+                (*ptr).childleaf = child.childleaf();
 
                 (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ child.hash();
                 (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)

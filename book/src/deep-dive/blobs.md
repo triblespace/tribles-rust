@@ -43,6 +43,7 @@ let commit_author_key: SigningKey = SigningKey::generate(&mut csprng);
 let signature: Signature = commit_author_key.sign(
     &memory_store
         .reader()
+        .unwrap()
         .get::<Blob<SimpleArchive>, SimpleArchive>(archived_set_handle)
         .unwrap()
         .bytes,

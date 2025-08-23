@@ -412,7 +412,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Token stream that initializes attribute variables once.
     let mut attr_tokens = TokenStream2::new();
     // Bring the namespace into scope for attribute initialization.
-    attr_tokens.extend(quote! { use #ns as ns; });
+    attr_tokens.extend(quote! { #[allow(unused_imports)] use #ns as ns; });
     // Counter to create unique identifiers for entity variables.
     let mut entity_idx = 0usize;
     // Counter and map for unique attribute variables.
@@ -463,7 +463,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 FieldValue::Lit(expr) => {
                     quote! {
                         {
-                            use #crate_path::query::TriblePattern;
+                            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
                             use #ns as ns;
                             let v_var: #crate_path::query::Variable<ns::schemas::#field_ident> = #ctx_ident.next_variable();
                             // literal value converted to a `Value`
@@ -479,7 +479,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 FieldValue::Var(expr) => {
                     quote! {
                         {
-                            use #crate_path::query::TriblePattern;
+                            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
                             use #ns as ns;
                             let v_var: #crate_path::query::Variable<ns::schemas::#field_ident> = #expr;
                             constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
@@ -824,7 +824,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
         let case = quote! {
             {
                 let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
-                use #crate_path::query::TriblePattern;
+                #[allow(unused_imports)] use #crate_path::query::TriblePattern;
                 #triple_tokens
                 #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
             }
@@ -843,12 +843,12 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let #ctx_ident = __local_find_context!();
                         let #curr_ident = #curr;
             let #delta_ident = #changes;
-            use #ns as ns;
+            #[allow(unused_imports)] use #ns as ns;
             #attr_decl_tokens
             #entity_decl_tokens
             #value_decl_tokens
             let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
-            use #crate_path::query::TriblePattern;
+            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
             #attr_const_tokens
             #entity_const_tokens
             #value_const_tokens

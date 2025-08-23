@@ -115,7 +115,7 @@ impl TribleSet {
         self.eav.has_prefix(&trible.data)
     }
 
-    pub fn iter(&self) -> TribleSetIterator {
+    pub fn iter(&self) -> TribleSetIterator<'_> {
         TribleSetIterator {
             inner: self
                 .eav

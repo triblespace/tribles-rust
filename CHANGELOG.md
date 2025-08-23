@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declarative segment layout, simplifying maintenance.
 
 ### Changed
+- Replaced fs4 with Rust std file-locking APIs.
 - `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
 - Renamed pile read errors from `OpenError` to `ReadError` since they can surface during refresh.
 - PATCH exposes const helpers to derive segment maps and ordering

@@ -6,7 +6,6 @@
 //! Format](../../book/src/pile-format.md) chapter of the Tribles Book.
 
 use anybytes::Bytes;
-use fs4::fs_std::FileExt;
 use hex_literal::hex;
 use memmap2::{MmapOptions, MmapRaw};
 use std::collections::HashMap;
@@ -30,6 +29,52 @@ use crate::prelude::blobschemas::SimpleArchive;
 use crate::prelude::valueschemas::Handle;
 use crate::value::schemas::hash::{Blake3, Hash, HashProtocol};
 use crate::value::{RawValue, Value, ValueSchema};
+
+#[cfg(unix)]
+trait FileLockExt {
+    fn lock_exclusive(&self) -> std::io::Result<()>;
+    fn unlock(&self) -> std::io::Result<()>;
+}
+
+#[cfg(unix)]
+impl FileLockExt for File {
+    fn lock_exclusive(&self) -> std::io::Result<()> {
+        use std::os::unix::io::AsRawFd;
+        let fd = self.as_raw_fd();
+        let res = unsafe { libc::flock(fd, libc::LOCK_EX) };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(std::io::Error::last_os_error())
+        }
+    }
+    fn unlock(&self) -> std::io::Result<()> {
+        use std::os::unix::io::AsRawFd;
+        let fd = self.as_raw_fd();
+        let res = unsafe { libc::flock(fd, libc::LOCK_UN) };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(std::io::Error::last_os_error())
+        }
+    }
+}
+
+#[cfg(not(unix))]
+trait FileLockExt {
+    fn lock_exclusive(&self) -> std::io::Result<()>;
+    fn unlock(&self) -> std::io::Result<()>;
+}
+
+#[cfg(not(unix))]
+impl FileLockExt for File {
+    fn lock_exclusive(&self) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn unlock(&self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
 
 const MAGIC_MARKER_BLOB: RawId = hex!("1E08B022FF2F47B6EBACF1D68EB35D96");
 const MAGIC_MARKER_BRANCH: RawId = hex!("2BC991A7F5D5D2A3A468C53B0AA03504");
@@ -651,7 +696,7 @@ where
         let result = {
             let current_hash = self.branches.get(&id);
             if current_hash != old.as_ref() {
-                FileExt::unlock(&self.file)?;
+                self.file.unlock()?;
                 return Ok(PushResult::Conflict(current_hash.cloned()));
             }
 
@@ -664,12 +709,12 @@ where
             let written = match self.file.write(header.as_bytes()) {
                 Ok(n) => n,
                 Err(e) => {
-                    FileExt::unlock(&self.file)?;
+                    self.file.unlock()?;
                     return Err(UpdateBranchError::IoError(e));
                 }
             };
             if written != expected {
-                FileExt::unlock(&self.file)?;
+                self.file.unlock()?;
                 return Err(UpdateBranchError::IoError(std::io::Error::new(
                     std::io::ErrorKind::WriteZero,
                     "failed to write branch header",
@@ -682,7 +727,7 @@ where
                 "pile misaligned after branch write"
             );
             self.applied_length = end;
-            FileExt::unlock(&self.file)?;
+            self.file.unlock()?;
             Ok(PushResult::Success())
         };
 

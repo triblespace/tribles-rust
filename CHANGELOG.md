@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
+- Renamed pile read errors from `OpenError` to `ReadError` since they can surface during refresh.
 - PATCH exposes const helpers to derive segment maps and ordering
   permutations from a declarative key layout.
 - `Entry` now supports an optional value via `with_value`, preparing `PATCH`
@@ -319,7 +320,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the underlying store cannot fail.
 - `Workspace::get` method retrieves blobs from the local store and falls back to
   the base store when needed.
-- `OpenError` now implements `std::error::Error` and provides clearer messages when opening piles.
+- `ReadError` now implements `std::error::Error` and provides clearer messages when opening piles.
 - Removed the `..=` commit range selector. The `..` selector now follows Git's
   semantics and excludes the starting commit.
 - Extracted `collect_range` into a standalone function for clarity.

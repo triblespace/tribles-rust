@@ -230,7 +230,7 @@ impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
 
 impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE_SIZE, H> {
     type Reader = PileReader<H>;
-    type ReaderError = OpenError;
+    type ReaderError = ReadError;
 
     fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
         self.refresh()?;
@@ -239,39 +239,39 @@ impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE
 }
 
 #[derive(Debug)]
-pub enum OpenError {
+pub enum ReadError {
     IoError(std::io::Error),
     PileTooLarge,
     CorruptPile { valid_length: usize },
 }
 
-impl std::fmt::Display for OpenError {
+impl std::fmt::Display for ReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OpenError::IoError(err) => write!(f, "IO error: {err}"),
-            OpenError::PileTooLarge => write!(f, "Pile too large"),
-            OpenError::CorruptPile { valid_length } => {
+            ReadError::IoError(err) => write!(f, "IO error: {err}"),
+            ReadError::PileTooLarge => write!(f, "Pile too large"),
+            ReadError::CorruptPile { valid_length } => {
                 write!(f, "Corrupt pile at byte {valid_length}")
             }
         }
     }
 }
-impl std::error::Error for OpenError {}
+impl std::error::Error for ReadError {}
 
-impl From<std::io::Error> for OpenError {
+impl From<std::io::Error> for ReadError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
     }
 }
 
-impl From<OpenError> for std::io::Error {
-    fn from(err: OpenError) -> Self {
+impl From<ReadError> for std::io::Error {
+    fn from(err: ReadError) -> Self {
         match err {
-            OpenError::IoError(e) => e,
-            OpenError::PileTooLarge => {
+            ReadError::IoError(e) => e,
+            ReadError::PileTooLarge => {
                 std::io::Error::new(std::io::ErrorKind::Other, "pile too large")
             }
-            OpenError::CorruptPile { valid_length } => std::io::Error::new(
+            ReadError::CorruptPile { valid_length } => std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("corrupt pile at byte {valid_length}"),
             ),
@@ -330,8 +330,8 @@ impl From<std::io::Error> for UpdateBranchError {
     }
 }
 
-impl From<OpenError> for UpdateBranchError {
-    fn from(err: OpenError) -> Self {
+impl From<ReadError> for UpdateBranchError {
+    fn from(err: ReadError) -> Self {
         Self::IoError(err.into())
     }
 }
@@ -368,10 +368,10 @@ impl From<std::io::Error> for FlushError {
 
 impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     /// Opens an existing pile and truncates any corrupted tail data if found.
-    pub fn open(path: &Path) -> Result<Self, OpenError> {
+    pub fn open(path: &Path) -> Result<Self, ReadError> {
         match Self::try_open(path) {
             Ok(pile) => Ok(pile),
-            Err(OpenError::CorruptPile { valid_length }) => {
+            Err(ReadError::CorruptPile { valid_length }) => {
                 // Truncate the file at the first valid offset and try again.
                 OpenOptions::new()
                     .write(true)
@@ -387,9 +387,9 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     ///
     /// The file is scanned to ensure record boundaries are valid. If a
     /// truncated or malformed record is encountered the function returns
-    /// [`OpenError::CorruptPile`] with the length of the valid prefix so the
+    /// [`ReadError::CorruptPile`] with the length of the valid prefix so the
     /// caller may decide how to handle it.
-    pub fn try_open(path: &Path) -> Result<Self, OpenError> {
+    pub fn try_open(path: &Path) -> Result<Self, ReadError> {
         let file = OpenOptions::new()
             .read(true)
             .append(true)
@@ -397,7 +397,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             .open(path)?;
         let length = file.metadata()?.len() as usize;
         if length > MAX_PILE_SIZE {
-            return Err(OpenError::PileTooLarge);
+            return Err(ReadError::PileTooLarge);
         }
 
         let mmap = MmapOptions::new()
@@ -418,10 +418,10 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     }
 
     /// Refreshes in-memory state from newly appended records.
-    pub fn refresh(&mut self) -> Result<(), OpenError> {
+    pub fn refresh(&mut self) -> Result<(), ReadError> {
         let file_len = self.file.metadata()?.len() as usize;
         if file_len > MAX_PILE_SIZE {
-            return Err(OpenError::PileTooLarge);
+            return Err(ReadError::PileTooLarge);
         }
         if file_len > self.applied_length {
             let start = self.applied_length;
@@ -434,7 +434,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             while !bytes.is_empty() {
                 let start_offset = file_len - bytes.len();
                 if bytes.len() < 16 {
-                    return Err(OpenError::CorruptPile {
+                    return Err(ReadError::CorruptPile {
                         valid_length: start_offset,
                     });
                 }
@@ -442,17 +442,17 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                 match magic {
                     MAGIC_MARKER_BLOB => {
                         let header = bytes.view_prefix::<BlobHeader>().map_err(|_| {
-                            OpenError::CorruptPile {
+                            ReadError::CorruptPile {
                                 valid_length: start_offset,
                             }
                         })?;
                         let data_len = header.length as usize;
                         let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
                         let blob_bytes =
-                            bytes.take_prefix(data_len).ok_or(OpenError::CorruptPile {
+                            bytes.take_prefix(data_len).ok_or(ReadError::CorruptPile {
                                 valid_length: start_offset,
                             })?;
-                        bytes.take_prefix(pad).ok_or(OpenError::CorruptPile {
+                        bytes.take_prefix(pad).ok_or(ReadError::CorruptPile {
                             valid_length: start_offset,
                         })?;
                         let hash: Value<Hash<H>> = Value::new(header.hash);
@@ -465,19 +465,19 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                     }
                     MAGIC_MARKER_BRANCH => {
                         let header = bytes.view_prefix::<BranchHeader>().map_err(|_| {
-                            OpenError::CorruptPile {
+                            ReadError::CorruptPile {
                                 valid_length: start_offset,
                             }
                         })?;
                         let branch_id =
-                            Id::new(header.branch_id).ok_or(OpenError::CorruptPile {
+                            Id::new(header.branch_id).ok_or(ReadError::CorruptPile {
                                 valid_length: start_offset,
                             })?;
                         let hash: Value<Hash<H>> = Value::new(header.hash);
                         self.branches.insert(branch_id, hash.into());
                     }
                     _ => {
-                        return Err(OpenError::CorruptPile {
+                        return Err(ReadError::CorruptPile {
                             valid_length: start_offset,
                         })
                     }
@@ -768,7 +768,7 @@ mod tests {
             .unwrap();
 
         match Pile::<MAX_PILE_SIZE>::try_open(&path) {
-            Err(OpenError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
+            Err(ReadError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
             other => panic!("unexpected result: {other:?}"),
         }
     }
@@ -821,7 +821,7 @@ mod tests {
             .unwrap();
 
         match Pile::<MAX_PILE_SIZE>::try_open(&path) {
-            Err(OpenError::CorruptPile { valid_length }) => {
+            Err(ReadError::CorruptPile { valid_length }) => {
                 assert_eq!(valid_length as u64, file_len)
             }
             other => panic!("unexpected result: {other:?}"),

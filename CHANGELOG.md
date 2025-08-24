@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
+- Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`
   plus additional tests.
@@ -42,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operation sequences via actor-scheduled operations.
 - Simulation now exercises branch updates, branch listing, and fetching
   previously stored blobs and branch heads for comprehensive pile coverage.
+- Additional pile unit tests exercising branch conflicts and size limits.
+- Additional unit tests cover pile blob metadata, iteration, and branch update
+  conflicts.
+- Additional unit tests covering pile deduplication, metadata, and branch
+  update conflicts.
 
 ### Changed
 - Replaced fs4 with Rust std file-locking APIs.
@@ -164,6 +170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 - Unused `crossbeam-channel` dependency.
 ### Fixed
+- Restored atomic vectored blob appends and single-call branch writes; errors
+  if any bytes are missing.
 - Removed duplicate `succinct-archive` feature declarations that prevented
   builds.
 - Corrected blob offsets in `Pile` so retrieved blobs no longer include headers or
@@ -181,6 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
   `local_ids` queries to return no results with overridden estimates.
 - Documentation proposal for exposing blob metadata through the `Pile` API.
+- Branch updates now sync branch headers to disk to avoid losing branch pointers after crashes.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
 - Design notes for a conservative garbage collection mechanism that scans

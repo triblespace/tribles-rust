@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Declared Rust 1.89 as the minimum supported toolchain.
 - Dropped the inventory item about validating externally appended blobs during
   `refresh`; blob data is verified lazily on read.
+- `refresh` replaces invalid blob entries with newer candidates and verifies
+  unknown duplicates before deciding whether to keep or replace them.
 - `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
 - Renamed pile read errors from `OpenError` to `ReadError` since they can surface during refresh.
 - PATCH exposes const helpers to derive segment maps and ordering

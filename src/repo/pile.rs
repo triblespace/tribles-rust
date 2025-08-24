@@ -477,8 +477,32 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                         let ts = header.timestamp;
                         let entry =
                             Entry::with_value(&hash.raw, IndexEntry::stored(blob_bytes, ts, None));
-                        if !matches!(self.blobs.get(&hash.raw), Some(IndexEntry::Stored { .. })) {
-                            self.blobs.replace(&entry);
+                        match self.blobs.get(&hash.raw) {
+                            None | Some(IndexEntry::InFlight { .. }) => {
+                                self.blobs.replace(&entry);
+                            }
+                            Some(IndexEntry::Stored {
+                                state,
+                                bytes: existing_bytes,
+                                ..
+                            }) => match state.get() {
+                                Some(ValidationState::Invalid) => {
+                                    self.blobs.replace(&entry);
+                                }
+                                Some(ValidationState::Validated) => {}
+                                None => {
+                                    let computed = Hash::<H>::digest(existing_bytes);
+                                    let new_state = if computed == hash {
+                                        ValidationState::Validated
+                                    } else {
+                                        ValidationState::Invalid
+                                    };
+                                    let _ = state.set(new_state);
+                                    if let ValidationState::Invalid = new_state {
+                                        self.blobs.replace(&entry);
+                                    }
+                                }
+                            },
                         }
                     }
                     MAGIC_MARKER_BRANCH => {
@@ -1163,6 +1187,48 @@ mod tests {
         }
 
         assert!(pile.refresh().is_err());
+    }
+
+    #[test]
+    fn refresh_replaces_corrupt_blob_with_new_candidate() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile1: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile2: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+
+        let data = vec![1u8; 4];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle = pile1.put(blob).unwrap();
+        pile1.flush().unwrap();
+        pile1.refresh().unwrap();
+
+        // Corrupt the first blob's bytes on disk.
+        #[repr(C)]
+        struct Header {
+            magic_marker: [u8; 16],
+            timestamp: u64,
+            length: u64,
+            hash: [u8; 32],
+        }
+        let header_len = std::mem::size_of::<Header>();
+        use std::io::{Seek, SeekFrom, Write};
+        let mut file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.seek(SeekFrom::Start(header_len as u64)).unwrap();
+        file.write_all(&[9u8; 4]).unwrap();
+        file.sync_data().unwrap();
+
+        // Append a valid copy using the second pile which hasn't seen the first one.
+        let blob_dup: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        pile2.put(blob_dup).unwrap();
+        pile2.flush().unwrap();
+
+        // Refresh the first pile; it should replace the corrupted blob with the new one.
+        pile1.refresh().unwrap();
+        let reader = pile1.reader().unwrap();
+        let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
+        assert_eq!(fetched.bytes.as_ref(), data.as_slice());
     }
 
     #[test]

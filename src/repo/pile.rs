@@ -14,6 +14,7 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::IoSlice;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
@@ -598,12 +599,20 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> BlobStorePut<H> for Pile<MAX_P
             .expect("time went backwards")
             .as_millis();
         let header = BlobHeader::new(now_in_ms as u64, blob_size as u64, hash);
-        let mut record = Vec::with_capacity(BLOB_HEADER_LEN + blob_size + padding);
-        record.extend_from_slice(header.as_bytes());
-        record.extend_from_slice(blob.bytes.as_ref());
-        record.extend_from_slice(&vec![0u8; padding]);
-
-        self.file.write_all(&record)?;
+        let expected = BLOB_HEADER_LEN + blob_size + padding;
+        let padding_buf = [0u8; BLOB_ALIGNMENT];
+        let bufs = [
+            IoSlice::new(header.as_bytes()),
+            IoSlice::new(blob.bytes.as_ref()),
+            IoSlice::new(&padding_buf[..padding]),
+        ];
+        let written = self.file.write_vectored(&bufs)?;
+        if written != expected {
+            return Err(InsertError::IoError(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "failed to write blob record",
+            )));
+        }
 
         let entry = Entry::with_value(
             &hash.raw,

@@ -712,8 +712,12 @@ mod tests {
     use super::*;
 
     use rand::RngCore;
+    use std::collections::HashMap;
     use std::io::Write;
+    use std::time::{SystemTime, UNIX_EPOCH};
     use tempfile;
+
+    use crate::repo::PushResult;
 
     #[test]
     fn open() {
@@ -872,6 +876,56 @@ mod tests {
     }
 
     #[test]
+    fn iter_lists_all_blobs() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blobs = vec![vec![1u8; 3], vec![2u8; 4], vec![3u8; 5]];
+        let mut expected = HashMap::new();
+        for data in blobs {
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+            let handle = pile.put(blob).unwrap();
+            expected.insert(handle, data);
+        }
+        pile.flush().unwrap();
+
+        let reader = pile.reader().unwrap();
+        for (handle, blob) in reader.iter() {
+            let data = expected.remove(&handle).unwrap();
+            assert_eq!(blob.bytes.as_ref(), data.as_slice());
+        }
+        assert!(expected.is_empty());
+    }
+
+    #[test]
+    fn metadata_reflects_length_and_timestamp() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let before = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        let data = vec![9u8; 10];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle = pile.put(blob).unwrap();
+        pile.flush().unwrap();
+
+        let reader = pile.reader().unwrap();
+        let metadata = reader.metadata(handle).unwrap();
+        assert_eq!(metadata.length, data.len() as u64);
+        let after = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        assert!(metadata.timestamp >= before && metadata.timestamp <= after);
+    }
+
+    #[test]
     fn blob_after_branch_is_clean() {
         const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
@@ -935,6 +989,35 @@ mod tests {
         let pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle.transmute()));
         assert!(std::fs::metadata(&path).unwrap().len() > 0);
+    }
+
+    #[test]
+    fn branch_update_detects_conflict() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
+        let handle1 = pile.put(blob1).unwrap();
+
+        let branch_id = Id::new([2u8; 16]).unwrap();
+        pile.update(branch_id, None, handle1.transmute()).unwrap();
+
+        let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 5]));
+        let handle2 = pile.put(blob2).unwrap();
+        pile.flush().unwrap();
+
+        match pile
+            .update(branch_id, Some(handle2.transmute()), handle2.transmute())
+            .unwrap()
+        {
+            PushResult::Conflict(current) => {
+                assert_eq!(current, Some(handle1.transmute()));
+            }
+            other => panic!("unexpected result: {other:?}"),
+        }
+        assert_eq!(pile.head(branch_id).unwrap(), Some(handle1.transmute()));
     }
 
     #[test]

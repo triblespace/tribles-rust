@@ -668,11 +668,12 @@ where
         })?;
         self.refresh().map_err(UpdateBranchError::from)?;
 
-        {
-            self.file.lock()?;
-        }
+        self.file.lock()?;
 
-        self.refresh().map_err(UpdateBranchError::from)?;
+        if let Err(e) = self.refresh().map_err(UpdateBranchError::from) {
+            self.file.unlock()?;
+            return Err(e);
+        }
 
         let result = {
             let current_hash = self.branches.get(&id);
@@ -724,7 +725,6 @@ where
 mod tests {
     use super::*;
 
-    use crate::repo::PushResult;
     use rand::RngCore;
     use std::collections::HashMap;
     use std::io::Write;
@@ -890,7 +890,7 @@ mod tests {
     }
 
     #[test]
-    fn iter_lists_all_blobs() {
+    fn iter_lists_all_blobs_handles() {
         const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
@@ -1014,7 +1014,7 @@ mod tests {
         let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
         let handle1 = pile.put(blob1).unwrap();
-        
+
         let branch_id = Id::new([2u8; 16]).unwrap();
         pile.update(branch_id, None, handle1.transmute()).unwrap();
 
@@ -1029,7 +1029,7 @@ mod tests {
             PushResult::Conflict(current) => {
                 assert_eq!(current, Some(handle1.transmute()));
             }
-        other => panic!("unexpected result: {other:?}"),
+            other => panic!("unexpected result: {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle1.transmute()));
     }
@@ -1043,7 +1043,7 @@ mod tests {
         let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
         let handle1 = pile.put(blob1).unwrap();
-      
+
         let branch_id = Id::new([1u8; 16]).unwrap();
         pile.update(branch_id, None, handle1.transmute()).unwrap();
         pile.flush().unwrap();
@@ -1074,8 +1074,8 @@ mod tests {
             Err(ReadError::PileTooLarge) => {}
             other => panic!("unexpected result: {other:?}"),
         }
-      }
-    
+    }
+
     #[test]
     fn metadata_returns_length_and_timestamp() {
         const MAX_PILE_SIZE: usize = 1 << 20;
@@ -1083,7 +1083,7 @@ mod tests {
         let path = dir.path().join("pile.pile");
 
         let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
-              let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
         let handle = pile.put(blob).unwrap();
         pile.flush().unwrap();
         drop(pile);

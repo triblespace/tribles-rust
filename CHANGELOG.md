@@ -160,6 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 - Unused `crossbeam-channel` dependency.
 ### Fixed
+- Restored atomic vectored blob appends and single-call branch writes; errors
+  if any bytes are missing.
 - Removed duplicate `succinct-archive` feature declarations that prevented
   builds.
 - Corrected blob offsets in `Pile` so retrieved blobs no longer include headers or

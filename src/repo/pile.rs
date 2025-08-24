@@ -938,6 +938,71 @@ mod tests {
     }
 
     #[test]
+    fn metadata_returns_length_and_timestamp() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
+        let handle = pile.put(blob).unwrap();
+        pile.flush().unwrap();
+        drop(pile);
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let reader = pile.reader().unwrap();
+        let meta = reader.metadata(handle).unwrap();
+        assert_eq!(meta.length, 32);
+        assert!(meta.timestamp > 0);
+    }
+
+    #[test]
+    fn iter_lists_all_blobs() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 4]));
+        let h1 = pile.put(blob1).unwrap();
+        let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 4]));
+        let h2 = pile.put(blob2).unwrap();
+        pile.flush().unwrap();
+
+        let reader = pile.reader().unwrap();
+        let handles: Vec<_> = reader.iter().map(|(h, _)| h).collect();
+        assert!(handles.contains(&h1));
+        assert!(handles.contains(&h2));
+        assert_eq!(handles.len(), 2);
+    }
+
+    #[test]
+    fn update_conflict_returns_current_head() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
+        let h1 = pile.put(blob1).unwrap();
+        let branch_id = Id::new([1u8; 16]).unwrap();
+        pile.update(branch_id, None, h1.transmute()).unwrap();
+        pile.flush().unwrap();
+
+        let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 5]));
+        let h2 = pile.put(blob2).unwrap();
+        pile.flush().unwrap();
+
+        match pile.update(branch_id, Some(h2.transmute()), h1.transmute()) {
+            Ok(PushResult::Conflict(existing)) => {
+                assert_eq!(existing, Some(h1.transmute()))
+            }
+            other => panic!("unexpected result: {other:?}"),
+        }
+        assert_eq!(pile.head(branch_id).unwrap(), Some(h1.transmute()));
+    }
+
+    #[test]
     fn refresh_errors_on_malformed_append() {
         const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();

@@ -485,24 +485,22 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
                                 state,
                                 bytes: existing_bytes,
                                 ..
-                            }) => match state.get() {
-                                Some(ValidationState::Invalid) => {
-                                    self.blobs.replace(&entry);
-                                }
-                                Some(ValidationState::Validated) => {}
-                                None => {
+                            }) => {
+                                let state = state.get_or_init(|| {
                                     let computed = Hash::<H>::digest(existing_bytes);
-                                    let new_state = if computed == hash {
+                                    if computed == hash {
                                         ValidationState::Validated
                                     } else {
                                         ValidationState::Invalid
-                                    };
-                                    let _ = state.set(new_state);
-                                    if let ValidationState::Invalid = new_state {
+                                    }
+                                });
+                                match state {
+                                    ValidationState::Invalid => {
                                         self.blobs.replace(&entry);
                                     }
+                                    ValidationState::Validated => {}
                                 }
-                            },
+                            }
                         }
                     }
                     MAGIC_MARKER_BRANCH => {

@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch occupancy averages.
 - Trible key segmentation and ordering tables are now generated from a
   declarative segment layout, simplifying maintenance.
+- Additional pile unit tests exercising branch conflicts and size limits.
 
 ### Changed
 - Replaced fs4 with Rust std file-locking APIs.

@@ -952,13 +952,54 @@ mod tests {
     }
 
     #[test]
+    fn branch_update_conflict_returns_current_head() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
+        let handle1 = pile.put(blob1).unwrap();
+        let branch_id = Id::new([1u8; 16]).unwrap();
+        pile.update(branch_id, None, handle1.transmute()).unwrap();
+        pile.flush().unwrap();
+
+        let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 5]));
+        let handle2 = pile.put(blob2).unwrap();
+
+        let result = pile
+            .update(branch_id, Some(handle2.transmute()), handle2.transmute())
+            .unwrap();
+        match result {
+            PushResult::Conflict(current) => assert_eq!(current, Some(handle1.transmute())),
+            other => panic!("unexpected result: {other:?}"),
+        }
+        assert_eq!(pile.head(branch_id).unwrap(), Some(handle1.transmute()));
+    }
+
+    #[test]
+    fn try_open_errors_when_file_exceeds_limit() {
+        const MAX_PILE_SIZE: usize = 1 << 10;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len((MAX_PILE_SIZE + 1) as u64).unwrap();
+
+        match Pile::<MAX_PILE_SIZE>::try_open(&path) {
+            Err(ReadError::PileTooLarge) => {}
+            other => panic!("unexpected result: {other:?}"),
+        }
+      }
+    
+    #[test]
     fn metadata_returns_length_and_timestamp() {
         const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
-        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
+              let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
         let handle = pile.put(blob).unwrap();
         pile.flush().unwrap();
         drop(pile);

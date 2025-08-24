@@ -56,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `refresh`; blob data is verified lazily on read.
 - `refresh` replaces invalid blob entries with newer candidates and verifies
   unknown duplicates before deciding whether to keep or replace them.
+- `refresh` now uses `get_or_init` to compute blob validation state and
+  replace invalid duplicates.
 - `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
 - Renamed pile read errors from `OpenError` to `ReadError` since they can surface during refresh.
 - PATCH exposes const helpers to derive segment maps and ordering

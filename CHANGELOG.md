@@ -177,6 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
   `local_ids` queries to return no results with overridden estimates.
 - Documentation proposal for exposing blob metadata through the `Pile` API.
+- Branch updates now sync branch headers to disk to avoid losing branch pointers after crashes.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
 - Design notes for a conservative garbage collection mechanism that scans

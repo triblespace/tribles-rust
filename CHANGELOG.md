@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch occupancy averages.
 - Trible key segmentation and ordering tables are now generated from a
   declarative segment layout, simplifying maintenance.
+- Deterministic proptest simulation tests cover multi-reader and writer pile
+  operation sequences via actor-scheduled operations.
+- Simulation now exercises branch updates, branch listing, and fetching
+  previously stored blobs and branch heads for comprehensive pile coverage.
 
 ### Changed
 - Replaced fs4 with Rust std file-locking APIs.

@@ -699,6 +699,10 @@ where
                 "pile misaligned after branch write"
             );
             self.applied_length = end;
+            if let Err(e) = self.file.sync_data() {
+                self.file.unlock()?;
+                return Err(UpdateBranchError::IoError(e));
+            }
             self.file.unlock()?;
             Ok(PushResult::Success())
         };

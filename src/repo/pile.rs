@@ -14,6 +14,7 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::IoSlice;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
@@ -598,12 +599,20 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> BlobStorePut<H> for Pile<MAX_P
             .expect("time went backwards")
             .as_millis();
         let header = BlobHeader::new(now_in_ms as u64, blob_size as u64, hash);
-        let mut record = Vec::with_capacity(BLOB_HEADER_LEN + blob_size + padding);
-        record.extend_from_slice(header.as_bytes());
-        record.extend_from_slice(blob.bytes.as_ref());
-        record.extend_from_slice(&vec![0u8; padding]);
-
-        self.file.write_all(&record)?;
+        let expected = BLOB_HEADER_LEN + blob_size + padding;
+        let padding_buf = [0u8; BLOB_ALIGNMENT];
+        let bufs = [
+            IoSlice::new(header.as_bytes()),
+            IoSlice::new(blob.bytes.as_ref()),
+            IoSlice::new(&padding_buf[..padding]),
+        ];
+        let written = self.file.write_vectored(&bufs)?;
+        if written != expected {
+            return Err(InsertError::IoError(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "failed to write blob record",
+            )));
+        }
 
         let entry = Entry::with_value(
             &hash.raw,
@@ -699,6 +708,10 @@ where
                 "pile misaligned after branch write"
             );
             self.applied_length = end;
+            if let Err(e) = self.file.sync_data() {
+                self.file.unlock()?;
+                return Err(UpdateBranchError::IoError(e));
+            }
             self.file.unlock()?;
             Ok(PushResult::Success())
         };
@@ -711,6 +724,7 @@ where
 mod tests {
     use super::*;
 
+    use crate::repo::PushResult;
     use rand::RngCore;
     use std::io::Write;
     use tempfile;
@@ -1024,6 +1038,70 @@ mod tests {
         }
 
         assert!(pile.refresh().is_err());
+    }
+
+    #[test]
+    fn put_duplicate_blob_does_not_grow_file() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let data = vec![9u8; 32];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle1 = pile.put(blob).unwrap();
+        pile.flush().unwrap();
+        let len_after_first = std::fs::metadata(&path).unwrap().len();
+
+        let blob_dup: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data));
+        let handle2 = pile.put(blob_dup).unwrap();
+        pile.flush().unwrap();
+        let len_after_second = std::fs::metadata(&path).unwrap().len();
+
+        assert_eq!(handle1, handle2);
+        assert_eq!(len_after_first, len_after_second);
+    }
+
+    #[test]
+    fn branch_update_conflict_returns_existing_head() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 8]));
+        let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 8]));
+        let h1 = pile.put(blob1).unwrap();
+        let h2 = pile.put(blob2).unwrap();
+        pile.flush().unwrap();
+
+        let branch_id = Id::new([3u8; 16]).unwrap();
+        pile.update(branch_id, None, h1.transmute()).unwrap();
+
+        match pile.update(branch_id, Some(h2.transmute()), h2.transmute()) {
+            Ok(PushResult::Conflict(existing)) => {
+                assert_eq!(existing, Some(h1.transmute()))
+            }
+            other => panic!("expected conflict, got {other:?}"),
+        }
+        assert_eq!(pile.head(branch_id).unwrap(), Some(h1.transmute()));
+    }
+
+    #[test]
+    fn metadata_reports_blob_length() {
+        const MAX_PILE_SIZE: usize = 1 << 20;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let data = vec![7u8; 16];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle = pile.put(blob).unwrap();
+        pile.flush().unwrap();
+
+        let reader = pile.reader().unwrap();
+        let meta = reader.metadata(handle).expect("metadata");
+        assert_eq!(meta.length, data.len() as u64);
     }
 
     // recover_grow test removed as growth strategy no longer exists

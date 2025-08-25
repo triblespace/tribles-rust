@@ -75,7 +75,8 @@ enum IndexEntry {
     },
     Stored {
         state: Arc<OnceLock<ValidationState>>,
-        bytes: Bytes,
+        offset: usize,
+        len: u64,
         timestamp: u64,
     },
 }
@@ -85,10 +86,11 @@ impl IndexEntry {
         Self::InFlight { len, timestamp }
     }
 
-    fn stored(bytes: Bytes, timestamp: u64, validation: Option<ValidationState>) -> Self {
+    fn stored(offset: usize, len: u64, timestamp: u64) -> Self {
         Self::Stored {
-            state: Arc::new(validation.map(OnceLock::from).unwrap_or_default()),
-            bytes,
+            state: Arc::new(OnceLock::new()),
+            offset,
+            len,
             timestamp,
         }
     }
@@ -152,6 +154,7 @@ fn padding_for_blob(blob_size: usize) -> usize {
 /// Multiple `PileReader` instances can coexist and provide concurrent access to
 /// the same underlying pile data.
 pub struct PileReader<H: HashProtocol> {
+    mmap: Arc<MmapRaw>,
     blobs: PATCH<32, IdentitySchema, IndexEntry>,
     _marker: std::marker::PhantomData<H>,
 }
@@ -165,8 +168,9 @@ impl<H: HashProtocol> PartialEq for PileReader<H> {
 impl<H: HashProtocol> Eq for PileReader<H> {}
 
 impl<H: HashProtocol> PileReader<H> {
-    fn new(blobs: PATCH<32, IdentitySchema, IndexEntry>) -> Self {
+    fn new(mmap: Arc<MmapRaw>, blobs: PATCH<32, IdentitySchema, IndexEntry>) -> Self {
         Self {
+            mmap,
             blobs,
             _marker: std::marker::PhantomData,
         }
@@ -175,6 +179,7 @@ impl<H: HashProtocol> PileReader<H> {
     /// Returns an iterator over all blobs currently stored in the pile.
     pub fn iter(&self) -> PileBlobStoreIter<'_, H> {
         PileBlobStoreIter {
+            mmap: self.mmap.clone(),
             patch: &self.blobs,
             inner: self.blobs.iter(),
             _marker: std::marker::PhantomData,
@@ -191,11 +196,23 @@ impl<H: HashProtocol> PileReader<H> {
         let entry = self.blobs.get(&hash.raw)?;
         match entry {
             IndexEntry::Stored {
-                timestamp, bytes, ..
-            } => Some(BlobMetadata {
-                timestamp: *timestamp,
-                length: bytes.len() as u64,
-            }),
+                timestamp,
+                offset,
+                len,
+                ..
+            } => {
+                let bytes = unsafe {
+                    let slice =
+                        slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                            .as_ref()
+                            .unwrap();
+                    Bytes::from_raw_parts(slice, self.mmap.clone())
+                };
+                Some(BlobMetadata {
+                    timestamp: *timestamp,
+                    length: bytes.len() as u64,
+                })
+            }
             IndexEntry::InFlight { timestamp, len } => Some(BlobMetadata {
                 timestamp: *timestamp,
                 length: *len,
@@ -221,9 +238,18 @@ impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
             return Err(GetBlobError::BlobNotFound);
         };
         match entry {
-            IndexEntry::Stored { state, bytes, .. } => {
+            IndexEntry::Stored {
+                state, offset, len, ..
+            } => {
+                let bytes = unsafe {
+                    let slice =
+                        slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                            .as_ref()
+                            .unwrap();
+                    Bytes::from_raw_parts(slice, self.mmap.clone())
+                };
                 let state = state.get_or_init(|| {
-                    let computed_hash = Hash::<H>::digest(bytes);
+                    let computed_hash = Hash::<H>::digest(&bytes);
                     if computed_hash == *hash {
                         ValidationState::Validated
                     } else {
@@ -252,7 +278,7 @@ impl<H: HashProtocol> BlobStore<H> for Pile<H> {
 
     fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
         self.refresh()?;
-        Ok(PileReader::new(self.blobs.clone()))
+        Ok(PileReader::new(self.mmap.clone(), self.blobs.clone()))
     }
 }
 
@@ -468,28 +494,37 @@ impl<H: HashProtocol> Pile<H> {
                         })?;
                         let data_len = header.length as usize;
                         let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
-                        let blob_bytes =
-                            bytes.take_prefix(data_len).ok_or(ReadError::CorruptPile {
-                                valid_length: start_offset,
-                            })?;
+                        let data_offset = start_offset + BLOB_HEADER_LEN;
+                        bytes.take_prefix(data_len).ok_or(ReadError::CorruptPile {
+                            valid_length: start_offset,
+                        })?;
                         bytes.take_prefix(pad).ok_or(ReadError::CorruptPile {
                             valid_length: start_offset,
                         })?;
                         let hash: Value<Hash<H>> = Value::new(header.hash);
                         let ts = header.timestamp;
-                        let entry =
-                            Entry::with_value(&hash.raw, IndexEntry::stored(blob_bytes, ts, None));
+                        let entry = Entry::with_value(
+                            &hash.raw,
+                            IndexEntry::stored(data_offset, header.length, ts),
+                        );
                         match self.blobs.get(&hash.raw) {
                             None | Some(IndexEntry::InFlight { .. }) => {
                                 self.blobs.replace(&entry);
                             }
                             Some(IndexEntry::Stored {
-                                state,
-                                bytes: existing_bytes,
-                                ..
+                                state, offset, len, ..
                             }) => {
                                 let state = state.get_or_init(|| {
-                                    let computed = Hash::<H>::digest(existing_bytes);
+                                    let bytes = unsafe {
+                                        let slice = slice_from_raw_parts(
+                                            self.mmap.as_ptr().add(*offset),
+                                            *len as usize,
+                                        )
+                                        .as_ref()
+                                        .unwrap();
+                                        Bytes::from_raw_parts(slice, self.mmap.clone())
+                                    };
+                                    let computed = Hash::<H>::digest(&bytes);
                                     if computed == hash {
                                         ValidationState::Validated
                                     } else {
@@ -554,6 +589,7 @@ use super::PushResult;
 ///
 /// Iterates over all `(Handle, Blob)` pairs currently stored in the pile.
 pub struct PileBlobStoreIter<'a, H: HashProtocol> {
+    mmap: Arc<MmapRaw>,
     patch: &'a PATCH<32, IdentitySchema, IndexEntry>,
     inner: PATCHIterator<'a, 32, IdentitySchema, IndexEntry>,
     _marker: std::marker::PhantomData<H>,
@@ -565,9 +601,16 @@ impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(key) = self.inner.next() {
             let entry = self.patch.get(key)?;
-            if let IndexEntry::Stored { bytes, .. } = entry {
+            if let IndexEntry::Stored { offset, len, .. } = entry {
+                let bytes = unsafe {
+                    let slice =
+                        slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                            .as_ref()
+                            .unwrap();
+                    Bytes::from_raw_parts(slice, self.mmap.clone())
+                };
                 let hash: Value<Hash<H>> = Value::new(*key);
-                return Some((hash.into(), Blob::new(bytes.clone())));
+                return Some((hash.into(), Blob::new(bytes)));
             }
         }
         None

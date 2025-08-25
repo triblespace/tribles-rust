@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
   and `RegularPathConstraint` is now generic over `PathEngine`.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
+### Changed
+- `PileReader` now reconstructs blob data from the underlying memory map,
+  and `IndexEntry::Stored` tracks offsets and lengths instead of holding `Bytes` directly.
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
@@ -49,7 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional unit tests covering pile deduplication, metadata, and branch
   update conflicts.
 
-### Changed
 - `Pile` no longer requires a compile-time size limit, grows its mmap on demand,
   and `ReadError::PileTooLarge` was removed.
 - Initial pile mapping now uses a page-sized (×1024) base to avoid frequent remaps.

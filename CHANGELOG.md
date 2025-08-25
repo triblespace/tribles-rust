@@ -176,10 +176,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and clearer `pattern_changes!` guidance.
 - Refined the book's introduction with a clearer overview of Trible Space and
   its flexible, lightweight query engine, plus links to later chapters.
+- Simplified blob length handling in `Pile::refresh` by relying on
+  `take_prefix`'s implicit bounds checking.
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
 - Unused `crossbeam-channel` dependency.
 ### Fixed
+- Detect oversized blob headers whose declared length exceeds the file size.
 - Restored atomic vectored blob appends and single-call branch writes; errors
   if any bytes are missing.
 - Removed duplicate `succinct-archive` feature declarations that prevented

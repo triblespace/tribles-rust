@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   update conflicts.
 
 ### Changed
+- `Pile` no longer requires a compile-time size limit, grows its mmap on demand,
+  and `ReadError::PileTooLarge` was removed.
+- Initial pile mapping now uses a page-sized (×1024) base to avoid frequent remaps.
+- Mapping size now derives from the mmap length instead of an internal counter.
 - Replaced fs4 with Rust std file-locking APIs.
 - Declared Rust 1.89 as the minimum supported toolchain.
 - Dropped the inventory item about validating externally appended blobs during

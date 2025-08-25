@@ -5,12 +5,11 @@ use tribles::prelude::*;
 use tribles::repo::Repository;
 
 fn main() {
-    const MAX_PILE_SIZE: usize = 1 << 20;
     let tmp = tempfile::tempdir().expect("tmp dir");
     let path = tmp.path().join("repo.pile");
 
     // Create a local pile to store blobs and branches
-    let pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).expect("open pile");
+    let pile = Pile::open(&path).expect("open pile");
 
     // Create a repository from the pile and initialize the main branch
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));

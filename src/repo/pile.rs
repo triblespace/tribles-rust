@@ -495,6 +495,8 @@ impl<H: HashProtocol> Pile<H> {
                         let data_len = header.length as usize;
                         let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
                         let data_offset = start_offset + BLOB_HEADER_LEN;
+                        // `take_prefix` returns `None` if the slice is shorter than requested,
+                        // implicitly guarding against blob headers that point past EOF.
                         bytes.take_prefix(data_len).ok_or(ReadError::CorruptPile {
                             valid_length: start_offset,
                         })?;
@@ -923,6 +925,62 @@ mod tests {
             }
             other => panic!("unexpected result: {other:?}"),
         }
+    }
+
+    #[test]
+    fn try_open_length_beyond_file_reports_length() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        {
+            let mut pile: Pile = Pile::open(&path).unwrap();
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
+            pile.put(blob).unwrap();
+            pile.flush().unwrap();
+        }
+
+        use std::io::{Seek, SeekFrom, Write};
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        file.seek(SeekFrom::Start(16 + 8)).unwrap();
+        file.write_all(&(1_000_000u64).to_le_bytes()).unwrap();
+        file.flush().unwrap();
+        drop(file);
+
+        match Pile::<Blake3>::try_open(&path) {
+            Err(ReadError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
+            other => panic!("unexpected result: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn open_truncates_length_beyond_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        {
+            let mut pile: Pile = Pile::open(&path).unwrap();
+            let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
+            pile.put(blob).unwrap();
+            pile.flush().unwrap();
+        }
+
+        use std::io::{Seek, SeekFrom, Write};
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        file.seek(SeekFrom::Start(16 + 8)).unwrap();
+        file.write_all(&(1_000_000u64).to_le_bytes()).unwrap();
+        file.flush().unwrap();
+        drop(file);
+
+        let _pile: Pile = Pile::open(&path).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     }
 
     #[test]

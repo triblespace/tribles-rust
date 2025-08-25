@@ -46,6 +46,7 @@ macro_pub = "0.1.0"
 uuid = "1.15.1"
 reft-light = "0.3.1"
 tribles-macros = { path = "tribles-macros" }
+page_size = "0.6.0"
 
 #[dev-dependencies]
 im = "15.1.0"

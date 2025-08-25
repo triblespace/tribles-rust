@@ -170,8 +170,8 @@ fn merge_import_example(
     dst_branch_id: tribles::id::Id,
 ) -> anyhow::Result<()> {
     // 1) Open source (read) and destination (write) piles
-    let mut src: Pile<{ 1 << 44 }, Blake3> = Pile::open(src_path)?;
-    let mut dst: Pile<{ 1 << 44 }, Blake3> = Pile::open(dst_path)?;
+    let mut src = Pile::open(src_path)?;
+    let mut dst = Pile::open(dst_path)?;
 
     // 2) Resolve source head commit handle
     let src_head: Value<Handle<Blake3, blobschemas::SimpleArchive>> =

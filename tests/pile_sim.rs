@@ -86,10 +86,9 @@ proptest! {
     fn pile_operation_sequences_are_consistent(
         scenario in scenario_strategy(4)
     ) {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("sim.pile");
-        let mut piles: Vec<Pile<MAX_PILE_SIZE>> =
+        let mut piles: Vec<Pile> =
             (0..scenario.actors).map(|_| Pile::open(&path).unwrap()).collect();
         let mut expected: HashMap<Value<Handle<Blake3, UnknownBlob>>, Vec<u8>> = HashMap::new();
         let mut handles: Vec<Value<Handle<Blake3, UnknownBlob>>> = Vec::new();
@@ -186,7 +185,7 @@ proptest! {
             pile.flush().unwrap();
             pile.refresh().unwrap();
         }
-        let mut pile_final: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile_final: Pile = Pile::open(&path).unwrap();
         let reader = pile_final.reader().unwrap();
         for (handle, data) in &expected {
             let blob = reader.get::<Blob<UnknownBlob>, _>(*handle).unwrap();

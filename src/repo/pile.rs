@@ -134,7 +134,7 @@ impl BlobHeader {
 
 #[derive(Debug)]
 /// A grow-only collection of blobs and branch pointers backed by a single file on disk.
-pub struct Pile<const MAX_PILE_SIZE: usize, H: HashProtocol = Blake3> {
+pub struct Pile<H: HashProtocol = Blake3> {
     file: File,
     mmap: Arc<MmapRaw>,
     blobs: PATCH<32, IdentitySchema, IndexEntry>,
@@ -246,7 +246,7 @@ impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
     }
 }
 
-impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE_SIZE, H> {
+impl<H: HashProtocol> BlobStore<H> for Pile<H> {
     type Reader = PileReader<H>;
     type ReaderError = ReadError;
 
@@ -259,7 +259,6 @@ impl<H: HashProtocol, const MAX_PILE_SIZE: usize> BlobStore<H> for Pile<MAX_PILE
 #[derive(Debug)]
 pub enum ReadError {
     IoError(std::io::Error),
-    PileTooLarge,
     CorruptPile { valid_length: usize },
 }
 
@@ -267,7 +266,6 @@ impl std::fmt::Display for ReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReadError::IoError(err) => write!(f, "IO error: {err}"),
-            ReadError::PileTooLarge => write!(f, "Pile too large"),
             ReadError::CorruptPile { valid_length } => {
                 write!(f, "Corrupt pile at byte {valid_length}")
             }
@@ -286,9 +284,6 @@ impl From<ReadError> for std::io::Error {
     fn from(err: ReadError) -> Self {
         match err {
             ReadError::IoError(e) => e,
-            ReadError::PileTooLarge => {
-                std::io::Error::new(std::io::ErrorKind::Other, "pile too large")
-            }
             ReadError::CorruptPile { valid_length } => std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("corrupt pile at byte {valid_length}"),
@@ -384,7 +379,7 @@ impl From<std::io::Error> for FlushError {
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
+impl<H: HashProtocol> Pile<H> {
     /// Opens an existing pile and truncates any corrupted tail data if found.
     pub fn open(path: &Path) -> Result<Self, ReadError> {
         match Self::try_open(path) {
@@ -414,12 +409,12 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
             .create(true)
             .open(path)?;
         let length = file.metadata()?.len() as usize;
-        if length > MAX_PILE_SIZE {
-            return Err(ReadError::PileTooLarge);
-        }
+        let page_size = page_size::get();
+        let base_size = page_size * 1024;
+        let mapped_size = base_size.max(length.next_power_of_two());
 
         let mmap = MmapOptions::new()
-            .len(MAX_PILE_SIZE)
+            .len(mapped_size)
             .map_raw_read_only(&file)?;
         let mmap = Arc::new(mmap);
 
@@ -438,8 +433,15 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     /// Refreshes in-memory state from newly appended records.
     pub fn refresh(&mut self) -> Result<(), ReadError> {
         let file_len = self.file.metadata()?.len() as usize;
-        if file_len > MAX_PILE_SIZE {
-            return Err(ReadError::PileTooLarge);
+        let mut mapped_size = self.mmap.len();
+        if file_len > mapped_size {
+            while mapped_size < file_len {
+                mapped_size *= 2;
+            }
+            let mmap = MmapOptions::new()
+                .len(mapped_size)
+                .map_raw_read_only(&self.file)?;
+            self.mmap = Arc::new(mmap);
         }
         if file_len > self.applied_length {
             let start = self.applied_length;
@@ -535,7 +537,7 @@ impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Pile<MAX_PILE_SIZE, H> {
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H: HashProtocol> Drop for Pile<MAX_PILE_SIZE, H> {
+impl<H: HashProtocol> Drop for Pile<H> {
     fn drop(&mut self) {
         let _ = self.flush();
     }
@@ -595,7 +597,7 @@ impl<H: HashProtocol> BlobStoreList<H> for PileReader<H> {
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H: HashProtocol> BlobStorePut<H> for Pile<MAX_PILE_SIZE, H> {
+impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
     type PutError = InsertError;
 
     fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::PutError>
@@ -659,7 +661,7 @@ impl<'a, H: HashProtocol> Iterator for PileBranchStoreIter<'a, H> {
     }
 }
 
-impl<const MAX_PILE_SIZE: usize, H> BranchStore<H> for Pile<MAX_PILE_SIZE, H>
+impl<H> BranchStore<H> for Pile<H>
 where
     H: HashProtocol,
 {
@@ -759,12 +761,11 @@ mod tests {
     fn open() {
         const RECORD_LEN: usize = 1 << 10; // 1k
         const RECORD_COUNT: usize = 1 << 12; // 4k
-        const MAX_PILE_SIZE: usize = 1 << 30; // 100GB
 
         let mut rng = rand::thread_rng();
         let tmp_dir = tempfile::tempdir().unwrap();
         let tmp_pile = tmp_dir.path().join("test.pile");
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
+        let mut pile: Pile = Pile::open(&tmp_pile).unwrap();
 
         (0..RECORD_COUNT).for_each(|_| {
             let mut record = Vec::with_capacity(RECORD_LEN);
@@ -778,17 +779,16 @@ mod tests {
 
         drop(pile);
 
-        let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&tmp_pile).unwrap();
+        let _pile: Pile = Pile::open(&tmp_pile).unwrap();
     }
 
     #[test]
     fn recover_shrink() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         {
-            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
             pile.flush().unwrap();
@@ -799,18 +799,17 @@ mod tests {
         let len = file.metadata().unwrap().len();
         file.set_len(len - 10).unwrap();
 
-        let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let _pile: Pile = Pile::open(&path).unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     }
 
     #[test]
     fn try_open_corrupt_reports_length() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         {
-            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
             pile.flush().unwrap();
@@ -824,7 +823,7 @@ mod tests {
             .set_len(file_len - 10)
             .unwrap();
 
-        match Pile::<MAX_PILE_SIZE>::try_open(&path) {
+        match Pile::<Blake3>::try_open(&path) {
             Err(ReadError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
             other => panic!("unexpected result: {other:?}"),
         }
@@ -832,12 +831,11 @@ mod tests {
 
     #[test]
     fn open_truncates_unknown_magic() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         {
-            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
             pile.flush().unwrap();
@@ -852,18 +850,17 @@ mod tests {
             .write_all(&[0u8; 16])
             .unwrap();
 
-        let _pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let _pile: Pile = Pile::open(&path).unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), valid_len);
     }
 
     #[test]
     fn try_open_partial_header_reports_length() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         {
-            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
             pile.flush().unwrap();
@@ -877,7 +874,7 @@ mod tests {
             .set_len(file_len + 8)
             .unwrap();
 
-        match Pile::<MAX_PILE_SIZE>::try_open(&path) {
+        match Pile::<Blake3>::try_open(&path) {
             Err(ReadError::CorruptPile { valid_length }) => {
                 assert_eq!(valid_length as u64, file_len)
             }
@@ -887,11 +884,10 @@ mod tests {
 
     #[test]
     fn put_and_get_preserves_blob_bytes() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let data = vec![42u8; 100];
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
         let handle = pile.put(blob).unwrap();
@@ -905,7 +901,7 @@ mod tests {
         pile.flush().unwrap();
         drop(pile);
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let reader = pile.reader().unwrap();
         let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
         assert_eq!(fetched.bytes.as_ref(), data.as_slice());
@@ -913,11 +909,10 @@ mod tests {
 
     #[test]
     fn iter_lists_all_blobs_handles() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blobs = vec![vec![1u8; 3], vec![2u8; 4], vec![3u8; 5]];
         let mut expected = HashMap::new();
         for data in blobs {
@@ -937,11 +932,10 @@ mod tests {
 
     #[test]
     fn metadata_reflects_length_and_timestamp() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let before = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -963,11 +957,10 @@ mod tests {
 
     #[test]
     fn blob_after_branch_is_clean() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
 
         let branch_id = Id::new([1; 16]).unwrap();
         let head = Value::<Handle<Blake3, SimpleArchive>>::new([2; 32]);
@@ -984,11 +977,10 @@ mod tests {
 
     #[test]
     fn insert_after_branch_preserves_head() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
         let handle1 = pile.put(blob1).unwrap();
 
@@ -1000,21 +992,20 @@ mod tests {
         pile.flush().unwrap();
         drop(pile);
 
-        let pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let pile: Pile = Pile::open(&path).unwrap();
         let head = pile.head(branch_id).unwrap();
         assert_eq!(head, Some(handle1.transmute()));
     }
 
     #[test]
     fn branch_update_without_flush_keeps_head() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
         let branch_id = Id::new([1u8; 16]).unwrap();
 
         let handle = {
-            let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+            let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![3u8; 5]));
             let handle = pile.put(blob).unwrap();
             pile.update(branch_id, None, handle.transmute()).unwrap();
@@ -1022,18 +1013,17 @@ mod tests {
             handle
         };
 
-        let pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let pile: Pile = Pile::open(&path).unwrap();
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle.transmute()));
         assert!(std::fs::metadata(&path).unwrap().len() > 0);
     }
 
     #[test]
     fn branch_update_detects_conflict() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
         let handle1 = pile.put(blob1).unwrap();
 
@@ -1058,11 +1048,10 @@ mod tests {
 
     #[test]
     fn branch_update_conflict_returns_current_head() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
         let handle1 = pile.put(blob1).unwrap();
 
@@ -1084,33 +1073,17 @@ mod tests {
     }
 
     #[test]
-    fn try_open_errors_when_file_exceeds_limit() {
-        const MAX_PILE_SIZE: usize = 1 << 10;
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("pile.pile");
-
-        let file = std::fs::File::create(&path).unwrap();
-        file.set_len((MAX_PILE_SIZE + 1) as u64).unwrap();
-
-        match Pile::<MAX_PILE_SIZE>::try_open(&path) {
-            Err(ReadError::PileTooLarge) => {}
-            other => panic!("unexpected result: {other:?}"),
-        }
-    }
-
-    #[test]
     fn metadata_returns_length_and_timestamp() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
         let handle = pile.put(blob).unwrap();
         pile.flush().unwrap();
         drop(pile);
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let reader = pile.reader().unwrap();
         let meta = reader.metadata(handle).unwrap();
         assert_eq!(meta.length, 32);
@@ -1119,11 +1092,10 @@ mod tests {
 
     #[test]
     fn iter_lists_all_blobs() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 4]));
         let h1 = pile.put(blob1).unwrap();
         let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 4]));
@@ -1139,11 +1111,10 @@ mod tests {
 
     #[test]
     fn update_conflict_returns_current_head() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 5]));
         let h1 = pile.put(blob1).unwrap();
         let branch_id = Id::new([1u8; 16]).unwrap();
@@ -1165,11 +1136,10 @@ mod tests {
 
     #[test]
     fn refresh_errors_on_malformed_append() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 4]));
         pile.put(blob).unwrap();
         pile.flush().unwrap();
@@ -1189,12 +1159,11 @@ mod tests {
 
     #[test]
     fn refresh_replaces_corrupt_blob_with_new_candidate() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile1: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
-        let mut pile2: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile1: Pile = Pile::open(&path).unwrap();
+        let mut pile2: Pile = Pile::open(&path).unwrap();
 
         let data = vec![1u8; 4];
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
@@ -1231,11 +1200,10 @@ mod tests {
 
     #[test]
     fn put_duplicate_blob_does_not_grow_file() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let data = vec![9u8; 32];
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
         let handle1 = pile.put(blob).unwrap();
@@ -1253,11 +1221,10 @@ mod tests {
 
     #[test]
     fn branch_update_conflict_returns_existing_head() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 8]));
         let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 8]));
         let h1 = pile.put(blob1).unwrap();
@@ -1278,11 +1245,10 @@ mod tests {
 
     #[test]
     fn metadata_reports_blob_length() {
-        const MAX_PILE_SIZE: usize = 1 << 20;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
-        let mut pile: Pile<MAX_PILE_SIZE> = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
         let data = vec![7u8; 16];
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
         let handle = pile.put(blob).unwrap();

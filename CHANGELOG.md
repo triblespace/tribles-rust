@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
   and `RegularPathConstraint` is now generic over `PathEngine`.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
+- Compile-time check restricting builds to 64-bit little-endian targets.
 ### Changed
 - `PileReader` now reconstructs blob data from the underlying memory map,
   and `IndexEntry::Stored` tracks offsets and lengths instead of holding `Bytes` directly.

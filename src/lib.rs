@@ -3,6 +3,9 @@
 
 extern crate self as tribles;
 
+#[cfg(not(all(target_pointer_width = "64", target_endian = "little")))]
+compile_error!("tribles-rust requires a 64-bit little-endian target");
+
 pub mod blob;
 pub mod id;
 pub mod metadata;

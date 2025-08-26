@@ -69,10 +69,7 @@ pub struct BlobMetadata {
 
 #[derive(Debug, Clone)]
 enum IndexEntry {
-    InFlight {
-        len: u64,
-        timestamp: u64,
-    },
+    InFlight,
     Stored {
         state: Arc<OnceLock<ValidationState>>,
         offset: usize,
@@ -82,8 +79,8 @@ enum IndexEntry {
 }
 
 impl IndexEntry {
-    fn in_flight(len: u64, timestamp: u64) -> Self {
-        Self::InFlight { len, timestamp }
+    fn in_flight(_len: u64, _timestamp: u64) -> Self {
+        Self::InFlight
     }
 
     fn stored(offset: usize, len: u64, timestamp: u64) -> Self {
@@ -186,7 +183,8 @@ impl<H: HashProtocol> PileReader<H> {
         }
     }
 
-    /// Returns the metadata for the given blob handle if it exists.
+    /// Returns the metadata for the given blob handle if it exists and has
+    /// been flushed to disk.
     pub fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Option<BlobMetadata>
     where
         S: BlobSchema,
@@ -213,10 +211,7 @@ impl<H: HashProtocol> PileReader<H> {
                     length: bytes.len() as u64,
                 })
             }
-            IndexEntry::InFlight { timestamp, len } => Some(BlobMetadata {
-                timestamp: *timestamp,
-                length: *len,
-            }),
+            IndexEntry::InFlight => None,
         }
     }
 }
@@ -267,7 +262,7 @@ impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
                     ValidationState::Invalid => Err(GetBlobError::ValidationError(bytes.clone())),
                 }
             }
-            IndexEntry::InFlight { .. } => Err(GetBlobError::BlobNotFound),
+            IndexEntry::InFlight => Err(GetBlobError::BlobNotFound),
         }
     }
 }
@@ -518,7 +513,7 @@ impl<H: HashProtocol> Pile<H> {
                             IndexEntry::stored(data_offset, header.length, ts),
                         );
                         match self.blobs.get(&hash.raw) {
-                            None | Some(IndexEntry::InFlight { .. }) => {
+                            None | Some(IndexEntry::InFlight) => {
                                 self.blobs.replace(&entry);
                             }
                             Some(IndexEntry::Stored {
@@ -1059,6 +1054,24 @@ mod tests {
             .unwrap()
             .as_millis() as u64;
         assert!(metadata.timestamp >= before && metadata.timestamp <= after);
+    }
+
+    #[test]
+    fn metadata_returns_none_for_inflight_blob() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile = Pile::open(&path).unwrap();
+        let reader = pile.reader().unwrap();
+
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 4]));
+        let handle = pile.put(blob).unwrap();
+
+        assert!(reader.metadata(handle).is_none());
+
+        pile.flush().unwrap();
+        let reader = pile.reader().unwrap();
+        assert!(reader.metadata(handle).is_some());
     }
 
     #[test]

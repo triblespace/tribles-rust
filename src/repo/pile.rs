@@ -785,15 +785,17 @@ where
         Ok(self.branches.get(&id).copied())
     }
 
+    /// Updates the head of `id` to `new` if it matches `old`.
+    ///
+    /// The update is written to the pile but is **not durable** until
+    /// [`Pile::flush`] is called. Callers must explicitly flush to ensure
+    /// branch updates survive crashes.
     fn update(
         &mut self,
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
     ) -> Result<super::PushResult<H>, Self::UpdateError> {
-        self.flush().map_err(|e| match e {
-            FlushError::IoError(err) => UpdateBranchError::IoError(err),
-        })?;
         self.refresh().map_err(UpdateBranchError::from)?;
 
         self.file.lock()?;
@@ -835,10 +837,6 @@ where
                 "pile misaligned after branch write"
             );
             self.applied_length = end;
-            if let Err(e) = self.file.sync_all() {
-                self.file.unlock()?;
-                return Err(UpdateBranchError::IoError(e));
-            }
             self.branches.insert(id, new);
             self.file.unlock()?;
             Ok(PushResult::Success())
@@ -1179,7 +1177,7 @@ mod tests {
     }
 
     #[test]
-    fn branch_update_without_flush_keeps_head() {
+    fn branch_update_survives_manual_flush() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
@@ -1190,6 +1188,7 @@ mod tests {
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![3u8; 5]));
             let handle = pile.put(blob).unwrap();
             pile.update(branch_id, None, handle.transmute()).unwrap();
+            pile.flush().unwrap();
             std::mem::forget(pile);
             handle
         };

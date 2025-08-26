@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `Drop`, which always warns when a pile is not explicitly closed.
 - `Pile::refresh` now aborts if the pile file shrinks, guarding against
   truncated data.
+- `Pile::update` no longer flushes or `sync_all`s automatically; callers must
+    invoke `flush()` for durability.
 - Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`

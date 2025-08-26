@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `Pile::close` now consumes the pile and manually drops its fields to bypass
     `Drop`, which always warns when a pile is not explicitly closed.
+- `Pile::refresh` now aborts if the pile file shrinks, guarding against
+  truncated data.
 - `Pile::update` no longer flushes or `sync_all`s automatically; callers must
     invoke `flush()` for durability.
 - Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.

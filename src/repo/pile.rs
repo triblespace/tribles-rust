@@ -133,6 +133,9 @@ impl BlobHeader {
 
 #[derive(Debug)]
 /// A grow-only collection of blobs and branch pointers backed by a single file on disk.
+///
+/// [`Pile::refresh`] aborts if the underlying file shrinks, preventing reads from
+/// a truncated pile.
 pub struct Pile<H: HashProtocol = Blake3> {
     file: File,
     mmap: Arc<MmapRaw>,
@@ -472,8 +475,15 @@ impl<H: HashProtocol> Pile<H> {
     }
 
     /// Refreshes in-memory state from newly appended records.
+    ///
+    /// Aborts if the underlying pile file has been truncated since the last
+    /// refresh.
     pub fn refresh(&mut self) -> Result<(), ReadError> {
+        let old_len = self.applied_length;
         let file_len = self.file.metadata()?.len() as usize;
+        if file_len < old_len {
+            std::process::abort();
+        }
         let mut mapped_size = self.mmap.len();
         if file_len > mapped_size {
             while mapped_size < file_len {

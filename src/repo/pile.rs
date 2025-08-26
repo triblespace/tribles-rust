@@ -753,8 +753,6 @@ where
 
             let header_len = std::mem::size_of::<BranchHeader>();
 
-            self.branches.insert(id, new);
-
             let header = BranchHeader::new(id, new);
             let expected = header_len;
             let written = match self.file.write(header.as_bytes()) {
@@ -782,6 +780,7 @@ where
                 self.file.unlock()?;
                 return Err(UpdateBranchError::IoError(e));
             }
+            self.branches.insert(id, new);
             self.file.unlock()?;
             Ok(PushResult::Success())
         };

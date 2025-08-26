@@ -575,11 +575,27 @@ impl<H: HashProtocol> Pile<H> {
         self.file.sync_all()?;
         Ok(())
     }
+
+    /// Flushes pending data and consumes the pile, returning an error if the
+    /// flush fails.
+    pub fn close(mut self) -> Result<(), FlushError> {
+        self.flush()?;
+
+        let mut this = std::mem::ManuallyDrop::new(self);
+        unsafe {
+            std::ptr::drop_in_place(&mut this.mmap);
+            std::ptr::drop_in_place(&mut this.file);
+            std::ptr::drop_in_place(&mut this.blobs);
+            std::ptr::drop_in_place(&mut this.branches);
+        }
+
+        Ok(())
+    }
 }
 
 impl<H: HashProtocol> Drop for Pile<H> {
     fn drop(&mut self) {
-        let _ = self.flush();
+        eprintln!("warning: Pile dropped without calling close(); data may not be persisted");
     }
 }
 
@@ -819,11 +835,9 @@ mod tests {
             pile.put(data).unwrap();
         });
 
-        pile.flush().unwrap();
+        pile.close().unwrap();
 
-        drop(pile);
-
-        let _pile: Pile = Pile::open(&tmp_pile).unwrap();
+        Pile::<Blake3>::open(&tmp_pile).unwrap().close().unwrap();
     }
 
     #[test]
@@ -835,7 +849,7 @@ mod tests {
             let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
-            pile.flush().unwrap();
+            pile.close().unwrap();
         }
 
         // Corrupt by removing some bytes from the end
@@ -843,7 +857,7 @@ mod tests {
         let len = file.metadata().unwrap().len();
         file.set_len(len - 10).unwrap();
 
-        let _pile: Pile = Pile::open(&path).unwrap();
+        Pile::<Blake3>::open(&path).unwrap().close().unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     }
 
@@ -856,7 +870,7 @@ mod tests {
             let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
-            pile.flush().unwrap();
+            pile.close().unwrap();
         }
 
         let file_len = std::fs::metadata(&path).unwrap().len();
@@ -882,7 +896,7 @@ mod tests {
             let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
-            pile.flush().unwrap();
+            pile.close().unwrap();
         }
 
         let valid_len = std::fs::metadata(&path).unwrap().len();
@@ -894,7 +908,7 @@ mod tests {
             .write_all(&[0u8; 16])
             .unwrap();
 
-        let _pile: Pile = Pile::open(&path).unwrap();
+        Pile::<Blake3>::open(&path).unwrap().close().unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), valid_len);
     }
 
@@ -907,7 +921,7 @@ mod tests {
             let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
-            pile.flush().unwrap();
+            pile.close().unwrap();
         }
 
         let file_len = std::fs::metadata(&path).unwrap().len();
@@ -935,7 +949,7 @@ mod tests {
             let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
-            pile.flush().unwrap();
+            pile.close().unwrap();
         }
 
         use std::io::{Seek, SeekFrom, Write};
@@ -964,7 +978,7 @@ mod tests {
             let mut pile: Pile = Pile::open(&path).unwrap();
             let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 20]));
             pile.put(blob).unwrap();
-            pile.flush().unwrap();
+            pile.close().unwrap();
         }
 
         use std::io::{Seek, SeekFrom, Write};
@@ -978,7 +992,7 @@ mod tests {
         file.flush().unwrap();
         drop(file);
 
-        let _pile: Pile = Pile::open(&path).unwrap();
+        Pile::<Blake3>::open(&path).unwrap().close().unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     }
 
@@ -998,13 +1012,13 @@ mod tests {
             assert_eq!(fetched.bytes.as_ref(), data.as_slice());
         }
 
-        pile.flush().unwrap();
-        drop(pile);
+        pile.close().unwrap();
 
         let mut pile: Pile = Pile::open(&path).unwrap();
         let reader = pile.reader().unwrap();
         let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
         assert_eq!(fetched.bytes.as_ref(), data.as_slice());
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1028,6 +1042,8 @@ mod tests {
             assert_eq!(blob.bytes.as_ref(), data.as_slice());
         }
         assert!(expected.is_empty());
+
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1053,6 +1069,7 @@ mod tests {
             .unwrap()
             .as_millis() as u64;
         assert!(metadata.timestamp >= before && metadata.timestamp <= after);
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1071,6 +1088,7 @@ mod tests {
         pile.flush().unwrap();
         let reader = pile.reader().unwrap();
         assert!(reader.metadata(handle).is_some());
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1091,6 +1109,7 @@ mod tests {
 
         let stored: Blob<UnknownBlob> = pile.reader().unwrap().get(handle).unwrap();
         assert_eq!(stored.bytes.as_ref(), &data[..]);
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1107,12 +1126,12 @@ mod tests {
 
         let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![2u8; 5]));
         pile.put(blob2).unwrap();
-        pile.flush().unwrap();
-        drop(pile);
+        pile.close().unwrap();
 
         let pile: Pile = Pile::open(&path).unwrap();
         let head = pile.head(branch_id).unwrap();
         assert_eq!(head, Some(handle1.transmute()));
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1134,6 +1153,7 @@ mod tests {
         let pile: Pile = Pile::open(&path).unwrap();
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle.transmute()));
         assert!(std::fs::metadata(&path).unwrap().len() > 0);
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1162,6 +1182,7 @@ mod tests {
             other => panic!("unexpected result: {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle1.transmute()));
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1188,6 +1209,7 @@ mod tests {
             other => panic!("unexpected result: {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle1.transmute()));
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1198,14 +1220,14 @@ mod tests {
         let mut pile: Pile = Pile::open(&path).unwrap();
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![7u8; 32]));
         let handle = pile.put(blob).unwrap();
-        pile.flush().unwrap();
-        drop(pile);
+        pile.close().unwrap();
 
         let mut pile: Pile = Pile::open(&path).unwrap();
         let reader = pile.reader().unwrap();
         let meta = reader.metadata(handle).unwrap();
         assert_eq!(meta.length, 32);
         assert!(meta.timestamp > 0);
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1225,6 +1247,7 @@ mod tests {
         assert!(handles.contains(&h1));
         assert!(handles.contains(&h2));
         assert_eq!(handles.len(), 2);
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1250,6 +1273,7 @@ mod tests {
             other => panic!("unexpected result: {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(h1.transmute()));
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1273,6 +1297,7 @@ mod tests {
         }
 
         assert!(pile.refresh().is_err());
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1314,6 +1339,8 @@ mod tests {
         let reader = pile1.reader().unwrap();
         let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
         assert_eq!(fetched.bytes.as_ref(), data.as_slice());
+        pile1.close().unwrap();
+        pile2.close().unwrap();
     }
 
     #[test]
@@ -1335,6 +1362,7 @@ mod tests {
 
         assert_eq!(handle1, handle2);
         assert_eq!(len_after_first, len_after_second);
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1359,6 +1387,7 @@ mod tests {
             other => panic!("expected conflict, got {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(h1.transmute()));
+        pile.close().unwrap();
     }
 
     #[test]
@@ -1375,6 +1404,7 @@ mod tests {
         let reader = pile.reader().unwrap();
         let meta = reader.metadata(handle).expect("metadata");
         assert_eq!(meta.length, data.len() as u64);
+        pile.close().unwrap();
     }
 
     // recover_grow test removed as growth strategy no longer exists

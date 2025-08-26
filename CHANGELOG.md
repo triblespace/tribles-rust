@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
+
+### Changed
+- `Pile::close` now consumes the pile and manually drops its fields to bypass
+    `Drop`, which always warns when a pile is not explicitly closed.
+- `Pile::close` drops the memory map before closing the file to support
+  temporary files that delete on close; the in-code comment was removed for brevity.
 - Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`
@@ -29,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `RegularPathConstraint` is now generic over `PathEngine`.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
 - Compile-time check restricting builds to 64-bit little-endian targets.
-### Changed
 - `PileReader` now reconstructs blob data from the underlying memory map,
   and `IndexEntry::Stored` tracks offsets and lengths instead of holding `Bytes` directly.
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
@@ -37,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - `Pile::flush` now calls `sync_all` to persist file metadata and prevent
   potential data loss after crashes.
+- `Pile` requires explicit closure via `close()`; dropping without closing emits a warning.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
 - Debug-only `debug_branch_fill` method computes average PATCH branch fill

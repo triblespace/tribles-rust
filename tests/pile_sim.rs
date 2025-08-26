@@ -185,6 +185,9 @@ proptest! {
             pile.flush().unwrap();
             pile.refresh().unwrap();
         }
+        for pile in piles {
+            pile.close().unwrap();
+        }
         let mut pile_final: Pile = Pile::open(&path).unwrap();
         let reader = pile_final.reader().unwrap();
         for (handle, data) in &expected {
@@ -198,5 +201,6 @@ proptest! {
             let h = pile_final.head(*id).unwrap();
             assert_eq!(h, Some(*head));
         }
+        pile_final.close().unwrap();
     }
 }

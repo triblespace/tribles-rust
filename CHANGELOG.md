@@ -22,8 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `Pile::close` now consumes the pile and manually drops its fields to bypass
     `Drop`, which always warns when a pile is not explicitly closed.
-- `Pile::close` drops the memory map before closing the file to support
-  temporary files that delete on close; the in-code comment was removed for brevity.
 - Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`

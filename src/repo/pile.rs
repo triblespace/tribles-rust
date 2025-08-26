@@ -570,9 +570,9 @@ impl<H: HashProtocol> Pile<H> {
         Ok(())
     }
 
-    /// Persists all writes to the underlying pile file.
+    /// Persists all writes and metadata to the underlying pile file.
     pub fn flush(&mut self) -> Result<(), FlushError> {
-        self.file.sync_data()?;
+        self.file.sync_all()?;
         Ok(())
     }
 }
@@ -776,7 +776,7 @@ where
                 "pile misaligned after branch write"
             );
             self.applied_length = end;
-            if let Err(e) = self.file.sync_data() {
+            if let Err(e) = self.file.sync_all() {
                 self.file.unlock()?;
                 return Err(UpdateBranchError::IoError(e));
             }
@@ -1269,7 +1269,7 @@ mod tests {
                 .open(&path)
                 .unwrap();
             file.write_all(b"garbage").unwrap();
-            file.sync_data().unwrap();
+            file.sync_all().unwrap();
         }
 
         assert!(pile.refresh().is_err());
@@ -1302,7 +1302,7 @@ mod tests {
         let mut file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
         file.seek(SeekFrom::Start(header_len as u64)).unwrap();
         file.write_all(&[9u8; 4]).unwrap();
-        file.sync_data().unwrap();
+        file.sync_all().unwrap();
 
         // Append a valid copy using the second pile which hasn't seen the first one.
         let blob_dup: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));

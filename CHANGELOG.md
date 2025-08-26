@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
+- `Pile::flush` now calls `sync_all` to persist file metadata and prevent
+  potential data loss after crashes.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
 - Debug-only `debug_branch_fill` method computes average PATCH branch fill

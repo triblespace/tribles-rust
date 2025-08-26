@@ -194,6 +194,7 @@ impl<H: HashProtocol> PileReader<H> {
         let entry = self.blobs.get(&hash.raw)?;
         match entry {
             IndexEntry::Stored {
+                state,
                 timestamp,
                 offset,
                 len,
@@ -206,10 +207,21 @@ impl<H: HashProtocol> PileReader<H> {
                             .unwrap();
                     Bytes::from_raw_parts(slice, self.mmap.clone())
                 };
-                Some(BlobMetadata {
-                    timestamp: *timestamp,
-                    length: bytes.len() as u64,
-                })
+                let state = state.get_or_init(|| {
+                    let computed_hash = Hash::<H>::digest(&bytes);
+                    if computed_hash == *hash {
+                        ValidationState::Validated
+                    } else {
+                        ValidationState::Invalid
+                    }
+                });
+                match state {
+                    ValidationState::Validated => Some(BlobMetadata {
+                        timestamp: *timestamp,
+                        length: bytes.len() as u64,
+                    }),
+                    ValidationState::Invalid => None,
+                }
             }
             IndexEntry::InFlight => None,
         }

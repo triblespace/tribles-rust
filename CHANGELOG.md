@@ -206,6 +206,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Branch updates now sync branch headers to disk to avoid losing branch pointers after crashes.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
+- `PileReader::metadata` no longer reports metadata for in-flight blobs,
+  preventing callers from assuming durability before flush.
 - Design notes for a conservative garbage collection mechanism that scans
   `SimpleArchive` values in place to find reachable handles.
 - Clarified that accidental collisions are practically impossible given 32-byte

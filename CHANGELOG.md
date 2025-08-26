@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - `PileReader::metadata` now validates blob contents and returns `None` for corrupted blobs.
+- `PileBlobStoreIter` now lazily verifies blob hashes and reports errors for invalid blobs.
 - `Pile::flush` now calls `sync_all` to persist file metadata and prevent
   potential data loss after crashes.
 - `Pile` requires explicit closure via `close()`; dropping without closing emits a warning.
@@ -72,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unknown duplicates before deciding whether to keep or replace them.
 - `refresh` now uses `get_or_init` to compute blob validation state and
   replace invalid duplicates.
+- Simplified `refresh` padding logic by using `padding_for_blob` to compute blob alignment.
 - `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
 - Renamed pile read errors from `OpenError` to `ReadError` since they can surface during refresh.
 - PATCH exposes const helpers to derive segment maps and ordering

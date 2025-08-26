@@ -508,7 +508,7 @@ impl<H: HashProtocol> Pile<H> {
                             }
                         })?;
                         let data_len = header.length as usize;
-                        let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
+                        let pad = padding_for_blob(data_len);
                         let data_offset = start_offset + BLOB_HEADER_LEN;
                         // `take_prefix` returns `None` if the slice is shorter than requested,
                         // implicitly guarding against blob headers that point past EOF.
@@ -629,12 +629,16 @@ pub struct PileBlobStoreIter<'a, H: HashProtocol> {
 }
 
 impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
-    type Item = (Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>);
+    type Item =
+        Result<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>), GetBlobError<Infallible>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(key) = self.inner.next() {
             let entry = self.patch.get(key)?;
-            if let IndexEntry::Stored { offset, len, .. } = entry {
+            if let IndexEntry::Stored {
+                state, offset, len, ..
+            } = entry
+            {
                 let bytes = unsafe {
                     let slice =
                         slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
@@ -643,7 +647,22 @@ impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
                     Bytes::from_raw_parts(slice, self.mmap.clone())
                 };
                 let hash: Value<Hash<H>> = Value::new(*key);
-                return Some((hash.into(), Blob::new(bytes)));
+                let status = state.get_or_init(|| {
+                    let computed_hash = Hash::<H>::digest(&bytes);
+                    if computed_hash == hash {
+                        ValidationState::Validated
+                    } else {
+                        ValidationState::Invalid
+                    }
+                });
+                match status {
+                    ValidationState::Validated => {
+                        return Some(Ok((hash.into(), Blob::new(bytes))));
+                    }
+                    ValidationState::Invalid => {
+                        return Some(Err(GetBlobError::ValidationError(bytes)));
+                    }
+                }
             }
         }
         None
@@ -656,16 +675,18 @@ pub struct PileBlobStoreListIter<'a, H: HashProtocol> {
 }
 
 impl<'a, H: HashProtocol> Iterator for PileBlobStoreListIter<'a, H> {
-    type Item = Result<Value<Handle<H, UnknownBlob>>, Infallible>;
+    type Item = Result<Value<Handle<H, UnknownBlob>>, GetBlobError<Infallible>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (handle, _) = self.inner.next()?;
-        Some(Ok(handle))
+        match self.inner.next()? {
+            Ok((handle, _)) => Some(Ok(handle)),
+            Err(e) => Some(Err(e)),
+        }
     }
 }
 
 impl<H: HashProtocol> BlobStoreList<H> for PileReader<H> {
-    type Err = Infallible;
+    type Err = GetBlobError<Infallible>;
     type Iter<'a> = PileBlobStoreListIter<'a, H>;
 
     fn blobs(&self) -> Self::Iter<'_> {
@@ -1049,7 +1070,8 @@ mod tests {
         pile.flush().unwrap();
 
         let reader = pile.reader().unwrap();
-        for (handle, blob) in reader.iter() {
+        for item in reader.iter() {
+            let (handle, blob) = item.expect("infallible iteration");
             let data = expected.remove(&handle).unwrap();
             assert_eq!(blob.bytes.as_ref(), data.as_slice());
         }
@@ -1255,7 +1277,10 @@ mod tests {
         pile.flush().unwrap();
 
         let reader = pile.reader().unwrap();
-        let handles: Vec<_> = reader.iter().map(|(h, _)| h).collect();
+        let handles: Vec<_> = reader
+            .iter()
+            .map(|res| res.expect("infallible iteration").0)
+            .collect();
         assert!(handles.contains(&h1));
         assert!(handles.contains(&h2));
         assert_eq!(handles.len(), 2);

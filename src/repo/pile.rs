@@ -321,12 +321,14 @@ impl From<ReadError> for std::io::Error {
 #[derive(Debug)]
 pub enum InsertError {
     IoError(std::io::Error),
+    TimeError(std::time::SystemTimeError),
 }
 
 impl std::fmt::Display for InsertError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InsertError::IoError(err) => write!(f, "IO error: {err}"),
+            InsertError::TimeError(err) => write!(f, "system time error: {err}"),
         }
     }
 }
@@ -335,6 +337,12 @@ impl std::error::Error for InsertError {}
 impl From<std::io::Error> for InsertError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
+    }
+}
+
+impl From<std::time::SystemTimeError> for InsertError {
+    fn from(err: std::time::SystemTimeError) -> Self {
+        Self::TimeError(err)
     }
 }
 
@@ -663,10 +671,7 @@ impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
             return Ok(handle.transmute());
         }
 
-        let now_in_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("time went backwards")
-            .as_millis();
+        let now_in_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
         let header = BlobHeader::new(now_in_ms as u64, blob_size as u64, hash);
         let expected = BLOB_HEADER_LEN + blob_size + padding;
         let padding_buf = [0u8; BLOB_ALIGNMENT];

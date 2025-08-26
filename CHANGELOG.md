@@ -396,6 +396,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Enforce `PREFIX_LEN <= KEY_LEN` for prefix checks in PATCH.
 - Release file locks if `refresh` fails during pile branch updates to avoid lingering locks.
+- Blob insertion now returns an error instead of panicking if the system clock goes backwards.
 
 ## [0.5.2] - 2025-06-30
 ### Added

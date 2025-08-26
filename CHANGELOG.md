@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
+- `PileReader::metadata` now validates blob contents and returns `None` for corrupted blobs.
 - `Pile::flush` now calls `sync_all` to persist file metadata and prevent
   potential data loss after crashes.
 - `Pile` requires explicit closure via `close()`; dropping without closing emits a warning.

@@ -496,7 +496,7 @@ impl<H: HashProtocol> Pile<H> {
                             }
                         })?;
                         let data_len = header.length as usize;
-                        let pad = (BLOB_ALIGNMENT - (data_len % BLOB_ALIGNMENT)) % BLOB_ALIGNMENT;
+                        let pad = padding_for_blob(data_len);
                         let data_offset = start_offset + BLOB_HEADER_LEN;
                         // `take_prefix` returns `None` if the slice is shorter than requested,
                         // implicitly guarding against blob headers that point past EOF.

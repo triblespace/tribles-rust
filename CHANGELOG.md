@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   truncated data.
 - `Pile::update` no longer flushes or `sync_all`s automatically; callers must
     invoke `flush()` for durability.
+- `Pile::update` unlocks and refreshes before returning, so the branch state may
+  advance beyond the supplied head and corruption errors do not necessarily mean
+  the update failed.
 - Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`

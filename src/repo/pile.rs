@@ -15,8 +15,6 @@ use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::IoSlice;
-use std::io::Seek;
-use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
 use std::ptr::slice_from_raw_parts;
@@ -790,6 +788,13 @@ where
     /// The update is written to the pile but is **not durable** until
     /// [`Pile::flush`] is called. Callers must explicitly flush to ensure
     /// branch updates survive crashes.
+    ///
+    /// After the header is written, the pile is unlocked and refreshed again
+    /// before this method returns. As a result the branch state observed after
+    /// `update` may be more recent than the `old` value supplied, since other
+    /// compare-and-swap operations could have completed in between. If this
+    /// final refresh reports pile corruption, it does not necessarily mean the
+    /// update failed—the pile might have been corrupted afterwards.
     fn update(
         &mut self,
         id: Id,
@@ -804,45 +809,32 @@ where
             self.file.unlock()?;
             return Err(e);
         }
-
-        let result = {
-            let current_hash = self.branches.get(&id);
-            if current_hash != old.as_ref() {
-                self.file.unlock()?;
-                return Ok(PushResult::Conflict(current_hash.cloned()));
-            }
-
-            let header_len = std::mem::size_of::<BranchHeader>();
-
-            let header = BranchHeader::new(id, new);
-            let expected = header_len;
-            let written = match self.file.write(header.as_bytes()) {
-                Ok(n) => n,
-                Err(e) => {
-                    self.file.unlock()?;
-                    return Err(UpdateBranchError::IoError(e));
-                }
-            };
-            if written != expected {
-                self.file.unlock()?;
-                return Err(UpdateBranchError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::WriteZero,
-                    "failed to write branch header",
-                )));
-            }
-            let end = self.file.seek(SeekFrom::Current(0))? as usize;
-            assert_eq!(
-                end % BLOB_ALIGNMENT,
-                0,
-                "pile misaligned after branch write"
-            );
-            self.applied_length = end;
-            self.branches.insert(id, new);
+        let current_hash = self.branches.get(&id);
+        if current_hash != old.as_ref() {
             self.file.unlock()?;
-            Ok(PushResult::Success())
-        };
+            return Ok(PushResult::Conflict(current_hash.cloned()));
+        }
 
-        result
+        let header_len = std::mem::size_of::<BranchHeader>();
+
+        let header = BranchHeader::new(id, new);
+        let expected = header_len;
+        let write_res = self.file.write(header.as_bytes());
+        self.file.unlock()?;
+        let written = match write_res {
+            Ok(n) => n,
+            Err(e) => return Err(UpdateBranchError::IoError(e)),
+        };
+        if written != expected {
+            return Err(UpdateBranchError::IoError(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "failed to write branch header",
+            )));
+        }
+
+        self.refresh().map_err(UpdateBranchError::from)?;
+
+        Ok(PushResult::Success())
     }
 }
 

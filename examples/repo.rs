@@ -9,7 +9,8 @@ fn main() {
     let path = tmp.path().join("repo.pile");
 
     // Create a local pile to store blobs and branches
-    let pile = Pile::open(&path).expect("open pile");
+    let mut pile = Pile::open(&path).expect("open pile");
+    pile.restore().expect("restore pile");
 
     // Create a repository from the pile and initialize the main branch
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));

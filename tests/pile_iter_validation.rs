@@ -33,6 +33,7 @@ fn iterator_errors_on_corrupt_blob() {
     file.flush().unwrap();
 
     let mut pile: Pile = Pile::open(&path).unwrap();
+    pile.restore().unwrap();
     let reader = pile.reader().unwrap();
     let mut iter = reader.iter();
     match iter.next() {

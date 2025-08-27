@@ -11,7 +11,7 @@ file.
   can be determined from the stored bytes when needed.
 - Introduce a public `BlobMetadata` struct containing `timestamp` and `length`
   so callers do not depend on internal types.
-- Populate the timestamp when `Pile::try_open` scans existing entries and when
+- Populate the timestamp when `Pile::refresh` scans existing entries and when
   inserting new blobs. Lengths are computed on demand.
 - Add `PileReader::metadata(&self, handle)` to retrieve a blob's metadata if it
   exists. Iterators may later be extended to yield this information alongside the

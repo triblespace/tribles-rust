@@ -76,6 +76,11 @@ while let Some(mut incoming) = repo.push(&mut ws)? {
 }
 ```
 
+After a successful push the branch may have advanced further than the head
+supplied, because the repository refreshes its view after releasing the lock.
+An error indicating a corrupted pile does not necessarily mean the push failed;
+the update might have been written before the corruption occurred.
+
 This snippet is taken from [`examples/workspace.rs`](../examples/workspace.rs).
 The [`examples/repo.rs`](../examples/repo.rs) example demonstrates the same
 pattern with two separate workspaces. The returned `Workspace` already contains

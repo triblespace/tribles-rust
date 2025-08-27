@@ -189,6 +189,7 @@ proptest! {
             pile.close().unwrap();
         }
         let mut pile_final: Pile = Pile::open(&path).unwrap();
+        pile_final.restore().unwrap();
         let reader = pile_final.reader().unwrap();
         for (handle, data) in &expected {
             let blob = reader.get::<Blob<UnknownBlob>, _>(*handle).unwrap();

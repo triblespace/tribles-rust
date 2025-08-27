@@ -422,29 +422,12 @@ impl From<std::io::Error> for FlushError {
 }
 
 impl<H: HashProtocol> Pile<H> {
-    /// Opens an existing pile and truncates any corrupted tail data if found.
-    pub fn open(path: &Path) -> Result<Self, ReadError> {
-        match Self::try_open(path) {
-            Ok(pile) => Ok(pile),
-            Err(ReadError::CorruptPile { valid_length }) => {
-                // Truncate the file at the first valid offset and try again.
-                OpenOptions::new()
-                    .write(true)
-                    .open(path)?
-                    .set_len(valid_length as u64)?;
-                Self::try_open(path)
-            }
-            Err(err) => Err(err),
-        }
-    }
-
-    /// Opens a pile file without repairing potential corruption.
+    /// Opens an existing pile without scanning or repairing its contents.
     ///
-    /// The file is scanned to ensure record boundaries are valid. If a
-    /// truncated or malformed record is encountered the function returns
-    /// [`ReadError::CorruptPile`] with the length of the valid prefix so the
-    /// caller may decide how to handle it.
-    pub fn try_open(path: &Path) -> Result<Self, ReadError> {
+    /// The returned pile has no in-memory index; callers should invoke
+    /// [`refresh`] to load existing data or [`restore`] to repair and load
+    /// after a crash.
+    pub fn open(path: &Path) -> Result<Self, ReadError> {
         let file = OpenOptions::new()
             .read(true)
             .append(true)
@@ -460,16 +443,13 @@ impl<H: HashProtocol> Pile<H> {
             .map_raw_read_only(&file)?;
         let mmap = Arc::new(mmap);
 
-        let mut pile = Self {
+        Ok(Self {
             file,
             mmap,
             blobs: PATCH::<32, IdentitySchema, IndexEntry>::new(),
             branches: HashMap::new(),
             applied_length: 0,
-        };
-
-        pile.refresh()?;
-        Ok(pile)
+        })
     }
 
     /// Refreshes in-memory state from newly appended records.
@@ -588,6 +568,32 @@ impl<H: HashProtocol> Pile<H> {
             self.applied_length = file_len;
         }
         Ok(())
+    }
+
+    /// Restores a pile after a partial or corrupt append.
+    ///
+    /// The method first attempts a regular [`refresh`]. If corruption is
+    /// detected, it acquires an exclusive lock, re-attempts the refresh and,
+    /// upon confirming the corruption, truncates the pile to the last known
+    /// good offset before refreshing once more.
+    pub fn restore(&mut self) -> Result<(), ReadError> {
+        match self.refresh() {
+            Ok(()) => Ok(()),
+            Err(ReadError::CorruptPile { .. }) => {
+                self.file.lock()?;
+                let res = match self.refresh() {
+                    Ok(()) => Ok(()),
+                    Err(ReadError::CorruptPile { valid_length }) => {
+                        self.file.set_len(valid_length as u64)?;
+                        self.refresh()
+                    }
+                    Err(e) => Err(e),
+                };
+                self.file.unlock()?;
+                res
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Persists all writes and metadata to the underlying pile file.
@@ -870,7 +876,9 @@ mod tests {
 
         pile.close().unwrap();
 
-        Pile::<Blake3>::open(&tmp_pile).unwrap().close().unwrap();
+        let mut reopened: Pile<Blake3> = Pile::open(&tmp_pile).unwrap();
+        reopened.restore().unwrap();
+        reopened.close().unwrap();
     }
 
     #[test]
@@ -890,12 +898,14 @@ mod tests {
         let len = file.metadata().unwrap().len();
         file.set_len(len - 10).unwrap();
 
-        Pile::<Blake3>::open(&path).unwrap().close().unwrap();
+        let mut pile: Pile<Blake3> = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
+        pile.close().unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     }
 
     #[test]
-    fn try_open_corrupt_reports_length() {
+    fn refresh_corrupt_reports_length() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
@@ -914,14 +924,16 @@ mod tests {
             .set_len(file_len - 10)
             .unwrap();
 
-        match Pile::<Blake3>::try_open(&path) {
+        let mut pile: Pile<Blake3> = Pile::open(&path).unwrap();
+        match pile.refresh() {
             Err(ReadError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
             other => panic!("unexpected result: {other:?}"),
         }
+        pile.close().unwrap();
     }
 
     #[test]
-    fn open_truncates_unknown_magic() {
+    fn restore_truncates_unknown_magic() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
@@ -941,12 +953,14 @@ mod tests {
             .write_all(&[0u8; 16])
             .unwrap();
 
-        Pile::<Blake3>::open(&path).unwrap().close().unwrap();
+        let mut pile: Pile<Blake3> = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
+        pile.close().unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), valid_len);
     }
 
     #[test]
-    fn try_open_partial_header_reports_length() {
+    fn refresh_partial_header_reports_length() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
@@ -965,16 +979,18 @@ mod tests {
             .set_len(file_len + 8)
             .unwrap();
 
-        match Pile::<Blake3>::try_open(&path) {
+        let mut pile: Pile<Blake3> = Pile::open(&path).unwrap();
+        match pile.refresh() {
             Err(ReadError::CorruptPile { valid_length }) => {
                 assert_eq!(valid_length as u64, file_len)
             }
             other => panic!("unexpected result: {other:?}"),
         }
+        pile.close().unwrap();
     }
 
     #[test]
-    fn try_open_length_beyond_file_reports_length() {
+    fn refresh_length_beyond_file_reports_length() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
@@ -996,14 +1012,16 @@ mod tests {
         file.flush().unwrap();
         drop(file);
 
-        match Pile::<Blake3>::try_open(&path) {
+        let mut pile: Pile<Blake3> = Pile::open(&path).unwrap();
+        match pile.refresh() {
             Err(ReadError::CorruptPile { valid_length }) => assert_eq!(valid_length, 0),
             other => panic!("unexpected result: {other:?}"),
         }
+        pile.close().unwrap();
     }
 
     #[test]
-    fn open_truncates_length_beyond_file() {
+    fn restore_truncates_length_beyond_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 
@@ -1025,7 +1043,9 @@ mod tests {
         file.flush().unwrap();
         drop(file);
 
-        Pile::<Blake3>::open(&path).unwrap().close().unwrap();
+        let mut pile: Pile<Blake3> = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
+        pile.close().unwrap();
         assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     }
 
@@ -1048,6 +1068,7 @@ mod tests {
         pile.close().unwrap();
 
         let mut pile: Pile = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
         let reader = pile.reader().unwrap();
         let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
         assert_eq!(fetched.bytes.as_ref(), data.as_slice());
@@ -1162,7 +1183,8 @@ mod tests {
         pile.put(blob2).unwrap();
         pile.close().unwrap();
 
-        let pile: Pile = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
         let head = pile.head(branch_id).unwrap();
         assert_eq!(head, Some(handle1.transmute()));
         pile.close().unwrap();
@@ -1185,7 +1207,8 @@ mod tests {
             handle
         };
 
-        let pile: Pile = Pile::open(&path).unwrap();
+        let mut pile: Pile = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
         assert_eq!(pile.head(branch_id).unwrap(), Some(handle.transmute()));
         assert!(std::fs::metadata(&path).unwrap().len() > 0);
         pile.close().unwrap();
@@ -1258,6 +1281,7 @@ mod tests {
         pile.close().unwrap();
 
         let mut pile: Pile = Pile::open(&path).unwrap();
+        pile.restore().unwrap();
         let reader = pile.reader().unwrap();
         let meta = reader.metadata(handle).unwrap();
         assert_eq!(meta.length, 32);
@@ -1335,6 +1359,39 @@ mod tests {
         }
 
         assert!(pile.refresh().is_err());
+        pile.close().unwrap();
+    }
+
+    #[test]
+    fn restore_truncates_corrupt_tail() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile = Pile::open(&path).unwrap();
+        let data = vec![1u8; 4];
+        let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
+        let handle = pile.put(blob).unwrap();
+        pile.flush().unwrap();
+
+        use std::io::Write;
+        {
+            let mut file = std::fs::OpenOptions::new()
+                .append(true)
+                .open(&path)
+                .unwrap();
+            file.write_all(b"garbage").unwrap();
+            file.sync_all().unwrap();
+        }
+
+        pile.restore().unwrap();
+
+        let expected_len =
+            (super::BLOB_HEADER_LEN + data.len() + super::padding_for_blob(data.len())) as u64;
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), expected_len);
+
+        let reader = pile.reader().unwrap();
+        let fetched: Blob<UnknownBlob> = reader.get(handle).unwrap();
+        assert_eq!(fetched.bytes.as_ref(), data.as_slice());
         pile.close().unwrap();
     }
 

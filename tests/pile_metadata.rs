@@ -38,6 +38,7 @@ fn metadata_detects_corrupted_blob() {
     }
 
     let mut reopened: Pile<Blake3> = Pile::open(&path).unwrap();
+    reopened.restore().unwrap();
     let reader = reopened.reader().unwrap();
     assert!(reader.metadata(handle).is_none());
 }

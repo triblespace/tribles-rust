@@ -27,15 +27,15 @@ type.
 ## Usage
 
 A pile typically lives as a `.pile` file on disk. Repositories open it through
-`Pile::open` which performs any necessary recovery and returns a handle for
-appending new blobs or branches. Multiple threads may share the same handle
-thanks to internal synchronisation, making a pile a convenient durable store for
-local development. Blob appends use a single `O_APPEND` write. Each handle
-remembers the last offset it processed and, after appending, scans any gap left
-by concurrent writes before advancing this `applied_length`. Writers may race
-and duplicate blobs, but content addressing keeps the data consistent. Updating
-branch heads requires a brief critical section: `flush → refresh → lock →
-refresh → append → unlock`.
+`Pile::open` and then call [`refresh`](../../src/repo/pile.rs) to load existing
+records or [`restore`](../../src/repo/pile.rs) to repair after a crash. Multiple
+threads may share the same handle thanks to internal synchronisation, making a
+pile a convenient durable store for local development. Blob appends use a single
+`O_APPEND` write. Each handle remembers the last offset it processed and, after
+appending, scans any gap left by concurrent writes before advancing this
+`applied_length`. Writers may race and duplicate blobs, but content addressing
+keeps the data consistent. Updating branch heads requires a brief critical
+section: `flush → refresh → lock → refresh → append → unlock`.
 ## Blob Storage
 ```
                              8 byte  8 byte
@@ -63,12 +63,16 @@ its hash. The payload is padded so the next record begins on a
 ```
 Branch entries map a branch identifier to the hash of a blob.
 ## Recovery
-When [`Pile::try_open`] scans an existing file it checks that every header uses a known marker and that the whole record fits. It does not verify any hashes. If a truncated or unknown block is found the function reports the number of bytes that were valid so far using [`ReadError::CorruptPile`].
+Calling [`refresh`](../../src/repo/pile.rs) scans an existing file to ensure
+every header uses a known marker and that the whole record fits. It does not
+verify any hashes. If a truncated or unknown block is found the function reports
+the number of bytes that were valid so far using
+[`ReadError::CorruptPile`].
 
-The convenience wrapper [`Pile::open`] re-runs the same validation and truncates
-the file to the valid length if corruption is encountered. This recovers from
-interrupted writes by discarding incomplete data.
-Hash verification happens lazily only when individual blobs are loaded so that
+The [`restore`](../../src/repo/pile.rs) helper re-runs the same validation and
+truncates the file to the valid length if corruption is encountered. This
+recovers from interrupted writes by discarding incomplete data. Hash
+verification happens lazily only when individual blobs are loaded so that
 opening a large pile remains fast.
 
 For more details on interacting with a pile see the [`Pile` struct

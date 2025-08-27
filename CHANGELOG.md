@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
+- `Pile::restore` method to repair piles with trailing corruption.
 
 ### Changed
 - `Pile::close` now consumes the pile and manually drops its fields to bypass
@@ -29,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Pile::update` unlocks and refreshes before returning, so the branch state may
   advance beyond the supplied head and corruption errors do not necessarily mean
   the update failed.
+- `Pile::open` now returns an empty handle without scanning the file. Call
+  `refresh` to load existing data or `restore` to repair corruption. The
+  `try_open` helper was removed.
 - Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`

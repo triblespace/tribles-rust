@@ -176,7 +176,9 @@ fn merge_import_example(
 ) -> anyhow::Result<()> {
     // 1) Open source (read) and destination (write) piles
     let mut src = Pile::open(src_path)?;
+    src.restore()?;
     let mut dst = Pile::open(dst_path)?;
+    dst.restore()?;
 
     // 2) Resolve source head commit handle
     let src_head: Value<Handle<Blake3, blobschemas::SimpleArchive>> =

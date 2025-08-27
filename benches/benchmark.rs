@@ -813,7 +813,8 @@ fn pile_benchmark(c: &mut Criterion) {
             },
             |tmp_dir: TempDir| {
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let _pile = Pile::open(&tmp_pile).unwrap();
+                let mut pile = Pile::open(&tmp_pile).unwrap();
+                pile.restore().unwrap();
                 drop(tmp_dir)
             },
             BatchSize::PerIteration,

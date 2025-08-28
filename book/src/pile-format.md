@@ -80,6 +80,11 @@ verify any hashes. If a truncated or unknown block is found the function reports
 the number of bytes that were valid so far using
 [`ReadError::CorruptPile`].
 
+If the file shrinks between scans into data that has already been applied, the
+process aborts immediately. Previously returned `Bytes` handles would dangle and
+continuing could cause undefined behavior, so truncation into validated data is
+treated as unrecoverable.
+
 `refresh` holds a shared file lock while scanning. This prevents a concurrent
 [`restore`](../../src/repo/pile.rs) call from truncating the file out from under
 the reader.

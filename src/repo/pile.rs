@@ -138,8 +138,9 @@ enum Applied<H: HashProtocol> {
 /// Branch updates do not verify that referenced blobs exist in the pile, allowing the
 /// pile to operate as a head-only store when blob data lives elsewhere.
 ///
-/// [`Pile::refresh`] aborts if the underlying file shrinks, preventing reads from
-/// a truncated pile.
+/// [`Pile::refresh`] aborts immediately if the underlying file shrinks below
+/// data that has already been applied, preventing undefined behavior from
+/// dangling [`Bytes`](anybytes::Bytes) handles.
 pub struct Pile<H: HashProtocol = Blake3> {
     file: File,
     mmap: Arc<MmapRaw>,
@@ -459,8 +460,10 @@ impl<H: HashProtocol> Pile<H> {
 
     /// Refreshes in-memory state from newly appended records.
     ///
-    /// Aborts if the underlying pile file has been truncated since the last
-    /// refresh.
+    /// Aborts immediately if the underlying pile file has shrunk below the
+    /// portion already applied since the last refresh. Truncating validated data
+    /// would invalidate existing `Bytes` handles and continuing would result in
+    /// undefined behavior.
     ///
     /// This acquires a shared file lock to avoid racing with [`restore`],
     /// which takes an exclusive lock before truncating.
@@ -473,6 +476,11 @@ impl<H: HashProtocol> Pile<H> {
         Ok(())
     }
 
+    /// Applies the next record from disk to in-memory indices.
+    ///
+    /// Aborts if the pile file is observed to shrink below the portion already
+    /// applied, which would otherwise leave existing `Bytes` handles dangling
+    /// and lead to undefined behavior.
     fn apply_next(&mut self) -> Result<Option<Applied<H>>, ReadError> {
         let file_len = self.file.metadata()?.len() as usize;
         if file_len < self.applied_length {

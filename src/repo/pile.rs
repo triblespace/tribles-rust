@@ -658,7 +658,7 @@ impl<H: HashProtocol> Pile<H> {
     /// Flushes pending data and consumes the pile, returning an error if the
     /// flush fails.
     pub fn close(mut self) -> Result<(), FlushError> {
-        self.flush()?;
+        let res = self.flush();
 
         let mut this = std::mem::ManuallyDrop::new(self);
         unsafe {
@@ -668,7 +668,7 @@ impl<H: HashProtocol> Pile<H> {
             std::ptr::drop_in_place(&mut this.branches);
         }
 
-        Ok(())
+        res
     }
 }
 

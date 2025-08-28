@@ -135,6 +135,9 @@ enum Applied<H: HashProtocol> {
 #[derive(Debug)]
 /// A grow-only collection of blobs and branch pointers backed by a single file on disk.
 ///
+/// Branch updates do not verify that referenced blobs exist in the pile, allowing the
+/// pile to operate as a head-only store when blob data lives elsewhere.
+///
 /// [`Pile::refresh`] aborts immediately if the underlying file shrinks below
 /// data that has already been applied, preventing undefined behavior from
 /// dangling [`Bytes`](anybytes::Bytes) handles.
@@ -853,6 +856,9 @@ where
     }
 
     /// Updates the head of `id` to `new` if it matches `old`.
+    ///
+    /// This method does not verify that `new` refers to a blob stored in the pile,
+    /// allowing piles to reference external data and serve as head-only stores.
     ///
     /// The update is written to the pile but is **not durable** until
     /// [`Pile::flush`] is called. Callers must explicitly flush to ensure

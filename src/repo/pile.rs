@@ -723,6 +723,10 @@ impl<H: HashProtocol> BlobStoreList<H> for PileReader<H> {
 impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
     type PutError = InsertError;
 
+    /// Inserts a blob into the pile and returns its handle.
+    ///
+    /// Multiple writers are safe only on filesystems guaranteeing atomic
+    /// `write`/`vwrite` appends; other filesystems may corrupt the pile.
     fn put<S, T>(&mut self, item: T) -> Result<Value<Handle<H, S>>, Self::PutError>
     where
         S: BlobSchema + 'static,

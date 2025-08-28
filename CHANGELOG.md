@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Pile::restore` method to repair piles with trailing corruption.
 
 ### Changed
+- Clarified that multiple pile writers require filesystems with atomic append
+  semantics; noted unsupported filesystems in documentation.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
 - Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
   refreshes before writing, then reads back its blob with `apply_next` to ensure

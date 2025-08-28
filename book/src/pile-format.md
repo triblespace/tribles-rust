@@ -41,6 +41,10 @@ requires a brief critical
 section: `flush → refresh → lock → refresh → append → unlock`. The initial
 `refresh` acquires a shared lock so it cannot race with `restore`, which takes an
 exclusive lock before truncating a corrupted tail.
+ 
+Filesystems lacking atomic `write`/`vwrite` appends—such as some network or
+FUSE-based implementations—cannot safely host multiple writers and are not
+supported. Using such filesystems risks pile corruption.
 ## Blob Storage
 ```
                              8 byte  8 byte

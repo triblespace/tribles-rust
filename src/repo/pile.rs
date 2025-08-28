@@ -294,6 +294,7 @@ impl<H: HashProtocol> BlobStore<H> for Pile<H> {
 pub enum ReadError {
     IoError(std::io::Error),
     CorruptPile { valid_length: usize },
+    FileTooLarge { length: usize },
 }
 
 impl std::fmt::Display for ReadError {
@@ -302,6 +303,9 @@ impl std::fmt::Display for ReadError {
             ReadError::IoError(err) => write!(f, "IO error: {err}"),
             ReadError::CorruptPile { valid_length } => {
                 write!(f, "Corrupt pile at byte {valid_length}")
+            }
+            ReadError::FileTooLarge { length } => {
+                write!(f, "Pile of length {length} exceeds supported size")
             }
         }
     }
@@ -321,6 +325,10 @@ impl From<ReadError> for std::io::Error {
             ReadError::CorruptPile { valid_length } => std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("corrupt pile at byte {valid_length}"),
+            ),
+            ReadError::FileTooLarge { length } => std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("pile length {length} exceeds supported size"),
             ),
         }
     }
@@ -442,7 +450,11 @@ impl<H: HashProtocol> Pile<H> {
         let length = file.metadata()?.len() as usize;
         let page_size = page_size::get();
         let base_size = page_size * 1024;
-        let mapped_size = base_size.max(length.next_power_of_two());
+        let mapped_size = base_size.max(
+            length
+                .checked_next_power_of_two()
+                .ok_or(ReadError::FileTooLarge { length })?,
+        );
 
         let mmap = MmapOptions::new()
             .len(mapped_size)

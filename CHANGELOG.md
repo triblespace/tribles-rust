@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   using `apply_next` under its exclusive lock.
 - `Pile::close` now consumes the pile and manually drops its fields to bypass
     `Drop`, which always warns when a pile is not explicitly closed.
+- `Pile::close` now drops all fields before returning the result of `flush`,
+  ensuring resources are cleaned up even if flushing fails.
 - `Pile::refresh` now aborts if the pile file shrinks below data already
   applied, guarding against truncated data.
 - Documented that truncation below `applied_length` invalidates previously

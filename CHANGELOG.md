@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
 - `Pile::restore` method to repair piles with trailing corruption.
+- Documented zero-length blob support and added tests for empty blob insertion and retrieval.
 
 ### Changed
 - Documented that branch updates do not ensure referenced blobs exist, enabling

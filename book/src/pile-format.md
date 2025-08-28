@@ -71,7 +71,7 @@ supported. Using such filesystems risks pile corruption.
           │ │                                                              │
           └ └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
 ```
-Each blob entry records its creation timestamp, the length of the payload and
+Each blob entry records its creation timestamp, the length of the payload (which may be zero) and
 its hash. The payload is padded so the next record begins on a
 64&nbsp;byte boundary.
 

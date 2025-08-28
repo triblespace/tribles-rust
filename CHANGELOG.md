@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `Drop`, which always warns when a pile is not explicitly closed.
 - `Pile::refresh` now aborts if the pile file shrinks, guarding against
   truncated data.
+- `Pile::refresh` acquires a shared file lock while scanning to avoid races with
+  `restore` truncating the file.
+- `Pile::restore` truncates the pile without rescanning after truncation,
+  removing a redundant refresh pass.
+- `Pile` now tracks in-flight blob hashes out-of-band and clears them during
+  `restore`, simplifying `IndexEntry`.
+- `Pile::refresh` uses a simple `insert` for new blob index entries.
 - `Pile::update` no longer flushes or `sync_all`s automatically; callers must
     invoke `flush()` for durability.
 - `Pile::update` unlocks and refreshes before returning, so the branch state may

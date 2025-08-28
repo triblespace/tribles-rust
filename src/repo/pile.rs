@@ -9,7 +9,7 @@ use anybytes::Bytes;
 use hex_literal::hex;
 use memmap2::MmapOptions;
 use memmap2::MmapRaw;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
@@ -66,23 +66,16 @@ pub struct BlobMetadata {
 }
 
 #[derive(Debug, Clone)]
-enum IndexEntry {
-    InFlight,
-    Stored {
-        state: Arc<OnceLock<ValidationState>>,
-        offset: usize,
-        len: u64,
-        timestamp: u64,
-    },
+struct IndexEntry {
+    state: Arc<OnceLock<ValidationState>>,
+    offset: usize,
+    len: u64,
+    timestamp: u64,
 }
 
 impl IndexEntry {
-    fn in_flight(_len: u64, _timestamp: u64) -> Self {
-        Self::InFlight
-    }
-
-    fn stored(offset: usize, len: u64, timestamp: u64) -> Self {
-        Self::Stored {
+    fn new(offset: usize, len: u64, timestamp: u64) -> Self {
+        Self {
             state: Arc::new(OnceLock::new()),
             offset,
             len,
@@ -139,6 +132,7 @@ pub struct Pile<H: HashProtocol = Blake3> {
     mmap: Arc<MmapRaw>,
     blobs: PATCH<32, IdentitySchema, IndexEntry>,
     branches: HashMap<Id, Value<Handle<H, SimpleArchive>>>,
+    in_flight: HashSet<RawValue>,
     applied_length: usize,
 }
 
@@ -193,38 +187,32 @@ impl<H: HashProtocol> PileReader<H> {
     {
         let hash: &Value<Hash<H>> = handle.as_transmute();
         let entry = self.blobs.get(&hash.raw)?;
-        match entry {
-            IndexEntry::Stored {
-                state,
-                timestamp,
-                offset,
-                len,
-                ..
-            } => {
-                let bytes = unsafe {
-                    let slice =
-                        slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
-                            .as_ref()
-                            .unwrap();
-                    Bytes::from_raw_parts(slice, self.mmap.clone())
-                };
-                let state = state.get_or_init(|| {
-                    let computed_hash = Hash::<H>::digest(&bytes);
-                    if computed_hash == *hash {
-                        ValidationState::Validated
-                    } else {
-                        ValidationState::Invalid
-                    }
-                });
-                match state {
-                    ValidationState::Validated => Some(BlobMetadata {
-                        timestamp: *timestamp,
-                        length: bytes.len() as u64,
-                    }),
-                    ValidationState::Invalid => None,
-                }
+        let IndexEntry {
+            state,
+            timestamp,
+            offset,
+            len,
+        } = entry;
+        let bytes = unsafe {
+            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                .as_ref()
+                .unwrap();
+            Bytes::from_raw_parts(slice, self.mmap.clone())
+        };
+        let state = state.get_or_init(|| {
+            let computed_hash = Hash::<H>::digest(&bytes);
+            if computed_hash == *hash {
+                ValidationState::Validated
+            } else {
+                ValidationState::Invalid
             }
-            IndexEntry::InFlight => None,
+        });
+        match state {
+            ValidationState::Validated => Some(BlobMetadata {
+                timestamp: *timestamp,
+                length: bytes.len() as u64,
+            }),
+            ValidationState::Invalid => None,
         }
     }
 }
@@ -245,37 +233,32 @@ impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
         let Some(entry) = self.blobs.get(&hash.raw) else {
             return Err(GetBlobError::BlobNotFound);
         };
-        match entry {
-            IndexEntry::Stored {
-                state, offset, len, ..
-            } => {
-                let bytes = unsafe {
-                    let slice =
-                        slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
-                            .as_ref()
-                            .unwrap();
-                    Bytes::from_raw_parts(slice, self.mmap.clone())
-                };
-                let state = state.get_or_init(|| {
-                    let computed_hash = Hash::<H>::digest(&bytes);
-                    if computed_hash == *hash {
-                        ValidationState::Validated
-                    } else {
-                        ValidationState::Invalid
-                    }
-                });
-                match state {
-                    ValidationState::Validated => {
-                        let blob: Blob<S> = Blob::new(bytes.clone());
-                        match blob.try_from_blob() {
-                            Ok(value) => Ok(value),
-                            Err(e) => Err(GetBlobError::ConversionError(e)),
-                        }
-                    }
-                    ValidationState::Invalid => Err(GetBlobError::ValidationError(bytes.clone())),
+        let IndexEntry {
+            state, offset, len, ..
+        } = entry;
+        let bytes = unsafe {
+            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                .as_ref()
+                .unwrap();
+            Bytes::from_raw_parts(slice, self.mmap.clone())
+        };
+        let state = state.get_or_init(|| {
+            let computed_hash = Hash::<H>::digest(&bytes);
+            if computed_hash == *hash {
+                ValidationState::Validated
+            } else {
+                ValidationState::Invalid
+            }
+        });
+        match state {
+            ValidationState::Validated => {
+                let blob: Blob<S> = Blob::new(bytes.clone());
+                match blob.try_from_blob() {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(GetBlobError::ConversionError(e)),
                 }
             }
-            IndexEntry::InFlight => Err(GetBlobError::BlobNotFound),
+            ValidationState::Invalid => Err(GetBlobError::ValidationError(bytes.clone())),
         }
     }
 }
@@ -448,6 +431,7 @@ impl<H: HashProtocol> Pile<H> {
             mmap,
             blobs: PATCH::<32, IdentitySchema, IndexEntry>::new(),
             branches: HashMap::new(),
+            in_flight: HashSet::new(),
             applied_length: 0,
         })
     }
@@ -456,7 +440,19 @@ impl<H: HashProtocol> Pile<H> {
     ///
     /// Aborts if the underlying pile file has been truncated since the last
     /// refresh.
+    ///
+    /// This acquires a shared file lock to avoid racing with [`restore`],
+    /// which takes an exclusive lock before truncating.
     pub fn refresh(&mut self) -> Result<(), ReadError> {
+        self.file.lock_shared()?;
+        let res = self.refresh_locked();
+        let unlock_res = self.file.unlock();
+        res?;
+        unlock_res?;
+        Ok(())
+    }
+
+    fn refresh_locked(&mut self) -> Result<(), ReadError> {
         let old_len = self.applied_length;
         let file_len = self.file.metadata()?.len() as usize;
         if file_len < old_len {
@@ -510,13 +506,14 @@ impl<H: HashProtocol> Pile<H> {
                         let ts = header.timestamp;
                         let entry = Entry::with_value(
                             &hash.raw,
-                            IndexEntry::stored(data_offset, header.length, ts),
+                            IndexEntry::new(data_offset, header.length, ts),
                         );
+                        self.in_flight.remove(&hash.raw);
                         match self.blobs.get(&hash.raw) {
-                            None | Some(IndexEntry::InFlight) => {
-                                self.blobs.replace(&entry);
+                            None => {
+                                self.blobs.insert(&entry);
                             }
-                            Some(IndexEntry::Stored {
+                            Some(IndexEntry {
                                 state, offset, len, ..
                             }) => {
                                 let state = state.get_or_init(|| {
@@ -575,17 +572,19 @@ impl<H: HashProtocol> Pile<H> {
     /// The method first attempts a regular [`refresh`]. If corruption is
     /// detected, it acquires an exclusive lock, re-attempts the refresh and,
     /// upon confirming the corruption, truncates the pile to the last known
-    /// good offset before refreshing once more.
+    /// good offset. The exclusive lock blocks other readers so truncation
+    /// cannot race with [`refresh`].
     pub fn restore(&mut self) -> Result<(), ReadError> {
-        match self.refresh() {
+        let res = match self.refresh() {
             Ok(()) => Ok(()),
             Err(ReadError::CorruptPile { .. }) => {
                 self.file.lock()?;
-                let res = match self.refresh() {
+                let res = match self.refresh_locked() {
                     Ok(()) => Ok(()),
                     Err(ReadError::CorruptPile { valid_length }) => {
                         self.file.set_len(valid_length as u64)?;
-                        self.refresh()
+                        self.applied_length = valid_length;
+                        Ok(())
                     }
                     Err(e) => Err(e),
                 };
@@ -593,7 +592,9 @@ impl<H: HashProtocol> Pile<H> {
                 res
             }
             Err(e) => Err(e),
-        }
+        };
+        self.in_flight.clear();
+        res
     }
 
     /// Persists all writes and metadata to the underlying pile file.
@@ -647,39 +648,30 @@ impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
         Result<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>), GetBlobError<Infallible>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(key) = self.inner.next() {
-            let entry = self.patch.get(key)?;
-            if let IndexEntry::Stored {
-                state, offset, len, ..
-            } = entry
-            {
-                let bytes = unsafe {
-                    let slice =
-                        slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
-                            .as_ref()
-                            .unwrap();
-                    Bytes::from_raw_parts(slice, self.mmap.clone())
-                };
-                let hash: Value<Hash<H>> = Value::new(*key);
-                let status = state.get_or_init(|| {
-                    let computed_hash = Hash::<H>::digest(&bytes);
-                    if computed_hash == hash {
-                        ValidationState::Validated
-                    } else {
-                        ValidationState::Invalid
-                    }
-                });
-                match status {
-                    ValidationState::Validated => {
-                        return Some(Ok((hash.into(), Blob::new(bytes))));
-                    }
-                    ValidationState::Invalid => {
-                        return Some(Err(GetBlobError::ValidationError(bytes)));
-                    }
-                }
+        let key = self.inner.next()?;
+        let entry = self.patch.get(key)?;
+        let IndexEntry {
+            state, offset, len, ..
+        } = entry;
+        let bytes = unsafe {
+            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                .as_ref()
+                .unwrap();
+            Bytes::from_raw_parts(slice, self.mmap.clone())
+        };
+        let hash: Value<Hash<H>> = Value::new(*key);
+        let status = state.get_or_init(|| {
+            let computed_hash = Hash::<H>::digest(&bytes);
+            if computed_hash == hash {
+                ValidationState::Validated
+            } else {
+                ValidationState::Invalid
             }
+        });
+        match status {
+            ValidationState::Validated => Some(Ok((hash.into(), Blob::new(bytes)))),
+            ValidationState::Invalid => Some(Err(GetBlobError::ValidationError(bytes))),
         }
-        None
     }
 }
 
@@ -725,7 +717,7 @@ impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
         let handle: Value<Handle<H, S>> = blob.get_handle();
         let hash: Value<Hash<H>> = handle.into();
 
-        if self.blobs.get(&hash.raw).is_some() {
+        if self.blobs.get(&hash.raw).is_some() || self.in_flight.contains(&hash.raw) {
             return Ok(handle.transmute());
         }
 
@@ -746,11 +738,7 @@ impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
             )));
         }
 
-        let entry = Entry::with_value(
-            &hash.raw,
-            IndexEntry::in_flight(blob_size as u64, now_in_ms as u64),
-        );
-        self.blobs.insert(&entry);
+        self.in_flight.insert(hash.raw);
 
         Ok(handle.transmute())
     }
@@ -811,7 +799,7 @@ where
 
         self.file.lock()?;
 
-        if let Err(e) = self.refresh().map_err(UpdateBranchError::from) {
+        if let Err(e) = self.refresh_locked().map_err(UpdateBranchError::from) {
             self.file.unlock()?;
             return Err(e);
         }
@@ -1128,7 +1116,7 @@ mod tests {
     }
 
     #[test]
-    fn metadata_returns_none_for_inflight_blob() {
+    fn metadata_returns_none_for_unflushed_blob() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("pile.pile");
 

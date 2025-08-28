@@ -76,6 +76,11 @@ while let Some(mut incoming) = repo.push(&mut ws)? {
 }
 ```
 
+After a successful push the branch may have advanced further than the head
+supplied, because the repository refreshes its view after releasing the lock.
+An error indicating a corrupted pile does not necessarily mean the push failed;
+the update might have been written before the corruption occurred.
+
 This snippet is taken from [`examples/workspace.rs`](../examples/workspace.rs).
 The [`examples/repo.rs`](../examples/repo.rs) example demonstrates the same
 pattern with two separate workspaces. The returned `Workspace` already contains
@@ -170,15 +175,17 @@ fn merge_import_example(
     dst_branch_id: tribles::id::Id,
 ) -> anyhow::Result<()> {
     // 1) Open source (read) and destination (write) piles
-    let mut src: Pile<{ 1 << 44 }, Blake3> = Pile::open(src_path)?;
-    let mut dst: Pile<{ 1 << 44 }, Blake3> = Pile::open(dst_path)?;
+    let mut src = Pile::open(src_path)?;
+    src.restore()?;
+    let mut dst = Pile::open(dst_path)?;
+    dst.restore()?;
 
     // 2) Resolve source head commit handle
     let src_head: Value<Handle<Blake3, blobschemas::SimpleArchive>> =
         src.head(src_branch_id)?.ok_or_else(|| anyhow::anyhow!("source head not found"))?;
 
     // 3) Conservatively copy all reachable blobs from source → destination
-    let stats = repo::copy_reachable(&src.reader(), &mut dst, [src_head.transmute()])?;
+    let stats = repo::copy_reachable(&src.reader()?, &mut dst, [src_head.transmute()])?;
     eprintln!("copied: visited={} stored={}", stats.visited, stats.stored);
 
     // 4) Attach via a single merge commit in the destination branch

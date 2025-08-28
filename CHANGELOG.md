@@ -18,6 +18,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
+- `Pile::restore` method to repair piles with trailing corruption.
+- Documented zero-length blob support and added tests for empty blob insertion and retrieval.
+
+### Changed
+- Documented that branch updates do not ensure referenced blobs exist, enabling
+  piles to serve as head-only stores.
+- Clarified that multiple pile writers require filesystems with atomic append
+  semantics; noted unsupported filesystems in documentation.
+- Documented the pile as a write-ahead log database ("WAL-as-a-DB").
+- Documented that the pile is an immutable append-only log: only the un-applied tail is validated and mutating existing data is undefined behavior.
+- Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
+  refreshes before writing, then reads back its blob with `apply_next` to ensure
+  it was indexed. `Pile::update` similarly verifies the written branch record
+  using `apply_next` under its exclusive lock.
+- `Pile::close` now consumes the pile and manually drops its fields to bypass
+    `Drop`, which always warns when a pile is not explicitly closed.
+- `Pile::close` now drops all fields before returning the result of `flush`,
+  ensuring resources are cleaned up even if flushing fails.
+- `Pile::refresh` now aborts if the pile file shrinks below data already
+  applied, guarding against truncated data.
+- Documented that truncation below `applied_length` invalidates previously
+  issued `Bytes`, so only the un-applied tail is checked for corruption and
+  shrinkage into validated data requires aborting.
+- Clarified that shrinkage into already applied data triggers an immediate
+  process abort to avoid undefined behavior from dangling `Bytes` handles.
+- `Pile::refresh` acquires a shared file lock while scanning to avoid races with
+  `restore` truncating the file.
+- `Pile::restore` truncates the pile without rescanning after truncation,
+  removing a redundant refresh pass.
+- `Pile::refresh` uses a simple `insert` for new blob index entries.
+- `Pile::update` no longer flushes or `sync_all`s automatically; callers must
+    invoke `flush()` for durability.
+- `Pile::open` now returns an empty handle without scanning the file. Call
+  `refresh` to load existing data or `restore` to repair corruption. The
+  `try_open` helper was removed.
+- Additional unit tests for `Pile` blob iteration, metadata, and conflict handling.
 - `Workspace::checkout` helper to load commit contents.
 - Documentation and example for incremental queries using `pattern_changes!`
   plus additional tests.
@@ -27,8 +63,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
   and `RegularPathConstraint` is now generic over `PathEngine`.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
+- Compile-time check restricting builds to 64-bit little-endian targets.
+- `PileReader` now reconstructs blob data from the underlying memory map,
+  and `IndexEntry::Stored` tracks offsets and lengths instead of holding `Bytes` directly.
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
+- `PATCH::replace` method replaces existing keys without removing/ reinserting.
+
+### Fixed
+- Opening excessively large piles now returns an error instead of panicking when calculating the mapped size.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
+- `PileReader::metadata` now validates blob contents and returns `None` for corrupted blobs.
+- `PileBlobStoreIter` now lazily verifies blob hashes and reports errors for invalid blobs.
+- `PileBlobStoreIter` now skips missing index entries instead of ending iteration silently.
+- `Pile::flush` now calls `sync_all` to persist file metadata and prevent
+  potential data loss after crashes.
+- `Pile` requires explicit closure via `close()`; dropping without closing emits a warning.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.
 - Debug-only `debug_branch_fill` method computes average PATCH branch fill
@@ -37,6 +86,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch occupancy averages.
 - Trible key segmentation and ordering tables are now generated from a
   declarative segment layout, simplifying maintenance.
+- Deterministic proptest simulation tests cover multi-reader and writer pile
+  operation sequences via actor-scheduled operations.
+- Simulation now exercises branch updates, branch listing, and fetching
+  previously stored blobs and branch heads for comprehensive pile coverage.
+- Additional pile unit tests exercising branch conflicts and size limits.
+- Additional unit tests cover pile blob metadata, iteration, and branch update
+  conflicts.
+- Additional unit tests covering pile deduplication, metadata, and branch
+  update conflicts.
+
+- `Pile` no longer requires a compile-time size limit, grows its mmap on demand,
+  and `ReadError::PileTooLarge` was removed.
+- Initial pile mapping now uses a page-sized (×1024) base to avoid frequent remaps.
+- Mapping size now derives from the mmap length instead of an internal counter.
+- Replaced fs4 with Rust std file-locking APIs.
+- Declared Rust 1.89 as the minimum supported toolchain.
+- Dropped the inventory item about validating externally appended blobs during
+  `refresh`; blob data is verified lazily on read.
+- `refresh` replaces invalid blob entries with newer candidates and verifies
+  unknown duplicates before deciding whether to keep or replace them.
+- `refresh` now uses `get_or_init` to compute blob validation state and
+  replace invalid duplicates.
+- Simplified `refresh` padding logic by using `padding_for_blob` to compute blob alignment.
+- `BlobStore::reader` now returns a `Result` so implementations can signal errors during reader creation.
+- Renamed pile read errors from `OpenError` to `ReadError` since they can surface during refresh.
 - PATCH exposes const helpers to derive segment maps and ordering
   permutations from a declarative key layout.
 - `Entry` now supports an optional value via `with_value`, preparing `PATCH`
@@ -86,10 +160,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional example in the Commit Selectors chapter demonstrating how to
   compose `filter` with `time_range`.
 ### Changed
+- `Branch::upsert_child` now always refreshes `childleaf`, removing the `replaced_leafchild` check.
+- Blob index now uses value-aware `PATCH` for cheap reader clones.
+- Inlined `refresh_range` logic into `refresh`, removing the partial-range helper.
+- Blob appends now issue a single `write_vectored` `O_APPEND` call to stream header, data and padding without extra copies or retries.
+- Simplified vectored blob appends by always including a padding slice.
+- Branch updates now perform `flush → refresh → lock → refresh → append → unlock` directly instead of queuing.
+- Branch headers are written with a single `write` call to avoid partial updates.
+- Max-size checks and mmap offsets now derive from the file's actual length instead of tracked counters.
+- Restored an `applied_length` tracker to incrementally refresh new blobs and branches without rescanning the entire pile.
+- Blob inserts now compare the write start with the previous `applied_length`, ingesting any intervening records before advancing.
+- `refresh` now uses the same framing parser as `try_open` to detect truncated or malformed records while deferring blob hash checks to reads.
+- `try_open` now reuses `refresh` for log scanning, unifying corruption checks.
 - `succinctarchive` schema is now gated behind an optional `succinct-archive`
   feature until it aligns with upstream `jerky` APIs.
+- `refresh` retains existing blob entries when encountering duplicates instead of
+  replacing validated records.
+- `refresh` now uses `PATCH::replace` to update blob entries without explicit remove/insert.
 - Expanded commit selector documentation with an overview, example and clearer
   wording about loading commits from a workspace.
+- Temporarily gate the `SuccinctArchive` schema behind a feature to restore
+  compilation while its Jerky dependency is updated.
 - Expanded repository workflows chapter with clearer branching steps and a
   dedicated history section.
 - Expanded Schemas chapter with additional context on schema identifiers and runtime lookup.
@@ -108,6 +199,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `key_index`, `tree_index`, and `segment` helper methods in favor of direct const-table lookups and tied `KeySchema` to its `KeySegmentation` with an explicit segment permutation.
 - `KeySchema` now declares its `KeySegmentation` via an associated type instead of a separate generic parameter.
 - Renamed `KeyOrdering` trait and `key_ordering!` macro to `KeySchema` and `key_schema!` for clearer terminology.
+- Blob writes are now synchronous; `put` records an `InFlight` entry so repeated writes of the same blob are deduplicated until a refresh.
+- Pile size limits are enforced during `refresh` rather than on each write.
 - `ByteTable` plans insertions by recursively seeking a free slot and shifts entries only after a path is found, returning the entry on failure so callers can grow the table.
 - ByteTable's planner tracks visited keys with a stack-allocated bitset to avoid heap allocations.
 - Simplified the planner and table helpers for clearer ByteTable insertion code.
@@ -128,15 +221,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and clearer `pattern_changes!` guidance.
 - Refined the book's introduction with a clearer overview of Trible Space and
   its flexible, lightweight query engine, plus links to later chapters.
+- Simplified blob length handling in `Pile::refresh` by relying on
+  `take_prefix`'s implicit bounds checking.
 ### Removed
 - `nth_parent` commit selector and helper; parent-numbering is not planned.
+- Unused `crossbeam-channel` dependency.
 ### Fixed
+- Detect oversized blob headers whose declared length exceeds the file size.
+- Restored atomic vectored blob appends and single-call branch writes; errors
+  if any bytes are missing.
+- Removed duplicate `succinct-archive` feature declarations that prevented
+  builds.
 - Corrected blob offsets in `Pile` so retrieved blobs no longer include headers or
   branch records.
 - Scheduled branch writes through the pile's write handle to avoid orphaned
   branch heads when crashes occur before pending blobs flush.
 - Applied branch head updates immediately and sized branch records using
   `size_of` to preserve compare-and-swap semantics without magic numbers.
+- Fixed compiler warnings by clarifying lifetime elision and ignoring
+  generated imports when unused.
 - Removed remaining 64-byte assumptions from blob writes by computing header
   length and padding with `size_of::<BlobHeader>()`.
 - `ignore!` now hides variables correctly by subtracting them from inner constraints.
@@ -144,6 +247,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PatchIdConstraint` incorrectly used 32-byte values when confirming IDs, causing
   `local_ids` queries to return no results with overridden estimates.
 - Documentation proposal for exposing blob metadata through the `Pile` API.
+- Branch updates now sync branch headers to disk to avoid losing branch pointers after crashes.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
 - Design notes for a conservative garbage collection mechanism that scans
@@ -294,7 +398,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the underlying store cannot fail.
 - `Workspace::get` method retrieves blobs from the local store and falls back to
   the base store when needed.
-- `OpenError` now implements `std::error::Error` and provides clearer messages when opening piles.
+- `ReadError` now implements `std::error::Error` and provides clearer messages when opening piles.
 - Removed the `..=` commit range selector. The `..` selector now follows Git's
   semantics and excludes the starting commit.
 - Extracted `collect_range` into a standalone function for clarity.
@@ -335,6 +439,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Enforce `PREFIX_LEN <= KEY_LEN` for prefix checks in PATCH.
+- Release file locks if `refresh` fails during pile branch updates to avoid lingering locks.
+- Blob insertion now returns an error instead of panicking if the system clock goes backwards.
+- Delay branch map updates until after branch records are written to disk, preventing divergence when writes fail.
 
 ## [0.5.2] - 2025-06-30
 ### Added

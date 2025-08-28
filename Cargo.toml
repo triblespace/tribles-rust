@@ -3,6 +3,7 @@ name = "tribles"
 version = "0.5.2"
 authors = ["Jan Bramkamp <crest@rlwinm.de>", "⚫️ <jp@bultmann.eu>", "Vanja Sophie Cangalovic <vanja@bultmann.eu>"]
 edition = "2021"
+rust-version = "1.89"
 description = "The tribles knowledge base implementation for rust."
 homepage = "https://tribles.space"
 license = "MIT OR Apache-2.0"
@@ -45,6 +46,7 @@ macro_pub = "0.1.0"
 uuid = "1.15.1"
 reft-light = "0.3.1"
 tribles-macros = { path = "tribles-macros" }
+page_size = "0.6.0"
 
 #[dev-dependencies]
 im = "15.1.0"

@@ -228,7 +228,8 @@ pub trait BlobStorePut<H: HashProtocol> {
 
 pub trait BlobStore<H: HashProtocol>: BlobStorePut<H> {
     type Reader: BlobStoreGet<H> + BlobStoreList<H> + Clone + Send + PartialEq + Eq + 'static;
-    fn reader(&mut self) -> Self::Reader;
+    type ReaderError: Error + Debug + Send + Sync + 'static;
+    fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError>;
 }
 
 #[derive(Debug)]
@@ -512,6 +513,8 @@ pub enum MergeError {
 pub enum PushError<Storage: BranchStore<Blake3> + BlobStore<Blake3>> {
     /// An error occurred while enumerating the branch storage branches.
     StorageBranches(Storage::BranchesError),
+    /// An error occurred while creating a blob reader.
+    StorageReader(<Storage as BlobStore<Blake3>>::ReaderError),
     /// An error occurred while reading metadata blobs.
     StorageGet(
         <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
@@ -529,6 +532,8 @@ pub enum BranchError<Storage>
 where
     Storage: BranchStore<Blake3> + BlobStore<Blake3>,
 {
+    /// An error occurred while creating a blob reader.
+    StorageReader(<Storage as BlobStore<Blake3>>::ReaderError),
     /// An error occurred while reading metadata blobs.
     StorageGet(
         <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
@@ -552,6 +557,7 @@ where
 {
     StorageBranches(Storage::BranchesError),
     BranchHead(Storage::HeadError),
+    StorageReader(<Storage as BlobStore<Blake3>>::ReaderError),
     StorageGet(
         <<Storage as BlobStore<Blake3>>::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
     ),
@@ -571,30 +577,35 @@ pub struct Repository<Storage: BlobStore<Blake3> + BranchStore<Blake3>> {
     signing_key: SigningKey,
 }
 
-pub enum PullError<BranchStorageErr, BlobStorageErr>
+pub enum PullError<BranchStorageErr, BlobReaderErr, BlobStorageErr>
 where
     BranchStorageErr: Error,
+    BlobReaderErr: Error,
     BlobStorageErr: Error,
 {
     /// The branch does not exist in the repository.
     BranchNotFound(Id),
     /// An error occurred while accessing the branch storage.
     BranchStorage(BranchStorageErr),
+    /// An error occurred while creating a blob reader.
+    BlobReader(BlobReaderErr),
     /// An error occurred while accessing the blob storage.
     BlobStorage(BlobStorageErr),
     /// The branch metadata is malformed or does not contain the expected fields.
     BadBranchMetadata(),
 }
 
-impl<B, C> fmt::Debug for PullError<B, C>
+impl<B, R, C> fmt::Debug for PullError<B, R, C>
 where
     B: Error + fmt::Debug,
+    R: Error + fmt::Debug,
     C: Error + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PullError::BranchNotFound(id) => f.debug_tuple("BranchNotFound").field(id).finish(),
             PullError::BranchStorage(e) => f.debug_tuple("BranchStorage").field(e).finish(),
+            PullError::BlobReader(e) => f.debug_tuple("BlobReader").field(e).finish(),
             PullError::BlobStorage(e) => f.debug_tuple("BlobStorage").field(e).finish(),
             PullError::BadBranchMetadata() => f.debug_tuple("BadBranchMetadata").finish(),
         }
@@ -670,14 +681,20 @@ where
             .map_err(|e| BranchError::BranchUpdate(e))?;
 
         match push_result {
-            PushResult::Success() => Ok(Workspace {
-                base_blobs: self.storage.reader(),
-                local_blobs: MemoryBlobStore::new(),
-                head: None,
-                base_branch_id: branch_id,
-                base_branch_meta: branch_handle,
-                signing_key,
-            }),
+            PushResult::Success() => {
+                let base_blobs = self
+                    .storage
+                    .reader()
+                    .map_err(|e| BranchError::StorageReader(e))?;
+                Ok(Workspace {
+                    base_blobs,
+                    local_blobs: MemoryBlobStore::new(),
+                    head: None,
+                    base_branch_id: branch_id,
+                    base_branch_meta: branch_handle,
+                    signing_key,
+                })
+            }
             PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
@@ -703,11 +720,11 @@ where
     ) -> Result<Workspace<Storage>, BranchError<Storage>> {
         let branch_id = *ufoid();
 
-        let set: TribleSet = self
+        let reader = self
             .storage
             .reader()
-            .get(commit)
-            .map_err(|e| BranchError::StorageGet(e))?;
+            .map_err(|e| BranchError::StorageReader(e))?;
+        let set: TribleSet = reader.get(commit).map_err(|e| BranchError::StorageGet(e))?;
 
         let branch_set = branch(&signing_key, branch_id, branch_name, Some(set.to_blob()));
         let branch_blob = branch_set.to_blob();
@@ -722,14 +739,20 @@ where
             .map_err(|e| BranchError::BranchUpdate(e))?;
 
         match push_result {
-            PushResult::Success() => Ok(Workspace {
-                base_blobs: self.storage.reader(),
-                local_blobs: MemoryBlobStore::new(),
-                head: Some(commit),
-                base_branch_id: branch_id,
-                base_branch_meta: branch_handle,
-                signing_key,
-            }),
+            PushResult::Success() => {
+                let base_blobs = self
+                    .storage
+                    .reader()
+                    .map_err(|e| BranchError::StorageReader(e))?;
+                Ok(Workspace {
+                    base_blobs,
+                    local_blobs: MemoryBlobStore::new(),
+                    head: Some(commit),
+                    base_branch_id: branch_id,
+                    base_branch_meta: branch_handle,
+                    signing_key,
+                })
+            }
             PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
@@ -742,6 +765,7 @@ where
         Workspace<Storage>,
         PullError<
             Storage::HeadError,
+            Storage::ReaderError,
             <Storage::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
         >,
     > {
@@ -757,6 +781,7 @@ where
         Workspace<Storage>,
         PullError<
             Storage::HeadError,
+            Storage::ReaderError,
             <Storage::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>,
         >,
     > {
@@ -767,7 +792,8 @@ where
             Err(e) => return Err(PullError::BranchStorage(e)),
         };
         // 2. Get the current commit from the branch metadata.
-        let base_branch_meta: TribleSet = match self.storage.reader().get(base_branch_meta_handle) {
+        let reader = self.storage.reader().map_err(PullError::BlobReader)?;
+        let base_branch_meta: TribleSet = match reader.get(base_branch_meta_handle) {
             Ok(metadata) => metadata,
             Err(e) => return Err(PullError::BlobStorage(e)),
         };
@@ -783,8 +809,9 @@ where
             Err(_) => return Err(PullError::BadBranchMetadata()),
         };
         // Create workspace with the current commit and base blobs.
+        let base_blobs = self.storage.reader().map_err(PullError::BlobReader)?;
         Ok(Workspace {
-            base_blobs: self.storage.reader(),
+            base_blobs,
             local_blobs: MemoryBlobStore::new(),
             head,
             base_branch_id: branch_id,
@@ -812,7 +839,10 @@ where
             }
         }
 
-        let reader = self.storage.reader();
+        let reader = self
+            .storage
+            .reader()
+            .map_err(|e| LookupError::StorageReader(e))?;
         let mut matches = Vec::new();
         for (id, handle) in handles {
             let meta: TribleSet = reader.get(handle).map_err(|e| LookupError::StorageGet(e))?;
@@ -842,7 +872,7 @@ where
         workspace: &mut Workspace<Storage>,
     ) -> Result<Option<Workspace<Storage>>, PushError<Storage>> {
         // 1. Sync `self.local_blobset` to repository's BlobStore.
-        let workspace_reader = workspace.local_blobs.reader();
+        let workspace_reader = workspace.local_blobs.reader().unwrap();
         for handle in workspace_reader.blobs() {
             let handle = handle.expect("infallible blob enumeration");
             let blob: Blob<UnknownBlob> =
@@ -852,7 +882,10 @@ where
                 .map_err(|e| PushError::StoragePut(e))?;
         }
         // 2. Create a new branch meta blob referencing the new workspace head.
-        let repo_reader = self.storage.reader();
+        let repo_reader = self
+            .storage
+            .reader()
+            .map_err(|e| PushError::StorageReader(e))?;
 
         let base_branch_meta: TribleSet = repo_reader
             .get(workspace.base_branch_meta)
@@ -898,7 +931,10 @@ where
             PushResult::Conflict(conflicting_meta) => {
                 let conflicting_meta = conflicting_meta.ok_or(PushError::BadBranchMetadata())?;
 
-                let repo_reader = self.storage.reader();
+                let repo_reader = self
+                    .storage
+                    .reader()
+                    .map_err(|e| PushError::StorageReader(e))?;
                 let branch_meta: TribleSet = repo_reader
                     .get(conflicting_meta)
                     .map_err(|e| PushError::StorageGet(e))?;
@@ -914,7 +950,10 @@ where
                 };
 
                 let conflict_ws = Workspace {
-                    base_blobs: self.storage.reader(),
+                    base_blobs: self
+                        .storage
+                        .reader()
+                        .map_err(|e| PushError::StorageReader(e))?,
                     local_blobs: MemoryBlobStore::new(),
                     head,
                     base_branch_id: workspace.base_branch_id,
@@ -1373,6 +1412,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     {
         self.local_blobs
             .reader()
+            .unwrap()
             .get(handle)
             .or_else(|_| self.base_blobs.get(handle))
     }
@@ -1418,7 +1458,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
             return Err(MergeError::DifferentRepos());
         }
         // 1. Transfer all blobs from the other workspace to self.local_blobs.
-        let other_local = other.local_blobs.reader();
+        let other_local = other.local_blobs.reader().unwrap();
         for r in other_local.blobs() {
             let handle = r.expect("infallible blob enumeration");
             let blob: Blob<UnknownBlob> = other_local.get(handle).expect("infallible blob read");
@@ -1484,7 +1524,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     where
         I: IntoIterator<Item = CommitHandle>,
     {
-        let local = self.local_blobs.reader();
+        let local = self.local_blobs.reader().unwrap();
         let mut result = TribleSet::new();
         for commit in commits {
             let meta: TribleSet = local
@@ -1573,6 +1613,7 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
         let meta: TribleSet = ws
             .local_blobs
             .reader()
+            .unwrap()
             .get(commit)
             .or_else(|_| ws.base_blobs.get(commit))
             .map_err(WorkspaceCheckoutError::Storage)?;

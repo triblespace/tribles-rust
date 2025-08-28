@@ -53,8 +53,9 @@ where
     B: BlobStore<H>,
 {
     type Reader = B::Reader;
+    type ReaderError = B::ReaderError;
 
-    fn reader(&mut self) -> Self::Reader {
+    fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
         self.blobs.reader()
     }
 }

@@ -27,6 +27,8 @@ Our goal is to re-invent data storage from first principles and overcome the sho
 - **Compile-Time Typed Queries**: Automatic type inference, type-checking, and auto-completion make writing queries a breeze. You can even create queries that span multiple datasets and native Rust data structures.
 - **Low Overall Complexity**: We aim for a design that feels obvious (in the best way) and makes good use of existing language facilities. A serverless design makes it completely self-sufficient for local use and requires only an S3-compatible service for distribution.
 - **Easy Implementation**: The spec is designed to be friendly to high- and low-level languages, or even hardware implementations.
+- **Lock-Free Blob Writes**: Blob data is appended with a single `O_APPEND` write. Each handle advances an in-memory `applied_length` only if no other writer has appended in between, scanning any gap to ingest missing records. Concurrent writers may duplicate blobs, but hashes guarantee consistency. Updating branch heads uses a short `flush → refresh → lock → refresh → append → unlock` sequence.
+- **Coordinated Refresh**: `refresh` acquires a shared file lock while scanning to avoid races with `restore` truncating the pile.
 
 # Community
 
@@ -50,10 +52,9 @@ use std::path::Path;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
-const MAX_PILE_SIZE: usize = 1 << 20;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pile: Pile<MAX_PILE_SIZE> = Pile::open(Path::new("example.pile"))?;
+    let mut pile = Pile::open(Path::new("example.pile"))?;
+    pile.restore()?;
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws = repo.branch("main")?;
 
@@ -123,7 +124,7 @@ fn main() -> std::io::Result<()> {
                 author: author,
                 quote: quote
             }])) {
-        let q: View<str> = blobs.reader().get(q).unwrap();
+        let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
         let q = q.as_ref();
 
         println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())

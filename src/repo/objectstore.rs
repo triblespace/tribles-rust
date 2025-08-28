@@ -1,5 +1,5 @@
 use std::array::TryFromSliceError;
-use std::convert::TryInto;
+use std::convert::{Infallible, TryInto};
 use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
@@ -149,13 +149,14 @@ where
     H: HashProtocol,
 {
     type Reader = ObjectStoreReader<H>;
+    type ReaderError = Infallible;
 
-    fn reader(&mut self) -> Self::Reader {
-        ObjectStoreReader {
+    fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
+        Ok(ObjectStoreReader {
             store: self.store.clone(),
             prefix: self.prefix.clone(),
             _hasher: PhantomData,
-        }
+        })
     }
 }
 

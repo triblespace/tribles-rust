@@ -18,10 +18,9 @@ use std::path::Path;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
-const MAX_PILE_SIZE: usize = 1 << 20;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pile: Pile<MAX_PILE_SIZE> = Pile::open(Path::new("example.pile"))?;
+    let mut pile = Pile::open(Path::new("example.pile"))?;
+    pile.restore()?;
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws = repo.branch("main")?;
 

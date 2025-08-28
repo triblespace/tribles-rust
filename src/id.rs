@@ -459,7 +459,7 @@ impl IdOwner {
     /// let owned_id = owner.defer_insert(fucid());
     /// let trible = Trible::new(&owned_id, &id_hex!("7830D7B3C2DCD44EB3FA68C93D06B973"), &ShortString::value_from("Hello, World!"));
     /// ```
-    pub fn defer_insert(&self, id: ExclusiveId) -> OwnedId {
+    pub fn defer_insert(&self, id: ExclusiveId) -> OwnedId<'_> {
         OwnedId {
             id: id.forget(),
             owner: self,

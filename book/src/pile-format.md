@@ -34,8 +34,13 @@ pile a convenient durable store for local development. Blob appends use a single
 `O_APPEND` write. Each handle remembers the last offset it processed and, after
 appending, scans any gap left by concurrent writes before advancing this
 `applied_length`. Writers may race and duplicate blobs, but content addressing
-keeps the data consistent. Updating branch heads requires a brief critical
-section: `flush → refresh → lock → refresh → append → unlock`.
+keeps the data consistent. Each handle tracks hashes of pending appends
+separately so repeated writes are deduplicated until a `refresh`. A `restore`
+clears this in-memory set to discard truncated appends. Updating branch heads
+requires a brief critical
+section: `flush → refresh → lock → refresh → append → unlock`. The initial
+`refresh` acquires a shared lock so it cannot race with `restore`, which takes an
+exclusive lock before truncating a corrupted tail.
 ## Blob Storage
 ```
                              8 byte  8 byte
@@ -68,6 +73,10 @@ every header uses a known marker and that the whole record fits. It does not
 verify any hashes. If a truncated or unknown block is found the function reports
 the number of bytes that were valid so far using
 [`ReadError::CorruptPile`].
+
+`refresh` holds a shared file lock while scanning. This prevents a concurrent
+[`restore`](../../src/repo/pile.rs) call from truncating the file out from under
+the reader.
 
 The [`restore`](../../src/repo/pile.rs) helper re-runs the same validation and
 truncates the file to the valid length if corruption is encountered. This

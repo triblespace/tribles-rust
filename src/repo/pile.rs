@@ -197,10 +197,8 @@ impl<H: HashProtocol> PileReader<H> {
     /// Returns an iterator over all blobs currently stored in the pile.
     pub fn iter(&self) -> PileBlobStoreIter<'_, H> {
         PileBlobStoreIter {
-            mmap: self.mmap.clone(),
-            patch: &self.blobs,
+            reader: self,
             inner: self.blobs.iter(),
-            _marker: std::marker::PhantomData,
         }
     }
 
@@ -689,10 +687,8 @@ use super::PushResult;
 ///
 /// Iterates over all `(Handle, Blob)` pairs currently stored in the pile.
 pub struct PileBlobStoreIter<'a, H: HashProtocol> {
-    mmap: Arc<MmapRaw>,
-    patch: &'a PATCH<32, IdentitySchema, IndexEntry>,
+    reader: &'a PileReader<H>,
     inner: PATCHIterator<'a, 32, IdentitySchema, IndexEntry>,
-    _marker: std::marker::PhantomData<H>,
 }
 
 impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
@@ -700,30 +696,19 @@ impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
         Result<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>), GetBlobError<Infallible>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let key = self.inner.next()?;
-        let entry = self.patch.get(key)?;
-        let IndexEntry {
-            state, offset, len, ..
-        } = entry;
-        let bytes = unsafe {
-            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
-                .as_ref()
-                .unwrap();
-            Bytes::from_raw_parts(slice, self.mmap.clone())
-        };
-        let hash: Value<Hash<H>> = Value::new(*key);
-        let status = state.get_or_init(|| {
-            let computed_hash = Hash::<H>::digest(&bytes);
-            if computed_hash == hash {
-                ValidationState::Validated
-            } else {
-                ValidationState::Invalid
+        while let Some(key) = self.inner.next() {
+            let hash: Value<Hash<H>> = Value::new(*key);
+            let handle: Value<Handle<H, UnknownBlob>> = hash.into();
+            match self.reader.get::<Bytes, UnknownBlob>(handle.clone()) {
+                Ok(bytes) => return Some(Ok((handle, Blob::new(bytes)))),
+                Err(GetBlobError::BlobNotFound) => {
+                    debug_assert!(false, "missing index entry for {:?}", key);
+                    continue;
+                }
+                Err(e) => return Some(Err(e)),
             }
-        });
-        match status {
-            ValidationState::Validated => Some(Ok((hash.into(), Blob::new(bytes)))),
-            ValidationState::Invalid => Some(Err(GetBlobError::ValidationError(bytes))),
         }
+        None
     }
 }
 
@@ -1576,6 +1561,39 @@ mod tests {
             other => panic!("expected conflict, got {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(h1.transmute()));
+        pile.close().unwrap();
+    }
+
+    #[test]
+    fn iterator_skips_missing_index_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pile.pile");
+
+        let mut pile: Pile = Pile::open(&path).unwrap();
+        let blob1: Blob<UnknownBlob> = Blob::new(Bytes::from_source(b"hello".as_slice()));
+        let blob2: Blob<UnknownBlob> = Blob::new(Bytes::from_source(b"world".as_slice()));
+        let handle1 = pile.put(blob1).unwrap();
+        let handle2 = pile.put(blob2).unwrap();
+        pile.flush().unwrap();
+
+        let mut reader = pile.reader().unwrap();
+        let full_patch = reader.blobs.clone();
+        let hash1: Value<Hash<Blake3>> = handle1.into();
+        reader.blobs.remove(&hash1.raw);
+
+        let inner = full_patch.iter();
+        let mut iter = PileBlobStoreIter::<Blake3> {
+            reader: &reader,
+            inner,
+        };
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| iter.next()));
+        if let Ok(Some(Ok((h, _)))) = result {
+            assert_eq!(h, handle2);
+            assert!(iter.next().is_none());
+        } else {
+            assert!(cfg!(debug_assertions));
+        }
         pile.close().unwrap();
     }
 

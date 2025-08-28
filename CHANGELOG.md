@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `IndexEntry::Stored` tracks offsets and lengths instead of holding `Bytes` directly.
 - Regression test ensures `PATCH::iter_ordered` yields canonically ordered keys.
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
+
+### Fixed
+- Opening excessively large piles now returns an error instead of panicking when calculating the mapped size.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - `PileReader::metadata` now validates blob contents and returns `None` for corrupted blobs.
 - `PileBlobStoreIter` now lazily verifies blob hashes and reports errors for invalid blobs.

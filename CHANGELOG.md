@@ -28,11 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   using `apply_next` under its exclusive lock.
 - `Pile::close` now consumes the pile and manually drops its fields to bypass
     `Drop`, which always warns when a pile is not explicitly closed.
-- `Pile::refresh` now aborts if the pile file shrinks, guarding against
-  truncated data.
+- `Pile::refresh` now aborts if the pile file shrinks below data already
+  applied, guarding against truncated data.
 - Documented that truncation below `applied_length` invalidates previously
   issued `Bytes`, so only the un-applied tail is checked for corruption and
-  shrinkage requires aborting.
+  shrinkage into validated data requires aborting.
+- Clarified that shrinkage into already applied data triggers an immediate
+  process abort to avoid undefined behavior from dangling `Bytes` handles.
 - `Pile::refresh` acquires a shared file lock while scanning to avoid races with
   `restore` truncating the file.
 - `Pile::restore` truncates the pile without rescanning after truncation,

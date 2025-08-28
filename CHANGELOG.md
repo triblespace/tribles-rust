@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Pile::restore` method to repair piles with trailing corruption.
 
 ### Changed
+- Documented the pile as a write-ahead log database ("WAL-as-a-DB").
+- Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
+  refreshes before writing, then reads back its blob with `apply_next` to ensure
+  it was indexed. `Pile::update` similarly verifies the written branch record
+  using `apply_next` under its exclusive lock.
 - `Pile::close` now consumes the pile and manually drops its fields to bypass
     `Drop`, which always warns when a pile is not explicitly closed.
 - `Pile::refresh` now aborts if the pile file shrinks, guarding against
@@ -32,14 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `restore` truncating the file.
 - `Pile::restore` truncates the pile without rescanning after truncation,
   removing a redundant refresh pass.
-- `Pile` now tracks in-flight blob hashes out-of-band and clears them during
-  `restore`, simplifying `IndexEntry`.
 - `Pile::refresh` uses a simple `insert` for new blob index entries.
 - `Pile::update` no longer flushes or `sync_all`s automatically; callers must
     invoke `flush()` for durability.
-- `Pile::update` unlocks and refreshes before returning, so the branch state may
-  advance beyond the supplied head and corruption errors do not necessarily mean
-  the update failed.
 - `Pile::open` now returns an empty handle without scanning the file. Call
   `refresh` to load existing data or `restore` to repair corruption. The
   `try_open` helper was removed.
@@ -236,8 +236,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Branch updates now sync branch headers to disk to avoid losing branch pointers after crashes.
 - `IndexEntry` now stores a timestamp for each blob. `PileReader::metadata`
   returns this timestamp along with the blob length.
-- `PileReader::metadata` no longer reports metadata for in-flight blobs,
-  preventing callers from assuming durability before flush.
 - Design notes for a conservative garbage collection mechanism that scans
   `SimpleArchive` values in place to find reachable handles.
 - Clarified that accidental collisions are practically impossible given 32-byte

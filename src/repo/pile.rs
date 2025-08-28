@@ -2,6 +2,10 @@
 //! file. It is designed as a durable local repository storage that can be safely
 //! shared between threads.
 //!
+//! The pile operates as a **WAL-as-a-DB**: the write-ahead log _is_ the database.
+//! All indices and metadata are reconstructed from the log on startup and no
+//! additional state is persisted elsewhere.
+//!
 //! For layout and recovery details see the [Pile
 //! Format](../../book/src/pile-format.md) chapter of the Tribles Book.
 
@@ -9,7 +13,7 @@ use anybytes::Bytes;
 use hex_literal::hex;
 use memmap2::MmapOptions;
 use memmap2::MmapRaw;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error;
 use std::fs::File;
@@ -123,6 +127,12 @@ impl BlobHeader {
 }
 
 #[derive(Debug)]
+enum Applied<H: HashProtocol> {
+    Blob { hash: Value<Hash<H>> },
+    Branch { id: Id, hash: Value<Hash<H>> },
+}
+
+#[derive(Debug)]
 /// A grow-only collection of blobs and branch pointers backed by a single file on disk.
 ///
 /// [`Pile::refresh`] aborts if the underlying file shrinks, preventing reads from
@@ -132,7 +142,6 @@ pub struct Pile<H: HashProtocol = Blake3> {
     mmap: Arc<MmapRaw>,
     blobs: PATCH<32, IdentitySchema, IndexEntry>,
     branches: HashMap<Id, Value<Handle<H, SimpleArchive>>>,
-    in_flight: HashSet<RawValue>,
     /// Length of the file that has been validated and applied.
     ///
     /// Offsets below this value are guaranteed valid; corruption detection
@@ -341,6 +350,12 @@ impl From<std::time::SystemTimeError> for InsertError {
     }
 }
 
+impl From<ReadError> for InsertError {
+    fn from(err: ReadError) -> Self {
+        Self::IoError(err.into())
+    }
+}
+
 pub enum UpdateBranchError {
     IoError(std::io::Error),
 }
@@ -435,7 +450,6 @@ impl<H: HashProtocol> Pile<H> {
             mmap,
             blobs: PATCH::<32, IdentitySchema, IndexEntry>::new(),
             branches: HashMap::new(),
-            in_flight: HashSet::new(),
             applied_length: 0,
         })
     }
@@ -456,13 +470,15 @@ impl<H: HashProtocol> Pile<H> {
         Ok(())
     }
 
-    fn refresh_locked(&mut self) -> Result<(), ReadError> {
-        let old_len = self.applied_length;
+    fn apply_next(&mut self) -> Result<Option<Applied<H>>, ReadError> {
         let file_len = self.file.metadata()?.len() as usize;
-        if file_len < old_len {
+        if file_len < self.applied_length {
             // Truncation below `applied_length` invalidates previously issued
             // `Bytes` handles, so there is no safe recovery path.
             std::process::abort();
+        }
+        if file_len == self.applied_length {
+            return Ok(None);
         }
         let mut mapped_size = self.mmap.len();
         if file_len > mapped_size {
@@ -474,102 +490,101 @@ impl<H: HashProtocol> Pile<H> {
                 .map_raw_read_only(&self.file)?;
             self.mmap = Arc::new(mmap);
         }
-        if file_len > self.applied_length {
-            let start = self.applied_length;
-            let mut bytes = unsafe {
-                let slice = slice_from_raw_parts(self.mmap.as_ptr().add(start), file_len - start)
-                    .as_ref()
-                    .unwrap();
-                Bytes::from_raw_parts(slice, self.mmap.clone())
-            };
-            while !bytes.is_empty() {
-                let start_offset = file_len - bytes.len();
-                if bytes.len() < 16 {
-                    return Err(ReadError::CorruptPile {
-                        valid_length: start_offset,
-                    });
-                }
-                let magic = bytes[0..16].try_into().unwrap();
-                match magic {
-                    MAGIC_MARKER_BLOB => {
-                        let header = bytes.view_prefix::<BlobHeader>().map_err(|_| {
-                            ReadError::CorruptPile {
-                                valid_length: start_offset,
-                            }
-                        })?;
-                        let data_len = header.length as usize;
-                        let pad = padding_for_blob(data_len);
-                        let data_offset = start_offset + BLOB_HEADER_LEN;
-                        // `take_prefix` returns `None` if the slice is shorter than requested,
-                        // implicitly guarding against blob headers that point past EOF.
-                        bytes.take_prefix(data_len).ok_or(ReadError::CorruptPile {
+        let start_offset = self.applied_length;
+        let mut bytes = unsafe {
+            let slice = slice_from_raw_parts(
+                self.mmap.as_ptr().add(start_offset),
+                file_len - start_offset,
+            )
+            .as_ref()
+            .unwrap();
+            Bytes::from_raw_parts(slice, self.mmap.clone())
+        };
+        if bytes.len() < 16 {
+            return Err(ReadError::CorruptPile {
+                valid_length: start_offset,
+            });
+        }
+        let magic = bytes[0..16].try_into().unwrap();
+        match magic {
+            MAGIC_MARKER_BLOB => {
+                let header =
+                    bytes
+                        .view_prefix::<BlobHeader>()
+                        .map_err(|_| ReadError::CorruptPile {
                             valid_length: start_offset,
                         })?;
-                        bytes.take_prefix(pad).ok_or(ReadError::CorruptPile {
-                            valid_length: start_offset,
-                        })?;
-                        let hash: Value<Hash<H>> = Value::new(header.hash);
-                        let ts = header.timestamp;
-                        let entry = Entry::with_value(
-                            &hash.raw,
-                            IndexEntry::new(data_offset, header.length, ts),
-                        );
-                        self.in_flight.remove(&hash.raw);
-                        match self.blobs.get(&hash.raw) {
-                            None => {
-                                self.blobs.insert(&entry);
+                let data_len = header.length as usize;
+                let pad = padding_for_blob(data_len);
+                let data_offset = start_offset + BLOB_HEADER_LEN;
+                bytes.take_prefix(data_len).ok_or(ReadError::CorruptPile {
+                    valid_length: start_offset,
+                })?;
+                bytes.take_prefix(pad).ok_or(ReadError::CorruptPile {
+                    valid_length: start_offset,
+                })?;
+                let hash: Value<Hash<H>> = Value::new(header.hash);
+                let ts = header.timestamp;
+                let entry =
+                    Entry::with_value(&hash.raw, IndexEntry::new(data_offset, header.length, ts));
+                match self.blobs.get(&hash.raw) {
+                    None => {
+                        self.blobs.insert(&entry);
+                    }
+                    Some(IndexEntry {
+                        state, offset, len, ..
+                    }) => {
+                        let state = state.get_or_init(|| {
+                            let bytes = unsafe {
+                                let slice = slice_from_raw_parts(
+                                    self.mmap.as_ptr().add(*offset),
+                                    *len as usize,
+                                )
+                                .as_ref()
+                                .unwrap();
+                                Bytes::from_raw_parts(slice, self.mmap.clone())
+                            };
+                            let computed = Hash::<H>::digest(&bytes);
+                            if computed == hash {
+                                ValidationState::Validated
+                            } else {
+                                ValidationState::Invalid
                             }
-                            Some(IndexEntry {
-                                state, offset, len, ..
-                            }) => {
-                                let state = state.get_or_init(|| {
-                                    let bytes = unsafe {
-                                        let slice = slice_from_raw_parts(
-                                            self.mmap.as_ptr().add(*offset),
-                                            *len as usize,
-                                        )
-                                        .as_ref()
-                                        .unwrap();
-                                        Bytes::from_raw_parts(slice, self.mmap.clone())
-                                    };
-                                    let computed = Hash::<H>::digest(&bytes);
-                                    if computed == hash {
-                                        ValidationState::Validated
-                                    } else {
-                                        ValidationState::Invalid
-                                    }
-                                });
-                                match state {
-                                    ValidationState::Invalid => {
-                                        self.blobs.replace(&entry);
-                                    }
-                                    ValidationState::Validated => {}
-                                }
-                            }
+                        });
+                        if let ValidationState::Invalid = state {
+                            self.blobs.replace(&entry);
                         }
                     }
-                    MAGIC_MARKER_BRANCH => {
-                        let header = bytes.view_prefix::<BranchHeader>().map_err(|_| {
-                            ReadError::CorruptPile {
-                                valid_length: start_offset,
-                            }
-                        })?;
-                        let branch_id =
-                            Id::new(header.branch_id).ok_or(ReadError::CorruptPile {
-                                valid_length: start_offset,
-                            })?;
-                        let hash: Value<Hash<H>> = Value::new(header.hash);
-                        self.branches.insert(branch_id, hash.into());
-                    }
-                    _ => {
-                        return Err(ReadError::CorruptPile {
-                            valid_length: start_offset,
-                        })
-                    }
                 }
+                self.applied_length = start_offset + BLOB_HEADER_LEN + data_len + pad;
+                Ok(Some(Applied::Blob { hash }))
             }
-            self.applied_length = file_len;
+            MAGIC_MARKER_BRANCH => {
+                let header =
+                    bytes
+                        .view_prefix::<BranchHeader>()
+                        .map_err(|_| ReadError::CorruptPile {
+                            valid_length: start_offset,
+                        })?;
+                let branch_id = Id::new(header.branch_id).ok_or(ReadError::CorruptPile {
+                    valid_length: start_offset,
+                })?;
+                let hash: Value<Hash<H>> = Value::new(header.hash);
+                self.branches.insert(branch_id, hash.into());
+                self.applied_length = start_offset + std::mem::size_of::<BranchHeader>();
+                Ok(Some(Applied::Branch {
+                    id: branch_id,
+                    hash,
+                }))
+            }
+            _ => Err(ReadError::CorruptPile {
+                valid_length: start_offset,
+            }),
         }
+    }
+
+    fn refresh_locked(&mut self) -> Result<(), ReadError> {
+        while self.apply_next()?.is_some() {}
         Ok(())
     }
 
@@ -599,7 +614,6 @@ impl<H: HashProtocol> Pile<H> {
             }
             Err(e) => Err(e),
         };
-        self.in_flight.clear();
         res
     }
 
@@ -715,38 +729,81 @@ impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
         T: ToBlob<S>,
         Handle<H, S>: ValueSchema,
     {
-        let blob = ToBlob::to_blob(item);
+        self.file.lock_shared()?;
+        let res = (|| {
+            self.refresh_locked().map_err(InsertError::from)?;
 
-        let blob_size = blob.bytes.len();
-        let padding = padding_for_blob(blob_size);
+            let blob = ToBlob::to_blob(item);
+            let blob_size = blob.bytes.len();
+            let padding = padding_for_blob(blob_size);
 
-        let handle: Value<Handle<H, S>> = blob.get_handle();
-        let hash: Value<Hash<H>> = handle.into();
+            let handle: Value<Handle<H, S>> = blob.get_handle();
+            let hash: Value<Hash<H>> = handle.into();
 
-        if self.blobs.get(&hash.raw).is_some() || self.in_flight.contains(&hash.raw) {
-            return Ok(handle.transmute());
-        }
+            if let Some(IndexEntry {
+                state, offset, len, ..
+            }) = self.blobs.get(&hash.raw)
+            {
+                let st = state.get_or_init(|| {
+                    let bytes = unsafe {
+                        let slice =
+                            slice_from_raw_parts(self.mmap.as_ptr().add(*offset), *len as usize)
+                                .as_ref()
+                                .unwrap();
+                        Bytes::from_raw_parts(slice, self.mmap.clone())
+                    };
+                    let computed = Hash::<H>::digest(&bytes);
+                    if computed == hash {
+                        ValidationState::Validated
+                    } else {
+                        ValidationState::Invalid
+                    }
+                });
+                if matches!(st, ValidationState::Validated) {
+                    return Ok(handle.transmute());
+                }
+            }
 
-        let now_in_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-        let header = BlobHeader::new(now_in_ms as u64, blob_size as u64, hash);
-        let expected = BLOB_HEADER_LEN + blob_size + padding;
-        let padding_buf = [0u8; BLOB_ALIGNMENT];
-        let bufs = [
-            IoSlice::new(header.as_bytes()),
-            IoSlice::new(blob.bytes.as_ref()),
-            IoSlice::new(&padding_buf[..padding]),
-        ];
-        let written = self.file.write_vectored(&bufs)?;
-        if written != expected {
-            return Err(InsertError::IoError(std::io::Error::new(
-                std::io::ErrorKind::WriteZero,
-                "failed to write blob record",
-            )));
-        }
+            let now_in_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+            let header = BlobHeader::new(now_in_ms as u64, blob_size as u64, hash);
+            let expected = BLOB_HEADER_LEN + blob_size + padding;
+            let padding_buf = [0u8; BLOB_ALIGNMENT];
+            let bufs = [
+                IoSlice::new(header.as_bytes()),
+                IoSlice::new(blob.bytes.as_ref()),
+                IoSlice::new(&padding_buf[..padding]),
+            ];
+            let written = self.file.write_vectored(&bufs)?;
+            if written != expected {
+                return Err(InsertError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "failed to write blob record",
+                )));
+            }
 
-        self.in_flight.insert(hash.raw);
+            loop {
+                match self.apply_next().map_err(InsertError::from)? {
+                    Some(Applied::Blob { hash: h }) => {
+                        if h == hash {
+                            break;
+                        }
+                    }
+                    Some(Applied::Branch { .. }) => {}
+                    None => {
+                        return Err(InsertError::IoError(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "blob missing after write",
+                        )));
+                    }
+                }
+            }
 
-        Ok(handle.transmute())
+            Ok(handle.transmute())
+        })();
+        let unlock_res = self.file.unlock();
+        let handle = res?;
+        unlock_res?;
+        Ok(handle)
     }
 }
 
@@ -789,52 +846,56 @@ where
     /// [`Pile::flush`] is called. Callers must explicitly flush to ensure
     /// branch updates survive crashes.
     ///
-    /// After the header is written, the pile is unlocked and refreshed again
-    /// before this method returns. As a result the branch state observed after
-    /// `update` may be more recent than the `old` value supplied, since other
-    /// compare-and-swap operations could have completed in between. If this
-    /// final refresh reports pile corruption, it does not necessarily mean the
-    /// update failed—the pile might have been corrupted afterwards.
+    /// After the header is written, the record is read back with `apply_next`
+    /// while still holding the lock, ensuring the update is applied without an
+    /// additional refresh pass.
     fn update(
         &mut self,
         id: Id,
         old: Option<Value<Handle<H, SimpleArchive>>>,
         new: Value<Handle<H, SimpleArchive>>,
     ) -> Result<super::PushResult<H>, Self::UpdateError> {
-        self.refresh().map_err(UpdateBranchError::from)?;
-
         self.file.lock()?;
+        let res = (|| {
+            self.refresh_locked().map_err(UpdateBranchError::from)?;
+            let current_hash = self.branches.get(&id);
+            if current_hash != old.as_ref() {
+                return Ok(PushResult::Conflict(current_hash.cloned()));
+            }
 
-        if let Err(e) = self.refresh_locked().map_err(UpdateBranchError::from) {
-            self.file.unlock()?;
-            return Err(e);
-        }
-        let current_hash = self.branches.get(&id);
-        if current_hash != old.as_ref() {
-            self.file.unlock()?;
-            return Ok(PushResult::Conflict(current_hash.cloned()));
-        }
-
-        let header_len = std::mem::size_of::<BranchHeader>();
-
-        let header = BranchHeader::new(id, new);
-        let expected = header_len;
-        let write_res = self.file.write(header.as_bytes());
-        self.file.unlock()?;
-        let written = match write_res {
-            Ok(n) => n,
-            Err(e) => return Err(UpdateBranchError::IoError(e)),
-        };
-        if written != expected {
-            return Err(UpdateBranchError::IoError(std::io::Error::new(
-                std::io::ErrorKind::WriteZero,
-                "failed to write branch header",
-            )));
-        }
-
-        self.refresh().map_err(UpdateBranchError::from)?;
-
-        Ok(PushResult::Success())
+            let header_len = std::mem::size_of::<BranchHeader>();
+            let header = BranchHeader::new(id, new);
+            let new_hash: Value<Hash<H>> = new.into();
+            let expected = header_len;
+            let write_res = self.file.write(header.as_bytes());
+            let written = match write_res {
+                Ok(n) => n,
+                Err(e) => return Err(UpdateBranchError::IoError(e)),
+            };
+            if written != expected {
+                return Err(UpdateBranchError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "failed to write branch header",
+                )));
+            }
+            match self.apply_next().map_err(UpdateBranchError::from)? {
+                Some(Applied::Branch { id: bid, hash }) if bid == id && hash == new_hash => {
+                    Ok(PushResult::Success())
+                }
+                Some(_) => Err(UpdateBranchError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "unexpected record after branch write",
+                ))),
+                None => Err(UpdateBranchError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "branch missing after write",
+                ))),
+            }
+        })();
+        let unlock_res = self.file.unlock();
+        let out = res?;
+        unlock_res?;
+        Ok(out)
     }
 }
 

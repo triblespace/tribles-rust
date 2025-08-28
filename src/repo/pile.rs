@@ -6,6 +6,15 @@
 //! All indices and metadata are reconstructed from the log on startup and no
 //! additional state is persisted elsewhere.
 //!
+//! The pile treats its file as an immutable append-only log. Once a record lies
+//! below `applied_length` and its bytes have been returned by
+//! [`get`](Pile::get) or [`apply_next`](Pile::apply_next), those bytes are
+//! assumed permanent. Modifying any part of the pile other than appending new
+//! records is undefined behaviour. The un-applied tail may hide a partial
+//! append after a crash, so validation and repair only operate on offsets
+//! beyond `applied_length`. Each record's [`ValidationState`] is cached for the
+//! lifetime of the process under this immutability assumption.
+//!
 //! For layout and recovery details see the [Pile
 //! Format](../../book/src/pile-format.md) chapter of the Tribles Book.
 

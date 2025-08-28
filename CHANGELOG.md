@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
+- Documented that the pile is an immutable append-only log: only the un-applied tail is validated and mutating existing data is undefined behavior.
 - Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
   refreshes before writing, then reads back its blob with `apply_next` to ensure
   it was indexed. `Pile::update` similarly verifies the written branch record

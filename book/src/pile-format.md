@@ -17,6 +17,16 @@ alignment ensures each entry begins on a cache line boundary, which improves
 concurrent access patterns and allows safe typed views with the `zerocopy`
 crate.
 
+## Immutability Assumptions
+
+A pile is treated as an immutable append-only log. Once a record sits below a
+process's applied offset, its bytes are assumed permanent. The implementation
+does not guard against mutations; modifying existing bytes is undefined
+behavior. Only the tail beyond the applied offset might hide a partial append
+after a crash, so validation and repair only operate on that region. Each
+record's validation state is cached for the lifetime of the process under this
+assumption.
+
 Hash verification only happens when blobs are read. Opening even a very large
 pile is therefore fast while still catching corruption before data is used.
 

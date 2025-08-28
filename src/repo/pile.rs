@@ -142,6 +142,10 @@ pub struct Pile<H: HashProtocol = Blake3> {
     mmap: Arc<MmapRaw>,
     blobs: PATCH<32, IdentitySchema, IndexEntry>,
     branches: HashMap<Id, Value<Handle<H, SimpleArchive>>>,
+    /// Length of the file that has been validated and applied.
+    ///
+    /// Offsets below this value are guaranteed valid; corruption detection
+    /// only operates on the un-applied tail beyond this boundary.
     applied_length: usize,
 }
 
@@ -469,6 +473,8 @@ impl<H: HashProtocol> Pile<H> {
     fn apply_next(&mut self) -> Result<Option<Applied<H>>, ReadError> {
         let file_len = self.file.metadata()?.len() as usize;
         if file_len < self.applied_length {
+            // Truncation below `applied_length` invalidates previously issued
+            // `Bytes` handles, so there is no safe recovery path.
             std::process::abort();
         }
         if file_len == self.applied_length {

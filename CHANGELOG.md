@@ -71,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - `PileReader::metadata` now validates blob contents and returns `None` for corrupted blobs.
 - `PileBlobStoreIter` now lazily verifies blob hashes and reports errors for invalid blobs.
+- `PileBlobStoreIter` now skips missing index entries instead of ending iteration silently.
 - `Pile::flush` now calls `sync_all` to persist file metadata and prevent
   potential data loss after crashes.
 - `Pile` requires explicit closure via `close()`; dropping without closing emits a warning.

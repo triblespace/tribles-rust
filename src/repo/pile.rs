@@ -329,12 +329,10 @@ impl From<ReadError> for std::io::Error {
     fn from(err: ReadError) -> Self {
         match err {
             ReadError::IoError(e) => e,
-            ReadError::CorruptPile { valid_length } => std::io::Error::new(
-                std::io::ErrorKind::Other,
+            ReadError::CorruptPile { valid_length } => std::io::Error::other(
                 format!("corrupt pile at byte {valid_length}"),
             ),
-            ReadError::FileTooLarge { length } => std::io::Error::new(
-                std::io::ErrorKind::Other,
+            ReadError::FileTooLarge { length } => std::io::Error::other(
                 format!("pile length {length} exceeds supported size"),
             ),
         }
@@ -626,7 +624,8 @@ impl<H: HashProtocol> Pile<H> {
     /// good offset. The exclusive lock blocks other readers so truncation
     /// cannot race with [`refresh`].
     pub fn restore(&mut self) -> Result<(), ReadError> {
-        let res = match self.refresh() {
+        
+        match self.refresh() {
             Ok(()) => Ok(()),
             Err(ReadError::CorruptPile { .. }) => {
                 self.file.lock()?;
@@ -643,8 +642,7 @@ impl<H: HashProtocol> Pile<H> {
                 res
             }
             Err(e) => Err(e),
-        };
-        res
+        }
     }
 
     /// Persists all writes and metadata to the underlying pile file.
@@ -696,10 +694,10 @@ impl<'a, H: HashProtocol> Iterator for PileBlobStoreIter<'a, H> {
         Result<(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>), GetBlobError<Infallible>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(key) = self.inner.next() {
+        for key in self.inner.by_ref() {
             let hash: Value<Hash<H>> = Value::new(*key);
             let handle: Value<Handle<H, UnknownBlob>> = hash.into();
-            match self.reader.get::<Bytes, UnknownBlob>(handle.clone()) {
+            match self.reader.get::<Bytes, UnknownBlob>(handle) {
                 Ok(bytes) => return Some(Ok((handle, Blob::new(bytes)))),
                 Err(GetBlobError::BlobNotFound) => {
                     debug_assert!(false, "missing index entry for {:?}", key);
@@ -811,8 +809,7 @@ impl<H: HashProtocol> BlobStorePut<H> for Pile<H> {
                     }
                     Some(Applied::Branch { .. }) => {}
                     None => {
-                        return Err(InsertError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
+                        return Err(InsertError::IoError(std::io::Error::other(
                             "blob missing after write",
                         )));
                     }
@@ -906,12 +903,10 @@ where
                 Some(Applied::Branch { id: bid, hash }) if bid == id && hash == new_hash => {
                     Ok(PushResult::Success())
                 }
-                Some(_) => Err(UpdateBranchError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Some(_) => Err(UpdateBranchError::IoError(std::io::Error::other(
                     "unexpected record after branch write",
                 ))),
-                None => Err(UpdateBranchError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                None => Err(UpdateBranchError::IoError(std::io::Error::other(
                     "branch missing after write",
                 ))),
             }
@@ -930,7 +925,8 @@ mod tests {
     use rand::RngCore;
     use std::collections::HashMap;
     use std::io::Write;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::SystemTime;
+    use std::time::UNIX_EPOCH;
     use tempfile;
 
     use crate::repo::PushResult;
@@ -1080,7 +1076,9 @@ mod tests {
             pile.close().unwrap();
         }
 
-        use std::io::{Seek, SeekFrom, Write};
+        use std::io::Seek;
+        use std::io::SeekFrom;
+        use std::io::Write;
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -1111,7 +1109,9 @@ mod tests {
             pile.close().unwrap();
         }
 
-        use std::io::{Seek, SeekFrom, Write};
+        use std::io::Seek;
+        use std::io::SeekFrom;
+        use std::io::Write;
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -1497,7 +1497,9 @@ mod tests {
             hash: [u8; 32],
         }
         let header_len = std::mem::size_of::<Header>();
-        use std::io::{Seek, SeekFrom, Write};
+        use std::io::Seek;
+        use std::io::SeekFrom;
+        use std::io::Write;
         let mut file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
         file.seek(SeekFrom::Start(header_len as u64)).unwrap();
         file.write_all(&[9u8; 4]).unwrap();

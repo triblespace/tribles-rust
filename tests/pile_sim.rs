@@ -1,7 +1,7 @@
 use anybytes::Bytes;
 use proptest::prelude::*;
-use std::collections::{HashMap, HashSet};
-use tempfile;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use tribles::blob::schemas::UnknownBlob;
 use tribles::prelude::blobschemas::SimpleArchive;
 use tribles::prelude::valueschemas::Handle;

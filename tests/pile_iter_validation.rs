@@ -1,10 +1,15 @@
 use std::fs::OpenOptions;
-use std::io::{Seek, SeekFrom, Write};
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io::Write;
 
 use tribles::blob::schemas::UnknownBlob;
-use tribles::blob::{Blob, Bytes};
-use tribles::repo::pile::{GetBlobError, Pile};
-use tribles::repo::{BlobStore, BlobStorePut};
+use tribles::blob::Blob;
+use tribles::blob::Bytes;
+use tribles::repo::pile::GetBlobError;
+use tribles::repo::pile::Pile;
+use tribles::repo::BlobStore;
+use tribles::repo::BlobStorePut;
 
 // size of the blob header in the pile format
 const BLOB_HEADER_LEN: u64 = 16 + 8 + 8 + 32;

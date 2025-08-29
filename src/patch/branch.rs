@@ -345,10 +345,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
             }
 
             // The prefix ends in this node, but the infix ends in a child.
-            for entry in &(*branch).child_table {
-                if let Some(entry) = entry {
-                    entry.infixes(prefix, node_end_depth, f);
-                }
+            for entry in (*branch).child_table.iter().flatten() {
+                entry.infixes(prefix, node_end_depth, f);
             }
         }
     }

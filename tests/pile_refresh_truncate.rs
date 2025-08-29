@@ -1,7 +1,7 @@
 use anybytes::Bytes;
 use std::io::Write;
-use std::sync::{Arc, Barrier};
-use tempfile;
+use std::sync::Arc;
+use std::sync::Barrier;
 use tribles::blob::schemas::UnknownBlob;
 use tribles::prelude::*;
 

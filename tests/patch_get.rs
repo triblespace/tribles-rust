@@ -1,4 +1,6 @@
-use tribles::patch::{Entry, IdentitySchema, PATCH};
+use tribles::patch::Entry;
+use tribles::patch::IdentitySchema;
+use tribles::patch::PATCH;
 
 #[test]
 fn get_returns_value_when_present() {

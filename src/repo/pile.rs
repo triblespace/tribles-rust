@@ -634,6 +634,7 @@ impl<H: HashProtocol> Pile<H> {
                     Ok(()) => Ok(()),
                     Err(ReadError::CorruptPile { valid_length }) => {
                         self.file.set_len(valid_length as u64)?;
+                        self.file.sync_all()?;
                         self.applied_length = valid_length;
                         Ok(())
                     }

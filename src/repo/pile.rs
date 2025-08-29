@@ -831,7 +831,7 @@ pub struct PileBranchStoreIter<'a, H: HashProtocol> {
 }
 
 impl<'a, H: HashProtocol> Iterator for PileBranchStoreIter<'a, H> {
-    type Item = Result<Id, ReadError>;
+    type Item = Result<Id, std::convert::Infallible>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|id| Ok(*id))
@@ -842,21 +842,19 @@ impl<H> BranchStore<H> for Pile<H>
 where
     H: HashProtocol,
 {
-    type BranchesError = ReadError;
-    type HeadError = ReadError;
+    type BranchesError = std::convert::Infallible;
+    type HeadError = std::convert::Infallible;
     type UpdateError = UpdateBranchError;
 
     type ListIter<'a> = PileBranchStoreIter<'a, H>;
 
-    fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError> {
-        self.refresh()?;
-        Ok(PileBranchStoreIter {
+    fn branches<'a>(&'a self) -> Self::ListIter<'a> {
+        PileBranchStoreIter {
             iter: self.branches.keys(),
-        })
+        }
     }
 
-    fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
-        self.refresh()?;
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
         Ok(self.branches.get(&id).copied())
     }
 
@@ -1416,29 +1414,6 @@ mod tests {
             other => panic!("unexpected result: {other:?}"),
         }
         assert_eq!(pile.head(branch_id).unwrap(), Some(h1.transmute()));
-        pile.close().unwrap();
-    }
-
-    #[test]
-    fn head_refreshes_without_explicit_refresh() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("pile.pile");
-
-        {
-            let mut pile: Pile = Pile::open(&path).unwrap();
-            let branch_id = Id::new([1u8; 16]).unwrap();
-            let head = Value::<Handle<Blake3, SimpleArchive>>::new([2u8; 32]);
-            pile.update(branch_id, None, head).unwrap();
-            pile.flush().unwrap();
-            pile.close().unwrap();
-        }
-
-        let mut pile: Pile = Pile::open(&path).unwrap();
-        let branch_id = Id::new([1u8; 16]).unwrap();
-        assert_eq!(
-            pile.head(branch_id).unwrap(),
-            Some(Value::<Handle<Blake3, SimpleArchive>>::new([2u8; 32]))
-        );
         pile.close().unwrap();
     }
 

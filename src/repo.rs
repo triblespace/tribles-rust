@@ -252,7 +252,7 @@ pub trait BranchStore<H: HashProtocol> {
 
     /// Lists all branches in the repository.
     /// This function returns a stream of branch ids.
-    fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError>;
+    fn branches<'a>(&'a self) -> Self::ListIter<'a>;
 
     /// Retrieves a branch from the repository by its id.
     /// The id is a unique identifier for the branch, and is used to retrieve it from the repository.
@@ -266,7 +266,7 @@ pub trait BranchStore<H: HashProtocol> {
     /// # Returns
     /// * A future that resolves to the handle of the branch.
     /// * The handle is a unique identifier for the branch, and is used to retrieve it from the repository.
-    fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError>;
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError>;
 
     /// Puts a branch on the repository, creating or updating it.
     ///
@@ -822,12 +822,9 @@ where
 
     /// Find the id of a branch by its name.
     pub fn branch_id_by_name(&mut self, name: &str) -> Result<Option<Id>, LookupError<Storage>> {
-        let ids_iter = self
+        let ids: Vec<Id> = self
             .storage
             .branches()
-            .map_err(|e| LookupError::StorageBranches(e))?;
-
-        let ids: Vec<Id> = ids_iter
             .map(|r| r.map_err(|e| LookupError::StorageBranches(e)))
             .collect::<Result<_, _>>()?;
 

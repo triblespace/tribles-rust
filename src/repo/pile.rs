@@ -329,12 +329,12 @@ impl From<ReadError> for std::io::Error {
     fn from(err: ReadError) -> Self {
         match err {
             ReadError::IoError(e) => e,
-            ReadError::CorruptPile { valid_length } => std::io::Error::other(
-                format!("corrupt pile at byte {valid_length}"),
-            ),
-            ReadError::FileTooLarge { length } => std::io::Error::other(
-                format!("pile length {length} exceeds supported size"),
-            ),
+            ReadError::CorruptPile { valid_length } => {
+                std::io::Error::other(format!("corrupt pile at byte {valid_length}"))
+            }
+            ReadError::FileTooLarge { length } => {
+                std::io::Error::other(format!("pile length {length} exceeds supported size"))
+            }
         }
     }
 }
@@ -624,7 +624,6 @@ impl<H: HashProtocol> Pile<H> {
     /// good offset. The exclusive lock blocks other readers so truncation
     /// cannot race with [`refresh`].
     pub fn restore(&mut self) -> Result<(), ReadError> {
-        
         match self.refresh() {
             Ok(()) => Ok(()),
             Err(ReadError::CorruptPile { .. }) => {

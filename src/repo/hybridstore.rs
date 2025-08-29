@@ -75,11 +75,11 @@ where
         R: 'a,
         B: 'a;
 
-    fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError> {
+    fn branches<'a>(&'a self) -> Self::ListIter<'a> {
         self.branches.branches()
     }
 
-    fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
         self.branches.head(id)
     }
 

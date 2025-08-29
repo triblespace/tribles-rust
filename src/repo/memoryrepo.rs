@@ -51,18 +51,17 @@ impl BranchStore<Blake3> for MemoryRepo {
 
     type ListIter<'a> = std::vec::IntoIter<Result<Id, Self::BranchesError>>;
 
-    fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError> {
-        Ok(self
-            .branches
+    fn branches<'a>(&'a self) -> Self::ListIter<'a> {
+        self.branches
             .keys()
             .cloned()
             .map(Ok)
             .collect::<Vec<_>>()
-            .into_iter())
+            .into_iter()
     }
 
     fn head(
-        &mut self,
+        &self,
         id: Id,
     ) -> Result<Option<Value<Handle<Blake3, SimpleArchive>>>, Self::HeadError> {
         Ok(self.branches.get(&id).cloned())

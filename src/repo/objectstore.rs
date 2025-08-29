@@ -171,7 +171,7 @@ where
 
     type ListIter<'a> = BlockingIter<Result<Id, Self::BranchesError>>;
 
-    fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError> {
+    fn branches<'a>(&'a self) -> Self::ListIter<'a> {
         let prefix = self.prefix.child(BRANCH_INFIX);
         let stream = self.store.list(Some(&prefix)).map(|r| match r {
             Ok(meta) => {
@@ -187,10 +187,10 @@ where
             }
             Err(e) => Err(ListBranchesErr::List(e)),
         });
-        Ok(BlockingIter::new(stream))
+        BlockingIter::new(stream)
     }
 
-    fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
+    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
         let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(id));
         let result = block_on(async { self.store.get(&path).await });
         match result {

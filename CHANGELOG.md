@@ -77,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PileBlobStoreIter` now skips missing index entries instead of ending iteration silently.
 - `Pile::flush` now calls `sync_all` to persist file metadata and prevent
   potential data loss after crashes.
+- `Pile::restore` now syncs the file after truncation to ensure durability.
 - `Pile` requires explicit closure via `close()`; dropping without closing emits a warning.
 - Debug helpers `EstimateOverrideConstraint` and `DebugConstraint` moved to a new
   `debug` module.

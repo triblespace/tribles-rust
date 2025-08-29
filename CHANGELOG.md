@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented zero-length blob support and added tests for empty blob insertion and retrieval.
 
 ### Changed
+- `BranchStore::branches` now returns a `Result` and both branch operations
+  require mutable access. `Pile::branches` and `Pile::head` refresh
+  automatically and propagate `ReadError` to callers.
 - Documented that branch updates do not ensure referenced blobs exist, enabling
   piles to serve as head-only stores.
 - Clarified that multiple pile writers require filesystems with atomic append

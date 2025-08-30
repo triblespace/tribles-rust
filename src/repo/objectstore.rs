@@ -277,6 +277,15 @@ where
     }
 }
 
+impl<H> crate::repo::StorageClose for ObjectStoreRemote<H> {
+    type Error = Infallible;
+
+    fn close(self) -> Result<(), Self::Error> {
+        // No explicit close necessary for the remote object store adapter.
+        Ok(())
+    }
+}
+
 impl<H> ObjectStoreReader<H> {
     fn blob_path(&self, handle_hex: String) -> Path {
         self.prefix.child(BLOB_INFIX).child(handle_hex)

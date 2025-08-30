@@ -105,6 +105,35 @@ pub mod memoryrepo;
 pub mod objectstore;
 pub mod pile;
 
+/// Trait for storage backends that require explicit close/cleanup.
+///
+/// Not all storage backends need to implement this; implementations that have
+/// nothing to do on close may return Ok(()) or use `Infallible` as the error
+/// type.
+pub trait StorageClose {
+    /// Error type returned by `close`.
+    type Error: std::error::Error;
+
+    /// Consume the storage and perform any necessary cleanup.
+    fn close(self) -> Result<(), Self::Error>;
+}
+
+// Convenience impl for repositories whose storage supports explicit close.
+impl<Storage> Repository<Storage>
+where
+    Storage: BlobStore<Blake3> + BranchStore<Blake3> + StorageClose,
+{
+    /// Close the repository's underlying storage if it supports explicit
+    /// close operations.
+    ///
+    /// This method is only available when the storage type implements
+    /// [`StorageClose`]. It consumes the repository and delegates to the
+    /// storage's `close` implementation, returning any error produced.
+    pub fn close(self) -> Result<(), <Storage as StorageClose>::Error> {
+        self.storage.close()
+    }
+}
+
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::error::Error;
@@ -631,6 +660,15 @@ where
             storage,
             signing_key,
         }
+    }
+
+    /// Consume the repository and return the underlying storage backend.
+    ///
+    /// This is useful for callers that need to take ownership of the storage
+    /// (for example to call `close()` on a `Pile`) instead of letting the
+    /// repository drop it implicitly.
+    pub fn into_storage(self) -> Storage {
+        self.storage
     }
 
     /// Replace the repository signing key.

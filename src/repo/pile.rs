@@ -440,6 +440,16 @@ impl From<std::io::Error> for FlushError {
     }
 }
 
+impl std::fmt::Display for FlushError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FlushError::IoError(err) => write!(f, "IO error: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for FlushError {}
+
 impl<H: HashProtocol> Pile<H> {
     /// Opens an existing pile without scanning or repairing its contents.
     ///
@@ -671,6 +681,16 @@ impl<H: HashProtocol> Pile<H> {
 impl<H: HashProtocol> Drop for Pile<H> {
     fn drop(&mut self) {
         eprintln!("warning: Pile dropped without calling close(); data may not be persisted");
+    }
+}
+
+// Implement the repository storage close trait so callers can call
+// `repo.close()` when the repository was created with a `Pile` storage.
+impl<H: HashProtocol> crate::repo::StorageClose for Pile<H> {
+    type Error = FlushError;
+
+    fn close(self) -> Result<(), Self::Error> {
+        Pile::close(self)
     }
 }
 

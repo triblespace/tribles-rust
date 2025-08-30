@@ -81,3 +81,12 @@ impl BranchStore<Blake3> for MemoryRepo {
         Ok(PushResult::Success())
     }
 }
+
+impl crate::repo::StorageClose for MemoryRepo {
+    type Error = Infallible;
+
+    fn close(self) -> Result<(), Self::Error> {
+        // Nothing to do for the in-memory backend.
+        Ok(())
+    }
+}

@@ -68,7 +68,7 @@ where
     patch: PATCH<ID_LEN, IdentitySchema, ()>,
 }
 
-impl<'a, S> PatchIdConstraint<S>
+impl<S> PatchIdConstraint<S>
 where
     S: ValueSchema,
 {

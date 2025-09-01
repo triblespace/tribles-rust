@@ -47,8 +47,10 @@ pub struct TribleSet {
     pub aev: PATCH<TRIBLE_LEN, AEVOrder, ()>,
 }
 
+type TribleSetInner<'a> = Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, ()>, fn(&[u8; 64]) -> &Trible>;
+
 pub struct TribleSetIterator<'a> {
-    inner: Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, ()>, fn(&[u8; 64]) -> &Trible>,
+    inner: TribleSetInner<'a>,
 }
 
 impl TribleSet {
@@ -99,6 +101,10 @@ impl TribleSet {
 
     pub fn len(&self) -> usize {
         self.eav.len() as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn insert(&mut self, trible: &Trible) {

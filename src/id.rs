@@ -73,7 +73,7 @@ pub struct Id {
 impl Id {
     /// Creates a new `Id` from a [RawId] 16 byte array.
     pub const fn new(id: RawId) -> Option<Self> {
-        unsafe { std::mem::transmute(id) }
+        unsafe { std::mem::transmute::<RawId, Option<Id>>(id) }
     }
 
     /// Forces the creation of an `Id` from a [RawId] without checking for nil.
@@ -82,7 +82,7 @@ impl Id {
     ///
     /// The caller must ensure that `id` is not the nil value of all zero bytes.
     pub const unsafe fn force(id: RawId) -> Self {
-        std::mem::transmute(id)
+        std::mem::transmute::<RawId, Id>(id)
     }
 
     /// Transmutes a reference to a [RawId] into a reference to an `Id`.
@@ -91,7 +91,7 @@ impl Id {
         if *id == [0; 16] {
             None
         } else {
-            Some(unsafe { std::mem::transmute(id) })
+            Some(unsafe { std::mem::transmute::<&RawId, &Id>(id) })
         }
     }
 
@@ -105,9 +105,7 @@ impl Id {
 
 impl PartialOrd for Id {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let s: &RawId = self;
-        let o: &RawId = other;
-        PartialOrd::partial_cmp(s, o)
+        Some(self.cmp(other))
     }
 }
 
@@ -130,7 +128,7 @@ impl Deref for Id {
     type Target = RawId;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(self) }
+        unsafe { std::mem::transmute::<&Id, &RawId>(self) }
     }
 }
 
@@ -160,7 +158,8 @@ impl From<Id> for RawId {
 
 impl From<Id> for RawValue {
     fn from(id: Id) -> Self {
-        id.into()
+        let raw: RawId = id.into();
+        id_into_value(&raw)
     }
 }
 

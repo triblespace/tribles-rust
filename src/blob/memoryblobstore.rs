@@ -188,7 +188,7 @@ where
     }
 }
 
-impl<'a, H> IntoIterator for MemoryBlobStoreReader<H>
+impl<H> IntoIterator for MemoryBlobStoreReader<H>
 where
     H: HashProtocol,
 {
@@ -230,7 +230,7 @@ where
     cursor: Option<Value<Handle<H, UnknownBlob>>>,
 }
 
-impl<'a, H> Iterator for MemoryBlobStoreIter<H>
+impl<H> Iterator for MemoryBlobStoreIter<H>
 where
     H: HashProtocol,
 {

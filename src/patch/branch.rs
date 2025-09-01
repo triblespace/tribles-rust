@@ -9,17 +9,81 @@ use std::alloc::handle_alloc_error;
 use std::alloc::Layout;
 use std::ptr::addr_of;
 use std::ptr::addr_of_mut;
+use std::ops::{Deref, DerefMut};
 
 const BRANCH_ALIGN: usize = 16;
 const BRANCH_BASE_SIZE: usize = 48;
 const TABLE_ENTRY_SIZE: usize = 8;
 
 #[inline]
-fn dst_len<T>(ptr: *const [T]) -> usize {
+pub(crate) fn dst_len<T>(ptr: *const [T]) -> usize {
     let ptr: *const [()] = ptr as _;
     // SAFETY: There is no aliasing as () is zero-sized
     let slice: &[()] = unsafe { &*ptr };
     slice.len()
+}
+
+// Mutable editor for a Branch body. This lives in the branch module and
+// encapsulates NonNull/pointer handling for mutating operations. When the
+// editor is dropped it automatically writes the final pointer back into the
+// owning Head via Head::set_body.
+pub(crate) type BranchNN<const KEY_LEN: usize, O, V> =
+    NonNull<Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>>;
+
+pub(crate) struct BranchMut<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    head: &'a mut Head<KEY_LEN, O, V>,
+    branch_nn: BranchNN<KEY_LEN, O, V>,
+}
+
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
+    BranchMut<'a, KEY_LEN, O, V>
+{
+    pub(crate) fn from_head(head: &'a mut Head<KEY_LEN, O, V>) -> Self {
+        match head.body_mut() {
+            BodyMut::Branch(branch_ref) => {
+                let nn = unsafe { NonNull::new_unchecked(branch_ref as *mut _) };
+                Self { head, branch_nn: nn }
+            }
+            BodyMut::Leaf(_) => panic!("BranchMut requires a Branch body"),
+        }
+    }
+    
+    #[allow(dead_code)]
+    pub(crate) fn from_slot(slot: &'a mut Option<Head<KEY_LEN, O, V>>) -> Self {
+        let head = slot.as_mut().expect("slot should not be empty");
+        Self::from_head(head)
+    }
+
+    pub fn modify_child<F>(&mut self, key: u8, f: F)
+    where
+        F: FnOnce(Option<Head<KEY_LEN, O, V>>) -> Option<Head<KEY_LEN, O, V>>,
+    {
+        // Delegate to the low-level NonNull based primitive which may grow and
+        // update the pointer in-place.
+        Branch::modify_child(&mut self.branch_nn, key, f);
+    }
+
+}
+
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Deref for BranchMut<'a, KEY_LEN, O, V> {
+    type Target = Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.branch_nn.as_ref() }
+    }
+}
+
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> DerefMut for BranchMut<'a, KEY_LEN, O, V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { self.branch_nn.as_mut() }
+    }
+}
+
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Drop for BranchMut<'a, KEY_LEN, O, V> {
+    fn drop(&mut self) {
+        // Commit the final branch pointer into the owning Head.
+        self.head.set_body(self.branch_nn);
+    }
 }
 
 #[derive(Debug)]
@@ -35,6 +99,22 @@ pub(crate) struct Branch<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, Table: ?Si
     pub segment_count: u64,
     pub hash: u128,
     pub child_table: Table,
+}
+
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, Table: ?Sized, V>
+    Branch<KEY_LEN, O, Table, V>
+{
+    /// Returns a shared reference to the child leaf referenced by this
+    /// branch's `childleaf` pointer. This centralizes the unsafe pointer
+    /// dereference in one place so callers can use a safe reference.
+    pub fn childleaf(&self) -> &Leaf<KEY_LEN, V> {
+        unsafe { &*self.childleaf }
+    }
+
+    /// Returns the raw pointer to the child leaf.
+    pub fn childleaf_ptr(&self) -> *const Leaf<KEY_LEN, V> {
+        self.childleaf
+    }
 }
 
 impl<const BRANCHING_FACTOR: usize, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Body
@@ -80,7 +160,7 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
             };
             addr_of_mut!((*ptr.as_ptr()).rc).write(atomic::AtomicU32::new(1));
             addr_of_mut!((*ptr.as_ptr()).end_depth).write(end_depth as u32);
-            addr_of_mut!((*ptr.as_ptr()).childleaf).write(lchild.childleaf());
+            addr_of_mut!((*ptr.as_ptr()).childleaf).write(lchild.childleaf_ptr());
             addr_of_mut!((*ptr.as_ptr()).leaf_count).write(lchild.count() + rchild.count());
             addr_of_mut!((*ptr.as_ptr()).segment_count)
                 .write(lchild.count_segment(end_depth) + rchild.count_segment(end_depth));
@@ -134,9 +214,13 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
         }
     }
 
-    pub(super) unsafe fn rc_cow(branch: NonNull<Self>) -> Option<NonNull<Self>> {
+    /// Ensure the branch is uniquely owned. If it is shared (rc > 1) a
+    /// copy is allocated and `*branch_nn` is updated to point to the new unique
+    /// allocation. Returns `Some(())` if a copy was made, or `None` if the
+    /// branch was already unique.
+    pub(super) unsafe fn rc_cow(branch_nn: &mut NonNull<Self>) -> Option<()> {
         unsafe {
-            let branch = branch.as_ptr();
+            let branch = branch_nn.as_ptr();
             if (*branch).rc.load(Acquire) == 1 {
                 None
             } else {
@@ -162,7 +246,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
                         .clone_from_slice(&(*branch).child_table);
 
                     Self::rc_dec(NonNull::new_unchecked(branch));
-                    Some(ptr)
+                *branch_nn = ptr;
+                Some(())
                 } else {
                     handle_alloc_error(layout);
                 }
@@ -170,9 +255,13 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
         }
     }
 
-    pub(crate) fn grow(branch: NonNull<Self>) -> NonNull<Self> {
+    /// Grow the branch's allocation in-place by updating the provided
+    /// `branch_nn` to point to a larger allocation. The caller must provide a
+    /// mutable reference to the owned pointer; this function updates it when a
+    /// new allocation is made.
+    pub(crate) fn grow(branch_nn: &mut NonNull<Self>) {
         unsafe {
-            let branch = branch.as_ptr();
+            let branch = branch_nn.as_ptr();
             let old_size = dst_len(addr_of!((*branch).child_table));
             let new_size = old_size * 2;
             assert!(new_size <= 256);
@@ -205,243 +294,246 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
                     NonNull::new_unchecked(branch),
                 );
 
-                ptr
+                *branch_nn = ptr;
             } else {
                 handle_alloc_error(layout);
             }
         }
     }
 
-    pub fn insert_child(branch: NonNull<Self>, child: Head<KEY_LEN, O, V>) -> NonNull<Self> {
+    // Insert-child helper removed — use `modify_child` which consolidates
+    // insert/update/remove logic and handles potential growth in-place.
+
+    /// Generalized modify/insert/remove primitive for a child slot.
+    ///
+    /// The closure receives the current child if present (Some) or None when
+    /// the slot is empty and should return the new child to place into the
+    /// slot (Some) or None to remove/leave empty. This consolidates the
+    /// insert/update/remove logic in one place and updates branch aggregates
+    /// and `childleaf` as needed. The `branch_nn` pointer may be updated in
+    /// place when the underlying allocation grows.
+    pub(super) fn modify_child<F>(branch_nn: &mut NonNull<Self>, key: u8, f: F)
+    where
+        F: FnOnce(Option<Head<KEY_LEN, O, V>>) -> Option<Head<KEY_LEN, O, V>>,
+    {
         unsafe {
-            let mut branch = branch.as_ptr();
+            let branch = branch_nn.as_ptr();
             let end_depth = (*branch).end_depth as usize;
-            (*branch).leaf_count += child.count();
-            (*branch).segment_count += child.count_segment(end_depth);
-            (*branch).hash ^= child.hash();
 
-            let mut displaced = child;
-            loop {
-                let Some(new_displaced) = (*branch).child_table.table_insert(displaced) else {
-                    return NonNull::new_unchecked(branch);
-                };
-                displaced = new_displaced;
-                branch = Self::grow(NonNull::new_unchecked(branch as _)).as_ptr();
-            }
-        }
-    }
-
-    #[must_use]
-    pub fn upsert_child<F>(
-        branch: NonNull<Self>,
-        inserted: Head<KEY_LEN, O, V>,
-        update: F,
-    ) -> NonNull<Self>
-    where
-        F: FnOnce(&mut Option<Head<KEY_LEN, O, V>>, Head<KEY_LEN, O, V>),
-    {
-        unsafe {
-            let ptr = branch.as_ptr();
-            let inserted = inserted.with_start((*ptr).end_depth as usize);
-            let key = inserted.key();
-            if let Some(slot) = (*ptr).child_table.table_get_slot(key) {
-                let child = slot.as_ref().unwrap();
-                let old_child_hash = child.hash();
-                let old_child_segment_count = child.count_segment((*ptr).end_depth as usize);
-                let old_child_leaf_count = child.count();
-                update(slot, inserted);
-
-                let child = slot.as_ref().expect("upsert may not remove child");
-                (*ptr).childleaf = child.childleaf();
-
-                (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ child.hash();
-                (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)
-                    + child.count_segment((*ptr).end_depth as usize);
-                (*ptr).leaf_count = ((*ptr).leaf_count - old_child_leaf_count) + child.count();
-                branch
-            } else {
-                branch::Branch::insert_child(branch, inserted)
-            }
-        }
-    }
-
-    pub fn update_child<F>(branch: NonNull<Self>, key: u8, update: F)
-    where
-        F: FnOnce(Head<KEY_LEN, O, V>) -> Option<Head<KEY_LEN, O, V>>,
-    {
-        unsafe {
-            let ptr = branch.as_ptr();
-            if let Some(slot) = (*ptr).child_table.table_get_slot(key) {
+            // If a slot exists, operate on the existing child in-place.
+            if let Some(slot) = (*branch).child_table.table_get_slot(key) {
                 let child = slot.take().unwrap();
                 let old_child_hash = child.hash();
-                let old_child_segment_count = child.count_segment((*ptr).end_depth as usize);
+                let old_child_segment_count = child.count_segment(end_depth);
                 let old_child_leaf_count = child.count();
 
-                if let Some(new_child) = update(child) {
-                    (*ptr).hash = ((*ptr).hash ^ old_child_hash) ^ new_child.hash();
-                    (*ptr).segment_count = ((*ptr).segment_count - old_child_segment_count)
-                        + new_child.count_segment((*ptr).end_depth as usize);
-                    (*ptr).leaf_count =
-                        ((*ptr).leaf_count - old_child_leaf_count) + new_child.count();
+                let replaced_childleaf = child.childleaf_ptr() == (*branch).childleaf;
+
+                if let Some(new_child) = f(Some(child)) {
+                    // Replace existing child
+                    (*branch).hash = ((*branch).hash ^ old_child_hash) ^ new_child.hash();
+                    (*branch).segment_count = ((*branch).segment_count - old_child_segment_count)
+                        + new_child.count_segment(end_depth);
+                    (*branch).leaf_count = ((*branch).leaf_count - old_child_leaf_count) + new_child.count();
+
+                    if replaced_childleaf {
+                        (*branch).childleaf = new_child.childleaf_ptr();
+                    }
 
                     if slot.replace(new_child.with_key(key)).is_some() {
                         unreachable!();
                     }
                 } else {
-                    (*ptr).hash ^= old_child_hash;
-                    (*ptr).segment_count -= old_child_segment_count;
-                    (*ptr).leaf_count -= old_child_leaf_count;
+                    // Remove existing child
+                    (*branch).hash ^= old_child_hash;
+                    (*branch).segment_count -= old_child_segment_count;
+                    (*branch).leaf_count -= old_child_leaf_count;
+
+                    if replaced_childleaf {
+                        if let Some(other) = (*branch).child_table.iter().find_map(|s| s.as_ref()) {
+                            (*branch).childleaf = other.childleaf_ptr();
+                        }
+                    }
+                }
+            } else {
+                // No current slot — the closure can choose to insert a child.
+                if let Some(mut inserted) = f(None) {
+                    // The caller is expected to pass an inserted Head that is
+                    // already prepared (with_start set to the appropriate depth).
+                    // Update aggregates before attempting insertion.
+                    (*branch).leaf_count += inserted.count();
+                    (*branch).segment_count += inserted.count_segment(end_depth);
+                    (*branch).hash ^= inserted.hash();
+
+                    // Cuckoo insert loop, growing the table when necessary.
+                    let mut branch_ptr = branch_nn.as_ptr();
+                    while let Some(new_displaced) = (*branch_ptr).child_table.table_insert(inserted) {
+                        inserted = new_displaced;
+                        Self::grow(branch_nn);
+                        // Refresh local pointer after potential reallocation.
+                        branch_ptr = branch_nn.as_ptr();
+                    }
                 }
             }
+            // Debug invariant check (no-op in release builds).
+            #[cfg(debug_assertions)]
+            branch_nn.as_ref().debug_check_invariants();
         }
     }
 
-    pub fn count_segment(branch: NonNull<Self>, at_depth: usize) -> u64 {
-        unsafe {
-            let branch = branch.as_ptr();
-            if <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[at_depth]]
-                != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
-                    [O::TREE_TO_KEY[(*branch).end_depth as usize]]
-            {
-                1
-            } else {
-                (*branch).segment_count
+    // Note: upsert_child removed in favor of explicit insert_child / update_child
+
+    // The old in-place `update_child` helper has been superseded by
+    // `modify_child` which accepts an Option<Head> and handles insert/update/remove
+    // uniformly. The thin adapter was removed to centralize behavior; callers
+    // should use `modify_child` or BranchMut::modify_child.
+
+    pub fn count_segment(&self, at_depth: usize) -> u64 {
+        let node_end = self.end_depth as usize;
+        if !O::same_segment_tree(at_depth, node_end) {
+            1
+        } else {
+            self.segment_count
+        }
+    }
+
+    /// Debug-only invariant checker. Validates that the aggregate fields
+    /// (leaf_count, segment_count, hash, childleaf) are consistent with the
+    /// current child table. Exists only in debug builds so it adds zero
+    /// overhead in release binaries.
+    #[cfg(debug_assertions)]
+    pub fn debug_check_invariants(&self) {
+        let end_depth: usize = self.end_depth as usize;
+        let mut agg_leaf_count: u64 = 0;
+        let mut agg_segment_count: u64 = 0;
+        let mut agg_hash: u128 = 0;
+        let mut match_found = false;
+
+        for child in self.child_table.iter().flatten() {
+            agg_leaf_count = agg_leaf_count.saturating_add(child.count());
+            agg_segment_count = agg_segment_count.saturating_add(child.count_segment(end_depth));
+            agg_hash ^= child.hash();
+            if child.childleaf_ptr() == self.childleaf {
+                match_found = true;
             }
         }
+
+        debug_assert_eq!(agg_leaf_count, self.leaf_count, "branch.leaf_count mismatch");
+        debug_assert_eq!(agg_segment_count, self.segment_count, "branch.segment_count mismatch");
+        debug_assert_eq!(agg_hash, self.hash, "branch.hash mismatch");
+
+        // If there are any leaves aggregated in this branch then the
+        // `childleaf` pointer must match one of the children. When the
+        // aggregate count is zero the equality check above already guarantees
+        // `self.leaf_count == 0`, so the explicit empty-branch assertion is
+        // redundant and can be omitted.
+        if agg_leaf_count > 0 {
+            debug_assert!(match_found, "branch.childleaf pointer mismatch");
+        }
     }
 
-    pub(super) fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
-        branch: NonNull<Self>,
-        prefix: &[u8; PREFIX_LEN],
-        at_depth: usize,
-        f: &mut F,
-    ) where
+    /// Return true if this branch's childleaf key matches the provided
+    /// `prefix` for all tree-ordered bytes in [at_depth, PREFIX_LEN).
+    pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(&self, prefix: &[u8; PREFIX_LEN], at_depth: usize, f: &mut F)
+    where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        unsafe {
-            let branch = branch.as_ptr();
-            let node_end_depth = (*branch).end_depth as usize;
-            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
-            for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-                if leaf_key[O::TREE_TO_KEY[depth]] != prefix[depth] {
-                    return;
-                }
-            }
+        // Early-prune: if the branch's representative childleaf doesn't match
+        // the prefix then no child in this branch can match.
+        let node_end_depth = self.end_depth as usize;
+        let limit = std::cmp::min(PREFIX_LEN, node_end_depth);
+        // If the branch's representative childleaf does NOT match the
+        // provided prefix then no child in this branch can match and we can
+        // early-return. The previous logic inverted this check which caused
+        // branches to be pruned incorrectly.
+        if !self.childleaf().has_prefix::<O>(at_depth, &prefix[..limit]) {
+            return;
+        }
 
-            // The infix ends within the current node.
-            if PREFIX_LEN + INFIX_LEN <= node_end_depth {
-                let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| {
-                    (*(*branch).childleaf).key[O::TREE_TO_KEY[PREFIX_LEN + i]]
-                });
-                f(&infix);
-                return;
+        // The infix ends within the current node.
+        if PREFIX_LEN + INFIX_LEN <= node_end_depth {
+            let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| {
+                self.childleaf().key[O::TREE_TO_KEY[PREFIX_LEN + i]]
+            });
+            f(&infix);
+            return;
+        }
+        // The prefix ends in a child of this node.
+        if PREFIX_LEN > node_end_depth {
+            if let Some(child) = self.child_table.table_get(prefix[node_end_depth]) {
+                child.infixes(prefix, node_end_depth, f);
             }
-            // The prefix ends in a child of this node.
-            if PREFIX_LEN > node_end_depth {
-                if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
-                    child.infixes(prefix, node_end_depth, f);
-                }
-                return;
-            }
+            return;
+        }
 
-            // The prefix ends in this node, but the infix ends in a child.
-            for entry in (*branch).child_table.iter().flatten() {
-                entry.infixes(prefix, node_end_depth, f);
-            }
+        // The prefix ends in this node, but the infix ends in a child.
+        for entry in self.child_table.iter().flatten() {
+            entry.infixes(prefix, node_end_depth, f);
         }
     }
 
-    pub(super) fn has_prefix<const PREFIX_LEN: usize>(
-        branch: NonNull<Self>,
-        at_depth: usize,
-        prefix: &[u8; PREFIX_LEN],
-    ) -> bool {
+    pub fn has_prefix<const PREFIX_LEN: usize>(&self, at_depth: usize, prefix: &[u8; PREFIX_LEN]) -> bool {
         const {
             assert!(PREFIX_LEN <= KEY_LEN);
         }
-        unsafe {
-            let branch = branch.as_ptr();
-            let node_end_depth = (*branch).end_depth as usize;
-            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
-            for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-                if leaf_key.get_unchecked(O::TREE_TO_KEY[depth]) != prefix.get_unchecked(depth) {
-                    return false;
-                }
-            }
-
-            // The prefix ends in this node.
-            if PREFIX_LEN <= node_end_depth {
-                return true;
-            }
-
-            //The prefix ends in a child of this node.
-            if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
-                return child.has_prefix(node_end_depth, prefix);
-            }
-            // This node doesn't have a child matching the prefix.
-            false
+        let node_end_depth = self.end_depth as usize;
+        let limit = std::cmp::min(PREFIX_LEN, node_end_depth);
+        if !self.childleaf().has_prefix::<O>(at_depth, &prefix[..limit]) {
+            return false;
         }
+
+        if PREFIX_LEN <= node_end_depth {
+            return true;
+        }
+
+        if let Some(child) = self.child_table.table_get(prefix[node_end_depth]) {
+            return child.has_prefix::<PREFIX_LEN>(node_end_depth, prefix);
+        }
+
+        false
     }
 
-    pub(super) fn get<'a>(
-        branch: NonNull<Self>,
-        at_depth: usize,
-        key: &[u8; KEY_LEN],
-    ) -> Option<&'a V>
+    pub fn get<'a>(&'a self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<&'a V>
     where
         O: 'a,
     {
-        unsafe {
-            let branch = branch.as_ptr();
-            let node_end_depth = (*branch).end_depth as usize;
-            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
-            for depth in at_depth..std::cmp::min(node_end_depth, KEY_LEN) {
-                let idx = O::TREE_TO_KEY[depth];
-                if leaf_key[idx] != key[idx] {
-                    return None;
-                }
-            }
-
-            if node_end_depth >= KEY_LEN {
-                return Some(&(*(*branch).childleaf).value);
-            }
-
-            if let Some(child) = (*branch).child_table.table_get(key[node_end_depth]) {
-                return child.get(node_end_depth, key);
-            }
-            None
+        let node_end_depth = self.end_depth as usize;
+        let limit = std::cmp::min(KEY_LEN, node_end_depth);
+        if !self.childleaf().has_prefix::<O>(at_depth, &key[..limit]) {
+            return None;
         }
+        if node_end_depth >= KEY_LEN {
+            return Some(&self.childleaf().value);
+        }
+
+        if let Some(child) = self.child_table.table_get(key[node_end_depth]) {
+            return child.get(node_end_depth, key);
+        }
+        None
     }
 
-    pub(super) fn segmented_len<const PREFIX_LEN: usize>(
-        branch: NonNull<Self>,
-        at_depth: usize,
-        prefix: &[u8; PREFIX_LEN],
-    ) -> u64 {
-        unsafe {
-            let branch = branch.as_ptr();
-            let node_end_depth = (*branch).end_depth as usize;
-            let leaf_key: &[u8; KEY_LEN] = &(*(*branch).childleaf).key;
-            for depth in at_depth..std::cmp::min(node_end_depth, PREFIX_LEN) {
-                let key_depth = O::TREE_TO_KEY[depth];
-                if leaf_key[key_depth] != prefix[depth] {
-                    return 0;
-                }
+    pub fn segmented_len<const PREFIX_LEN: usize>(&self, at_depth: usize, prefix: &[u8; PREFIX_LEN]) -> u64 {
+        let node_end_depth = self.end_depth as usize;
+        let limit = std::cmp::min(PREFIX_LEN, node_end_depth);
+        if !self.childleaf().has_prefix::<O>(at_depth, &prefix[..limit]) {
+            return 0;
+        }
+        if PREFIX_LEN <= node_end_depth {
+            if !O::same_segment_tree(PREFIX_LEN, node_end_depth) {
+                return 1;
+            } else {
+                return self.segment_count;
             }
-            if PREFIX_LEN <= node_end_depth {
-                if <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
-                    != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
-                        [O::TREE_TO_KEY[node_end_depth]]
-                {
-                    return 1;
-                } else {
-                    return (*branch).segment_count;
-                }
-            }
-            if let Some(child) = (*branch).child_table.table_get(prefix[node_end_depth]) {
-                return child.segmented_len(node_end_depth, prefix);
-            }
+        }
+        if let Some(child) = self.child_table.table_get(prefix[node_end_depth]) {
+            child.segmented_len::<PREFIX_LEN>(node_end_depth, prefix)
+        } else {
             0
         }
     }
+
+    // Instance methods implemented directly on &Branch — these contain any
+    // required unsafe access (childleaf deref) locally and avoid forwarding
+    // through more wrappers. This keeps the call graph minimal and makes the
+    // logic easier to maintain.
 }

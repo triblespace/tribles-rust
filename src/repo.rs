@@ -4,6 +4,7 @@
 //! to an absolute minimum, making it easier to reason about and allowing for different storage backends.
 //!
 //! Blob repositories are collections of blobs that can be content-addressed by their hash.
+#![allow(clippy::type_complexity)]
 //! This is typically local `.pile` file or a S3 bucket or a similar service.
 //! On their own they have no notion of branches or commits, or other stateful constructs.
 //! As such they also don't have a notion of time, order or history,
@@ -281,7 +282,10 @@ pub trait BranchStore<H: HashProtocol> {
 
     /// Lists all branches in the repository.
     /// This function returns a stream of branch ids.
-    fn branches<'a>(&'a self) -> Self::ListIter<'a>;
+    fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError>;
+
+    // NOTE: keep the API lean — callers may call `branches()` and handle the
+    // fallible iterator directly; we avoid adding an extra helper here.
 
     /// Retrieves a branch from the repository by its id.
     /// The id is a unique identifier for the branch, and is used to retrieve it from the repository.
@@ -295,7 +299,7 @@ pub trait BranchStore<H: HashProtocol> {
     /// # Returns
     /// * A future that resolves to the handle of the branch.
     /// * The handle is a unique identifier for the branch, and is used to retrieve it from the repository.
-    fn head(&self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError>;
+    fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError>;
 
     /// Puts a branch on the repository, creating or updating it.
     ///
@@ -680,7 +684,7 @@ where
     /// Branches are the only mutable state in the repository,
     /// and are used to represent the state of a commit chain at a specific point in time.
     /// A branch must always point to a commit, and this function can be used to create a new branch.
-
+    ///
     /// Creates a new branch in the repository.
     /// This branch is a pointer to a specific commit in the repository.
     /// The branch is created with name and is initialized to point to the opionally given commit.
@@ -860,11 +864,14 @@ where
 
     /// Find the id of a branch by its name.
     pub fn branch_id_by_name(&mut self, name: &str) -> Result<Option<Id>, LookupError<Storage>> {
-        let ids: Vec<Id> = self
-            .storage
-            .branches()
-            .map(|r| r.map_err(|e| LookupError::StorageBranches(e)))
-            .collect::<Result<_, _>>()?;
+        let ids: Vec<Id> = {
+            let iter = self
+                .storage
+                .branches()
+                .map_err(LookupError::StorageBranches)?;
+            iter.map(|r| r.map_err(|e| LookupError::StorageBranches(e)))
+                .collect::<Result<_, _>>()?
+        };
 
         let mut handles = Vec::new();
         for id in ids {

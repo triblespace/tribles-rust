@@ -25,7 +25,6 @@ use std::cmp::Reverse;
 use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::usize;
 
 use arrayvec::ArrayVec;
 use constantconstraint::*;
@@ -216,8 +215,8 @@ impl Default for Binding {
 /// - `propose` method suggests values for a variable that match the constraint.
 /// - `confirm` method verifies a value for a variable that matches the constraint.
 /// - `variables` method returns the set of variables used by the constraint.
-/// The trait is generic over the lifetime of an underlying borrowed data structure that the
-/// constraint might use, such as a [std::collections::HashMap] or a [crate::trible::TribleSet].
+    ///   The trait is generic over the lifetime of an underlying borrowed data structure that the
+    ///   constraint might use, such as a [std::collections::HashMap] or a [crate::trible::TribleSet].
 ///
 /// Note that the constraint does not store any state, but rather operates on the binding
 /// passed to it by the query engine. This allows the query engine to efficiently

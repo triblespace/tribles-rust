@@ -84,73 +84,52 @@ impl<const KEY_LEN: usize, V> Leaf<KEY_LEN, V> {
         }
     }
 
-    pub(crate) fn infixes<
-        const PREFIX_LEN: usize,
-        const INFIX_LEN: usize,
-        O: KeySchema<KEY_LEN>,
-        F,
-    >(
-        leaf: NonNull<Self>,
+    // Instance-safe wrappers that operate on &Leaf references.
+    pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, O: KeySchema<KEY_LEN>, F>(
+        &self,
         prefix: &[u8; PREFIX_LEN],
         at_depth: usize,
         f: &mut F,
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        let leaf = unsafe { leaf.as_ref() };
-        let leaf_key = leaf.key;
-        for depth in at_depth..PREFIX_LEN {
-            if leaf_key[O::TREE_TO_KEY[depth]] != prefix[depth] {
-                return;
-            }
+        // Delegate to the runtime has_prefix which accepts slices; the
+        // compiler will coerce the array reference to a slice.
+        if !self.has_prefix::<O>(at_depth, prefix) {
+            return;
         }
 
-        let infix: [u8; INFIX_LEN] =
-            core::array::from_fn(|i| leaf.key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
+        let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| self.key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
         f(&infix);
     }
 
-    pub(crate) fn has_prefix<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(
-        leaf: NonNull<Self>,
-        at_depth: usize,
-        prefix: &[u8; PREFIX_LEN],
-    ) -> bool {
-        const {
-            assert!(PREFIX_LEN <= KEY_LEN);
-        }
-        let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
-        for depth in at_depth..PREFIX_LEN {
-            if leaf_key[O::TREE_TO_KEY[depth]] != prefix[depth] {
+    pub fn has_prefix<O: KeySchema<KEY_LEN>>(&self, at_depth: usize, prefix: &[u8]) -> bool {
+        let limit = std::cmp::min(prefix.len(), KEY_LEN);
+        for (depth, &p) in prefix.iter().enumerate().take(limit).skip(at_depth) {
+            if self.key[O::TREE_TO_KEY[depth]] != p {
                 return false;
             }
         }
         true
     }
 
-    pub(crate) fn get<'a, O: KeySchema<KEY_LEN>>(
-        leaf: NonNull<Self>,
-        at_depth: usize,
-        key: &[u8; KEY_LEN],
-    ) -> Option<&'a V> {
-        let leaf = unsafe { leaf.as_ref() };
-        for depth in at_depth..KEY_LEN {
+    pub fn get<'a, O: KeySchema<KEY_LEN> + 'a>(&'a self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<&'a V>
+    {
+        let limit = KEY_LEN;
+        for (depth, &kbyte) in key.iter().enumerate().take(limit).skip(at_depth) {
             let idx = O::TREE_TO_KEY[depth];
-            if leaf.key[idx] != key[idx] {
+            if self.key[idx] != kbyte {
                 return None;
             }
         }
-        Some(&leaf.value)
+        Some(&self.value)
     }
 
-    pub(crate) fn segmented_len<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(
-        leaf: NonNull<Self>,
-        at_depth: usize,
-        prefix: &[u8; PREFIX_LEN],
-    ) -> u64 {
-        let leaf_key: &[u8; KEY_LEN] = unsafe { &(*leaf.as_ptr()).key };
-        for depth in at_depth..PREFIX_LEN {
+    pub fn segmented_len<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(&self, at_depth: usize, prefix: &[u8; PREFIX_LEN]) -> u64 {
+        let limit = PREFIX_LEN;
+        for (depth, &p) in prefix.iter().enumerate().take(limit).skip(at_depth) {
             let key_depth = O::TREE_TO_KEY[depth];
-            if leaf_key[key_depth] != prefix[depth] {
+            if self.key[key_depth] != p {
                 return 0;
             }
         }

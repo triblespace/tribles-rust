@@ -210,6 +210,22 @@ pub trait KeySchema<const KEY_LEN: usize>: Copy + Clone + Debug {
         }
         new_key
     }
+
+    /// Return the segment index for the byte at `at_depth` in tree ordering.
+    ///
+    /// Default implementation reads the static segmentation table and the
+    /// tree->key mapping. Having this as a method makes call sites clearer and
+    /// reduces the verbosity of expressions that access the segmentation table.
+    fn segment_of_tree_depth(at_depth: usize) -> usize {
+        <Self::Segmentation as KeySegmentation<KEY_LEN>>::SEGMENTS[Self::TREE_TO_KEY[at_depth]]
+    }
+
+    /// Return true if the tree-ordered bytes at `a` and `b` belong to the same
+    /// logical segment.
+    fn same_segment_tree(a: usize, b: usize) -> bool {
+        <Self::Segmentation as KeySegmentation<KEY_LEN>>::SEGMENTS[Self::TREE_TO_KEY[a]]
+            == <Self::Segmentation as KeySegmentation<KEY_LEN>>::SEGMENTS[Self::TREE_TO_KEY[b]]
+    }
 }
 
 /// This trait is used to segment keys stored in the PATCH.
@@ -248,7 +264,8 @@ impl<const KEY_LEN: usize> KeySchema<KEY_LEN> for IdentitySchema {
 impl<const KEY_LEN: usize> KeySegmentation<KEY_LEN> for SingleSegmentation {
     const SEGMENTS: [usize; KEY_LEN] = [0; KEY_LEN];
 }
-#[allow(dead_code)]
+
+ #[allow(dead_code)]
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub(crate) enum HeadTag {
@@ -267,7 +284,21 @@ pub(crate) enum HeadTag {
 
 pub(crate) enum BodyPtr<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
     Leaf(NonNull<Leaf<KEY_LEN, V>>),
-    Branch(NonNull<Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>>),
+    Branch(branch::BranchNN<KEY_LEN, O, V>),
+}
+
+/// Immutable borrow view of a Head body.
+/// Returned by `body_ref()` and tied to the lifetime of the `&Head`.
+pub(crate) enum BodyRef<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    Leaf(&'a Leaf<KEY_LEN, V>),
+    Branch(&'a Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>),
+}
+
+/// Mutable borrow view of a Head body.
+/// Returned by `body_mut()` and tied to the lifetime of the `&mut Head`.
+pub(crate) enum BodyMut<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    Leaf(&'a mut Leaf<KEY_LEN, V>),
+    Branch(&'a mut Branch<KEY_LEN, O, [Option<Head<KEY_LEN, O, V>>], V>),
 }
 
 pub(crate) trait Body {
@@ -340,6 +371,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         self.with_key(key)
     }
 
+    // Removed childleaf_matches_key_from in favor of composing the existing
+    // has_prefix primitives directly at call sites. Use
+    // `self.has_prefix::<KEY_LEN>(at_depth, key)` or for partial checks
+    // `self.childleaf().has_prefix::<O>(at_depth, &key[..limit])` instead.
+
     pub(crate) fn body(&self) -> BodyPtr<KEY_LEN, O, V> {
         unsafe {
             let ptr = NonNull::new_unchecked(
@@ -361,60 +397,116 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         }
     }
 
-    pub(crate) fn body_mut(&mut self) -> BodyPtr<KEY_LEN, O, V> {
+    pub(crate) fn body_mut(&mut self) -> BodyMut<'_, KEY_LEN, O, V> {
         unsafe {
             match self.body() {
-                BodyPtr::Leaf(leaf) => BodyPtr::Leaf(leaf),
-                BodyPtr::Branch(branch) => {
-                    if let Some(copy) = Branch::rc_cow(branch) {
-                        self.set_body(copy);
-                        BodyPtr::Branch(copy)
+                BodyPtr::Leaf(mut leaf) => BodyMut::Leaf(leaf.as_mut()),
+                BodyPtr::Branch(mut branch) => {
+                    // Ensure ownership: try copy-on-write and update local pointer if needed.
+                    let mut branch_nn = branch;
+                    if Branch::rc_cow(&mut branch_nn).is_some() {
+                        self.set_body(branch_nn);
+                        BodyMut::Branch(branch_nn.as_mut())
                     } else {
-                        BodyPtr::Branch(branch)
+                        BodyMut::Branch(branch.as_mut())
                     }
                 }
             }
         }
     }
 
-    pub(crate) fn count(&self) -> u64 {
+    /// Returns an immutable borrow of the body (Leaf or Branch) tied to &self.
+    pub(crate) fn body_ref(&self) -> BodyRef<'_, KEY_LEN, O, V> {
         match self.body() {
-            BodyPtr::Leaf(_) => 1,
-            BodyPtr::Branch(branch) => unsafe { branch.as_ref().leaf_count },
+            BodyPtr::Leaf(nn) => BodyRef::Leaf(unsafe { nn.as_ref() }),
+            BodyPtr::Branch(nn) => BodyRef::Branch(unsafe { nn.as_ref() }),
+        }
+    }
+
+    pub(crate) fn count(&self) -> u64 {
+        match self.body_ref() {
+            BodyRef::Leaf(_) => 1,
+            BodyRef::Branch(branch) => branch.leaf_count,
         }
     }
 
     pub(crate) fn count_segment(&self, at_depth: usize) -> u64 {
-        match self.body() {
-            BodyPtr::Leaf(_) => 1,
-            BodyPtr::Branch(branch) => Branch::count_segment(branch, at_depth),
+        match self.body_ref() {
+            BodyRef::Leaf(_) => 1,
+            BodyRef::Branch(branch) => branch.count_segment(at_depth),
         }
     }
 
     pub(crate) fn hash(&self) -> u128 {
-        match self.body() {
-            BodyPtr::Leaf(leaf) => unsafe { leaf.as_ref().hash },
-            BodyPtr::Branch(branch) => unsafe { branch.as_ref().hash },
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf.hash,
+            BodyRef::Branch(branch) => branch.hash,
         }
     }
 
     pub(crate) fn end_depth(&self) -> usize {
-        match self.body() {
-            BodyPtr::Leaf(_) => KEY_LEN,
-            BodyPtr::Branch(branch) => unsafe { branch.as_ref().end_depth as usize },
+        match self.body_ref() {
+            BodyRef::Leaf(_) => KEY_LEN,
+            BodyRef::Branch(branch) => branch.end_depth as usize,
         }
     }
 
-    pub(crate) fn childleaf(&self) -> *const Leaf<KEY_LEN, V> {
-        match self.body() {
-            BodyPtr::Leaf(leaf) => leaf.as_ptr(),
-            BodyPtr::Branch(branch) => unsafe { branch.as_ref().childleaf },
+    /// Return the raw pointer to the child leaf for use in low-level
+    /// operations (for example when constructing a Branch). Prefer
+    /// `childleaf_key()` or other safe accessors when you only need the
+    /// key or value; those avoid unsafe dereferences.
+    pub(crate) fn childleaf_ptr(&self) -> *const Leaf<KEY_LEN, V> {
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf as *const Leaf<KEY_LEN, V>,
+            BodyRef::Branch(branch) => branch.childleaf_ptr(),
         }
     }
 
     pub(crate) fn childleaf_key(&self) -> &[u8; KEY_LEN] {
-        unsafe { &(*self.childleaf()).key }
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => &leaf.key,
+            BodyRef::Branch(branch) => &branch.childleaf().key,
+        }
     }
+
+    // Slot wrapper defined at module level (moved to below the impl block)
+
+    /// Find the first depth in [start_depth, limit) where the tree-ordered
+    /// bytes of `self` and `other` differ. The comparison limit is computed
+    /// as min(self.end_depth(), other.end_depth(), KEY_LEN) which is the
+    /// natural bound for comparing two heads. Returns `Some((depth, a, b))`
+    /// where `a` and `b` are the differing bytes at that depth, or `None`
+    /// if no divergence is found in the range.
+    pub(crate) fn first_divergence(&self, other: &Self, start_depth: usize) -> Option<(usize, u8, u8)> {
+        let limit = std::cmp::min(std::cmp::min(self.end_depth(), other.end_depth()), KEY_LEN);
+        debug_assert!(limit <= KEY_LEN);
+        let this_key = self.childleaf_key();
+        let other_key = other.childleaf_key();
+        let mut depth = start_depth;
+        while depth < limit {
+            let i = O::TREE_TO_KEY[depth];
+            let a = this_key[i];
+            let b = other_key[i];
+            if a != b {
+                return Some((depth, a, b));
+            }
+            depth += 1;
+        }
+        None
+    }
+
+    // Mutable access to the child slots for this head. If the head is a
+    // branch, returns a mutable slice referencing the underlying child table
+    // (each element is Option<Head>). If the head is a leaf an empty slice
+    // is returned.
+    //
+    // The caller receives a &mut slice tied to the borrow of `self` and may
+    // reorder entries in-place (e.g., sort_unstable) and then take them using
+    // `Option::take()` to extract Head values. The call uses `body_mut()` so
+    // COW semantics are preserved and callers have exclusive access to the
+    // branch storage while the mutable borrow lasts.
+    // NOTE: mut_children removed — prefer matching on BodyRef returned by
+    // `body_mut()` and operating directly on the `&mut Branch` reference.
 
     pub(crate) fn remove_leaf(
         slot: &mut Option<Self>,
@@ -422,154 +514,183 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         start_depth: usize,
     ) {
         if let Some(this) = slot {
-            let head_key = this.childleaf_key();
-
             let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
-            for depth in start_depth..end_depth {
-                let i = O::TREE_TO_KEY[depth];
-                if head_key[i] != leaf_key[i] {
-                    return;
-                }
+            // Check reachable equality by asking the head to test the prefix
+            // up to its end_depth. Using the head/leaf primitive centralises the
+            // unsafe deref into Branch::childleaf()/Leaf::has_prefix.
+            if !this.has_prefix::<KEY_LEN>(start_depth, leaf_key) {
+                return;
             }
-            match this.body_mut() {
-                BodyPtr::Leaf(_) => {
-                    slot.take();
-                }
-                BodyPtr::Branch(mut branch) => {
-                    let branch = unsafe { branch.as_mut() };
+            if this.tag() == HeadTag::Leaf {
+                slot.take();
+            } else {
+                let mut ed = crate::patch::branch::BranchMut::from_head(this);
+                let key = leaf_key[end_depth];
+                ed.modify_child(key, |mut opt| {
+                    Self::remove_leaf(&mut opt, leaf_key, end_depth);
+                    opt
+                });
 
-                    let key = leaf_key[end_depth];
-                    let removed_leafchild = leaf_key == unsafe { &(*branch.childleaf).key };
-                    if let Some(child_slot) = branch.child_table.table_get_slot(key) {
-                        if let Some(child) = child_slot {
-                            let old_child_hash = child.hash();
-                            let old_child_segment_count =
-                                child.count_segment(branch.end_depth as usize);
-                            let old_child_leaf_count = child.count();
-
-                            Self::remove_leaf(child_slot, leaf_key, end_depth);
-                            if let Some(child) = child_slot {
-                                if removed_leafchild {
-                                    branch.childleaf = child.childleaf();
-                                }
-                                branch.hash = (branch.hash ^ old_child_hash) ^ child.hash();
-                                branch.segment_count = (branch.segment_count
-                                    - old_child_segment_count)
-                                    + child.count_segment(branch.end_depth as usize);
-                                branch.leaf_count =
-                                    (branch.leaf_count - old_child_leaf_count) + child.count();
-                                // ^ Note that the leaf_count can never be <= 1 here, because we're in a branch
-                                // at least one other child must exist.
-                            } else {
-                                branch.leaf_count -= old_child_leaf_count;
-                                match branch.leaf_count {
-                                    0 => {
-                                        panic!("branch should have been collected previously")
-                                    }
-                                    1 => {
-                                        for child in &mut branch.child_table {
-                                            if let Some(child) = child.take() {
-                                                slot.replace(child.with_start(start_depth));
-                                                return;
-                                            }
-                                        }
-                                    }
-                                    _ => {
-                                        if removed_leafchild {
-                                            let child = branch
-                                                .child_table
-                                                .iter()
-                                                .find_map(|s| s.as_ref())
-                                                .expect("child should exist");
-                                            branch.childleaf = child.childleaf();
-                                        }
-                                        branch.hash ^= old_child_hash;
-                                        branch.segment_count -= old_child_segment_count;
-                                    }
-                                }
-                            }
+                // If the branch now contains a single remaining child we
+                // collapse the branch upward into that child. We must pull
+                // the remaining child out while `ed` is still borrowed,
+                // then drop `ed` before writing back into `slot` to avoid
+                // double mutable borrows of the slot.
+                if ed.leaf_count == 1 {
+                    let mut remaining: Option<Head<KEY_LEN, O, V>> = None;
+                    for slot_child in &mut ed.child_table {
+                        if let Some(child) = slot_child.take() {
+                            remaining = Some(child.with_start(start_depth));
+                            break;
                         }
                     }
+                    drop(ed);
+                    if let Some(child) = remaining {
+                        slot.replace(child);
+                    }
+                } else {
+                    // ensure we drop the editor when not collapsing so the
+                    // final pointer is committed back into the head.
+                    drop(ed);
                 }
             }
         }
     }
 
-    pub(crate) fn insert_leaf(slot: &mut Option<Self>, leaf: Self, start_depth: usize) {
-        let this = slot.as_mut().expect("slot should not be empty");
-        let this_key = this.childleaf_key();
-        let leaf_key = leaf.childleaf_key();
+    // NOTE: slot-level wrappers removed; callers should take the slot and call
+    // the owned helpers (insert_leaf / replace_leaf / union)
+    // directly. This reduces the indirection and keeps ownership semantics
+    // explicit at the call site.
 
-        let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
-        for depth in start_depth..end_depth {
-            let i = O::TREE_TO_KEY[depth];
-            let this_byte_key = this_key[i];
-            let leaf_byte_key = leaf_key[i];
-            if this_byte_key != leaf_byte_key {
-                let old_key = this.key();
-                let new_body = Branch::new(
-                    depth,
-                    slot.take().unwrap().with_key(this_byte_key),
-                    leaf.with_key(leaf_byte_key),
-                );
-
-                if slot.replace(Head::new(old_key, new_body)).is_some() {
-                    unreachable!();
-                }
-
-                return;
-            }
+    // Owned variants of the slot-based helpers. These accept the existing
+    // Head by value and return the new Head after performing the
+    // modification. They are used with the split `insert_child` /
+    // `update_child` APIs so we no longer need `Branch::upsert_child`.
+    pub(crate) fn insert_leaf(mut this: Self, leaf: Self, start_depth: usize) -> Self {
+        if let Some((depth, this_byte_key, leaf_byte_key)) = this.first_divergence(&leaf, start_depth)
+        {
+            let old_key = this.key();
+            let new_body = Branch::new(
+                depth,
+                this.with_key(this_byte_key),
+                leaf.with_key(leaf_byte_key),
+            );
+            return Head::new(old_key, new_body);
         }
 
+        let end_depth = this.end_depth();
         if end_depth != KEY_LEN {
-            let BodyPtr::Branch(body) = this.body_mut() else {
-                unreachable!();
-            };
-            let new_body = Branch::upsert_child(body, leaf, |slot, inserted| {
-                Head::insert_leaf(slot, inserted, end_depth)
+            // Use the editable BranchMut view to perform mutations without
+            // exposing pointer juggling at the call site.
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut this);
+            let inserted = leaf.with_start(ed.end_depth as usize);
+            let key = inserted.key();
+            ed.modify_child(key, |opt| match opt {
+                Some(old) => Some(Head::insert_leaf(old, inserted, end_depth)),
+                None => Some(inserted),
             });
-            this.set_body(new_body);
         }
+        this
     }
 
-    pub(crate) fn replace_leaf(slot: &mut Option<Self>, leaf: Self, start_depth: usize) {
-        let this = slot.as_mut().expect("slot should not be empty");
-        let this_key = this.childleaf_key();
-        let leaf_key = leaf.childleaf_key();
+    pub(crate) fn replace_leaf(mut this: Self, leaf: Self, start_depth: usize) -> Self {
+        if let Some((depth, this_byte_key, leaf_byte_key)) = this.first_divergence(&leaf, start_depth)
+        {
+            let old_key = this.key();
+            let new_body = Branch::new(
+                depth,
+                this.with_key(this_byte_key),
+                leaf.with_key(leaf_byte_key),
+            );
 
-        let end_depth = std::cmp::min(this.end_depth(), KEY_LEN);
-        for depth in start_depth..end_depth {
-            let i = O::TREE_TO_KEY[depth];
-            let this_byte_key = this_key[i];
-            let leaf_byte_key = leaf_key[i];
-            if this_byte_key != leaf_byte_key {
-                let old_key = this.key();
-                let new_body = Branch::new(
-                    depth,
-                    slot.take().unwrap().with_key(this_byte_key),
-                    leaf.with_key(leaf_byte_key),
-                );
-
-                if slot.replace(Head::new(old_key, new_body)).is_some() {
-                    unreachable!();
-                }
-
-                return;
-            }
+            return Head::new(old_key, new_body);
         }
 
+        let end_depth = this.end_depth();
         if end_depth == KEY_LEN {
             let old_key = this.key();
-            slot.replace(leaf.with_key(old_key));
+            return leaf.with_key(old_key);
         } else {
-            let BodyPtr::Branch(body) = this.body_mut() else {
-                unreachable!();
-            };
-            let new_body = Branch::upsert_child(body, leaf, |slot, inserted| {
-                Head::replace_leaf(slot, inserted, end_depth)
+            // Use the editor view for branch mutation instead of raw pointer ops.
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut this);
+            let inserted = leaf.with_start(ed.end_depth as usize);
+            let key = inserted.key();
+            ed.modify_child(key, |opt| match opt {
+                Some(old) => Some(Head::replace_leaf(old, inserted, end_depth)),
+                None => Some(inserted),
             });
-            this.set_body(new_body);
         }
+        this
+    }
+
+    pub(crate) fn union(mut this: Self, mut other: Self, at_depth: usize) -> Self {
+        if this.hash() == other.hash() {
+            return this;
+        }
+
+        if let Some((depth, this_byte_key, other_byte_key)) = this.first_divergence(&other, at_depth)
+        {
+            let old_key = this.key();
+            let new_body = Branch::new(
+                depth,
+                this.with_key(this_byte_key),
+                other.with_key(other_byte_key),
+            );
+
+            return Head::new(old_key, new_body);
+        }
+
+        let this_depth = this.end_depth();
+        let other_depth = other.end_depth();
+        if this_depth < other_depth {
+            // Use BranchMut to edit `this` safely and avoid pointer juggling.
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut this);
+            let inserted = other.with_start(ed.end_depth as usize);
+            let key = inserted.key();
+            ed.modify_child(key, |opt| match opt {
+                Some(old) => Some(Head::union(old, inserted, this_depth)),
+                None => Some(inserted),
+            });
+
+            drop(ed);
+            return this;
+        }
+
+        if other_depth < this_depth {
+            let old_key = this.key();
+            let this_head = this;
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut other);
+                let inserted = this_head.with_start(ed.end_depth as usize);
+                let key = inserted.key();
+                ed.modify_child(key, |opt| match opt {
+                    Some(old) => Some(Head::union(old, inserted, other_depth)),
+                    None => Some(inserted),
+                });
+            drop(ed);
+
+            return other.with_key(old_key);
+        }
+
+        // both depths are equal and the hashes differ: merge children
+        let BodyMut::Branch(other_branch_ref) = other.body_mut() else {
+            unreachable!();
+        };
+        {
+            // Editable branch view: construct a BranchMut from the owned `this`
+            // head and perform all mutations via that editor. The editor
+            // performs COW up-front and writes the final pointer back into
+            // `this` when it is dropped.
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut this);
+            for other_child in other_branch_ref.child_table.iter_mut().filter_map(Option::take) {
+                let inserted = other_child.with_start(ed.end_depth as usize);
+                let key = inserted.key();
+                ed.modify_child(key, |opt| match opt {
+                    Some(old) => Some(Head::union(old, inserted, this_depth)),
+                    None => Some(inserted),
+                });
+            }
+        }
+        this
     }
 
     pub(crate) fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
@@ -580,11 +701,9 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
-        match self.body() {
-            BodyPtr::Leaf(leaf) => {
-                Leaf::infixes::<PREFIX_LEN, INFIX_LEN, O, F>(leaf, prefix, at_depth, f)
-            }
-            BodyPtr::Branch(branch) => Branch::infixes(branch, prefix, at_depth, f),
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf.infixes::<PREFIX_LEN, INFIX_LEN, O, F>(prefix, at_depth, f),
+            BodyRef::Branch(branch) => branch.infixes::<PREFIX_LEN, INFIX_LEN, F>(prefix, at_depth, f),
         }
     }
 
@@ -596,9 +715,9 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         const {
             assert!(PREFIX_LEN <= KEY_LEN);
         }
-        match self.body() {
-            BodyPtr::Leaf(leaf) => Leaf::has_prefix::<O, PREFIX_LEN>(leaf, at_depth, prefix),
-            BodyPtr::Branch(branch) => branch::Branch::has_prefix(branch, at_depth, prefix),
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf.has_prefix::<O>(at_depth, prefix),
+            BodyRef::Branch(branch) => branch.has_prefix::<PREFIX_LEN>(at_depth, prefix),
         }
     }
 
@@ -606,9 +725,9 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     where
         O: 'a,
     {
-        match self.body() {
-            BodyPtr::Leaf(leaf) => Leaf::get::<O>(leaf, at_depth, key),
-            BodyPtr::Branch(branch) => branch::Branch::get(branch, at_depth, key),
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf.get::<O>(at_depth, key),
+            BodyRef::Branch(branch) => branch.get(at_depth, key),
         }
     }
 
@@ -617,148 +736,49 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         at_depth: usize,
         prefix: &[u8; PREFIX_LEN],
     ) -> u64 {
-        match self.body() {
-            BodyPtr::Leaf(leaf) => Leaf::segmented_len::<O, PREFIX_LEN>(leaf, at_depth, prefix),
-            BodyPtr::Branch(branch) => Branch::segmented_len(branch, at_depth, prefix),
+        match self.body_ref() {
+            BodyRef::Leaf(leaf) => leaf.segmented_len::<O, PREFIX_LEN>(at_depth, prefix),
+            BodyRef::Branch(branch) => branch.segmented_len::<PREFIX_LEN>(at_depth, prefix),
         }
     }
 
-    pub(crate) fn union(slot: &mut Option<Self>, mut other: Self, at_depth: usize) {
-        let this = slot.as_mut().expect("slot should not be empty");
-        let this_hash = this.hash();
-        let other_hash = other.hash();
-        if this_hash == other_hash {
-            return;
-        }
-        let this_depth = this.end_depth();
-        let other_depth = other.end_depth();
-
-        let this_key = this.childleaf_key();
-        let other_key = other.childleaf_key();
-        for depth in at_depth..std::cmp::min(this_depth, other_depth) {
-            let i = O::TREE_TO_KEY[depth];
-            let this_byte_key = this_key[i];
-            let other_byte_key = other_key[i];
-            if this_byte_key != other_byte_key {
-                let old_key = this.key();
-                let new_body = Branch::new(
-                    depth,
-                    slot.take().unwrap().with_key(this_byte_key),
-                    other.with_key(other_byte_key),
-                );
-
-                if slot.replace(Head::new(old_key, new_body)).is_some() {
-                    unreachable!();
-                }
-
-                return;
-            }
-        }
-
-        if this_depth < other_depth {
-            match this.body_mut() {
-                BodyPtr::Leaf(_) => unreachable!(),
-                BodyPtr::Branch(body) => {
-                    let new_body = Branch::upsert_child(body, other, |slot, inserted| {
-                        Head::union(slot, inserted, this_depth)
-                    });
-                    this.set_body(new_body);
-                }
-            }
-
-            return;
-        }
-
-        if other_depth < this_depth {
-            let old_key = this.key();
-            let this = slot.take().unwrap();
-            match other.body_mut() {
-                BodyPtr::Leaf(_) => unreachable!(),
-                BodyPtr::Branch(body) => {
-                    let new_body = Branch::upsert_child(body, this, |slot, inserted| {
-                        Head::union(slot, inserted, other_depth)
-                    });
-                    other.set_body(new_body);
-                }
-            }
-
-            if slot.replace(other.with_key(old_key)).is_some() {
-                unreachable!();
-            }
-            return;
-        }
-
-        // we already checked for equality by comparing the hashes,
-        // if they are not equal, the keys must be different which is
-        // already handled by the above code.
-        let BodyPtr::Branch(mut this_body) = this.body_mut() else {
-            unreachable!();
-        };
-        let BodyPtr::Branch(mut other_branch) = other.body_mut() else {
-            unreachable!();
-        };
-        unsafe {
-            for other_child in other_branch
-                .as_mut()
-                .child_table
-                .iter_mut()
-                .filter_map(Option::take)
-            {
-                this_body = Branch::upsert_child(this_body, other_child, |slot, inserted| {
-                    Head::union(slot, inserted, this_depth)
-                });
-            }
-            this.set_body(this_body);
-        }
-    }
+    // NOTE: slot-level union wrapper removed; callers should take the slot and
+    // call the owned helper `union` directly.
 
     pub(crate) fn intersect(&self, other: &Self, at_depth: usize) -> Option<Self> {
-        let self_hash = self.hash();
-        let other_hash = other.hash();
-        if self_hash == other_hash {
+        if self.hash() == other.hash() {
             return Some(self.clone());
         }
-        let self_depth = self.end_depth();
-        let other_depth = other.end_depth();
 
-        let self_key = self.childleaf_key();
-        let other_key = other.childleaf_key();
-        for depth in at_depth..std::cmp::min(self_depth, other_depth) {
-            let i = O::TREE_TO_KEY[depth];
-            if self_key[i] != other_key[i] {
-                return None;
-            }
+        if self.first_divergence(other, at_depth).is_some() {
+            return None;
         }
 
+        let self_depth = self.end_depth();
+        let other_depth = other.end_depth();
         if self_depth < other_depth {
             // This means that there can be at most one child in self
             // that might intersect with other.
-            let BodyPtr::Branch(branch) = self.body() else {
+            let BodyRef::Branch(branch) = self.body_ref() else {
                 unreachable!();
             };
-            unsafe {
-                return branch
-                    .as_ref()
-                    .child_table
-                    .table_get(other.childleaf_key()[O::TREE_TO_KEY[self_depth]])
-                    .and_then(|self_child| other.intersect(self_child, self_depth));
-            }
+            return branch
+                .child_table
+                .table_get(other.childleaf_key()[O::TREE_TO_KEY[self_depth]])
+                .and_then(|self_child| other.intersect(self_child, self_depth));
         }
 
         if other_depth < self_depth {
             // This means that there can be at most one child in other
             // that might intersect with self.
             // If the depth of other is less than the depth of self, then it can't be a leaf.
-            let BodyPtr::Branch(other_branch) = other.body() else {
+            let BodyRef::Branch(other_branch) = other.body_ref() else {
                 unreachable!();
             };
-            unsafe {
-                return other_branch
-                    .as_ref()
-                    .child_table
-                    .table_get(self.childleaf_key()[O::TREE_TO_KEY[other_depth]])
-                    .and_then(|other_child| self.intersect(other_child, other_depth));
-            }
+            return other_branch
+                .child_table
+                .table_get(self.childleaf_key()[O::TREE_TO_KEY[other_depth]])
+                .and_then(|other_child| self.intersect(other_child, other_depth));
         }
 
         // If we reached this point then the depths are equal. The only way to have a leaf
@@ -766,66 +786,61 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         // and by the key check if they are not equal.
         // If one of them is a leaf and the other is a branch, then they would also have different depths,
         // which is already handled by the above code.
-        let BodyPtr::Branch(self_branch) = self.body() else {
+        let BodyRef::Branch(self_branch) = self.body_ref() else {
             unreachable!();
         };
-        let BodyPtr::Branch(other_branch) = other.body() else {
+        let BodyRef::Branch(other_branch) = other.body_ref() else {
             unreachable!();
         };
 
-        unsafe {
-            let mut intersected_children = self_branch
-                .as_ref()
-                .child_table
-                .iter()
-                .filter_map(Option::as_ref)
-                .filter_map(|self_child| {
-                    let other_child = other_branch
-                        .as_ref()
-                        .child_table
-                        .table_get(self_child.key())?;
-                    self_child.intersect(other_child, self_depth)
-                });
+        let mut intersected_children = self_branch
+            .child_table
+            .iter()
+            .filter_map(Option::as_ref)
+            .filter_map(|self_child| {
+                let other_child = other_branch.child_table.table_get(self_child.key())?;
+                self_child.intersect(other_child, self_depth)
+            });
             let first_child = intersected_children.next()?;
             let Some(second_child) = intersected_children.next() else {
                 return Some(first_child);
             };
-            let mut new_branch = Branch::new(
+            let new_branch = Branch::new(
                 self_depth,
                 first_child.with_start(self_depth),
                 second_child.with_start(self_depth),
             );
-            for child in intersected_children {
-                new_branch = Branch::insert_child(new_branch, child.with_start(self_depth));
+            // Use a BranchMut editor to perform all child insertions via the
+            // safe editor API instead of manipulating the NonNull pointer
+            // directly. The editor will perform COW and commit the final
+            // pointer into the Head when it is dropped.
+            let mut head_for_branch = Head::new(0, new_branch);
+            {
+                let mut ed = crate::patch::branch::BranchMut::from_head(&mut head_for_branch);
+                for child in intersected_children {
+                    let inserted = child.with_start(self_depth);
+                    let k = inserted.key();
+                    ed.modify_child(k, |_opt| Some(inserted));
+                }
+                // ed dropped here commits the final branch pointer into head_for_branch
             }
-            // The key will be set later, because we don't know it yet.
-            // The intersection might remove multiple levels of branches,
-            // so we can't just take the key from self or other.
-            Some(Head::new(0, new_branch))
-        }
+            Some(head_for_branch)
     }
 
     /// Returns the difference between self and other.
     /// This is the set of elements that are in self but not in other.
     /// If the difference is empty, None is returned.
     pub(crate) fn difference(&self, other: &Self, at_depth: usize) -> Option<Self> {
-        let self_hash = self.hash();
-        let other_hash = other.hash();
-        if self_hash == other_hash {
+        if self.hash() == other.hash() {
             return None;
         }
-        let self_depth = self.end_depth();
-        let other_depth = other.end_depth();
 
-        let self_key = self.childleaf_key();
-        let other_key = other.childleaf_key();
-        for depth in at_depth..std::cmp::min(self_depth, other_depth) {
-            let i = O::TREE_TO_KEY[depth];
-            if self_key[i] != other_key[i] {
-                return Some(self.clone());
-            }
+        if self.first_divergence(other, at_depth).is_some() {
+            return Some(self.clone());
         }
 
+        let self_depth = self.end_depth();
+        let other_depth = other.end_depth();
         if self_depth < other_depth {
             // This means that there can be at most one child in self
             // that might intersect with other. It's the only child that may not be in the difference.
@@ -834,13 +849,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
             // that might intersect with other, copy self with it's correctly filled byte table, then
             // remove the old child, and insert the new child.
             let mut new_branch = self.clone();
-            let BodyPtr::Branch(branch) = new_branch.body_mut() else {
-                unreachable!();
-            };
             let other_byte_key = other.childleaf_key()[O::TREE_TO_KEY[self_depth]];
-            Branch::update_child(branch, other_byte_key, |child| {
-                child.difference(other, self_depth)
-            });
+            {
+                let mut ed = crate::patch::branch::BranchMut::from_head(&mut new_branch);
+                ed.modify_child(other_byte_key, |opt| opt.and_then(|child| child.difference(other, self_depth)));
+            }
             return Some(new_branch);
         }
 
@@ -851,14 +864,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
             // If there is such a child, then we have to compute the difference
             // between self and that child.
             // We know that other must be a branch.
-            let BodyPtr::Branch(other_branch) = other.body() else {
+            let BodyRef::Branch(other_branch) = other.body_ref() else {
                 unreachable!();
             };
             let self_byte_key = self.childleaf_key()[O::TREE_TO_KEY[other_depth]];
-
-            if let Some(other_child) =
-                unsafe { other_branch.as_ref().child_table.table_get(self_byte_key) }
-            {
+            if let Some(other_child) = other_branch.child_table.table_get(self_byte_key) {
                 return self.difference(other_child, at_depth);
             } else {
                 return Some(self.clone());
@@ -870,47 +880,50 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
         // and by the key check if they are not equal.
         // If one of them is a leaf and the other is a branch, then they would also have different depths,
         // which is already handled by the above code.
-        let BodyPtr::Branch(self_branch) = self.body() else {
+        let BodyRef::Branch(self_branch) = self.body_ref() else {
             unreachable!();
         };
-        let BodyPtr::Branch(other_branch) = other.body() else {
+        let BodyRef::Branch(other_branch) = other.body_ref() else {
             unreachable!();
         };
 
-        unsafe {
-            let mut differenced_children = self_branch
-                .as_ref()
-                .child_table
-                .iter()
-                .filter_map(Option::as_ref)
-                .filter_map(|self_child| {
-                    if let Some(other_child) = other_branch
-                        .as_ref()
-                        .child_table
-                        .table_get(self_child.key())
-                    {
-                        self_child.difference(other_child, self_depth)
-                    } else {
-                        Some(self_child.clone())
-                    }
-                });
-            let first_child = differenced_children.next()?;
-            let Some(second_child) = differenced_children.next() else {
-                return Some(first_child);
-            };
-            let mut new_branch = Branch::new(
-                self_depth,
-                first_child.with_start(self_depth),
-                second_child.with_start(self_depth),
-            );
+        let mut differenced_children = self_branch
+            .child_table
+            .iter()
+            .filter_map(Option::as_ref)
+            .filter_map(|self_child| {
+                if let Some(other_child) = other_branch.child_table.table_get(self_child.key()) {
+                    self_child.difference(other_child, self_depth)
+                } else {
+                    Some(self_child.clone())
+                }
+            });
+
+        let first_child = differenced_children.next()?;
+        let second_child = match differenced_children.next() {
+            Some(sc) => sc,
+            None => return Some(first_child),
+        };
+
+        let new_branch = Branch::new(
+            self_depth,
+            first_child.with_start(self_depth),
+            second_child.with_start(self_depth),
+        );
+        let mut head_for_branch = Head::new(0, new_branch);
+        {
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut head_for_branch);
             for child in differenced_children {
-                new_branch = Branch::insert_child(new_branch, child.with_start(self_depth));
+                let inserted = child.with_start(self_depth);
+                let k = inserted.key();
+                ed.modify_child(k, |_opt| Some(inserted));
             }
-            // The key will be set later, because we don't know it yet.
-            // The difference might remove multiple levels of branches,
-            // so we can't just take the key from self or other.
-            Some(Head::new(0, new_branch))
+            // ed dropped here commits the final branch pointer into head_for_branch
         }
+        // The key will be set later, because we don't know it yet.
+        // The difference might remove multiple levels of branches,
+        // so we can't just take the key from self or other.
+        Some(head_for_branch)
     }
 }
 
@@ -936,6 +949,10 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Clone for Head<KEY_LEN, O, 
         }
     }
 }
+
+// The Slot wrapper was removed in favor of using BranchMut::from_slot(&mut
+// Option<Head<...>>) directly. This keeps the API surface smaller and
+// avoids an extra helper type that simply forwarded to BranchMut.
 
 impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Drop for Head<KEY_LEN, O, V> {
     fn drop(&mut self) {
@@ -1009,7 +1026,9 @@ where
     /// If the key is already present, this is a no-op.
     pub fn insert(&mut self, entry: &Entry<KEY_LEN, V>) {
         if self.root.is_some() {
-            Head::insert_leaf(&mut self.root, entry.leaf(), 0);
+            let this = self.root.take().expect("root should not be empty");
+            let new_head = Head::insert_leaf(this, entry.leaf(), 0);
+            self.root.replace(new_head);
         } else {
             self.root.replace(entry.leaf());
         }
@@ -1018,7 +1037,9 @@ where
     /// Inserts a key into the PATCH, replacing the value if it already exists.
     pub fn replace(&mut self, entry: &Entry<KEY_LEN, V>) {
         if self.root.is_some() {
-            Head::replace_leaf(&mut self.root, entry.leaf(), 0);
+            let this = self.root.take().expect("root should not be empty");
+            let new_head = Head::replace_leaf(this, entry.leaf(), 0);
+            self.root.replace(new_head);
         } else {
             self.root.replace(entry.leaf());
         }
@@ -1038,6 +1059,11 @@ where
         } else {
             0
         }
+    }
+
+    /// Returns true if the PATCH contains no keys.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Returns the value associated with `key` if present.
@@ -1068,17 +1094,12 @@ where
         const {
             assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
         }
-        assert!(
-            <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS[O::TREE_TO_KEY[PREFIX_LEN]]
-                == <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
-                    [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
-                && (PREFIX_LEN + INFIX_LEN == KEY_LEN
-                    || <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
-                        [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN - 1]]
-                        != <O as KeySchema<KEY_LEN>>::Segmentation::SEGMENTS
-                            [O::TREE_TO_KEY[PREFIX_LEN + INFIX_LEN]]),
-            "INFIX_LEN must cover a whole segment"
-        );
+            assert!(
+                O::same_segment_tree(PREFIX_LEN, PREFIX_LEN + INFIX_LEN - 1)
+                    && (PREFIX_LEN + INFIX_LEN == KEY_LEN
+                        || !O::same_segment_tree(PREFIX_LEN + INFIX_LEN - 1, PREFIX_LEN + INFIX_LEN)),
+                "INFIX_LEN must cover a whole segment"
+            );
         if let Some(root) = &self.root {
             root.infixes(prefix, 0, &mut for_each);
         }
@@ -1147,7 +1168,9 @@ where
     pub fn union(&mut self, other: Self) {
         if let Some(other) = other.root {
             if self.root.is_some() {
-                Head::union(&mut self.root, other, 0);
+                let this = self.root.take().expect("root should not be empty");
+                let merged = Head::union(this, other, 0);
+                self.root.replace(merged);
             } else {
                 self.root.replace(other);
             }
@@ -1199,10 +1222,9 @@ where
             stack.push(root);
 
             while let Some(head) = stack.pop() {
-                match head.body() {
-                    BodyPtr::Leaf(_) => {}
-                    BodyPtr::Branch(branch) => unsafe {
-                        let b = branch.as_ref();
+                match head.body_ref() {
+                    BodyRef::Leaf(_) => {}
+                    BodyRef::Branch(b) => {
                         let size = b.child_table.len();
                         let idx = size.trailing_zeros() as usize - 1;
                         counts[idx] += 1;
@@ -1210,7 +1232,7 @@ where
                         for child in b.child_table.iter().filter_map(|c| c.as_ref()) {
                             stack.push(child);
                         }
-                    },
+                    }
                 }
             }
         }
@@ -1257,7 +1279,7 @@ pub struct PATCHIterator<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
 }
 
 impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCHIterator<'a, KEY_LEN, O, V> {
-    fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
+    pub fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
         let mut r = PATCHIterator {
             stack: ArrayVec::new(),
             remaining: patch.len().min(usize::MAX as u64) as usize,
@@ -1277,15 +1299,16 @@ impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
         loop {
             if let Some(child) = iter.next() {
                 if let Some(child) = child {
-                    match child.body() {
-                        BodyPtr::Leaf(leaf) => unsafe {
+                    match child.body_ref() {
+                        BodyRef::Leaf(_) => {
                             self.remaining = self.remaining.saturating_sub(1);
-                            return Some(&leaf.as_ref().key);
-                        },
-                        BodyPtr::Branch(branch) => unsafe {
-                            self.stack.push(branch.as_ref().child_table.iter());
+                            // Use the safe accessor on the child reference to obtain the leaf key bytes.
+                            return Some(child.childleaf_key());
+                        }
+                        BodyRef::Branch(branch) => {
+                            self.stack.push(branch.child_table.iter());
                             iter = self.stack.last_mut()?;
-                        },
+                        }
                     }
                 }
             } else {
@@ -1318,31 +1341,134 @@ pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>,
 }
 
 impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCHOrderedIterator<'a, KEY_LEN, O, V> {
-    fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
+    pub fn new(patch: &'a PATCH<KEY_LEN, O, V>) -> Self {
         let mut r = PATCHOrderedIterator {
             stack: Vec::with_capacity(KEY_LEN),
             remaining: patch.len().min(usize::MAX as u64) as usize,
         };
         if let Some(root) = &patch.root {
             r.stack.push(ArrayVec::new());
-            match root.body() {
-                BodyPtr::Leaf(_) => {
+            match root.body_ref() {
+                BodyRef::Leaf(_) => {
                     r.stack[0].push(root);
                 }
-                BodyPtr::Branch(branch) => unsafe {
+                BodyRef::Branch(branch) => {
                     let first_level = &mut r.stack[0];
-                    first_level.extend(
-                        branch
-                            .as_ref()
-                            .child_table
-                            .iter()
-                            .filter_map(|c| c.as_ref()),
-                    );
+                    first_level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
                     first_level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                },
+                }
             }
         }
         r
+    }
+}
+
+// --- Owned consuming iterators ---
+/// Iterator that owns a PATCH and yields keys in key-order. The iterator
+/// consumes the PATCH and stores it on the heap (Box) so it can safely hold
+/// raw pointers into the patch memory while the iterator is moved.
+pub struct PATCHIntoIterator<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    queue: Vec<Head<KEY_LEN, O, V>>,
+    remaining: usize,
+}
+
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCHIntoIterator<KEY_LEN, O, V> {}
+
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator for PATCHIntoIterator<KEY_LEN, O, V> {
+    type Item = [u8; KEY_LEN];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let q = &mut self.queue;
+        while let Some(mut head) = q.pop() {
+            // Match on the mutable body directly. For leaves we can return the
+            // stored key (the array is Copy), for branches we take children out
+            // of the table and push them onto the stack so they are visited
+            // depth-first.
+            match head.body_mut() {
+                BodyMut::Leaf(leaf) => {
+                    self.remaining = self.remaining.saturating_sub(1);
+                    return Some(leaf.key);
+                }
+                BodyMut::Branch(branch) => {
+                    for slot in branch.child_table.iter_mut().rev() {
+                        if let Some(c) = slot.take() {
+                            q.push(c);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+/// Iterator that owns a PATCH and yields keys in tree order.
+pub struct PATCHIntoOrderedIterator<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
+    queue: Vec<Head<KEY_LEN, O, V>>,
+    remaining: usize,
+}
+
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
+    for PATCHIntoOrderedIterator<KEY_LEN, O, V>
+{
+    type Item = [u8; KEY_LEN];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let q = &mut self.queue;
+        while let Some(mut head) = q.pop() {
+            // Match the mutable body directly — we own `head` so calling
+            // `body_mut()` is safe and allows returning the copied leaf key
+            // or mutating the branch child table in-place.
+            match head.body_mut() {
+                BodyMut::Leaf(leaf) => {
+                    self.remaining = self.remaining.saturating_sub(1);
+                    return Some(leaf.key);
+                }
+                BodyMut::Branch(branch) => {
+                    let slice: &mut [Option<Head<KEY_LEN, O, V>>] = &mut branch.child_table;
+                    // Sort children by their byte-key, placing empty slots (None)
+                    // after all occupied slots. Using `sort_unstable_by_key` with
+                    // a simple key projection is clearer than a custom
+                    // comparator; it also avoids allocating temporaries. The
+                    // old comparator manually handled None/Some cases — we
+                    // express that intent directly by sorting on the tuple
+                    // (is_none, key_opt).
+                    slice.sort_unstable_by_key(|opt| (opt.is_none(), opt.as_ref().map(|h| h.key())));
+                    for slot in slice.iter_mut().rev() {
+                        if let Some(c) = slot.take() {
+                            q.push(c);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> IntoIterator for PATCH<KEY_LEN, O, V> {
+    type Item = [u8; KEY_LEN];
+    type IntoIter = PATCHIntoIterator<KEY_LEN, O, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let remaining = self.len().min(usize::MAX as u64) as usize;
+        let mut q = Vec::new();
+        if let Some(root) = self.root {
+            q.push(root);
+        }
+        PATCHIntoIterator { queue: q, remaining }
+    }
+}
+
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCH<KEY_LEN, O, V> {
+    /// Consume and return an iterator that yields keys in tree order.
+    pub fn into_iter_ordered(self) -> PATCHIntoOrderedIterator<KEY_LEN, O, V> {
+        let remaining = self.len().min(usize::MAX as u64) as usize;
+        let mut q = Vec::new();
+        if let Some(root) = self.root {
+            q.push(root);
+        }
+        PATCHIntoOrderedIterator { queue: q, remaining }
     }
 }
 
@@ -1355,23 +1481,17 @@ impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
         let mut level = self.stack.last_mut()?;
         loop {
             if let Some(child) = level.pop() {
-                match child.body() {
-                    BodyPtr::Leaf(leaf) => unsafe {
+                match child.body_ref() {
+                    BodyRef::Leaf(_) => {
                         self.remaining = self.remaining.saturating_sub(1);
-                        return Some(&leaf.as_ref().key);
-                    },
-                    BodyPtr::Branch(branch) => unsafe {
+                        return Some(child.childleaf_key());
+                    }
+                    BodyRef::Branch(branch) => {
                         self.stack.push(ArrayVec::new());
                         level = self.stack.last_mut()?;
-                        level.extend(
-                            branch
-                                .as_ref()
-                                .child_table
-                                .iter()
-                                .filter_map(|c| c.as_ref()),
-                        );
+                        level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
                         level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                    },
+                    }
                 }
             } else {
                 self.stack.pop();
@@ -1422,20 +1542,12 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeySchema<KEY_LEN>, V
             if root.end_depth() >= PREFIX_LEN {
                 r.stack[0].push(root);
             } else {
-                let BodyPtr::Branch(branch) = root.body() else {
+                let BodyRef::Branch(branch) = root.body_ref() else {
                     unreachable!();
                 };
-                unsafe {
-                    let first_level = &mut r.stack[0];
-                    first_level.extend(
-                        branch
-                            .as_ref()
-                            .child_table
-                            .iter()
-                            .filter_map(|c| c.as_ref()),
-                    );
-                    first_level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                }
+                let first_level = &mut r.stack[0];
+                first_level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                first_level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
             }
         }
         r
@@ -1456,21 +1568,13 @@ impl<'a, const KEY_LEN: usize, const PREFIX_LEN: usize, O: KeySchema<KEY_LEN>, V
                     let suffix_count = child.count();
                     return Some((key[0..PREFIX_LEN].try_into().unwrap(), suffix_count));
                 } else {
-                    let BodyPtr::Branch(branch) = child.body() else {
+                    let BodyRef::Branch(branch) = child.body_ref() else {
                         unreachable!();
                     };
-                    unsafe {
-                        self.stack.push(ArrayVec::new());
-                        level = self.stack.last_mut()?;
-                        level.extend(
-                            branch
-                                .as_ref()
-                                .child_table
-                                .iter()
-                                .filter_map(|c| c.as_ref()),
-                        );
-                        level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
-                    }
+                    self.stack.push(ArrayVec::new());
+                    level = self.stack.last_mut()?;
+                    level.extend(branch.child_table.iter().filter_map(|c| c.as_ref()));
+                    level.sort_unstable_by_key(|&k| Reverse(k.key())); // We need to reverse here because we pop from the vec.
                 }
             } else {
                 self.stack.pop();
@@ -1562,6 +1666,88 @@ mod tests {
     }
 
     #[test]
+    fn update_child_refreshes_childleaf_on_replace() {
+        const KEY_SIZE: usize = 4;
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+
+        let key1 = [0u8; KEY_SIZE];
+        let key2 = [1u8; KEY_SIZE];
+        tree.insert(&Entry::with_value(&key1, 1));
+        tree.insert(&Entry::with_value(&key2, 2));
+
+        // Determine which child currently provides the branch childleaf.
+        let root_ref = tree.root.as_ref().expect("root exists");
+        let before_childleaf = *root_ref.childleaf_key();
+
+        // Find the slot key (the byte index used in the branch table) for the child
+        // that currently provides the childleaf.
+        let slot_key = match root_ref.body_ref() {
+            BodyRef::Branch(branch) => branch
+                .child_table
+                .iter()
+                .filter_map(|c| c.as_ref())
+                .find(|c| c.childleaf_key() == &before_childleaf)
+                .expect("child exists")
+                .key(),
+            BodyRef::Leaf(_) => panic!("root should be a branch"),
+        };
+
+        // Replace that child with a new leaf that has a different childleaf key.
+        let new_key = [2u8; KEY_SIZE];
+        {
+            let mut ed = crate::patch::branch::BranchMut::from_slot(&mut tree.root);
+            ed.modify_child(slot_key, |_| Some(Entry::with_value(&new_key, 42).leaf::<IdentitySchema>()));
+            // drop(ed) commits
+        }
+
+        let after = tree.root.as_ref().expect("root exists");
+        assert_eq!(after.childleaf_key(), &new_key);
+    }
+
+    #[test]
+    fn remove_childleaf_updates_branch() {
+        const KEY_SIZE: usize = 4;
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+
+        let key1 = [0u8; KEY_SIZE];
+        let key2 = [1u8; KEY_SIZE];
+        tree.insert(&Entry::with_value(&key1, 1));
+        tree.insert(&Entry::with_value(&key2, 2));
+
+        let childleaf_before = *tree.root.as_ref().unwrap().childleaf_key();
+        // remove the leaf that currently provides the branch.childleaf
+        tree.remove(&childleaf_before);
+
+        // Ensure the removed key is gone and the other key remains and is now the childleaf.
+        let other = if childleaf_before == key1 { key2 } else { key1 };
+        assert_eq!(tree.get(&childleaf_before), None);
+        assert_eq!(tree.get(&other), Some(&2u32));
+        let after_childleaf = tree.root.as_ref().unwrap().childleaf_key();
+        assert_eq!(after_childleaf, &other);
+    }
+
+    #[test]
+    fn remove_collapses_branch_to_single_child() {
+        const KEY_SIZE: usize = 4;
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+
+        let key1 = [0u8; KEY_SIZE];
+        let key2 = [1u8; KEY_SIZE];
+        tree.insert(&Entry::with_value(&key1, 1));
+        tree.insert(&Entry::with_value(&key2, 2));
+
+        // Remove one key and ensure the root collapses to the remaining child.
+        tree.remove(&key1);
+        assert_eq!(tree.get(&key1), None);
+        assert_eq!(tree.get(&key2), Some(&2u32));
+        let root = tree.root.as_ref().expect("root exists");
+        match root.body_ref() {
+            BodyRef::Leaf(_) => {}
+            BodyRef::Branch(_) => panic!("root should have collapsed to a leaf"),
+        }
+    }
+
+    #[test]
     fn branch_size() {
         assert_eq!(
             mem::size_of::<Branch<64, IdentitySchema, [Option<Head<64, IdentitySchema, ()>>; 2], ()>>(
@@ -1624,6 +1810,12 @@ mod tests {
         left.union(right);
         assert_eq!(left.len(), 2);
     }
+
+    // Small unit tests that ensure BranchMut-based editing is used by
+    // the higher-level set operations like intersect/difference. These are
+    // ordinary unit tests (not proptest) and must appear outside the
+    // `proptest!` macro below.
+    
 
     proptest! {
         #[test]
@@ -1758,8 +1950,8 @@ mod tests {
         // We should check if a tree remains the same after a clone of it
         // is modified by inserting new keys.
 
-        #[test]
-        fn cow_on_insert(base_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024),
+    #[test]
+    fn cow_on_insert(base_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024),
                          new_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024)) {
             // Note that we can't compare the trees directly, as that uses the hash,
             // which might not be affected by nodes in lower levels being changed accidentally.
@@ -1785,7 +1977,7 @@ mod tests {
         }
 
         #[test]
-        fn cow_on_union(base_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024),
+    fn cow_on_union(base_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024),
                          new_keys in prop::collection::vec(prop::collection::vec(0u8..=255, 8), 1..1024)) {
             // Note that we can't compare the trees directly, as that uses the hash,
             // which might not be affected by nodes in lower levels being changed accidentally.
@@ -1811,5 +2003,97 @@ mod tests {
             let new_tree_content: Vec<[u8; 8]> = tree.iter().copied().collect();
             prop_assert_eq!(base_tree_content, new_tree_content);
         }
+    }
+
+    #[test]
+    fn intersect_multiple_common_children_commits_branchmut() {
+        const KEY_SIZE: usize = 4;
+        let mut left = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+        let mut right = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+
+        let a = [0u8, 0u8, 0u8, 1u8];
+        let b = [0u8, 0u8, 0u8, 2u8];
+        let c = [0u8, 0u8, 0u8, 3u8];
+        let d = [2u8, 0u8, 0u8, 0u8];
+        let e = [3u8, 0u8, 0u8, 0u8];
+
+        left.insert(&Entry::with_value(&a, 1));
+        left.insert(&Entry::with_value(&b, 2));
+        left.insert(&Entry::with_value(&c, 3));
+        left.insert(&Entry::with_value(&d, 4));
+
+        right.insert(&Entry::with_value(&a, 10));
+        right.insert(&Entry::with_value(&b, 11));
+        right.insert(&Entry::with_value(&c, 12));
+        right.insert(&Entry::with_value(&e, 13));
+
+        let res = left.intersect(&right);
+        // A, B, C are common
+        assert_eq!(res.len(), 3);
+        assert!(res.get(&a).is_some());
+        assert!(res.get(&b).is_some());
+        assert!(res.get(&c).is_some());
+    }
+
+    #[test]
+    fn difference_multiple_children_commits_branchmut() {
+        const KEY_SIZE: usize = 4;
+        let mut left = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+        let mut right = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+
+        let a = [0u8, 0u8, 0u8, 1u8];
+        let b = [0u8, 0u8, 0u8, 2u8];
+        let c = [0u8, 0u8, 0u8, 3u8];
+        let d = [2u8, 0u8, 0u8, 0u8];
+        let e = [3u8, 0u8, 0u8, 0u8];
+
+        left.insert(&Entry::with_value(&a, 1));
+        left.insert(&Entry::with_value(&b, 2));
+        left.insert(&Entry::with_value(&c, 3));
+        left.insert(&Entry::with_value(&d, 4));
+
+        right.insert(&Entry::with_value(&a, 10));
+        right.insert(&Entry::with_value(&b, 11));
+        right.insert(&Entry::with_value(&c, 12));
+        right.insert(&Entry::with_value(&e, 13));
+
+        let res = left.difference(&right);
+        // left only has d
+        assert_eq!(res.len(), 1);
+        assert!(res.get(&d).is_some());
+    }
+
+    #[test]
+    fn slot_edit_branchmut_insert_update() {
+        // Small unit test demonstrating the Slot::edit -> BranchMut insert/update pattern.
+        const KEY_SIZE: usize = 8;
+        let mut tree = PATCH::<KEY_SIZE, IdentitySchema, u32>::new();
+
+        let entry1 = Entry::with_value(&[0u8; KEY_SIZE], 1u32);
+        let entry2 = Entry::with_value(&[1u8; KEY_SIZE], 2u32);
+        tree.insert(&entry1);
+        tree.insert(&entry2);
+        assert_eq!(tree.len(), 2);
+
+        // Edit the root slot in-place using the BranchMut editor.
+        {
+            let mut ed = crate::patch::branch::BranchMut::from_slot(&mut tree.root);
+
+            // Compute the insertion start depth first to avoid borrowing `ed` inside the closure.
+            let start_depth = ed.end_depth as usize;
+            let inserted = Entry::with_value(&[2u8; KEY_SIZE], 3u32)
+                .leaf::<IdentitySchema>()
+                .with_start(start_depth);
+            let key = inserted.key();
+
+            ed.modify_child(key, |opt| match opt {
+                Some(old) => Some(Head::insert_leaf(old, inserted, start_depth)),
+                None => Some(inserted),
+            });
+            // BranchMut is dropped here and commits the updated branch pointer back into the head.
+        }
+
+        assert_eq!(tree.len(), 3);
+        assert_eq!(tree.get(&[2u8; KEY_SIZE]), Some(&3u32));
     }
 }

@@ -414,17 +414,15 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Bring the namespace into scope for attribute initialization.
     attr_tokens.extend(quote! { #[allow(unused_imports)] use #ns as ns; });
     // Counter to create unique identifiers for entity variables.
-    let mut entity_idx = 0usize;
     // Counter and map for unique attribute variables.
     let mut attr_idx = 0usize;
     use std::collections::HashMap;
     let mut attr_map: HashMap<String, Ident> = HashMap::new();
 
     // Expand one block per entity described in the pattern.
-    for entity in pattern {
+    for (entity_idx, entity) in pattern.into_iter().enumerate() {
         // Variable name representing the entity id.
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
-        entity_idx += 1;
         // Initialization depends on whether an id was supplied.
         let init = match entity.id {
             // Existing identifier variable: reuse it directly.
@@ -727,12 +725,10 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     let mut attr_map: HashMap<String, Ident> = HashMap::new();
     let mut attr_idx = 0usize;
-    let mut entity_idx = 0usize;
     let mut value_idx = 0usize;
 
-    for entity in pattern {
+    for (entity_idx, entity) in pattern.into_iter().enumerate() {
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
-        entity_idx += 1;
         match entity.id {
             Some(EntityId::Var(id)) => {
                 entity_decl_tokens.extend(quote! { let #e_ident = #id; });

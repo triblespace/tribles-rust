@@ -17,7 +17,6 @@ pub use hex_literal;
 
 /// Defines a Rust module to represent a namespace, along with convenience macros.
 /// The `namespace` block maps human-readable names to attribute IDs and type schemas.
-
 #[macro_export]
 macro_rules! NS {
     ($($tt:tt)*) => {

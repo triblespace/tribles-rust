@@ -11,11 +11,11 @@
 //! hash(size) = compression(size) • permutation
 //!
 //!  * permutation: domain(hash) → [0 .. |domain|] ⊆ Nat;
-//!   reifies the randomness of the hash as a (read lossless) bijection from the
-//! hash domain to the natural numbers
+//!    reifies the randomness of the hash as a (read lossless) bijection from the
+//!    hash domain to the natural numbers
 //!  * compression: range(permutation) → range(hash);
-//!   which reduces (read lossy) the range of the permutation so that multiple
-//! values of the hashes range are pigeonholed to the same element of its domain
+//!    which reduces (read lossy) the range of the permutation so that multiple
+//!    values of the hashes range are pigeonholed to the same element of its domain
 //!
 //! The compression operation we use truncates the upper (most significant) bits
 //! of the input so that it's range is equal to
@@ -62,8 +62,8 @@ pub fn init() {
         let mut rng = thread_rng();
         let mut bytes: [u8; 256] = [0; 256];
 
-        for i in 0..256 {
-            bytes[i] = i as u8;
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = i as u8;
         }
 
         bytes.shuffle(&mut rng);
@@ -80,8 +80,11 @@ pub fn init() {
 
 /// Types must implement this trait in order to be storable in the byte table.
 ///
-/// The trait is `unsafe` because you must ensure that `key()` returns `None` iff
-/// the memory of the type is `mem::zeroed()`.
+/// # Safety
+///
+/// Implementors must ensure that `key()` returns `None` iff the memory of the
+/// type is `mem::zeroed()`. Failure to uphold this contract may lead to
+/// incorrect behavior when entries are inserted into the table.
 pub unsafe trait ByteEntry {
     fn key(&self) -> u8;
 }
@@ -90,7 +93,7 @@ pub unsafe trait ByteEntry {
 /// `BUCKET_ENTRY_COUNT` elements to share the same colliding hash values.
 /// Buckets are laid out implicitly in a flat slice so bucket operations simply
 /// compute offsets into the table rather than delegating to a trait.
-
+///
 /// A cheap hash *cough* identity *cough* function that maps every entry to an
 /// almost linear ordering (modulo `BUCKET_ENTRY_COUNT`) when maximally grown.
 #[inline]

@@ -23,7 +23,7 @@ where
     map: R,
 }
 
-impl<'a, S: ValueSchema, R, K, V> KeysConstraint<S, R, K, V>
+impl<S: ValueSchema, R, K, V> KeysConstraint<S, R, K, V>
 where
     R: Deref<Target = HashMap<K, V>>,
 {

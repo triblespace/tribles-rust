@@ -811,22 +811,22 @@ impl<H: HashProtocol> BlobStoreList<H> for PileReader<H> {
 
 /// Iterator over branch ids stored in the pile's PATCH, using the PATCH's
 /// built-in key iterator to avoid allocating a full Vec of ids.
-pub struct PileBranchStoreIter {
-    inner: std::vec::IntoIter<RawId>,
+pub struct PileBranchStoreIter<H: HashProtocol> {
+    inner: crate::patch::PATCHIntoOrderedIterator<16, IdentitySchema, Value<Handle<H, SimpleArchive>>>,
     applied_length: usize,
 }
 
-impl Iterator for PileBranchStoreIter {
+impl<H: HashProtocol> Iterator for PileBranchStoreIter<H> {
     type Item = Result<Id, ReadError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let raw = self.inner.next()?;
-        match Id::new(raw) {
-            Some(id) => Some(Ok(id)),
-            None => Some(Err(ReadError::CorruptPile {
-                valid_length: self.applied_length,
-            })),
-        }
+        // The owned ordered iterator yields key arrays ([u8; 16]) by value.
+        // The `apply_next` path guarantees that a nil (all-zero) branch id
+        // is never inserted into the PATCH; therefore we can safely `expect`
+        // a valid `Id` here and treat a nil id as an invariant violation.
+        let key = self.inner.next()?;
+        let id = Id::new(key).expect("nil branch id inserted into patch");
+        Some(Ok(id))
     }
 }
 
@@ -930,22 +930,19 @@ where
     type HeadError = ReadError;
     type UpdateError = UpdateBranchError;
 
-    type ListIter<'a> = PileBranchStoreIter;
+    type ListIter<'a> = PileBranchStoreIter<H>;
 
     fn branches<'a>(&'a mut self) -> Result<Self::ListIter<'a>, Self::BranchesError> {
         // Ensure newly appended records are applied before enumerating
         // branches so external writers are visible to callers.
         self.refresh()?;
-        // Collect keys into an owned vector so the iterator does not borrow from
-        // `self.branches` and callers may call back into `self` mutably if
-        // needed.
-        let mut keys: Vec<RawId> = Vec::new();
-        let iter = self.branches.iter_ordered();
-        for k in iter {
-            keys.push(*k);
-        }
+        // Create an owned ordered iterator from the PATCH clone so the
+        // returned iterator does not borrow from `self.branches`. This avoids
+        // allocating a temporary Vec of ids while preserving tree-order.
+        let cloned = self.branches.clone();
+        let inner = cloned.into_iter_ordered();
         Ok(PileBranchStoreIter {
-            inner: keys.into_iter(),
+            inner,
             applied_length: self.applied_length,
         })
     }

@@ -99,7 +99,8 @@ impl<const KEY_LEN: usize, V> Leaf<KEY_LEN, V> {
             return;
         }
 
-        let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| self.key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
+        let infix: [u8; INFIX_LEN] =
+            core::array::from_fn(|i| self.key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
         f(&infix);
     }
 
@@ -113,8 +114,11 @@ impl<const KEY_LEN: usize, V> Leaf<KEY_LEN, V> {
         true
     }
 
-    pub fn get<'a, O: KeySchema<KEY_LEN> + 'a>(&'a self, at_depth: usize, key: &[u8; KEY_LEN]) -> Option<&'a V>
-    {
+    pub fn get<'a, O: KeySchema<KEY_LEN> + 'a>(
+        &'a self,
+        at_depth: usize,
+        key: &[u8; KEY_LEN],
+    ) -> Option<&'a V> {
         let limit = KEY_LEN;
         for (depth, &kbyte) in key.iter().enumerate().take(limit).skip(at_depth) {
             let idx = O::TREE_TO_KEY[depth];
@@ -125,7 +129,11 @@ impl<const KEY_LEN: usize, V> Leaf<KEY_LEN, V> {
         Some(&self.value)
     }
 
-    pub fn segmented_len<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(&self, at_depth: usize, prefix: &[u8; PREFIX_LEN]) -> u64 {
+    pub fn segmented_len<O: KeySchema<KEY_LEN>, const PREFIX_LEN: usize>(
+        &self,
+        at_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
+    ) -> u64 {
         let limit = PREFIX_LEN;
         for (depth, &p) in prefix.iter().enumerate().take(limit).skip(at_depth) {
             let key_depth = O::TREE_TO_KEY[depth];

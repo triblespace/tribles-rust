@@ -265,7 +265,7 @@ impl<const KEY_LEN: usize> KeySegmentation<KEY_LEN> for SingleSegmentation {
     const SEGMENTS: [usize; KEY_LEN] = [0; KEY_LEN];
 }
 
- #[allow(dead_code)]
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u8)]
 pub(crate) enum HeadTag {
@@ -477,7 +477,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     /// natural bound for comparing two heads. Returns `Some((depth, a, b))`
     /// where `a` and `b` are the differing bytes at that depth, or `None`
     /// if no divergence is found in the range.
-    pub(crate) fn first_divergence(&self, other: &Self, start_depth: usize) -> Option<(usize, u8, u8)> {
+    pub(crate) fn first_divergence(
+        &self,
+        other: &Self,
+        start_depth: usize,
+    ) -> Option<(usize, u8, u8)> {
         let limit = std::cmp::min(std::cmp::min(self.end_depth(), other.end_depth()), KEY_LEN);
         debug_assert!(limit <= KEY_LEN);
         let this_key = self.childleaf_key();
@@ -567,7 +571,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     // modification. They are used with the split `insert_child` /
     // `update_child` APIs so we no longer need `Branch::upsert_child`.
     pub(crate) fn insert_leaf(mut this: Self, leaf: Self, start_depth: usize) -> Self {
-        if let Some((depth, this_byte_key, leaf_byte_key)) = this.first_divergence(&leaf, start_depth)
+        if let Some((depth, this_byte_key, leaf_byte_key)) =
+            this.first_divergence(&leaf, start_depth)
         {
             let old_key = this.key();
             let new_body = Branch::new(
@@ -594,7 +599,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     }
 
     pub(crate) fn replace_leaf(mut this: Self, leaf: Self, start_depth: usize) -> Self {
-        if let Some((depth, this_byte_key, leaf_byte_key)) = this.first_divergence(&leaf, start_depth)
+        if let Some((depth, this_byte_key, leaf_byte_key)) =
+            this.first_divergence(&leaf, start_depth)
         {
             let old_key = this.key();
             let new_body = Branch::new(
@@ -628,7 +634,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
             return this;
         }
 
-        if let Some((depth, this_byte_key, other_byte_key)) = this.first_divergence(&other, at_depth)
+        if let Some((depth, this_byte_key, other_byte_key)) =
+            this.first_divergence(&other, at_depth)
         {
             let old_key = this.key();
             let new_body = Branch::new(
@@ -660,12 +667,12 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
             let old_key = this.key();
             let this_head = this;
             let mut ed = crate::patch::branch::BranchMut::from_head(&mut other);
-                let inserted = this_head.with_start(ed.end_depth as usize);
-                let key = inserted.key();
-                ed.modify_child(key, |opt| match opt {
-                    Some(old) => Some(Head::union(old, inserted, other_depth)),
-                    None => Some(inserted),
-                });
+            let inserted = this_head.with_start(ed.end_depth as usize);
+            let key = inserted.key();
+            ed.modify_child(key, |opt| match opt {
+                Some(old) => Some(Head::union(old, inserted, other_depth)),
+                None => Some(inserted),
+            });
             drop(ed);
 
             return other.with_key(old_key);
@@ -681,7 +688,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
             // performs COW up-front and writes the final pointer back into
             // `this` when it is dropped.
             let mut ed = crate::patch::branch::BranchMut::from_head(&mut this);
-            for other_child in other_branch_ref.child_table.iter_mut().filter_map(Option::take) {
+            for other_child in other_branch_ref
+                .child_table
+                .iter_mut()
+                .filter_map(Option::take)
+            {
                 let inserted = other_child.with_start(ed.end_depth as usize);
                 let key = inserted.key();
                 ed.modify_child(key, |opt| match opt {
@@ -703,7 +714,9 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
     {
         match self.body_ref() {
             BodyRef::Leaf(leaf) => leaf.infixes::<PREFIX_LEN, INFIX_LEN, O, F>(prefix, at_depth, f),
-            BodyRef::Branch(branch) => branch.infixes::<PREFIX_LEN, INFIX_LEN, F>(prefix, at_depth, f),
+            BodyRef::Branch(branch) => {
+                branch.infixes::<PREFIX_LEN, INFIX_LEN, F>(prefix, at_depth, f)
+            }
         }
     }
 
@@ -801,30 +814,30 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
                 let other_child = other_branch.child_table.table_get(self_child.key())?;
                 self_child.intersect(other_child, self_depth)
             });
-            let first_child = intersected_children.next()?;
-            let Some(second_child) = intersected_children.next() else {
-                return Some(first_child);
-            };
-            let new_branch = Branch::new(
-                self_depth,
-                first_child.with_start(self_depth),
-                second_child.with_start(self_depth),
-            );
-            // Use a BranchMut editor to perform all child insertions via the
-            // safe editor API instead of manipulating the NonNull pointer
-            // directly. The editor will perform COW and commit the final
-            // pointer into the Head when it is dropped.
-            let mut head_for_branch = Head::new(0, new_branch);
-            {
-                let mut ed = crate::patch::branch::BranchMut::from_head(&mut head_for_branch);
-                for child in intersected_children {
-                    let inserted = child.with_start(self_depth);
-                    let k = inserted.key();
-                    ed.modify_child(k, |_opt| Some(inserted));
-                }
-                // ed dropped here commits the final branch pointer into head_for_branch
+        let first_child = intersected_children.next()?;
+        let Some(second_child) = intersected_children.next() else {
+            return Some(first_child);
+        };
+        let new_branch = Branch::new(
+            self_depth,
+            first_child.with_start(self_depth),
+            second_child.with_start(self_depth),
+        );
+        // Use a BranchMut editor to perform all child insertions via the
+        // safe editor API instead of manipulating the NonNull pointer
+        // directly. The editor will perform COW and commit the final
+        // pointer into the Head when it is dropped.
+        let mut head_for_branch = Head::new(0, new_branch);
+        {
+            let mut ed = crate::patch::branch::BranchMut::from_head(&mut head_for_branch);
+            for child in intersected_children {
+                let inserted = child.with_start(self_depth);
+                let k = inserted.key();
+                ed.modify_child(k, |_opt| Some(inserted));
             }
-            Some(head_for_branch)
+            // ed dropped here commits the final branch pointer into head_for_branch
+        }
+        Some(head_for_branch)
     }
 
     /// Returns the difference between self and other.
@@ -852,7 +865,9 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Head<KEY_LEN, O, V> {
             let other_byte_key = other.childleaf_key()[O::TREE_TO_KEY[self_depth]];
             {
                 let mut ed = crate::patch::branch::BranchMut::from_head(&mut new_branch);
-                ed.modify_child(other_byte_key, |opt| opt.and_then(|child| child.difference(other, self_depth)));
+                ed.modify_child(other_byte_key, |opt| {
+                    opt.and_then(|child| child.difference(other, self_depth))
+                });
             }
             return Some(new_branch);
         }
@@ -1094,12 +1109,12 @@ where
         const {
             assert!(PREFIX_LEN + INFIX_LEN <= KEY_LEN);
         }
-            assert!(
-                O::same_segment_tree(PREFIX_LEN, PREFIX_LEN + INFIX_LEN - 1)
-                    && (PREFIX_LEN + INFIX_LEN == KEY_LEN
-                        || !O::same_segment_tree(PREFIX_LEN + INFIX_LEN - 1, PREFIX_LEN + INFIX_LEN)),
-                "INFIX_LEN must cover a whole segment"
-            );
+        assert!(
+            O::same_segment_tree(PREFIX_LEN, PREFIX_LEN + INFIX_LEN - 1)
+                && (PREFIX_LEN + INFIX_LEN == KEY_LEN
+                    || !O::same_segment_tree(PREFIX_LEN + INFIX_LEN - 1, PREFIX_LEN + INFIX_LEN)),
+            "INFIX_LEN must cover a whole segment"
+        );
         if let Some(root) = &self.root {
             root.infixes(prefix, 0, &mut for_each);
         }
@@ -1433,7 +1448,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator
                     // old comparator manually handled None/Some cases — we
                     // express that intent directly by sorting on the tuple
                     // (is_none, key_opt).
-                    slice.sort_unstable_by_key(|opt| (opt.is_none(), opt.as_ref().map(|h| h.key())));
+                    slice
+                        .sort_unstable_by_key(|opt| (opt.is_none(), opt.as_ref().map(|h| h.key())));
                     for slot in slice.iter_mut().rev() {
                         if let Some(c) = slot.take() {
                             q.push(c);
@@ -1456,7 +1472,10 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> IntoIterator for PATCH<KEY_
         if let Some(root) = self.root {
             q.push(root);
         }
-        PATCHIntoIterator { queue: q, remaining }
+        PATCHIntoIterator {
+            queue: q,
+            remaining,
+        }
     }
 }
 
@@ -1468,7 +1487,10 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCH<KEY_LEN, O, V> {
         if let Some(root) = self.root {
             q.push(root);
         }
-        PATCHIntoOrderedIterator { queue: q, remaining }
+        PATCHIntoOrderedIterator {
+            queue: q,
+            remaining,
+        }
     }
 }
 
@@ -1696,7 +1718,9 @@ mod tests {
         let new_key = [2u8; KEY_SIZE];
         {
             let mut ed = crate::patch::branch::BranchMut::from_slot(&mut tree.root);
-            ed.modify_child(slot_key, |_| Some(Entry::with_value(&new_key, 42).leaf::<IdentitySchema>()));
+            ed.modify_child(slot_key, |_| {
+                Some(Entry::with_value(&new_key, 42).leaf::<IdentitySchema>())
+            });
             // drop(ed) commits
         }
 
@@ -1815,7 +1839,6 @@ mod tests {
     // the higher-level set operations like intersect/difference. These are
     // ordinary unit tests (not proptest) and must appear outside the
     // `proptest!` macro below.
-    
 
     proptest! {
         #[test]

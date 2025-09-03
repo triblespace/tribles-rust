@@ -47,7 +47,8 @@ pub struct TribleSet {
     pub aev: PATCH<TRIBLE_LEN, AEVOrder, ()>,
 }
 
-type TribleSetInner<'a> = Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, ()>, fn(&[u8; 64]) -> &Trible>;
+type TribleSetInner<'a> =
+    Map<crate::patch::PATCHIterator<'a, 64, EAVOrder, ()>, fn(&[u8; 64]) -> &Trible>;
 
 pub struct TribleSetIterator<'a> {
     inner: TribleSetInner<'a>,

@@ -1,4 +1,6 @@
-use tribles::patch::{Entry, PATCH, IdentitySchema};
+use tribles::patch::Entry;
+use tribles::patch::IdentitySchema;
+use tribles::patch::PATCH;
 
 #[test]
 fn intersect_multiple_common_children_commits_branchmut_integration() {
@@ -55,4 +57,3 @@ fn difference_multiple_children_commits_branchmut_integration() {
     assert_eq!(res.len(), 1);
     assert!(res.get(&d).is_some());
 }
-

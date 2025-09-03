@@ -7,9 +7,10 @@ use std::alloc::alloc_zeroed;
 use std::alloc::dealloc;
 use std::alloc::handle_alloc_error;
 use std::alloc::Layout;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::ptr::addr_of;
 use std::ptr::addr_of_mut;
-use std::ops::{Deref, DerefMut};
 
 const BRANCH_ALIGN: usize = 16;
 const BRANCH_BASE_SIZE: usize = 48;
@@ -35,19 +36,20 @@ pub(crate) struct BranchMut<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> 
     branch_nn: BranchNN<KEY_LEN, O, V>,
 }
 
-impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
-    BranchMut<'a, KEY_LEN, O, V>
-{
+impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> BranchMut<'a, KEY_LEN, O, V> {
     pub(crate) fn from_head(head: &'a mut Head<KEY_LEN, O, V>) -> Self {
         match head.body_mut() {
             BodyMut::Branch(branch_ref) => {
                 let nn = unsafe { NonNull::new_unchecked(branch_ref as *mut _) };
-                Self { head, branch_nn: nn }
+                Self {
+                    head,
+                    branch_nn: nn,
+                }
             }
             BodyMut::Leaf(_) => panic!("BranchMut requires a Branch body"),
         }
     }
-    
+
     #[allow(dead_code)]
     pub(crate) fn from_slot(slot: &'a mut Option<Head<KEY_LEN, O, V>>) -> Self {
         let head = slot.as_mut().expect("slot should not be empty");
@@ -62,7 +64,6 @@ impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
         // update the pointer in-place.
         Branch::modify_child(&mut self.branch_nn, key, f);
     }
-
 }
 
 impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Deref for BranchMut<'a, KEY_LEN, O, V> {
@@ -101,9 +102,7 @@ pub(crate) struct Branch<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, Table: ?Si
     pub child_table: Table,
 }
 
-impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, Table: ?Sized, V>
-    Branch<KEY_LEN, O, Table, V>
-{
+impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, Table: ?Sized, V> Branch<KEY_LEN, O, Table, V> {
     /// Returns a shared reference to the child leaf referenced by this
     /// branch's `childleaf` pointer. This centralizes the unsafe pointer
     /// dereference in one place so callers can use a safe reference.
@@ -246,8 +245,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
                         .clone_from_slice(&(*branch).child_table);
 
                     Self::rc_dec(NonNull::new_unchecked(branch));
-                *branch_nn = ptr;
-                Some(())
+                    *branch_nn = ptr;
+                    Some(())
                 } else {
                     handle_alloc_error(layout);
                 }
@@ -334,7 +333,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
                     (*branch).hash = ((*branch).hash ^ old_child_hash) ^ new_child.hash();
                     (*branch).segment_count = ((*branch).segment_count - old_child_segment_count)
                         + new_child.count_segment(end_depth);
-                    (*branch).leaf_count = ((*branch).leaf_count - old_child_leaf_count) + new_child.count();
+                    (*branch).leaf_count =
+                        ((*branch).leaf_count - old_child_leaf_count) + new_child.count();
 
                     if replaced_childleaf {
                         (*branch).childleaf = new_child.childleaf_ptr();
@@ -367,7 +367,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
 
                     // Cuckoo insert loop, growing the table when necessary.
                     let mut branch_ptr = branch_nn.as_ptr();
-                    while let Some(new_displaced) = (*branch_ptr).child_table.table_insert(inserted) {
+                    while let Some(new_displaced) = (*branch_ptr).child_table.table_insert(inserted)
+                    {
                         inserted = new_displaced;
                         Self::grow(branch_nn);
                         // Refresh local pointer after potential reallocation.
@@ -418,8 +419,14 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
             }
         }
 
-        debug_assert_eq!(agg_leaf_count, self.leaf_count, "branch.leaf_count mismatch");
-        debug_assert_eq!(agg_segment_count, self.segment_count, "branch.segment_count mismatch");
+        debug_assert_eq!(
+            agg_leaf_count, self.leaf_count,
+            "branch.leaf_count mismatch"
+        );
+        debug_assert_eq!(
+            agg_segment_count, self.segment_count,
+            "branch.segment_count mismatch"
+        );
         debug_assert_eq!(agg_hash, self.hash, "branch.hash mismatch");
 
         // If there are any leaves aggregated in this branch then the
@@ -434,8 +441,12 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
 
     /// Return true if this branch's childleaf key matches the provided
     /// `prefix` for all tree-ordered bytes in [at_depth, PREFIX_LEN).
-    pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(&self, prefix: &[u8; PREFIX_LEN], at_depth: usize, f: &mut F)
-    where
+    pub fn infixes<const PREFIX_LEN: usize, const INFIX_LEN: usize, F>(
+        &self,
+        prefix: &[u8; PREFIX_LEN],
+        at_depth: usize,
+        f: &mut F,
+    ) where
         F: FnMut(&[u8; INFIX_LEN]),
     {
         // Early-prune: if the branch's representative childleaf doesn't match
@@ -452,9 +463,8 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
 
         // The infix ends within the current node.
         if PREFIX_LEN + INFIX_LEN <= node_end_depth {
-            let infix: [u8; INFIX_LEN] = core::array::from_fn(|i| {
-                self.childleaf().key[O::TREE_TO_KEY[PREFIX_LEN + i]]
-            });
+            let infix: [u8; INFIX_LEN] =
+                core::array::from_fn(|i| self.childleaf().key[O::TREE_TO_KEY[PREFIX_LEN + i]]);
             f(&infix);
             return;
         }
@@ -472,7 +482,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
         }
     }
 
-    pub fn has_prefix<const PREFIX_LEN: usize>(&self, at_depth: usize, prefix: &[u8; PREFIX_LEN]) -> bool {
+    pub fn has_prefix<const PREFIX_LEN: usize>(
+        &self,
+        at_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
+    ) -> bool {
         const {
             assert!(PREFIX_LEN <= KEY_LEN);
         }
@@ -512,7 +526,11 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V>
         None
     }
 
-    pub fn segmented_len<const PREFIX_LEN: usize>(&self, at_depth: usize, prefix: &[u8; PREFIX_LEN]) -> u64 {
+    pub fn segmented_len<const PREFIX_LEN: usize>(
+        &self,
+        at_depth: usize,
+        prefix: &[u8; PREFIX_LEN],
+    ) -> u64 {
         let node_end_depth = self.end_depth as usize;
         let limit = std::cmp::min(PREFIX_LEN, node_end_depth);
         if !self.childleaf().has_prefix::<O>(at_depth, &prefix[..limit]) {

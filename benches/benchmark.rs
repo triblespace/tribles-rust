@@ -229,14 +229,14 @@ fn archive_benchmark(c: &mut Criterion) {
             (0..i).for_each(|_| {
                 let author = owner.defer_insert(fucid());
                 let book = owner.defer_insert(fucid());
-                set += literature::entity!(&author, {
-                    firstname: FirstName(EN).fake::<String>(),
-                    lastname: LastName(EN).fake::<String>(),
+                set += crate::entity!(&author, {
+                    literature::firstname: FirstName(EN).fake::<String>(),
+                    literature::lastname: LastName(EN).fake::<String>(),
                 });
-                set += literature::entity!(&book, {
-                    author: &author,
-                    title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                set += crate::entity!(&book, {
+                    literature::author: &author,
+                    literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                 });
             });
             b.iter(|| {
@@ -256,14 +256,14 @@ fn archive_benchmark(c: &mut Criterion) {
                 (0..i).for_each(|_| {
                     let author = owner.defer_insert(fucid());
                     let book = owner.defer_insert(fucid());
-                    set += literature::entity!(&author, {
-                        firstname: FirstName(EN).fake::<String>(),
-                        lastname: LastName(EN).fake::<String>(),
+                    set += crate::entity!(&author, {
+                        literature::firstname: FirstName(EN).fake::<String>(),
+                        literature::lastname: LastName(EN).fake::<String>(),
                     });
-                    set += literature::entity!(&book, {
-                        author: &author,
-                        title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                    set += crate::entity!(&book, {
+                        literature::author: &author,
+                        literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
                 let archive: Blob<SimpleArchive> = SimpleArchive::blob_from(&set);
@@ -285,14 +285,14 @@ fn archive_benchmark(c: &mut Criterion) {
                 (0..i).for_each(|_| {
                     let author = owner.defer_insert(fucid());
                     let book = owner.defer_insert(fucid());
-                    set += literature::entity!(&author, {
-                        firstname: FirstName(EN).fake::<String>(),
-                        lastname: LastName(EN).fake::<String>(),
+                    set += crate::entity!(&author, {
+                        literature::firstname: FirstName(EN).fake::<String>(),
+                        literature::lastname: LastName(EN).fake::<String>(),
                     });
-                    set += literature::entity!(&book, {
-                        author: &author,
-                        title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                    set += crate::entity!(&book, {
+                        literature::author: &author,
+                        literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
                 b.iter(|| {
@@ -348,14 +348,14 @@ fn archive_benchmark(c: &mut Criterion) {
                 (0..i).for_each(|_| {
                     let author = owner.defer_insert(fucid());
                     let book = owner.defer_insert(fucid());
-                    set += literature::entity!(&author, {
-                        firstname: FirstName(EN).fake::<String>(),
-                        lastname: LastName(EN).fake::<String>(),
+                    set += crate::entity!(&author, {
+                        literature::firstname: FirstName(EN).fake::<String>(),
+                        literature::lastname: LastName(EN).fake::<String>(),
                     });
-                    set += literature::entity!(&book, {
-                        author: &author,
-                        title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                    set += crate::entity!(&book, {
+                        literature::author: &author,
+                        literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                     });
                 });
                 let archive: SuccinctArchive<UNIVERSE> = (&set).into();
@@ -449,14 +449,14 @@ fn entities_benchmark(c: &mut Criterion) {
             {
                 let author = owner.defer_insert(fucid());
                 let book = owner.defer_insert(fucid());
-                kb += literature::entity!(&author, {
-                    firstname: FirstName(EN).fake::<String>(),
-                    lastname: LastName(EN).fake::<String>(),
+                kb += crate::entity!(&author, {
+                    literature::firstname: FirstName(EN).fake::<String>(),
+                    literature::lastname: LastName(EN).fake::<String>(),
                 });
-                kb += literature::entity!(&book, {
-                    author: &author,
-                    title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                kb += crate::entity!(&book, {
+                    literature::author: &author,
+                    literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                 });
             }
             (kb, owner)
@@ -474,14 +474,14 @@ fn entities_benchmark(c: &mut Criterion) {
                         let author = owner.defer_insert(fucid());
                         let book = owner.defer_insert(fucid());
                         [
-                            literature::entity!(&author, {
-                                firstname: FirstName(EN).fake::<String>(),
-                                lastname: LastName(EN).fake::<String>(),
+                            crate::entity!(&author, {
+                                literature::firstname: FirstName(EN).fake::<String>(),
+                                literature::lastname: LastName(EN).fake::<String>(),
                             }),
-                            literature::entity!(&book, {
-                                author: &author,
-                                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                            crate::entity!(&book, {
+                                literature::author: &author,
+                                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                                literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                             }),
                         ]
                     })
@@ -502,14 +502,14 @@ fn entities_benchmark(c: &mut Criterion) {
                     let book = owner.defer_insert(fucid());
 
                     [
-                        literature::entity!(&author, {
-                            firstname: FirstName(EN).fake::<String>(),
-                            lastname: LastName(EN).fake::<String>(),
+                        crate::entity!(&author, {
+                            literature::firstname: FirstName(EN).fake::<String>(),
+                            literature::lastname: LastName(EN).fake::<String>(),
                         }),
-                        literature::entity!(&book, {
-                            author: &author,
-                            title: Words(1..3).fake::<Vec<String>>().join(" "),
-                            quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                        crate::entity!(&book, {
+                            literature::author: &author,
+                            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                            literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                         }),
                     ]
                 })
@@ -537,14 +537,14 @@ fn entities_benchmark(c: &mut Criterion) {
                         let book = owner.defer_insert(fucid());
 
                         [
-                            literature::entity!(&author, {
-                                firstname: FirstName(EN).fake::<String>(),
-                                lastname: LastName(EN).fake::<String>(),
+                            crate::entity!(&author, {
+                                literature::firstname: FirstName(EN).fake::<String>(),
+                                literature::lastname: LastName(EN).fake::<String>(),
                             }),
-                            literature::entity!(&book, {
-                                author: &author,
-                                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                            crate::entity!(&book, {
+                                literature::author: &author,
+                                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                                literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                             }),
                         ]
                     })
@@ -570,14 +570,14 @@ fn entities_benchmark(c: &mut Criterion) {
                                 let author = owner.defer_insert(fucid());
                                 let book = owner.defer_insert(fucid());
                                 [
-                                    literature::entity!(&author, {
-                                        firstname: FirstName(EN).fake::<String>(),
-                                        lastname: LastName(EN).fake::<String>(),
+                                    crate::entity!(&author, {
+                                        literature::firstname: FirstName(EN).fake::<String>(),
+                                        literature::lastname: LastName(EN).fake::<String>(),
                                     }),
-                                    literature::entity!(&book, {
-                                        author: &author,
-                                        title: Words(1..3).fake::<Vec<String>>().join(" "),
-                                        quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+                                    crate::entity!(&book, {
+                                        literature::author: &author,
+                                        literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                                        literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
                                     }),
                                 ]
                             })
@@ -605,27 +605,27 @@ fn query_benchmark(c: &mut Criterion) {
     (0..1000000).for_each(|_| {
         let author = owner.defer_insert(fucid());
         let book = owner.defer_insert(fucid());
-        kb += literature::entity!(&author, {
-            firstname: FirstName(EN).fake::<String>(),
-            lastname: LastName(EN).fake::<String>(),
+        kb += crate::entity!(&author, {
+            literature::firstname: FirstName(EN).fake::<String>(),
+            literature::lastname: LastName(EN).fake::<String>(),
         });
-        kb += literature::entity!(&book, {
-            author: &author,
-            title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+        kb += crate::entity!(&book, {
+            literature::author: &author,
+            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+            literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
         });
     });
 
     let author = owner.defer_insert(fucid());
     let book = owner.defer_insert(fucid());
-    kb += literature::entity!(&author, {
-        firstname: "Frank",
-        lastname: "Herbert",
+    kb += crate::entity!(&author, {
+        literature::firstname: "Frank",
+        literature::lastname: "Herbert",
     });
-    kb += literature::entity!(&book, {
-        author: &author,
-        title: "Dune",
-        quote: "I must not fear. Fear is the \
+    kb += crate::entity!(&book, {
+        literature::author: &author,
+        literature::title: "Dune",
+        literature::quote: "I must not fear. Fear is the \
                 mind-killer. Fear is the little-death that brings total \
                 obliteration. I will face my fear. I will permit it to \
                 pass over me and through me. And when it has gone past I \
@@ -636,14 +636,14 @@ fn query_benchmark(c: &mut Criterion) {
     (0..1000).for_each(|_| {
         let author = owner.defer_insert(fucid());
         let book = owner.defer_insert(fucid());
-        kb += literature::entity!(&author, {
-            firstname: "Fake",
-            lastname: "Herbert",
+        kb += crate::entity!(&author, {
+            literature::firstname: "Fake",
+            literature::lastname: "Herbert",
         });
-        kb += literature::entity!(&book, {
-            author: &author,
-            title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+        kb += crate::entity!(&book, {
+            literature::author: &author,
+            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+            literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
         });
     });
 
@@ -652,13 +652,13 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
             (author: Value<_>, title: Value<_>, quote: Value<_>),
-            literature::pattern!(&kb, [
+            crate::pattern!(&kb, [
             {author @
-                firstname: ("Frank"),
-                lastname: ("Herbert")},
-            { author: author,
-              title: title,
-              quote: quote
+                literature::firstname: ("Frank"),
+                literature::lastname: ("Herbert")},
+            { literature::author: author,
+              literature::title: title,
+              literature::quote: quote
             }]))
             .count()
         })
@@ -669,13 +669,13 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
             (author: Value<_>, title: Value<_>, quote: Value<_>),
-            literature::pattern!(&kb, [
+            crate::pattern!(&kb, [
             {author @
-                firstname: (black_box("Fake")),
-                lastname: (black_box("Herbert"))},
-            { author: author,
-              title: title,
-              quote: quote
+                literature::firstname: (black_box("Fake")),
+                literature::lastname: (black_box("Herbert"))},
+            { literature::author: author,
+              literature::title: title,
+              literature::quote: quote
             }]))
             .count()
         })
@@ -690,13 +690,13 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
             (author: Value<_>, title: Value<_>, quote: Value<_>),
-            literature::pattern!(&kb_archive, [
+            crate::pattern!(&kb_archive, [
             {author @
-                firstname: (black_box("Frank")),
-                lastname: (black_box("Herbert"))},
-            { author: author,
-              title: title,
-              quote: quote
+                literature::firstname: (black_box("Frank")),
+                literature::lastname: (black_box("Herbert"))},
+            { literature::author: author,
+              literature::title: title,
+              literature::quote: quote
             }]))
             .count()
         })
@@ -707,13 +707,13 @@ fn query_benchmark(c: &mut Criterion) {
         b.iter(|| {
             find!(
             (author: Value<_>, title: Value<_>, quote: Value<_>),
-            literature::pattern!(&kb_archive, [
+            crate::pattern!(&kb_archive, [
             {author @
-                firstname: (black_box("Fake")),
-                lastname: (black_box("Herbert"))},
-            { author: author,
-              title: title,
-              quote: quote
+                literature::firstname: (black_box("Fake")),
+                literature::lastname: (black_box("Herbert"))},
+            { literature::author: author,
+              literature::title: title,
+              literature::quote: quote
             }]))
             .count()
         })

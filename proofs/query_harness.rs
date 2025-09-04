@@ -35,24 +35,24 @@ fn query_harness() {
     let title = Value::<UnknownValue>::new(title_raw);
 
     let mut set = TribleSet::new();
-    set += qns::entity!(&author, {
-        firstname: firstname,
-        lastname: lastname,
+    set += crate::entity!(&author, {
+        qns::firstname: firstname,
+        qns::lastname: lastname,
     });
-    set += qns::entity!(&book, {
-        title: title,
-        author: &author,
+    set += crate::entity!(&book, {
+        qns::title: title,
+        qns::author: &author,
     });
 
     // Find the title and author first name for Shakespeare's book.
     let result: Vec<_> = find!(
         (book, title, firstname),
-        qns::pattern!(&set, [
-            { firstname: firstname,
-              lastname: (lastname) },
+        crate::pattern!(&set, [
+            { qns::firstname: firstname,
+              qns::lastname: (lastname) },
             { book @
-                title: title,
-                author: (author) }
+                qns::title: title,
+                qns::author: (author) }
         ])
     )
     .collect();

@@ -224,13 +224,13 @@ mod tests {
         for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
-            kb += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
+            kb += crate::entity!(&author, {
+                literature::firstname: FirstName(EN).fake::<String>(),
+                literature::lastname: LastName(EN).fake::<String>(),
             });
-            kb += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
+            kb += crate::entity!(&book, {
+                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                literature::author: &author
             });
         }
         assert_eq!(kb.len(), 400);
@@ -244,13 +244,13 @@ mod tests {
                 let author = ufoid();
                 let book = ufoid();
                 [
-                    literature::entity!(&author, {
-                        firstname: FirstName(EN).fake::<String>(),
-                        lastname: LastName(EN).fake::<String>(),
+                    crate::entity!(&author, {
+                        literature::firstname: FirstName(EN).fake::<String>(),
+                        literature::lastname: LastName(EN).fake::<String>(),
                     }),
-                    literature::entity!(&book, {
-                        title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        author: &author
+                    crate::entity!(&book, {
+                        literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                        literature::author: &author
                     }),
                 ]
             })
@@ -265,21 +265,21 @@ mod tests {
         for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
-            kb1 += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
+            kb1 += crate::entity!(&author, {
+                literature::firstname: FirstName(EN).fake::<String>(),
+                literature::lastname: LastName(EN).fake::<String>(),
             });
-            kb1 += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
+            kb1 += crate::entity!(&book, {
+                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                literature::author: &author
             });
-            kb2 += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
+            kb2 += crate::entity!(&author, {
+                literature::firstname: FirstName(EN).fake::<String>(),
+                literature::lastname: LastName(EN).fake::<String>(),
             });
-            kb2 += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
+            kb2 += crate::entity!(&book, {
+                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                literature::author: &author
             });
         }
         let intersection = kb1.intersect(&kb2);
@@ -297,22 +297,22 @@ mod tests {
         for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
-            kb1 += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
+            kb1 += crate::entity!(&author, {
+                literature::firstname: FirstName(EN).fake::<String>(),
+                literature::lastname: LastName(EN).fake::<String>(),
             });
-            kb1 += literature::entity!(&book, {
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                author: &author
+            kb1 += crate::entity!(&book, {
+                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                literature::author: &author
             });
             if _i % 2 == 0 {
-                kb2 += literature::entity!(&author, {
-                    firstname: FirstName(EN).fake::<String>(),
-                    lastname: LastName(EN).fake::<String>(),
+                kb2 += crate::entity!(&author, {
+                    literature::firstname: FirstName(EN).fake::<String>(),
+                    literature::lastname: LastName(EN).fake::<String>(),
                 });
-                kb2 += literature::entity!(&book, {
-                    title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    author: &author
+                kb2 += crate::entity!(&book, {
+                    literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                    literature::author: &author
                 });
             }
         }
@@ -329,13 +329,13 @@ mod tests {
         let mut kb = TribleSet::new();
         let author = ufoid();
         let book = ufoid();
-        let author_tribles = literature::entity!(&author, {
-            firstname: FirstName(EN).fake::<String>(),
-            lastname: LastName(EN).fake::<String>(),
+        let author_tribles = crate::entity!(&author, {
+            literature::firstname: FirstName(EN).fake::<String>(),
+            literature::lastname: LastName(EN).fake::<String>(),
         });
-        let book_tribles = literature::entity!(&book, {
-            title: Words(1..3).fake::<Vec<String>>().join(" "),
-            author: &author
+        let book_tribles = crate::entity!(&book, {
+            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+            literature::author: &author
         });
 
         kb += author_tribles.clone();
@@ -348,9 +348,9 @@ mod tests {
             assert!(kb.contains(trible));
         }
 
-        let non_existent_trible = literature::entity!(&ufoid(), {
-            firstname: FirstName(EN).fake::<String>(),
-            lastname: LastName(EN).fake::<String>(),
+        let non_existent_trible = crate::entity!(&ufoid(), {
+            literature::firstname: FirstName(EN).fake::<String>(),
+            literature::lastname: LastName(EN).fake::<String>(),
         });
 
         for trible in &non_existent_trible {

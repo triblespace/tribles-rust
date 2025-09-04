@@ -47,32 +47,29 @@ pub fn commit(
     let commit_entity = crate::id::rngid();
     let now = Epoch::now().expect("system time");
 
-    commit += repo::entity!(&commit_entity, { timestamp: (now, now) });
+    commit += crate::entity!(&commit_entity, { repo::timestamp: (now, now) });
 
     if let Some(content) = content {
         let handle = content.get_handle();
         let signature = signing_key.sign(&content.bytes);
 
-        commit += repo::entity!(&commit_entity,
-        {
-            content: handle,
-            signed_by: signing_key.verifying_key(),
-            signature_r: signature,
-            signature_s: signature,
+        commit += crate::entity!(&commit_entity, {
+            repo::content: handle,
+            repo::signed_by: signing_key.verifying_key(),
+            repo::signature_r: signature,
+            repo::signature_s: signature,
         });
     }
 
     if let Some(h) = msg {
-        commit += repo::entity!(&commit_entity,
-        {
-            message: h,
+        commit += crate::entity!(&commit_entity, {
+            repo::message: h,
         });
     }
 
     for parent in parents {
-        commit += repo::entity!(&commit_entity,
-        {
-            parent: parent,
+        commit += crate::entity!(&commit_entity, {
+            repo::parent: parent,
         });
     }
 
@@ -88,12 +85,12 @@ pub fn verify(content: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), V
     let handle = content.get_handle();
     let (pubkey, r, s) = match find!(
     (pubkey: Value<_>, r, s),
-    repo::pattern!(&metadata, [
+    crate::pattern!(&metadata, [
     {
-        content: (handle),
-        signed_by: pubkey,
-        signature_r: r,
-        signature_s: s
+        repo::content: (handle),
+        repo::signed_by: pubkey,
+        repo::signature_r: r,
+        repo::signature_s: s
     }]))
     .at_most_one()
     {

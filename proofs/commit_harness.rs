@@ -34,7 +34,7 @@ fn commit_harness() {
     // Ensure the short_message field was stored
     let (stored_msg,) = find!(
         (m: String),
-        repo::pattern!(&commit_set, [{ short_message: m }])
+        pattern!(&commit_set, [{ repo::short_message: m }])
     )
     .at_most_one()
     .unwrap()
@@ -44,7 +44,7 @@ fn commit_harness() {
     // Ensure the content handle and signature info were stored
     let (handle, pubkey, _r, _s) = find!(
         (h: Value<_>, k: Value<_>, r, s),
-        repo::pattern!(&commit_set, [{ content: h, signed_by: k, signature_r: r, signature_s: s }])
+        pattern!(&commit_set, [{ repo::content: h, repo::signed_by: k, repo::signature_r: r, repo::signature_s: s }])
     )
     .at_most_one()
     .unwrap()
@@ -56,7 +56,7 @@ fn commit_harness() {
     // Ensure both parents are present
     let parents: Vec<_> = find!(
         (p: Value<_>),
-        repo::pattern!(&commit_set, [{ parent: p }])
+        pattern!(&commit_set, [{ repo::parent: p }])
     )
     .collect();
     assert_eq!(parents.len(), 2);

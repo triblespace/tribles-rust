@@ -13,6 +13,7 @@ use crate::value::RawValue;
 use crate::value::Value;
 use crate::value::ValueSchema;
 use succinctarchiveconstraint::*;
+use crate::prelude::*;
 
 pub use universe::*;
 
@@ -494,31 +495,31 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += knights1::entity!(&juliet,
+        kb += crate::entity!(&juliet,
         {
-            name: "Juliet",
-            loves: &romeo,
-            title: "Maiden"
+            knights1::name: "Juliet",
+            knights1::loves: &romeo,
+            knights1::title: "Maiden"
         });
-        kb += knights1::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet,
-            title: "Prince"
+        kb += crate::entity!(&romeo, {
+            knights1::name: "Romeo",
+            knights1::loves: &juliet,
+            knights1::title: "Prince"
         });
-        kb += knights1::entity!({
-            name: "Angelica",
-            title: "Nurse"
+        kb += crate::entity!({
+            knights1::name: "Angelica",
+            knights1::title: "Nurse"
         });
 
         let archive: SuccinctArchive<OrderedUniverse> = (&kb).into();
 
         let r: Vec<_> = find!(
             (juliet, name),
-            knights1::pattern!(&archive, [
-            {name: ("Romeo"),
-             loves: juliet},
+            crate::pattern!(&archive, [
+            {knights1::name: ("Romeo"),
+             knights1::loves: juliet},
             {juliet @
-                name: name
+                knights1::name: name
             }])
         )
         .collect();

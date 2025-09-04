@@ -639,13 +639,13 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += literature::entity!(&jules, {
-                firstname: "Jules",
-                lastname: "Verne"
+            kb += crate::entity!(&jules, {
+                literature::firstname: "Jules",
+                literature::lastname: "Verne"
             });
-            kb += literature::entity!(&isaac, {
-                firstname: "Isaac",
-                lastname: "Asimov"
+            kb += crate::entity!(&isaac, {
+                literature::firstname: "Isaac",
+                literature::lastname: "Asimov"
             });
         }
 
@@ -653,9 +653,9 @@ mod tests {
             (author: ExclusiveId, name: String),
             and!(
                 local_ids(author),
-                literature::pattern!(&kb, [
+                crate::pattern!(&kb, [
                     {author @
-                        firstname: name
+                        literature::firstname: name
                     }])
             )
         )
@@ -673,13 +673,13 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += literature::entity!(&jules, {
-                firstname: "Jules",
-                lastname: "Verne"
+            kb += crate::entity!(&jules, {
+                literature::firstname: "Jules",
+                literature::lastname: "Verne"
             });
-            kb += literature::entity!(&isaac, {
-                firstname: "Isaac",
-                lastname: "Asimov"
+            kb += crate::entity!(&isaac, {
+                literature::firstname: "Isaac",
+                literature::lastname: "Asimov"
             });
         }
 
@@ -694,7 +694,7 @@ mod tests {
 
         let base = and!(
             local_ids(author),
-            literature::pattern!(&kb, [{ author @ firstname: name }])
+            crate::pattern!(&kb, [{ author @ literature::firstname: name }])
         );
 
         let mut wrapper = crate::debug::query::EstimateOverrideConstraint::new(base);

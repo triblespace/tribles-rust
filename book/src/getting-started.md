@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws = repo.branch("main")?;
 
-    ws.commit(literature::entity!(&ufoid(), { firstname: "Alice" }), None);
+    ws.commit(crate::entity!(&ufoid(), { literature::firstname: "Alice" }), None);
     repo.push(&mut ws)?;
     Ok(())
 }

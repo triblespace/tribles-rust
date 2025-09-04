@@ -26,14 +26,14 @@ fn main() {
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();
-        kb += literature::entity!(&author, {
-            firstname: FirstName(EN).fake::<String>(),
-            lastname: LastName(EN).fake::<String>(),
+        kb += crate::entity!(&author, {
+            literature::firstname: FirstName(EN).fake::<String>(),
+            literature::lastname: LastName(EN).fake::<String>(),
         });
-        kb += literature::entity!(&book, {
-            author: &author,
-            title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: blobs.put(Sentence(5..25).fake::<String>()).unwrap()
+        kb += crate::entity!(&book, {
+            literature::author: &author,
+            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+            literature::quote: blobs.put(Sentence(5..25).fake::<String>()).unwrap()
         });
     });
 }

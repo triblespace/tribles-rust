@@ -133,11 +133,11 @@ NS! { namespace social {
 } }
 let mut kb = TribleSet::new();
 let a = fucid(); let b = fucid(); let c = fucid();
-kb += social::entity!(&a, { follows: &b });
-kb += social::entity!(&b, { likes: &c });
+kb += crate::entity!(&a, { social::follows: &b });
+kb += crate::entity!( &b, { social::likes: &c });
 
 let results: Vec<_> = find!((s: Value<_>, e: Value<_>),
-    social::path!(&kb, s (follows | likes)+ e)).collect();
+    path!(&kb, s (social::follows | social::likes)+ e)).collect();
 ```
 
 The middle section uses a familiar regex syntax to describe allowed edge

@@ -29,14 +29,14 @@ fn main() {
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();
-        kb += literature::entity!(&author, {
-            firstname: FirstName(EN).fake::<String>(),
-            lastname: LastName(EN).fake::<String>(),
+        kb += crate::entity!(&author, {
+            literature::firstname: FirstName(EN).fake::<String>(),
+            literature::lastname: LastName(EN).fake::<String>(),
         });
-        kb += literature::entity!(&book, {
-            author: &author,
-            title: Words(1..3).fake::<Vec<String>>().join(" "),
-            quote: mem_store.put(Sentence(5..25).fake::<String>()).unwrap()
+        kb += crate::entity!(&book, {
+            literature::author: &author,
+            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+            literature::quote: mem_store.put(Sentence(5..25).fake::<String>()).unwrap()
         });
     });
 
@@ -47,13 +47,13 @@ fn main() {
     (firstname: Value<_>, title: Value<_>, author: Value<_>, quote: Value<_>),
     and!(
         author_names.has(firstname),
-        literature::pattern!(&kb, [
+        crate::pattern!(&kb, [
         {author @
-            firstname: firstname,
-            lastname: ("Herbert")},
-        { author: author,
-            title: title,
-            quote: quote
+            literature::firstname: firstname,
+            literature::lastname: ("Herbert")},
+        { literature::author: author,
+            literature::title: title,
+            literature::quote: quote
         }]))
     )
     .collect();

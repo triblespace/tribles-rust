@@ -32,20 +32,19 @@ pub fn branch(
 
     let metadata_entity = rngid();
 
-    metadata += repo::entity!(&metadata_entity, { branch: branch_id });
+    metadata += crate::entity!(&metadata_entity, { repo::branch: branch_id });
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
         let signature = signing_key.sign(&commit_head.bytes);
 
-        metadata += repo::entity!(&metadata_entity,
-        {
-            head: handle,
-            signed_by: signing_key.verifying_key(),
-            signature_r: signature,
-            signature_s: signature,
+        metadata += crate::entity!(&metadata_entity, {
+            repo::head: handle,
+            repo::signed_by: signing_key.verifying_key(),
+            repo::signature_r: signature,
+            repo::signature_s: signature,
         });
     }
-    metadata += metadata::entity!(&metadata_entity, { name: name });
+    metadata += crate::entity!(&metadata_entity, { metadata::name: name });
 
     metadata
 }
@@ -63,14 +62,14 @@ pub fn branch_unsigned(
 
     let mut metadata: TribleSet = Default::default();
 
-    metadata += repo::entity!(&metadata_entity, { branch: branch_id });
+    metadata += crate::entity!(&metadata_entity, { repo::branch: branch_id });
 
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
-        metadata += repo::entity!(&metadata_entity, { head: handle });
+        metadata += crate::entity!(&metadata_entity, { repo::head: handle });
     }
 
-    metadata += metadata::entity!(&metadata_entity, { name: name });
+    metadata += crate::entity!(&metadata_entity, { metadata::name: name });
 
     metadata
 }
@@ -100,12 +99,12 @@ pub fn verify(
     let handle = commit_head.get_handle();
     let (pubkey, r, s) = match find!(
     (pubkey: Value<_>, r, s),
-    repo::pattern!(&metadata, [
+    crate::pattern!(&metadata, [
     {
-        head: (handle),
-        signed_by: pubkey,
-        signature_r: r,
-        signature_s: s,
+        repo::head: (handle),
+        repo::signed_by: pubkey,
+        repo::signature_r: r,
+        repo::signature_s: s,
     }]))
     .at_most_one()
     {

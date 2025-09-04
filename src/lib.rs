@@ -25,6 +25,10 @@ pub mod examples;
 pub use arrayvec;
 pub use macro_pub;
 pub use tribles_macros as macros;
+// Re-export proc-macros at the crate root so they are available within the
+// crate without requiring explicit `use` statements at every call site.
+pub use tribles_macros::pattern;
+pub use tribles_macros::entity;
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]
@@ -45,18 +49,18 @@ mod readme_example {
 
         // Note how the entity macro returns TribleSets that can be cheaply merged
         // into our existing dataset.
-        set += literature::entity!(&author_id, {
-            firstname: "Frank",
-            lastname: "Herbert",
+        set += crate::entity!(&author_id, {
+            literature::firstname: "Frank",
+            literature::lastname: "Herbert",
         });
 
-        set += literature::entity!({
-            title: "Dune",
-            author: &author_id,
-            quote: blobs.put("Deep in the human unconscious is a \
+        set += crate::entity!({
+            literature::title: "Dune",
+            literature::author: &author_id,
+            literature::quote: blobs.put("Deep in the human unconscious is a \
             pervasive need for a logical universe that makes sense. \
             But the real universe is always one step beyond logic.").unwrap(),
-            quote: blobs.put("I must not fear. Fear is the \
+            literature::quote: blobs.put("I must not fear. Fear is the \
             mind-killer. Fear is the little-death that brings total \
             obliteration. I will face my fear. I will permit it to \
             pass over me and through me. And when it has gone past I \
@@ -69,15 +73,15 @@ mod readme_example {
         // We can then find all entities matching a certain pattern in our dataset.
         for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
-        literature::pattern!(&set, [
+        crate::pattern!(&set, [
             { author @
-                firstname: first,
-                lastname: last
+                literature::firstname: first,
+                literature::lastname: last
             },
             {
-                title: (title),
-                author: author,
-                quote: quote
+                literature::title: (title),
+                literature::author: author,
+                literature::quote: quote
             }]))
         {
             let q: View<str> = blobs.reader().unwrap().get(q).unwrap();

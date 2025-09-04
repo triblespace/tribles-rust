@@ -13,8 +13,8 @@ fn main() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += social::entity!(&a, { follows: &b });
-    kb += social::entity!(&b, { likes: &c });
+    kb += crate::entity!(&a, { social::follows: &b });
+    kb += crate::entity!(&b, { social::likes: &c });
 
     for (s, e) in
         find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s (follows | likes)+ e))

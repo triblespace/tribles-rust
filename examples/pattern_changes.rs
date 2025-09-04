@@ -24,15 +24,15 @@ fn main() {
     let shakespeare = ufoid();
     let hamlet = ufoid();
     let mut base = TribleSet::new();
-    base += literature::entity!(&shakespeare, { firstname: "William", lastname: "Shakespeare" });
-    base += literature::entity!(&hamlet, { title: "Hamlet", author: &shakespeare });
+    base += crate::entity!(&shakespeare, { literature::firstname: "William", literature::lastname: "Shakespeare" });
+    base += crate::entity!(&hamlet, { literature::title: "Hamlet", literature::author: &shakespeare });
     ws.commit(base.clone(), None);
     let c1 = ws.head().unwrap();
 
     // Commit a new book
     let macbeth = ufoid();
     let mut change = TribleSet::new();
-    change += literature::entity!(&macbeth, { title: "Macbeth", author: &shakespeare });
+    change += crate::entity!(&macbeth, { literature::title: "Macbeth", literature::author: &shakespeare });
     ws.commit(change.clone(), None);
     let c2 = ws.head().unwrap();
 

@@ -106,44 +106,28 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
         },
     );
 
-    let entity_macro = quote! {
-        #[#crate_path::macro_pub::macro_pub]
-        macro_rules! entity {
-            ($entity:tt) => {{
-                #crate_path::macros::entity!(#crate_path, #mod_name, $entity)
-            }};
-            ($entity_id:expr, $entity:tt) => {{
-                #crate_path::macros::entity!(#crate_path, #mod_name, $entity_id, $entity)
-            }};
+    // Per-field convenience modules (ns::field_name) exposing the attribute
+    // id and the schema/type alias. This provides a stable, unambiguous
+    // handle for the global pattern!/entity! macros to reference without
+    // relying on brittle path rewriting. Example usage: `literature::firstname::id`
+    let field_modules = fields.iter().map(|Field { id, name, ty, .. }| {
+        quote! {
+            pub mod #name {
+                use super::*;
+                /// Attribute id for this field.
+                pub const id: #crate_path::id::Id = #crate_path::id::Id::new(#crate_path::namespace::hex_literal::hex!(#id)).unwrap();
+                /// Schema/type alias for this field (ValueSchema implementation).
+                pub type schema = #ty;
+                /// Optional blob schema id (if the ValueSchema declares one).
+                pub const blob_schema_id: Option<#crate_path::id::Id> = <#ty as #crate_path::value::ValueSchema>::BLOB_SCHEMA_ID;
+            }
         }
-    };
+    });
 
-    let pattern_macro = quote! {
-        #[#crate_path::macro_pub::macro_pub]
-        macro_rules! pattern {
-            ($set:expr, $pattern: tt) => {{
-                #crate_path::macros::pattern!(#crate_path, #mod_name, $set, $pattern)
-            }};
-        }
-    };
-
-    let pattern_changes_macro = quote! {
-        #[#crate_path::macro_pub::macro_pub]
-        macro_rules! pattern_changes {
-            ($curr:expr, $changes:expr, $pattern: tt) => {{
-                #crate_path::macros::pattern_changes!(#crate_path, #mod_name, $curr, $changes, $pattern)
-            }};
-        }
-    };
-
-    let path_macro = quote! {
-        #[#crate_path::macro_pub::macro_pub]
-        macro_rules! path {
-            ($set:expr, $($rest:tt)*) => {{
-                #crate_path::macros::path!(#crate_path, #mod_name, $set, $($rest)*)
-            }};
-        }
-    };
+    // We no longer emit per-namespace macro_rules! wrappers here. Call sites
+    // should use the global `pattern!` and `entity!` proc-macros instead. The
+    // per-field convenience modules (ns::field) are still generated so the
+    // global macros can reference them by path.
 
     let output = quote! {
         #(#attrs)*
@@ -168,10 +152,8 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 use super::*;
                 #(#schema_types)*
             }
-            #entity_macro
-            #pattern_macro
-            #pattern_changes_macro
-            #path_macro
+            // Per-field convenience modules
+            #(#field_modules)*
         }
     };
 

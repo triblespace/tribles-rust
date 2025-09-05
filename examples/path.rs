@@ -1,5 +1,10 @@
 use tribles::prelude::*;
 use tribles::value::schemas::genid::GenId;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 NS! {
     namespace social {
@@ -13,8 +18,8 @@ fn main() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += crate::entity!(&a, { social::follows: &b });
-    kb += crate::entity!(&b, { social::likes: &c });
+    kb += entity!(&a, { social::follows: &b });
+    kb += entity!(&b, { social::likes: &c });
 
     for (s, e) in
         find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s (follows | likes)+ e))

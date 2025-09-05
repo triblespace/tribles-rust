@@ -377,7 +377,7 @@ mod tests {
         let mut kb = TribleSet::new();
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..200 {
-            kb.union(crate::entity!({
+            kb.union(entity!({
                 knights2::description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
             }));
         }

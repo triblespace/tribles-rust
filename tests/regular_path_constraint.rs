@@ -1,5 +1,10 @@
 use tribles::prelude::*;
 use tribles::value::schemas::genid::GenId;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 NS! {
     namespace social {
@@ -13,7 +18,7 @@ fn simple_path() {
     let mut kb = TribleSet::new();
     let a = fucid();
     let b = fucid();
-    kb += crate::entity!(&a, { social::follows: &b });
+    kb += entity!(&a, { social::follows: &b });
     let a_val = a.to_value();
     let b_val = b.to_value();
     let results: Vec<_> =
@@ -27,8 +32,8 @@ fn alternation() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += crate::entity!(&a, { social::follows: &b });
-    kb += crate::entity!(&a, { social::likes: &c });
+    kb += entity!(&a, { social::follows: &b });
+    kb += entity!(&a, { social::likes: &c });
     let a_val = a.to_value();
     let b_val = b.to_value();
     let c_val = c.to_value();
@@ -46,8 +51,8 @@ fn repetition() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += crate::entity!(&a, { social::follows: &b });
-    kb += crate::entity!(&b, { social::follows: &c });
+    kb += entity!(&a, { social::follows: &b });
+    kb += entity!(&b, { social::follows: &c });
 
     let start_val = a.to_value();
     let end_val = c.to_value();

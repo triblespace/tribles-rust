@@ -3,6 +3,11 @@ use fake::faker::lorem::en::Words;
 use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
@@ -26,11 +31,11 @@ fn main() {
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();
-        kb += crate::entity!(&author, {
+        kb += entity!(&author, {
             literature::firstname: FirstName(EN).fake::<String>(),
             literature::lastname: LastName(EN).fake::<String>(),
         });
-        kb += crate::entity!(&book, {
+        kb += entity!(&book, {
             literature::author: &author,
             literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
             literature::quote: blobs.put(Sentence(5..25).fake::<String>()).unwrap()

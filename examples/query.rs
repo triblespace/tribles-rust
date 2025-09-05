@@ -1,4 +1,9 @@
 use std::collections::HashSet;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Words;
@@ -29,11 +34,11 @@ fn main() {
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();
-        kb += crate::entity!(&author, {
+        kb += entity!(&author, {
             literature::firstname: FirstName(EN).fake::<String>(),
             literature::lastname: LastName(EN).fake::<String>(),
         });
-        kb += crate::entity!(&book, {
+        kb += entity!(&book, {
             literature::author: &author,
             literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
             literature::quote: mem_store.put(Sentence(5..25).fake::<String>()).unwrap()
@@ -47,7 +52,7 @@ fn main() {
     (firstname: Value<_>, title: Value<_>, author: Value<_>, quote: Value<_>),
     and!(
         author_names.has(firstname),
-        crate::pattern!(&kb, [
+        pattern!(&kb, [
         {author @
             literature::firstname: firstname,
             literature::lastname: ("Herbert")},

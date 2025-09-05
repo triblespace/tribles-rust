@@ -19,6 +19,11 @@ use tribles::blob::schemas::succinctarchive::SuccinctArchive;
 use tribles::blob::schemas::succinctarchive::Universe;
 use tribles::blob::schemas::UnknownBlob;
 use tribles::repo::BlobStorePut;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
@@ -82,11 +87,11 @@ fn main() {
     (0..1000000).for_each(|_| {
         let author = owner.defer_insert(fucid());
         let book = owner.defer_insert(fucid());
-        kb += crate::entity!(&author, {
+        kb += entity!(&author, {
             literature::firstname: FirstName(EN).fake::<String>(),
             literature::lastname: LastName(EN).fake::<String>(),
         });
-        kb += crate::entity!(&book, {
+        kb += entity!(&book, {
             literature::author: &author,
             literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
             literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
@@ -95,11 +100,11 @@ fn main() {
 
     let author = owner.defer_insert(fucid());
     let book = owner.defer_insert(fucid());
-    kb += crate::entity!(&author, {
+    kb += entity!(&author, {
         literature::firstname: "Frank",
         literature::lastname: "Herbert",
     });
-    kb += crate::entity!(&book, {
+    kb += entity!(&book, {
         literature::author: &author,
         literature::title: "Dune",
         literature::quote: "I must not fear. Fear is the \
@@ -112,13 +117,13 @@ fn main() {
 
     let fanks = find!(
         (author: Value<_>),
-        crate::pattern!(&kb, [
+        pattern!(&kb, [
         {author @ literature::firstname: ("Frank")}]))
     .count();
 
     let herberts = find!(
         (author: Value<_>),
-        crate::pattern!(&kb, [
+        pattern!(&kb, [
         {author @ literature::lastname: ("Herbert")}]))
     .count();
 
@@ -128,7 +133,7 @@ fn main() {
     (0..1000000).for_each(|_| {
         let count = find!(
         (author: Value<_>, title: Value<_>, quote: Value<_>),
-        crate::pattern!(&kb, [
+        pattern!(&kb, [
         {author @
             literature::firstname: ("Frank"),
             literature::lastname: ("Herbert")},

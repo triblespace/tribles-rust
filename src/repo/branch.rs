@@ -5,6 +5,12 @@ use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
+use crate::prelude::*;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 use crate::blob::Blob;
 use crate::find;
@@ -32,19 +38,19 @@ pub fn branch(
 
     let metadata_entity = rngid();
 
-    metadata += crate::entity!(&metadata_entity, { repo::branch: branch_id });
+    metadata += entity!(&metadata_entity, { repo::branch: branch_id });
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
         let signature = signing_key.sign(&commit_head.bytes);
 
-        metadata += crate::entity!(&metadata_entity, {
+        metadata += entity!(&metadata_entity, {
             repo::head: handle,
             repo::signed_by: signing_key.verifying_key(),
             repo::signature_r: signature,
             repo::signature_s: signature,
         });
     }
-    metadata += crate::entity!(&metadata_entity, { metadata::name: name });
+    metadata += entity!(&metadata_entity, { metadata::name: name });
 
     metadata
 }
@@ -62,14 +68,14 @@ pub fn branch_unsigned(
 
     let mut metadata: TribleSet = Default::default();
 
-    metadata += crate::entity!(&metadata_entity, { repo::branch: branch_id });
+    metadata += entity!(&metadata_entity, { repo::branch: branch_id });
 
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
-        metadata += crate::entity!(&metadata_entity, { repo::head: handle });
+        metadata += entity!(&metadata_entity, { repo::head: handle });
     }
 
-    metadata += crate::entity!(&metadata_entity, { metadata::name: name });
+    metadata += entity!(&metadata_entity, { metadata::name: name });
 
     metadata
 }
@@ -99,7 +105,7 @@ pub fn verify(
     let handle = commit_head.get_handle();
     let (pubkey, r, s) = match find!(
     (pubkey: Value<_>, r, s),
-    crate::pattern!(&metadata, [
+    pattern!(&metadata, [
     {
         repo::head: (handle),
         repo::signed_by: pubkey,

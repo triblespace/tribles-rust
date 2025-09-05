@@ -4,6 +4,10 @@
 use crate::prelude::blobschemas::*;
 use crate::prelude::valueschemas::*;
 use crate::prelude::*;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
 use crate::NS;
 
 NS! {
@@ -32,12 +36,12 @@ pub fn dataset() -> TribleSet {
     let mut blobs = MemoryBlobStore::new();
     let author_id = ufoid();
 
-    set += crate::entity!(&author_id, {
+    set += entity!(&author_id, {
         literature::firstname: "Frank",
         literature::lastname: "Herbert",
     });
 
-    set += crate::entity!({
+    set += entity!({
         literature::title: "Dune",
         literature::author: &author_id,
         literature::quote: blobs

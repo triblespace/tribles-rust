@@ -29,6 +29,8 @@ pub use tribles_macros as macros;
 // crate without requiring explicit `use` statements at every call site.
 pub use tribles_macros::pattern;
 pub use tribles_macros::entity;
+pub use tribles_macros::pattern_changes;
+pub use tribles_macros::path;
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]
@@ -49,12 +51,12 @@ mod readme_example {
 
         // Note how the entity macro returns TribleSets that can be cheaply merged
         // into our existing dataset.
-        set += crate::entity!(&author_id, {
+        set += entity!(&author_id, {
             literature::firstname: "Frank",
             literature::lastname: "Herbert",
         });
 
-        set += crate::entity!({
+        set += entity!({
             literature::title: "Dune",
             literature::author: &author_id,
             literature::quote: blobs.put("Deep in the human unconscious is a \
@@ -73,7 +75,7 @@ mod readme_example {
         // We can then find all entities matching a certain pattern in our dataset.
         for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
-        crate::pattern!(&set, [
+        pattern!(&set, [
             { author @
                 literature::firstname: first,
                 literature::lastname: last

@@ -64,10 +64,11 @@ pub use crate::value::TryToValue;
 pub use crate::value::Value;
 pub use crate::value::ValueSchema;
 pub use anybytes::View;
-
 // Re-export the pattern/entity procedural macros into the prelude so they can
 // be imported with `use tribles::prelude::*;` and called as `pattern!(...)`.
 // After migrating away from namespace-local wrapper macros, this makes the
 // new global proc-macros ergonomically available.
 pub use crate::macros::pattern;
 pub use crate::macros::entity;
+pub use crate::macros::pattern_changes;
+pub use crate::macros::path;

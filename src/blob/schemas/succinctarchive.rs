@@ -495,18 +495,18 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += crate::entity!(&juliet,
+        kb += entity!(&juliet,
         {
             knights1::name: "Juliet",
             knights1::loves: &romeo,
             knights1::title: "Maiden"
         });
-        kb += crate::entity!(&romeo, {
+        kb += entity!(&romeo, {
             knights1::name: "Romeo",
             knights1::loves: &juliet,
             knights1::title: "Prince"
         });
-        kb += crate::entity!({
+        kb += entity!({
             knights1::name: "Angelica",
             knights1::title: "Nurse"
         });
@@ -515,7 +515,7 @@ mod tests {
 
         let r: Vec<_> = find!(
             (juliet, name),
-            crate::pattern!(&archive, [
+            pattern!(&archive, [
             {knights1::name: ("Romeo"),
              knights1::loves: juliet},
             {juliet @

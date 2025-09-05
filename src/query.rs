@@ -674,11 +674,11 @@ mod tests {
         (0..1000).for_each(|_| {
             let author = fucid();
             let book = fucid();
-            kb += crate::entity!(&author, {
+            kb += entity!(&author, {
                 literature::firstname: FirstName(EN).fake::<String>(),
                 literature::lastname: LastName(EN).fake::<String>(),
             });
-            kb += crate::entity!(&book, {
+            kb += entity!(&book, {
                 literature::author: &author,
                 literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
                 literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
@@ -687,11 +687,11 @@ mod tests {
 
         let author = fucid();
         let book = fucid();
-        kb += crate::entity!(&author, {
+        kb += entity!(&author, {
             literature::firstname: "Frank",
             literature::lastname: "Herbert",
         });
-        kb += crate::entity!(&book, {
+        kb += entity!(&book, {
             literature::author: &author,
             literature::title: "Dune",
             literature::quote: "I must not fear. Fear is the \
@@ -705,11 +705,11 @@ mod tests {
         (0..100).for_each(|_| {
             let author = fucid();
             let book = fucid();
-            kb += crate::entity!(&author, {
+            kb += entity!(&author, {
                 literature::firstname: "Fake",
                 literature::lastname: "Herbert",
             });
-            kb += crate::entity!(&book, {
+            kb += entity!(&book, {
                 literature::author: &author,
                 literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
                 literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
@@ -718,7 +718,7 @@ mod tests {
 
         let r: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>, quote: Value<_>),
-        crate::pattern!(&kb, [
+        pattern!(&kb, [
         {author @
             literature::firstname: ("Frank"),
             literature::lastname: ("Herbert")},

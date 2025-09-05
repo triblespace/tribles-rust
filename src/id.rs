@@ -639,11 +639,11 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += crate::entity!(&jules, {
+            kb += entity!(&jules, {
                 literature::firstname: "Jules",
                 literature::lastname: "Verne"
             });
-            kb += crate::entity!(&isaac, {
+            kb += entity!(&isaac, {
                 literature::firstname: "Isaac",
                 literature::lastname: "Asimov"
             });
@@ -653,7 +653,7 @@ mod tests {
             (author: ExclusiveId, name: String),
             and!(
                 local_ids(author),
-                crate::pattern!(&kb, [
+                pattern!(&kb, [
                     {author @
                         literature::firstname: name
                     }])
@@ -673,11 +673,11 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += crate::entity!(&jules, {
+            kb += entity!(&jules, {
                 literature::firstname: "Jules",
                 literature::lastname: "Verne"
             });
-            kb += crate::entity!(&isaac, {
+            kb += entity!(&isaac, {
                 literature::firstname: "Isaac",
                 literature::lastname: "Asimov"
             });
@@ -694,7 +694,7 @@ mod tests {
 
         let base = and!(
             local_ids(author),
-            crate::pattern!(&kb, [{ author @ literature::firstname: name }])
+            pattern!(&kb, [{ author @ literature::firstname: name }])
         );
 
         let mut wrapper = crate::debug::query::EstimateOverrideConstraint::new(base);

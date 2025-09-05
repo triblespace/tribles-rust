@@ -42,12 +42,12 @@ mod tests {
         let author = ufoid();
         let book = ufoid();
 
-        tribles += crate::entity!(&author, {
+        tribles += entity!(&author, {
             literature::firstname: "William",
             literature::lastname: "Shakespeare",
         });
 
-        tribles += crate::entity!(&book, {
+        tribles += entity!(&book, {
             literature::title: "Hamlet",
             literature::author: &author,
             literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
@@ -63,11 +63,11 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += crate::entity!(&author, {
+        kb += entity!(&author, {
             literature::firstname: "William",
             literature::lastname: "Shakespeare",
         });
-        kb += crate::entity!(&book, {
+        kb += entity!(&book, {
             literature::title: "Hamlet",
             literature::author: &author,
             literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
@@ -75,7 +75,7 @@ mod tests {
 
         let r: Vec<_> = find!(
             (book, title, firstname),
-            crate::pattern!(&kb, [
+            pattern!(&kb, [
             {literature::firstname: firstname,
              literature::lastname: ("Shakespeare")},
             {book @
@@ -96,11 +96,11 @@ mod tests {
         (0..100).for_each(|_| {
             let author = ufoid();
             let book = ufoid();
-            kb += crate::entity!(&author, {
+            kb += entity!(&author, {
                 literature::firstname: Name(EN).fake::<String>(),
                 literature::lastname: Name(EN).fake::<String>()
             });
-            kb += crate::entity!(&book, {
+            kb += entity!(&book, {
                 literature::title: Name(EN).fake::<String>(),
                 literature::author: &author
             });
@@ -110,11 +110,11 @@ mod tests {
         let hamlet = ufoid();
 
         let mut data_kb = TribleSet::new();
-        data_kb += crate::entity!(&shakespeare, {
+        data_kb += entity!(&shakespeare, {
             literature::firstname: "William",
             literature::lastname: "Shakespeare"
         });
-        data_kb += crate::entity!(&hamlet, {
+        data_kb += entity!(&hamlet, {
             literature::title: "Hamlet",
             literature::author: &shakespeare,
             literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
@@ -124,7 +124,7 @@ mod tests {
 
         let r: Vec<_> = find!(
             (author, hamlet, title),
-            crate::pattern!(&kb, [
+            pattern!(&kb, [
             {author @
              literature::firstname: ("William"),
              literature::lastname: ("Shakespeare")},
@@ -151,11 +151,11 @@ mod tests {
         (0..10).for_each(|_| {
             let a = ufoid();
             let b = ufoid();
-            base += crate::entity!(&a, {
+            base += entity!(&a, {
                 literature::firstname: Name(EN).fake::<String>(),
                 literature::lastname: Name(EN).fake::<String>()
             });
-            base += crate::entity!(&b, {
+            base += entity!(&b, {
                 literature::title: Name(EN).fake::<String>(),
                 literature::author: &a
             });
@@ -164,11 +164,11 @@ mod tests {
         let mut updated = base.clone();
         let shakespeare = ufoid();
         let hamlet = ufoid();
-        updated += crate::entity!(&shakespeare, {
+        updated += entity!(&shakespeare, {
             literature::firstname: "William",
             literature::lastname: "Shakespeare"
         });
-        updated += crate::entity!(&hamlet, {
+        updated += entity!(&hamlet, {
             literature::title: "Hamlet",
             literature::author: &shakespeare,
             literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
@@ -177,7 +177,7 @@ mod tests {
         let delta = &updated.difference(&base);
         let r: Vec<_> = find!(
             (author, hamlet, title),
-            crate::pattern_changes!(&updated, delta, [
+            pattern_changes!(&updated, delta, [
             {author @
              literature::firstname: ("William"),
              literature::lastname: ("Shakespeare")},

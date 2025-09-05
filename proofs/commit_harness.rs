@@ -5,6 +5,11 @@ use tribles::prelude::*;
 use tribles::repo::{self, commit};
 use tribles::value::schemas::hash::Blake3;
 use kani::BoundedArbitrary;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 #[kani::proof]
 #[kani::unwind(5)]

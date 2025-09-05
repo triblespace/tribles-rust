@@ -4,6 +4,12 @@ use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
+use crate::prelude::*;
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 use ed25519::signature::Signer;
 
@@ -47,13 +53,13 @@ pub fn commit(
     let commit_entity = crate::id::rngid();
     let now = Epoch::now().expect("system time");
 
-    commit += crate::entity!(&commit_entity, { repo::timestamp: (now, now) });
+    commit += entity!(&commit_entity, { repo::timestamp: (now, now) });
 
     if let Some(content) = content {
         let handle = content.get_handle();
         let signature = signing_key.sign(&content.bytes);
 
-        commit += crate::entity!(&commit_entity, {
+        commit += entity!(&commit_entity, {
             repo::content: handle,
             repo::signed_by: signing_key.verifying_key(),
             repo::signature_r: signature,
@@ -62,13 +68,13 @@ pub fn commit(
     }
 
     if let Some(h) = msg {
-        commit += crate::entity!(&commit_entity, {
+        commit += entity!(&commit_entity, {
             repo::message: h,
         });
     }
 
     for parent in parents {
-        commit += crate::entity!(&commit_entity, {
+        commit += entity!(&commit_entity, {
             repo::parent: parent,
         });
     }
@@ -85,7 +91,7 @@ pub fn verify(content: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), V
     let handle = content.get_handle();
     let (pubkey, r, s) = match find!(
     (pubkey: Value<_>, r, s),
-    crate::pattern!(&metadata, [
+    pattern!(&metadata, [
     {
         repo::content: (handle),
         repo::signed_by: pubkey,

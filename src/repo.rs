@@ -43,7 +43,7 @@
 //! }
 //! let author = fucid();
 //! ws.commit(
-//!     crate::entity!(&author, {
+//!     entity!(&author, {
 //!         literature::firstname: "Frank",
 //!         literature::lastname: "Herbert",
 //!     }),
@@ -140,6 +140,11 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Debug;
 use std::fmt::{self};
+use crate::pattern;
+use crate::entity;
+use crate::pattern_changes;
+use crate::path;
+
 
 use commit::commit;
 use hifitime::Epoch;
@@ -842,7 +847,7 @@ where
 
         let head = match find!(
             (head: Value<_>),
-            crate::pattern!(&base_branch_meta, [{ repo::head: head }])
+            pattern!(&base_branch_meta, [{ repo::head: head }])
         )
         .at_most_one()
         {
@@ -892,7 +897,7 @@ where
         for (id, handle) in handles {
             let meta: TribleSet = reader.get(handle).map_err(|e| LookupError::StorageGet(e))?;
 
-            let branch_name = find!((n: Value<_>), crate::pattern!(meta, [{ metadata::name: n }]))
+            let branch_name = find!((n: Value<_>), pattern!(meta, [{ metadata::name: n }]))
                 .exactly_one()
                 .map_err(|_| LookupError::BadBranchMetadata())?
                 .0;
@@ -937,7 +942,7 @@ where
             .map_err(|e| PushError::StorageGet(e))?;
 
         let Ok((branch_name,)) = find!((name: Value<_>),
-            crate::pattern!(base_branch_meta, [{ metadata::name: name }])
+            pattern!(base_branch_meta, [{ metadata::name: name }])
         )
         .exactly_one() else {
             return Err(PushError::BadBranchMetadata());
@@ -985,7 +990,7 @@ where
                     .map_err(|e| PushError::StorageGet(e))?;
 
                 let head = match find!((head: Value<_>),
-                    crate::pattern!(&branch_meta, [{ repo::head: head }])
+                    pattern!(&branch_meta, [{ repo::head: head }])
                 )
                 .at_most_one()
                 {
@@ -1199,7 +1204,7 @@ where
 
         while remaining > 0 {
             let meta: TribleSet = ws.get(current).map_err(WorkspaceCheckoutError::Storage)?;
-            let mut parents = find!((p: Value<_>), crate::pattern!(&meta, [{ repo::parent: p }]));
+            let mut parents = find!((p: Value<_>), pattern!(&meta, [{ repo::parent: p }]));
             let Some((parent,)) = parents.next() else {
                 return Ok(CommitSet::new());
             };
@@ -1226,7 +1231,7 @@ where
     > {
         let meta: TribleSet = ws.get(self.0).map_err(WorkspaceCheckoutError::Storage)?;
         let mut result = CommitSet::new();
-        for (parent,) in find!((p: Value<_>), crate::pattern!(&meta, [{ repo::parent: p }])) {
+        for (parent,) in find!((p: Value<_>), pattern!(&meta, [{ repo::parent: p }])) {
             result.insert(&Entry::new(&parent.raw));
         }
         Ok(result)
@@ -1275,7 +1280,7 @@ where
 
             let Ok((content_handle,)) = find!(
                 (c: Value<_>),
-                crate::pattern!(&meta, [{ repo::content: c }])
+                pattern!(&meta, [{ repo::content: c }])
             )
             .exactly_one() else {
                 return Err(WorkspaceCheckoutError::BadCommitMetadata());
@@ -1406,7 +1411,7 @@ where
             ancestors(head),
             move |meta: &TribleSet, _payload: &TribleSet| {
                 if let Ok(Some((ts,))) =
-                    find!((t: Value<_>), crate::pattern!(meta, [{ repo::timestamp: t }])).at_most_one()
+                    find!((t: Value<_>), pattern!(meta, [{ repo::timestamp: t }])).at_most_one()
                 {
                     let (ts_start, ts_end): (Epoch, Epoch) =
                         crate::value::FromValue::from_value(&ts);
@@ -1579,7 +1584,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
 
             let Ok((content,)) = find!(
                 (c: Value<_>),
-                crate::pattern!(&meta, [{ repo::content: c }])
+                pattern!(&meta, [{ repo::content: c }])
             )
             .exactly_one() else {
                 return Err(WorkspaceCheckoutError::BadCommitMetadata());
@@ -1663,7 +1668,7 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
             .or_else(|_| ws.base_blobs.get(commit))
             .map_err(WorkspaceCheckoutError::Storage)?;
 
-        for (p,) in find!((p: Value<_>), crate::pattern!(&meta, [{ repo::parent: p }])) {
+        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ repo::parent: p }])) {
             stack.push(p);
         }
     }

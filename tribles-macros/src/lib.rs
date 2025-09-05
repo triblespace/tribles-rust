@@ -10,9 +10,9 @@
 //! triples into an existing set.
 //!
 //! ```ignore
-//! ::tribles_macros::crate::pattern!(&set, [ { my_ns::field: (42) } ]);
-//! ::tribles_macros::crate::entity!({ my_ns::field: 42 });
-//! ::tribles_macros::crate::entity!(id, { my_ns::field: 42 });
+//! ::tribles_macros::pattern!(&set, [ { my_ns::field: (42) } ]);
+//! ::tribles_macros::entity!({ my_ns::field: 42 });
+//! ::tribles_macros::entity!(id, { my_ns::field: 42 });
 //! ```
 //!
 //! The `pattern` macro expects the crate path, a namespace module, a dataset
@@ -96,6 +96,9 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
         set,
         rest,
     } = syn::parse(input)?;
+    // Create a tokenized crate path for use in `quote!` macros below.
+    let crate_path_ts: TokenStream2 = quote! { #crate_path };
+    let crate_path = crate_path_ts.clone();
     let tokens: Vec<TokenTree> = rest.into_iter().collect();
     if tokens.len() < 2 {
         return Err(syn::Error::new(
@@ -250,7 +253,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
         .into_iter()
         .map(|t| match t {
             OpTok::Sym(ident) => {
-                quote! { PathOp::Attr(#crate_path::id::RawId::from(#ns::ids::#ident)) }
+                quote! { PathOp::Attr(::tribles::id::RawId::from(#ns::ids::#ident)) }
             }
             OpTok::Or => quote! { PathOp::Union },
             OpTok::Concat => quote! { PathOp::Concat },
@@ -262,7 +265,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     let output = quote! {
         {
-            use #crate_path::query::regularpathconstraint::{PathOp, RegularPathConstraint, ThompsonEngine};
+            use ::tribles::query::regularpathconstraint::{PathOp, RegularPathConstraint, ThompsonEngine};
             RegularPathConstraint::<ThompsonEngine>::new(#set.clone(), #start, #end, &[#(#ops),*])
         }
     };
@@ -274,11 +277,6 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 /// The invocation has the form `crate_path, namespace_path, dataset, [ .. ]`.
 /// Each item in the bracketed list is parsed into an [`Entity`].
 struct MacroInput {
-    // Optional crate path / namespace form (legacy). If absent the macro was
-    // invoked in the simplified form `pattern!(<set>, [ ... ])` where field
-    // names are full paths (or brought into scope with `use`).
-    crate_path: Option<Path>,
-    ns: Option<Path>,
     set: Expr,
     pattern: Vec<Entity>,
 }
@@ -333,12 +331,7 @@ impl Parse for MacroInput {
                 content.parse::<Token![,]>()?;
             }
         }
-        Ok(MacroInput {
-            crate_path: None,
-            ns: None,
-            set,
-            pattern,
-        })
+        Ok(MacroInput { set, pattern })
     }
 }
 
@@ -402,12 +395,8 @@ pub fn pattern(input: TokenStream) -> TokenStream {
 /// Parse the input token stream and build the constraint generating code.
 fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Parse the outer macro invocation into the typed `MacroInput` structure.
-    let MacroInput {
-        crate_path,
-        ns,
-        set,
-        pattern,
-    } = syn::parse(input)?;
+    // New simplified form: <set>, [ ... ]
+    let MacroInput { set, pattern } = syn::parse(input)?;
 
     // Names for the generated context and dataset variables.
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
@@ -430,13 +419,9 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut entity_tokens = TokenStream2::new();
     // Token stream that initializes attribute variables once.
     let mut attr_tokens = TokenStream2::new();
-    // If a namespace was provided (legacy invocation) bring it into scope
-    // for the generated code. For the simplified invocation (no `ns`), we
-    // expect callers to supply fully-qualified field module paths or import
-    // them with `use`.
-    if let Some(ns_path) = &ns {
-        attr_tokens.extend(quote! { #[allow(unused_imports)] use #ns_path as ns; });
-    }
+    // For the simplified invocation callers must supply fully-qualified
+    // field module paths (e.g. `literature::firstname`) or `use` them into
+    // scope. We no longer accept a separate `ns` argument.
     // Counter to create unique identifiers for entity variables.
     // Counter and map for unique attribute variables.
     let mut attr_idx = 0usize;
@@ -453,12 +438,12 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             Some(EntityId::Var(id)) => quote! { let #e_ident = #id; },
             // Literal expression: create a new variable bound to the value.
             Some(EntityId::Lit(expr)) => quote! {
-                let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                constraints.push({ let e: #crate_path::id::Id = #expr; Box::new(#e_ident.is(#crate_path::value::ToValue::to_value(e)))});
+                let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
             },
             // No id specified: create a fresh variable for the entity.
             None => quote! {
-                let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
             },
         };
         entity_tokens.extend(init);
@@ -466,117 +451,42 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
         for Field { name, value } in entity.fields {
             let field_path = name;
 
-            // Decide whether a single-segment path should be interpreted as
-            // relative to the provided namespace (legacy form). For the new
-            // simplified invocation the `ns` will be None and the caller is
-            // expected to supply a fully-qualified path or bring the module
-            // into scope with `use`.
-            let single_segment = field_path.leading_colon.is_none() && field_path.segments.len() == 1;
+            // Build a stable string key for attribute reuse using the full
+            // tokenized field path (caller must provide fully-qualified
+            // paths or `use` them into scope).
+            let key = field_path.to_token_stream().to_string();
 
-            // Build a stable string key for attribute reuse.
-            let key = if single_segment {
-                format!("{}::{}", ns.to_token_stream(), field_path.to_token_stream())
-            } else {
-                field_path.to_token_stream().to_string()
-            };
-
-            // Reuse the same attribute variable for each unique field path.
             let a_var_ident = attr_map
                 .entry(key)
                 .or_insert_with(|| {
                     let ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
                     attr_idx += 1;
-                    // Emit attribute variable initialization referencing the
-                    // appropriate per-field `::id` constant.
-                    if let Some(ns_path) = &ns {
-                        if single_segment {
-                            attr_tokens.extend(quote! {
-                                let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                                constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(#ns_path::#field_path::id))));
-                            });
-                        } else {
-                            attr_tokens.extend(quote! {
-                                let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                                constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(#field_path::id))));
-                            });
-                        }
-                    } else {
-                        attr_tokens.extend(quote! {
-                            let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                            constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(#field_path::id))));
-                        });
-                    }
+                    attr_tokens.extend(quote! {
+                        let #ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        constraints.push(Box::new(#ident.is(::tribles::value::ToValue::to_value(#field_path::id))));
+                    });
                     ident
                 })
                 .clone();
 
             let triple_tokens = match value {
-                // Literal value: create a variable bound to the literal and match it.
                 FieldValue::Lit(expr) => {
-                    if let Some(ns_path) = &ns {
-                        if single_segment {
-                            quote! {
-                                {
-                                    #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                                    let v_var: #crate_path::query::Variable<#ns_path::#field_path::schema> = #ctx_ident.next_variable();
-                                    // literal value converted to a `Value`
-                                    let v: #crate_path::value::Value<#ns_path::#field_path::schema> = #crate_path::value::ToValue::to_value(#expr);
-                                    // ensure the literal matches the variable
-                                    constraints.push(Box::new(v_var.is(v)));
-                                    // match the triple from the dataset
-                                    constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                                }
-                            }
-                        } else {
-                            quote! {
-                                {
-                                    #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                                    let v_var: #crate_path::query::Variable<#field_path::schema> = #ctx_ident.next_variable();
-                                    let v: #crate_path::value::Value<#field_path::schema> = #crate_path::value::ToValue::to_value(#expr);
-                                    constraints.push(Box::new(v_var.is(v)));
-                                    constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                                }
-                            }
-                        }
-                    } else {
-                        quote! {
-                            {
-                                #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                                let v_var: #crate_path::query::Variable<#field_path::schema> = #ctx_ident.next_variable();
-                                let v: #crate_path::value::Value<#field_path::schema> = #crate_path::value::ToValue::to_value(#expr);
-                                constraints.push(Box::new(v_var.is(v)));
-                                constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                            }
+                    quote! {
+                        {
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let v_var: ::tribles::query::Variable<#field_path::schema> = #ctx_ident.next_variable();
+                            let v: ::tribles::value::Value<#field_path::schema> = ::tribles::value::ToValue::to_value(#expr);
+                            constraints.push(Box::new(v_var.is(v)));
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
                 }
-                // Variable value: only emit pattern matching code.
                 FieldValue::Var(expr) => {
-                    if let Some(ns_path) = &ns {
-                        if single_segment {
-                            quote! {
-                                {
-                                    #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                                    let v_var: #crate_path::query::Variable<#ns_path::#field_path::schema> = #expr;
-                                    constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                                }
-                            }
-                        } else {
-                            quote! {
-                                {
-                                    #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                                    let v_var: #crate_path::query::Variable<#field_path::schema> = #expr;
-                                    constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                                }
-                            }
-                        }
-                    } else {
-                        quote! {
-                            {
-                                #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                                let v_var: #crate_path::query::Variable<#field_path::schema> = #expr;
-                                constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                            }
+                    quote! {
+                        {
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let v_var: ::tribles::query::Variable<#field_path::schema> = #expr;
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
                 }
@@ -588,12 +498,12 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Wrap all collected constraints in an intersection constraint
     let output = quote! {
         {
-            let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
+            let mut constraints: ::tribles::arrayvec::ArrayVec<Box<dyn ::tribles::query::Constraint>, 16> = ::tribles::arrayvec::ArrayVec::new();
             let #ctx_ident = __local_find_context!();
             let #set_ident = #set;
             #attr_tokens
             #entity_tokens
-            #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+            ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }
     };
 
@@ -607,8 +517,6 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
 /// `crate_path, namespace_path, id_expr, { field: value, ... }`
 /// `crate_path, namespace_path, set_expr, id_expr, { field: value, ... }`
 struct EntityInput {
-    crate_path: Option<Path>,
-    ns: Option<Path>,
     set: Option<Expr>,
     id: Option<Expr>,
     fields: Vec<(Path, Expr)>,
@@ -616,62 +524,6 @@ struct EntityInput {
 
 impl Parse for EntityInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // Try legacy form first: <crate_path>, <ns>, ...
-        let fork = input.fork();
-        if let Ok(cp) = fork.parse::<Path>() {
-            if fork.peek(Token![,]) {
-                let _ = fork.parse::<Token![,]>();
-                if let Ok(ns_p) = fork.parse::<Path>() {
-                    if fork.peek(Token![,]) {
-                        // Legacy form consumed for real
-                        let crate_path: Path = input.parse()?;
-                        input.parse::<Token![,]>()?;
-                        let ns: Path = input.parse()?;
-                        input.parse::<Token![,]>()?;
-
-                        let mut set = None;
-                        let mut id = None;
-
-                        if input.peek(syn::token::Brace) {
-                            // no id, no set
-                        } else {
-                            let expr1: Expr = input.parse()?;
-                            input.parse::<Token![,]>()?;
-                            if input.peek(syn::token::Brace) {
-                                id = Some(expr1);
-                            } else {
-                                set = Some(expr1);
-                                let id_expr: Expr = input.parse()?;
-                                input.parse::<Token![,]>()?;
-                                id = Some(id_expr);
-                            }
-                        }
-
-                        let content;
-                        braced!(content in input);
-                        let mut fields = Vec::new();
-                        while !content.is_empty() {
-                            let name: Path = content.parse()?;
-                            content.parse::<Token![:]>()?;
-                            let value: Expr = content.parse()?;
-                            fields.push((name, value));
-                            if content.peek(Token![,]) {
-                                content.parse::<Token![,]>()?;
-                            }
-                        }
-
-                        return Ok(EntityInput {
-                            crate_path: Some(crate_path),
-                            ns: Some(ns),
-                            set,
-                            id,
-                            fields,
-                        });
-                    }
-                }
-            }
-        }
-
         // Simplified form: [ set_expr?, id_expr? ], { fields }
         let mut set = None;
         let mut id = None;
@@ -703,13 +555,7 @@ impl Parse for EntityInput {
             }
         }
 
-        Ok(EntityInput {
-            crate_path: None,
-            ns: None,
-            set,
-            id,
-            fields,
-        })
+        Ok(EntityInput { set, id, fields })
     }
 }
 
@@ -724,13 +570,11 @@ pub fn entity(input: TokenStream) -> TokenStream {
 
 /// Parsed input for the [`pattern_changes`] macro.
 ///
-/// The invocation takes the form `crate_path, namespace_path, current, changes, [..]`.
+/// The new simplified invocation takes the form `current, changes, [ .. ]`.
 /// Both dataset expressions evaluate to [`TribleSet`]s. `current` is the full
 /// dataset and `changes` represents the newly inserted tribles. The pattern
 /// syntax matches that of [`pattern!`].
 struct PatternChangesInput {
-    crate_path: Path,
-    ns: Path,
     curr: Expr,
     changes: Expr,
     pattern: Vec<Entity>,
@@ -738,10 +582,6 @@ struct PatternChangesInput {
 
 impl Parse for PatternChangesInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let crate_path: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let ns: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
         let curr: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let changes: Expr = input.parse()?;
@@ -755,30 +595,15 @@ impl Parse for PatternChangesInput {
                 content.parse::<Token![,]>()?;
             }
         }
-        Ok(PatternChangesInput {
-            crate_path,
-            ns,
-            curr,
-            changes,
-            pattern,
-        })
+        Ok(PatternChangesInput { curr, changes, pattern })
     }
 }
 
 fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    let EntityInput {
-        crate_path,
-        ns,
-        set,
-        id,
-        fields,
-    } = syn::parse(input)?;
-
-    // Determine the crate path tokens to reference the host `tribles` crate.
-    // If the caller provided an explicit crate path (legacy form) use that,
-    // otherwise default to `::tribles` which is the common case for the
-    // simplified invocation exported from the prelude.
+    let EntityInput { set, id, fields } = syn::parse(input)?;
+    // Use absolute crate path for emitted tokens
     let crate_path_ts: TokenStream2 = quote! { ::tribles };
+    let crate_path = crate_path_ts.clone();
 
     let (set_init, set_expr) = if let Some(s) = &set {
         (TokenStream2::new(), quote! { #s })
@@ -806,32 +631,10 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     let mut insert_tokens = TokenStream2::new();
     for (field, value) in fields {
-        let single_segment = field.leading_colon.is_none() && field.segments.len() == 1;
-        let stmt = if let Some(ns_path) = &ns {
-            if single_segment {
-                quote! {
-                    {
-                        let v: #crate_path::value::Value<#ns_path::#field::schema> =
-                            #crate_path::value::ToValue::to_value(#value);
-                        #set_expr.insert(&#crate_path::trible::Trible::new(#id_expr, &#ns_path::#field::id, &v));
-                    }
-                }
-            } else {
-                quote! {
-                    {
-                        let v: #crate_path::value::Value<#field::schema> =
-                            #crate_path::value::ToValue::to_value(#value);
-                        #set_expr.insert(&#crate_path::trible::Trible::new(#id_expr, &#field::id, &v));
-                    }
-                }
-            }
-        } else {
-            quote! {
-                {
-                    let v: #crate_path::value::Value<#field::schema> =
-                        #crate_path::value::ToValue::to_value(#value);
-                    #set_expr.insert(&#crate_path::trible::Trible::new(#id_expr, &#field::id, &v));
-                }
+        let stmt = quote! {
+            {
+                let v: ::tribles::value::Value<#field::schema> = ::tribles::value::ToValue::to_value(#value);
+                #set_expr.insert(&::tribles::trible::Trible::new(#id_expr, &#field::id, &v));
             }
         };
         insert_tokens.extend(stmt);
@@ -866,13 +669,11 @@ pub fn pattern_changes(input: TokenStream) -> TokenStream {
 fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     use std::collections::HashMap;
 
-    let PatternChangesInput {
-        crate_path,
-        ns,
-        curr,
-        changes,
-        pattern,
-    } = syn::parse(input)?;
+    let PatternChangesInput { curr, changes, pattern } = syn::parse(input)?;
+    // We always generate expansions referencing the canonical ::tribles crate
+    // path; no legacy crate/ns parameters are accepted by this macro.
+    let crate_path_ts: TokenStream2 = quote! { ::tribles };
+    let crate_path = crate_path_ts.clone();
 
     // Identifiers used throughout the expansion
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
@@ -908,27 +709,22 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             }
             Some(EntityId::Lit(expr)) => {
                 entity_decl_tokens.extend(quote! {
-                    let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                    let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                 });
                 entity_const_tokens.extend(quote! {
-                    constraints.push({ let e: #crate_path::id::Id = #expr; Box::new(#e_ident.is(#crate_path::value::ToValue::to_value(e)))});
+                    constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
                 });
             }
             None => {
                 entity_decl_tokens.extend(quote! {
-                    let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                    let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                 });
             }
         }
 
         for Field { name, value } in entity.fields {
             let field_path = name;
-            let single_segment = field_path.leading_colon.is_none() && field_path.segments.len() == 1;
-            let key = if single_segment {
-                format!("{}::{}", ns.to_token_stream(), field_path.to_token_stream())
-            } else {
-                field_path.to_token_stream().to_string()
-            };
+            let key = field_path.to_token_stream().to_string();
 
             let a_ident = attr_map
                 .entry(key)
@@ -936,17 +732,11 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                     let ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
                     attr_idx += 1;
                     attr_decl_tokens.extend(quote! {
-                        let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        let #ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                     });
-                    if single_segment {
-                        attr_const_tokens.extend(quote! {
-                            constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(#ns::#field_path::id))));
-                        });
-                    } else {
-                        attr_const_tokens.extend(quote! {
-                            constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(#field_path::id))));
-                        });
-                    }
+                    attr_const_tokens.extend(quote! {
+                        constraints.push(Box::new(#ident.is(::tribles::value::ToValue::to_value(#field_path::id))));
+                    });
                     ident
                 })
                 .clone();
@@ -958,31 +748,18 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 FieldValue::Lit(expr) => {
                     let val_ident = format_ident!("__c{}", value_idx, span = Span::call_site());
                     value_idx += 1;
-                    if single_segment {
-                        value_decl_tokens.extend(quote! {
-                            let #v_ident: #crate_path::query::Variable<#ns::#field_path::schema> = #ctx_ident.next_variable();
-                            let #val_ident: #crate_path::value::Value<#ns::#field_path::schema> = #crate_path::value::ToValue::to_value(#expr);
-                        });
-                    } else {
-                        value_decl_tokens.extend(quote! {
-                            let #v_ident: #crate_path::query::Variable<#field_path::schema> = #ctx_ident.next_variable();
-                            let #val_ident: #crate_path::value::Value<#field_path::schema> = #crate_path::value::ToValue::to_value(#expr);
-                        });
-                    }
+                    value_decl_tokens.extend(quote! {
+                        let #v_ident: ::tribles::query::Variable<#field_path::schema> = #ctx_ident.next_variable();
+                        let #val_ident: ::tribles::value::Value<#field_path::schema> = ::tribles::value::ToValue::to_value(#expr);
+                    });
                     value_const_tokens.extend(quote! {
                         constraints.push(Box::new(#v_ident.is(#val_ident)));
                     });
                 }
                 FieldValue::Var(expr) => {
-                    if single_segment {
-                        value_decl_tokens.extend(quote! {
-                            let #v_ident: #crate_path::query::Variable<#ns::#field_path::schema> = #expr;
-                        });
-                    } else {
-                        value_decl_tokens.extend(quote! {
-                            let #v_ident: #crate_path::query::Variable<#field_path::schema> = #expr;
-                        });
-                    }
+                    value_decl_tokens.extend(quote! {
+                        let #v_ident: ::tribles::query::Variable<#field_path::schema> = #expr;
+                    });
                 }
             }
 
@@ -1018,22 +795,22 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
         let case = quote! {
             {
-                let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
-                #[allow(unused_imports)] use #crate_path::query::TriblePattern;
+                let mut constraints: ::tribles::arrayvec::ArrayVec<Box<dyn ::tribles::query::Constraint>, 16> = ::tribles::arrayvec::ArrayVec::new();
+                #[allow(unused_imports)] use ::tribles::query::TriblePattern;
                 #triple_tokens
-                #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+                ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
             }
         };
         case_exprs.push(case);
     }
 
     let union_expr = quote! {
-        #crate_path::query::unionconstraint::UnionConstraint::new(vec![
-            #(Box::new(#case_exprs) as Box<dyn #crate_path::query::Constraint>),*
+            ::tribles::query::unionconstraint::UnionConstraint::new(vec![
+            #(Box::new(#case_exprs) as Box<dyn ::tribles::query::Constraint>),*
         ])
     };
 
-    let ns_use = quote! { #[allow(unused_imports)] use #ns as ns; };
+    let ns_use = TokenStream2::new();
 
     let output = quote! {
         {
@@ -1044,13 +821,13 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             #attr_decl_tokens
             #entity_decl_tokens
             #value_decl_tokens
-            let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
-            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
+            let mut constraints: ::tribles::arrayvec::ArrayVec<Box<dyn ::tribles::query::Constraint>, 16> = ::tribles::arrayvec::ArrayVec::new();
+            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
             #attr_const_tokens
             #entity_const_tokens
             #value_const_tokens
             constraints.push(Box::new(#union_expr));
-            #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+            ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }
     };
 

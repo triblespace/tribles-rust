@@ -22,7 +22,7 @@ fn simple_path() {
     let a_val = a.to_value();
     let b_val = b.to_value();
     let results: Vec<_> =
-        find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s follows e)).collect();
+        find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s social::follows e)).collect();
     assert!(results.contains(&(a_val, b_val)));
 }
 
@@ -39,7 +39,7 @@ fn alternation() {
     let c_val = c.to_value();
 
     let results: Vec<_> =
-        find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s (follows | likes) e))
+        find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s (social::follows | social::likes) e))
             .collect();
     assert!(results.contains(&(a_val, b_val)));
     assert!(results.contains(&(a_val, c_val)));
@@ -57,7 +57,7 @@ fn repetition() {
     let start_val = a.to_value();
     let end_val = c.to_value();
     let results: Vec<_> = find!((s: Value<_>, e: Value<_>),
-        and!(s.is(start_val), e.is(end_val), social::path!(kb.clone(), s follows+ e)))
+        and!(s.is(start_val), e.is(end_val), path!(kb.clone(), s social::follows+ e)))
     .collect();
     assert!(results.contains(&(start_val, end_val)));
 }

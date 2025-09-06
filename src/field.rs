@@ -38,7 +38,27 @@ impl<S: ValueSchema> Field<S> {
     pub fn id(&self) -> crate::id::Id {
         crate::id::Id::new(self.raw).unwrap()
     }
+
+    /// Convert a host value into a typed Value<S> using the Field's schema.
+    /// This is a small convenience wrapper around the `ToValue` trait and
+    /// simplifies macro expansion: `af.value_from(expr)` preserves the
+    /// schema `S` for type inference.
+    pub fn value_from<T: crate::value::ToValue<S>>(&self, v: T) -> crate::value::Value<S> {
+        crate::value::ToValue::to_value(v)
+    }
+
+    /// Create a new query variable of the field's schema using the provided
+    /// variable context. This wraps `ctx.next_variable::<S>()` so macros can
+    /// write `af.next_variable(ctx)` instead of generating helper functions.
+    pub fn next_variable(&self, ctx: &mut crate::query::VariableContext) -> crate::query::Variable<S> {
+        ctx.next_variable::<S>()
+    }
+
+    /// Coerce an existing Variable<S> through the Field so macros can accept
+    /// user-supplied variable expressions while making the schema explicit.
+    pub fn as_variable(&self, v: crate::query::Variable<S>) -> crate::query::Variable<S> {
+        v
+    }
 }
 
 pub use crate::id::RawId as RawIdAlias;
-

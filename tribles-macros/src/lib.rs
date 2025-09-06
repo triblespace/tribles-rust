@@ -485,14 +485,8 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                     quote! {
                         {
                             #[allow(unused_imports)] use ::tribles::query::TriblePattern;
-                            let #v_tmp_ident = {
-                                fn __to_value<S: ::tribles::value::ValueSchema, T: ::tribles::value::ToValue<S>>(_f: &::tribles::field::Field<S>, x: T) -> ::tribles::value::Value<S> {
-                                    ::tribles::value::ToValue::to_value(x)
-                                }
-                                #af_ident.value_from(#expr)
-                            };
-                            let #raw_ident = #ctx_ident.next_variable::<::tribles::value::schemas::UnknownValue>();
-                            let v_var = #af_ident.as_variable(#raw_ident);
+                            let #v_tmp_ident = #af_ident.value_from(#expr);
+                            let v_var = #af_ident.as_variable(#ctx_ident.next_variable());
                             constraints.push(Box::new(v_var.is(#v_tmp_ident)));
                             constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
@@ -503,8 +497,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         {
                             #[allow(unused_imports)] use ::tribles::query::TriblePattern;
                             let v_var = {
-                                fn __as_var<'a, S: ::tribles::value::ValueSchema>(_f: &::tribles::field::Field<S>, v: ::tribles::query::Variable<S>) -> ::tribles::query::Variable<S> { v }
-                                __as_var(&#af_ident, #expr)
+                                #af_ident.as_variable(#expr)
                             };
                             constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
@@ -658,12 +651,7 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
         let stmt = quote! {
             {
                 let #af_ident = #field_expr;
-                let #val_ident = {
-                                        fn __to_value<S: ::tribles::value::ValueSchema, T: ::tribles::value::ToValue<S>>(_f: &::tribles::field::Field<S>, x: T) -> ::tribles::value::Value<S> {
-                                            ::tribles::value::ToValue::to_value(x)
-                                        }
-                    #af_ident.value_from(#value_expr)
-                };
+                let #val_ident = #af_ident.value_from(#value_expr);
                 let __a_id = #af_ident.id();
                 #set_expr.insert(&::tribles::trible::Trible::new(#id_expr, &__a_id, &#val_ident));
             }
@@ -782,14 +770,8 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                     value_idx += 1;
                     let raw_ident = format_ident!("__raw{}", value_idx, span = Span::call_site());
                     value_decl_tokens.extend(quote! {
-                        let #val_ident = {
-                            fn __to_value<S: ::tribles::value::ValueSchema, T: ::tribles::value::ToValue<S>>(_f: &::tribles::field::Field<S>, x: T) -> ::tribles::value::Value<S> {
-                                ::tribles::value::ToValue::to_value(x)
-                            }
-                            #af_ident.value_from(#expr)
-                        };
-                        let #raw_ident = #ctx_ident.next_variable::<::tribles::value::schemas::UnknownValue>();
-                        let #v_ident = #af_ident.as_variable(#raw_ident);
+                        let #val_ident = #af_ident.value_from(#expr);
+                        let #v_ident = #af_ident.as_variable(#ctx_ident.next_variable());
                     });
                     value_const_tokens.extend(quote! {
                         constraints.push(Box::new(#v_ident.is(#val_ident)));
@@ -797,10 +779,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 }
                 FieldValue::Var(expr) => {
                     value_decl_tokens.extend(quote! {
-                        let #v_ident = {
-                            fn __as_var<'a, S: ::tribles::value::ValueSchema>(_f: &::tribles::field::Field<S>, v: ::tribles::query::Variable<S>) -> ::tribles::query::Variable<S> { v }
-                            __as_var(&#af_ident, #expr)
-                        };
+                        let #v_ident = #af_ident.as_variable(#expr);
                     });
                 }
             }

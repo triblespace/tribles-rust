@@ -55,12 +55,8 @@ impl<S: ValueSchema> Field<S> {
     /// The operation is a zero-cost conversion as variables are simply small
     /// integer indexes; the implementation uses an unsafe transmute to change
     /// the type parameter without moving the underlying data.
-    pub fn as_variable<T: crate::value::ValueSchema>(&self, v: crate::query::Variable<T>) -> crate::query::Variable<S> {
-        // SAFETY: `Variable<T>` and `Variable<S>` have identical layout
-        // (single usize + PhantomData). Transmuting is safe as we only
-        // reinterpret the index; the resulting Variable<S> carries the same
-        // index but now has the schema S for type-checking purposes.
-        unsafe { std::mem::transmute::<crate::query::Variable<T>, crate::query::Variable<S>>(v) }
+    pub fn as_variable(&self, v: crate::query::Variable<S>) -> crate::query::Variable<S> {
+        v
     }
 }
 

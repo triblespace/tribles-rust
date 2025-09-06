@@ -16,6 +16,7 @@ pub mod query;
 pub mod repo;
 pub mod trible;
 pub mod value;
+pub mod field;
 
 pub mod debug;
 pub mod examples;

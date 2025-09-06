@@ -22,7 +22,7 @@ fn main() {
     kb += entity!(&b, { social::likes: &c });
 
     for (s, e) in
-        find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s (follows | likes)+ e))
+        find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s (social::follows | social::likes)+ e))
     {
         println!("{:?} -> {:?}", s, e);
     }

@@ -49,9 +49,9 @@ fn main() {
     // Find new titles by Shakespeare
     let results: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>),
-        literature::pattern_changes!(&updated, &delta, [
-            { author @ firstname: ("William"), lastname: ("Shakespeare") },
-            { book @ author: author, title: title }
+        pattern_changes!(&updated, &delta, [
+            { author @ literature::firstname: ("William"), literature::lastname: ("Shakespeare") },
+            { book @ literature::author: author, literature::title: title }
         ])
     )
     .map(|(_, b, t)| (b, t))

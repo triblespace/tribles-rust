@@ -358,7 +358,7 @@ mod tests {
     use crate::trible::TribleSet;
     use crate::value::schemas::hash::Blake3;
     use crate::value::schemas::hash::Handle;
-    use crate::NS;
+    use crate::prelude::*;
 
     use super::*;
     use anybytes::Bytes;
@@ -366,10 +366,11 @@ mod tests {
     use fake::locales::EN;
     use fake::Fake;
 
-    NS! {
-        pub namespace knights2 {
-            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
-        }
+    pub mod knights2 {
+        #![allow(unused)]
+        use crate::prelude::*;
+        pub const description: crate::field::Field<Handle<Blake3, LongString>> =
+            crate::field::Field::from(hex_literal::hex!("5AD0FAFB1FECBC197A385EC20166899E"));
     }
 
     #[test]

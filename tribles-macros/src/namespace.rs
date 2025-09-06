@@ -94,34 +94,8 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
         }
     });
 
-    let ids_consts = fields.iter().map(|Field { attrs, id, name, .. }| {
-        quote! { #(#attrs)* pub const #name: #crate_path::id::Id = #crate_path::id::Id::new(#crate_path::namespace::hex_literal::hex!(#id)).unwrap(); }
-    });
-
-    let schema_types = fields.iter().map(
-        |Field {
-             attrs, name, ty, ..
-         }| {
-            quote! { #(#attrs)* pub type #name = #ty; }
-        },
-    );
-
-    // Per-field convenience modules (ns::field_name) exposing the attribute
-    // id and the schema/type alias. This provides a stable, unambiguous
-    // handle for the global pattern!/entity! macros to reference without
-    // relying on brittle path rewriting. Example usage: `literature::firstname::id`
-    let field_modules = fields.iter().map(|Field { id, name, ty, .. }| {
-        quote! {
-            pub mod #name {
-                use super::*;
-                /// Attribute id for this field.
-                pub const id: #crate_path::id::Id = #crate_path::id::Id::new(#crate_path::namespace::hex_literal::hex!(#id)).unwrap();
-                /// Schema/type alias for this field (ValueSchema implementation).
-                pub type schema = #ty;
-                /// Optional blob schema id (if the ValueSchema declares one).
-                pub const blob_schema_id: Option<#crate_path::id::Id> = <#ty as #crate_path::value::ValueSchema>::BLOB_SCHEMA_ID;
-            }
-        }
+    let field_consts = fields.iter().map(|Field { attrs, id, name, ty, .. }| {
+        quote! { #(#attrs)* pub const #name: #crate_path::field::Field<#ty> = #crate_path::field::Field::from(#crate_path::namespace::hex_literal::hex!(#id)); }
     });
 
     // We no longer emit per-namespace macro_rules! wrappers here. Call sites
@@ -142,18 +116,8 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 #(#desc_fields)*
                 set
             }
-            pub mod ids {
-                #![allow(non_upper_case_globals, unused)]
-                use super::*;
-                #(#ids_consts)*
-            }
-            pub mod schemas {
-                #![allow(non_camel_case_types, unused)]
-                use super::*;
-                #(#schema_types)*
-            }
-            // Per-field convenience modules
-            #(#field_modules)*
+            // Per-field constants
+            #(#field_consts)*
         }
     };
 

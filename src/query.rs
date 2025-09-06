@@ -631,11 +631,11 @@ mod tests {
 
     use super::*;
 
-    NS! {
-        pub namespace knights5 {
-            "8143F46E812E88C4544E7094080EC523" as loves: GenId;
-            "D6E0F2A6E5214E1330565B4D4138E55C" as name: ShortString;
-        }
+    pub mod knights5 {
+        #![allow(unused)]
+        use crate::prelude::*;
+        pub const loves: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("8143F46E812E88C4544E7094080EC523"));
+        pub const name: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("D6E0F2A6E5214E1330565B4D4138E55C"));
     }
 
     #[test]

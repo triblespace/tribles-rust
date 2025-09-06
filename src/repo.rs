@@ -182,39 +182,48 @@ use crate::value::schemas::hash::Blake3;
 use crate::value::schemas::shortstring::ShortString;
 use crate::value::schemas::time::NsTAIInterval;
 
-NS! {
-    /// The `commits` namespace contains attributes describing commits in a repository.
-    /// Commits are a fundamental building block of version control systems.
-    /// They represent a snapshot of the repository at a specific point in time.
-    /// Commits are immutable, append-only, and form a chain of history.
-    /// Each commit is identified by a unique hash, and contains a reference to the previous commit.
-    /// Commits are signed by the author, and can be verified by anyone with the author's public key.
-    pub namespace repo {
-        /// The actual data of the commit.
-        "4DD4DDD05CC31734B03ABB4E43188B1F" as content: Handle<Blake3, SimpleArchive>;
-        /// A commit that this commit is based on.
-        "317044B612C690000D798CA660ECFD2A" as parent: Handle<Blake3, SimpleArchive>;
-        /// A (potentially long) message describing the commit.
-        /// Stored as a LongString blob handle to avoid length limits.
-        "B59D147839100B6ED4B165DF76EDF3BB" as message: Handle<Blake3, LongString>;
-        /// A short message describing the commit.
-        /// Used by tools displaying the commit history.
-        "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
-        /// The hash of the first commit in the commit chain of the branch.
-        "272FBC56108F336C4D2E17289468C35F" as head: Handle<Blake3, SimpleArchive>;
-        /// An id used to track the branch.
-        /// This id is unique to the branch, and is used to identify the branch in the repository.
-        "8694CC73AF96A5E1C7635C677D1B928A" as branch: GenId;
-        /// Timestamp range when this commit was created.
-        "71FF566AB4E3119FC2C5E66A18979586" as timestamp: NsTAIInterval;
-        //"723C45065E7FCF1D52E86AD8D856A20D" as cached_rollup: Handle<Blake3, SuccinctArchive<CachedUniverse<1024, 1024, CompressedUniverse<DacsOpt>>, Rank9Sel>>;
-        /// The author of the signature identified by their ed25519 public key.
-        "ADB4FFAD247C886848161297EFF5A05B" as signed_by: ed::ED25519PublicKey;
-        /// The `r` part of a ed25519 signature.
-        "9DF34F84959928F93A3C40AEB6E9E499" as signature_r: ed::ED25519RComponent;
-        /// The `s` part of a ed25519 signature.
-        "1ACE03BF70242B289FDF00E4327C3BC6" as signature_s: ed::ED25519SComponent;
-    }
+pub mod repo {
+    #![allow(unused)]
+    use crate::prelude::*;
+    use crate::value::schemas::hash::Handle;
+    use crate::value::schemas::hash::Blake3;
+    use crate::blob::schemas::simplearchive::SimpleArchive;
+    use crate::blob::schemas::longstring::LongString;
+    use crate::value::schemas::shortstring::ShortString;
+    use crate::value::schemas::genid::GenId;
+    use crate::value::schemas::time::NsTAIInterval;
+    use crate::value::schemas::ed25519 as ed;
+
+    /// The actual data of the commit.
+    pub const content: crate::field::Field<Handle<Blake3, SimpleArchive>> =
+        crate::field::Field::from(hex_literal::hex!("4DD4DDD05CC31734B03ABB4E43188B1F"));
+    /// A commit that this commit is based on.
+    pub const parent: crate::field::Field<Handle<Blake3, SimpleArchive>> =
+        crate::field::Field::from(hex_literal::hex!("317044B612C690000D798CA660ECFD2A"));
+    /// A (potentially long) message describing the commit.
+    pub const message: crate::field::Field<Handle<Blake3, LongString>> =
+        crate::field::Field::from(hex_literal::hex!("B59D147839100B6ED4B165DF76EDF3BB"));
+    /// A short message describing the commit.
+    pub const short_message: crate::field::Field<ShortString> =
+        crate::field::Field::from(hex_literal::hex!("12290C0BE0E9207E324F24DDE0D89300"));
+    /// The hash of the first commit in the commit chain of the branch.
+    pub const head: crate::field::Field<Handle<Blake3, SimpleArchive>> =
+        crate::field::Field::from(hex_literal::hex!("272FBC56108F336C4D2E17289468C35F"));
+    /// An id used to track the branch.
+    pub const branch: crate::field::Field<GenId> =
+        crate::field::Field::from(hex_literal::hex!("8694CC73AF96A5E1C7635C677D1B928A"));
+    /// Timestamp range when this commit was created.
+    pub const timestamp: crate::field::Field<NsTAIInterval> =
+        crate::field::Field::from(hex_literal::hex!("71FF566AB4E3119FC2C5E66A18979586"));
+    /// The author of the signature identified by their ed25519 public key.
+    pub const signed_by: crate::field::Field<ed::ED25519PublicKey> =
+        crate::field::Field::from(hex_literal::hex!("ADB4FFAD247C886848161297EFF5A05B"));
+    /// The `r` part of a ed25519 signature.
+    pub const signature_r: crate::field::Field<ed::ED25519RComponent> =
+        crate::field::Field::from(hex_literal::hex!("9DF34F84959928F93A3C40AEB6E9E499"));
+    /// The `s` part of a ed25519 signature.
+    pub const signature_s: crate::field::Field<ed::ED25519SComponent> =
+        crate::field::Field::from(hex_literal::hex!("1ACE03BF70242B289FDF00E4327C3BC6"));
 }
 
 /// The `ListBlobs` trait is used to list all blobs in a repository.

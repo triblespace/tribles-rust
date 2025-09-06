@@ -10,13 +10,13 @@ use crate::pattern_changes;
 use crate::path;
 
 
-NS! {
-    pub namespace literature {
-        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
-        "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
-        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
-        "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
-    }
+pub mod literature {
+    #![allow(unused)]
+    use crate::prelude::*;
+    pub const author: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("8F180883F9FD5F787E9E0AF0DF5866B9"));
+    pub const firstname: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("0DBB530B37B966D137C50B943700EDB2"));
+    pub const lastname: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("6BAA463FD4EAF45F6A103DB9433E4545"));
+    pub const title: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("A74AA63539354CDA47F387A4C3A8D54C"));
 }
 
 fn main() {

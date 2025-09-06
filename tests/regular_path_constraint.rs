@@ -6,11 +6,11 @@ use crate::pattern_changes;
 use crate::path;
 
 
-NS! {
-    namespace social {
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: GenId;
-        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: GenId;
-    }
+pub mod social {
+    #![allow(unused)]
+    use crate::prelude::*;
+    pub const follows: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+    pub const likes: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"));
 }
 
 #[test]

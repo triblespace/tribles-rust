@@ -81,7 +81,7 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let desc_fields = fields.iter().map(|Field { id, name, ty, .. }| {
         quote! {
             {
-                let e = #crate_path::id::Id::new(#crate_path::namespace::hex_literal::hex!(#id)).unwrap();
+                let e = #crate_path::id::Id::new(#crate_path::id::_hex_literal_hex!(#id)).unwrap();
                 let value_schema_id = #crate_path::value::schemas::genid::GenId::value_from(<#ty as #crate_path::value::ValueSchema>::VALUE_SCHEMA_ID);
                 set.insert(&#crate_path::trible::Trible::force(&e, &#crate_path::metadata::ATTR_VALUE_SCHEMA, &value_schema_id));
                 if let Some(blob_schema_id) = <#ty as #crate_path::value::ValueSchema>::BLOB_SCHEMA_ID {
@@ -95,7 +95,7 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
     });
 
     let field_consts = fields.iter().map(|Field { attrs, id, name, ty, .. }| {
-        quote! { #(#attrs)* pub const #name: #crate_path::field::Field<#ty> = #crate_path::field::Field::from(#crate_path::namespace::hex_literal::hex!(#id)); }
+        quote! { #(#attrs)* pub const #name: #crate_path::field::Field<#ty> = #crate_path::field::Field::from(#crate_path::id::_hex_literal_hex!(#id)); }
     });
 
     // We no longer emit per-namespace macro_rules! wrappers here. Call sites
@@ -106,7 +106,7 @@ pub(crate) fn namespace_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let output = quote! {
         #(#attrs)*
         #vis mod #mod_name {
-            #![allow(unused)]
+            #![allow(unused, non_upper_case_globals)]
             use super::*;
 
             pub fn description() -> #crate_path::trible::TribleSet {

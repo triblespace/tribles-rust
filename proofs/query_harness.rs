@@ -4,9 +4,12 @@ use crate::prelude::*;
 use crate::value::schemas::genid::GenId;
 use crate::value::schemas::UnknownValue;
 
-NS! {
-    /// Namespace used by the query harness with unconstrained values.
-    pub namespace qns {
+/// Namespace used by the query harness with unconstrained values.
+pub mod qns {
+    #![allow(unused)]
+    use super::*;
+    use crate::prelude::*;
+    crate::fields! {
         "A74AA63539354CDA47F387A4C3A8D54C" as title: UnknownValue;
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: UnknownValue;

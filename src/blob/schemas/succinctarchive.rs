@@ -419,10 +419,13 @@ mod tests {
 
     pub mod knights1 {
         #![allow(unused)]
+        use super::*;
         use crate::prelude::*;
-        pub const loves: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("328edd7583de04e2bedd6bd4fd50e651"));
-        pub const name: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("328147856cc1984f0806dbb824d2b4cb"));
-        pub const title: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("328f2c33d2fdd675e733388770b2d6c4"));
+        crate::fields! {
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
+            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
+        }
     }
 
     proptest! {

@@ -4,16 +4,11 @@ use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
-use crate::prelude::*;
 use crate::pattern;
 use crate::entity;
-use crate::pattern_changes;
-use crate::path;
 
 
 use ed25519::signature::Signer;
-
-use super::repo;
 
 use crate::blob::schemas::longstring::LongString;
 use crate::blob::schemas::simplearchive::SimpleArchive;
@@ -43,7 +38,7 @@ impl From<SignatureError> for ValidationError {
 /// The resulting [`TribleSet`] is signed using `signing_key` so that its
 /// authenticity can later be verified. If `msg` is provided it is stored as a
 /// long commit message via a LongString blob handle.
-pub fn commit(
+pub fn commit_metadata(
     signing_key: &SigningKey,
     parents: impl IntoIterator<Item = Value<Handle<Blake3, SimpleArchive>>>,
     msg: Option<Value<Handle<Blake3, LongString>>>,
@@ -53,29 +48,29 @@ pub fn commit(
     let commit_entity = crate::id::rngid();
     let now = Epoch::now().expect("system time");
 
-    commit += entity!(&commit_entity, { repo::timestamp: (now, now) });
+    commit += entity!(&commit_entity, { super::timestamp: (now, now) });
 
     if let Some(content) = content {
         let handle = content.get_handle();
         let signature = signing_key.sign(&content.bytes);
 
         commit += entity!(&commit_entity, {
-            repo::content: handle,
-            repo::signed_by: signing_key.verifying_key(),
-            repo::signature_r: signature,
-            repo::signature_s: signature,
+            super::content: handle,
+            super::signed_by: signing_key.verifying_key(),
+            super::signature_r: signature,
+            super::signature_s: signature,
         });
     }
 
     if let Some(h) = msg {
         commit += entity!(&commit_entity, {
-            repo::message: h,
+            super::message: h,
         });
     }
 
     for parent in parents {
         commit += entity!(&commit_entity, {
-            repo::parent: parent,
+            super::parent: parent,
         });
     }
 
@@ -93,10 +88,10 @@ pub fn verify(content: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), V
     (pubkey: Value<_>, r, s),
     pattern!(&metadata, [
     {
-        repo::content: (handle),
-        repo::signed_by: pubkey,
-        repo::signature_r: r,
-        repo::signature_s: s
+        super::content: (handle),
+        super::signed_by: pubkey,
+        super::signature_r: r,
+        super::signature_s: s
     }]))
     .at_most_one()
     {

@@ -32,6 +32,7 @@ pub use tribles_macros::pattern;
 pub use tribles_macros::entity;
 pub use tribles_macros::pattern_changes;
 pub use tribles_macros::path;
+pub use tribles_macros::fields;
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]

@@ -10,7 +10,6 @@ use crate::trible::TribleSet;
 use crate::value::schemas::hash::Handle;
 use crate::value::schemas::hash::HashProtocol;
 use crate::value::Value;
-use crate::prelude::*;
 
 use std::collections::BTreeMap;
 use std::convert::Infallible;
@@ -354,10 +353,6 @@ impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
 
 #[cfg(test)]
 mod tests {
-    use crate::blob::schemas::longstring::LongString;
-    use crate::trible::TribleSet;
-    use crate::value::schemas::hash::Blake3;
-    use crate::value::schemas::hash::Handle;
     use crate::prelude::*;
 
     use super::*;
@@ -366,11 +361,12 @@ mod tests {
     use fake::locales::EN;
     use fake::Fake;
 
-    pub mod knights2 {
-        #![allow(unused)]
-        use crate::prelude::*;
-        pub const description: crate::field::Field<Handle<Blake3, LongString>> =
-            crate::field::Field::from(hex_literal::hex!("5AD0FAFB1FECBC197A385EC20166899E"));
+    use valueschemas::Blake3;
+    use valueschemas::Handle;
+    use blobschemas::LongString;
+
+    fields! {
+        "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
     }
 
     #[test]
@@ -379,7 +375,7 @@ mod tests {
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..200 {
             kb.union(entity!({
-                knights2::description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
+                description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
             }));
         }
         blobs.keep(kb);

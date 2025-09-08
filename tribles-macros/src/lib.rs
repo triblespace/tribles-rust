@@ -46,6 +46,7 @@ use syn::Ident;
 use syn::Path;
 use syn::Token;
 
+mod fields;
 mod namespace;
 
 #[proc_macro]
@@ -59,6 +60,14 @@ pub fn namespace(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn path(input: TokenStream) -> TokenStream {
     match path_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[proc_macro]
+pub fn fields(input: TokenStream) -> TokenStream {
+    match fields::fields_impl(input) {
         Ok(ts) => ts,
         Err(e) => e.to_compile_error().into(),
     }
@@ -83,7 +92,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let PathInput { set, rest } = syn::parse(input)?;
     // Create a tokenized crate path for use in `quote!` macros below.
     let crate_path_ts: TokenStream2 = quote! { ::tribles };
-    let crate_path = crate_path_ts.clone();
+    let _crate_path = crate_path_ts.clone();
     let tokens: Vec<TokenTree> = rest.into_iter().collect();
     if tokens.len() < 2 {
         return Err(syn::Error::new(
@@ -261,7 +270,10 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
         .into_iter()
         .map(|t| match t {
             OpTok::Sym(path) => {
-                quote! { PathOp::Attr(::tribles::id::RawId::from(#path::id)) }
+                // The Path here refers to a Field constant (e.g. `ns::attr`).
+                // Call `.raw()` on the constant to obtain the underlying RawId
+                // so the path matcher can operate on attribute ids directly.
+                quote! { PathOp::Attr(#path.raw()) }
             }
             OpTok::Or => quote! { PathOp::Union },
             OpTok::Concat => quote! { PathOp::Concat },
@@ -417,10 +429,10 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     // Shadow the parsed `crate_path` with a TokenStream2 for use inside
     // `quote!` expansions as `#crate_path`.
-    let crate_path = crate_path_ts.clone();
+    let _crate_path = crate_path_ts.clone();
     // Shadow the original `crate_path` (Option) with a TokenStream2 that the
     // quoting machinery can interpolate directly as `#crate_path`.
-    let crate_path = crate_path_ts.clone();
+    let _crate_path = crate_path_ts.clone();
 
     // Accumulate the token stream for each entity pattern.
     let mut entity_tokens = TokenStream2::new();
@@ -458,7 +470,11 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
         };
         entity_tokens.extend(init);
         // Emit triple constraints for each field within the entity.
-        for Field { name: field_expr, value } in entity.fields {
+        for Field {
+            name: field_expr,
+            value,
+        } in entity.fields
+        {
             let key = field_expr.to_token_stream().to_string();
             let (a_var_ident, af_ident) = attr_map
                 .entry(key)
@@ -476,9 +492,13 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 .clone();
 
             // Create unique identifiers for value temporaries
-            let val_id = { let v = val_idx; val_idx += 1; v };
+            let val_id = {
+                let v = val_idx;
+                val_idx += 1;
+                v
+            };
             let v_tmp_ident = format_ident!("__v{}", val_id, span = Span::call_site());
-            let raw_ident = format_ident!("__raw{}", val_id, span = Span::call_site());
+            let _raw_ident = format_ident!("__raw{}", val_id, span = Span::call_site());
 
             let triple_tokens = match value {
                 FieldValue::Lit(expr) => {
@@ -608,7 +628,11 @@ impl Parse for PatternChangesInput {
                 content.parse::<Token![,]>()?;
             }
         }
-        Ok(PatternChangesInput { curr, changes, pattern })
+        Ok(PatternChangesInput {
+            curr,
+            changes,
+            pattern,
+        })
     }
 }
 
@@ -616,7 +640,7 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let EntityInput { set, id, fields } = syn::parse(input)?;
     // Use absolute crate path for emitted tokens
     let crate_path_ts: TokenStream2 = quote! { ::tribles };
-    let crate_path = crate_path_ts.clone();
+    let _crate_path = crate_path_ts.clone();
 
     let (set_init, set_expr) = if let Some(s) = &set {
         (TokenStream2::new(), quote! { #s })
@@ -688,11 +712,15 @@ pub fn pattern_changes(input: TokenStream) -> TokenStream {
 fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     use std::collections::HashMap;
 
-    let PatternChangesInput { curr, changes, pattern } = syn::parse(input)?;
+    let PatternChangesInput {
+        curr,
+        changes,
+        pattern,
+    } = syn::parse(input)?;
     // We always generate expansions referencing the canonical ::tribles crate
     // path; no legacy crate/ns parameters are accepted by this macro.
     let crate_path_ts: TokenStream2 = quote! { ::tribles };
-    let crate_path = crate_path_ts.clone();
+    let _crate_path = crate_path_ts.clone();
 
     // Identifiers used throughout the expansion
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
@@ -742,7 +770,11 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             }
         }
 
-        for Field { name: field_expr, value } in entity.fields {
+        for Field {
+            name: field_expr,
+            value,
+        } in entity.fields
+        {
             let key = field_expr.to_token_stream().to_string();
             let (a_ident, af_ident) = attr_map
                 .entry(key)
@@ -768,7 +800,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 FieldValue::Lit(expr) => {
                     let val_ident = format_ident!("__c{}", value_idx, span = Span::call_site());
                     value_idx += 1;
-                    let raw_ident = format_ident!("__raw{}", value_idx, span = Span::call_site());
+                    let _raw_ident = format_ident!("__raw{}", value_idx, span = Span::call_site());
                     value_decl_tokens.extend(quote! {
                         let #val_ident = #af_ident.value_from(#expr);
                         let #v_ident = #af_ident.as_variable(#ctx_ident.next_variable());

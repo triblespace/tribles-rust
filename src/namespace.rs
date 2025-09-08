@@ -15,8 +15,10 @@
 /// Hidden by default, used internally by the `entity!` macro.
 pub use hex_literal;
 
-/// Defines a Rust module to represent a namespace, along with convenience macros.
-/// The `namespace` block maps human-readable names to attribute IDs and type schemas.
+/// Backwards-compatible wrapper macro: forward to the procedural `namespace!`
+/// macro using the absolute `::tribles` crate path. This mirrors the old
+/// declarative implementation and keeps existing call sites compiling while
+/// we continue migrating callers to `fields!`/`namespace!`.
 #[macro_export]
 macro_rules! NS {
     ($($tt:tt)*) => {

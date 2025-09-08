@@ -1,13 +1,12 @@
+use crate::entity;
+use crate::path;
+use crate::pattern;
+use crate::pattern_changes;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::examples::literature;
 use tribles::prelude::*;
 use tribles::repo::Repository;
-use crate::pattern;
-use crate::entity;
-use crate::pattern_changes;
-use crate::path;
-
 
 fn main() {
     let tmp = tempfile::tempdir().expect("tmp dir");

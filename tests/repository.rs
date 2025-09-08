@@ -11,7 +11,7 @@ fn branch_from_and_pull_with_key() {
     // prepare storage with an initial commit
     let mut store = MemoryRepo::default();
     let key = SigningKey::generate(&mut OsRng);
-    let commit_set = commit::commit(&key, [], None, None);
+    let commit_set = commit::commit_metadata(&key, [], None, None);
     let initial = store.put(commit_set).unwrap();
 
     let mut repo = Repository::new(store, key.clone());

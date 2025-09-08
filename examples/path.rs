@@ -1,16 +1,18 @@
+use crate::entity;
+use crate::path;
+use crate::pattern;
+use crate::pattern_changes;
 use tribles::prelude::*;
 use tribles::value::schemas::genid::GenId;
-use crate::pattern;
-use crate::entity;
-use crate::pattern_changes;
-use crate::path;
-
 
 pub mod social {
     #![allow(unused)]
-    use crate::prelude::*;
-    pub const follows: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
-    pub const likes: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"));
+    use super::*;
+    use tribles::prelude::*;
+    crate::fields! {
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;
+    }
 }
 
 fn main() {

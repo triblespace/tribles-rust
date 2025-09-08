@@ -1,5 +1,9 @@
 #![cfg(feature = "succinct-archive")]
 
+use crate::entity;
+use crate::path;
+use crate::pattern;
+use crate::pattern_changes;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::BenchmarkId;
@@ -19,11 +23,6 @@ use tribles::blob::schemas::succinctarchive::SuccinctArchive;
 use tribles::blob::schemas::succinctarchive::Universe;
 use tribles::blob::schemas::UnknownBlob;
 use tribles::repo::BlobStorePut;
-use crate::pattern;
-use crate::entity;
-use crate::pattern_changes;
-use crate::path;
-
 
 use tribles::prelude::blobschemas::*;
 use tribles::prelude::valueschemas::*;
@@ -49,19 +48,22 @@ type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse<DacsByte
 
 pub mod literature {
     #![allow(unused)]
-    use crate::prelude::*;
-    use crate::value::schemas::hash::Handle;
-    use crate::value::schemas::hash::Blake3;
+    use super::*;
     use crate::blob::schemas::longstring::LongString;
-    use crate::value::schemas::shortstring::ShortString;
+    use crate::prelude::*;
     use crate::value::schemas::genid::GenId;
+    use crate::value::schemas::hash::Blake3;
+    use crate::value::schemas::hash::Handle;
     use crate::value::schemas::r256::R256;
-    pub const author: crate::field::Field<GenId> = crate::field::Field::from(hex_literal::hex!("8F180883F9FD5F787E9E0AF0DF5866B9"));
-    pub const firstname: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("0DBB530B37B966D137C50B943700EDB2"));
-    pub const lastname: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("6BAA463FD4EAF45F6A103DB9433E4545"));
-    pub const title: crate::field::Field<ShortString> = crate::field::Field::from(hex_literal::hex!("A74AA63539354CDA47F387A4C3A8D54C"));
-    pub const page_count: crate::field::Field<R256> = crate::field::Field::from(hex_literal::hex!("FCCE870BECA333D059D5CD68C43B98F0"));
-    pub const quote: crate::field::Field<Handle<Blake3, LongString>> = crate::field::Field::from(hex_literal::hex!("6A03BAF6CFB822F04DA164ADAAEB53F6"));
+    use crate::value::schemas::shortstring::ShortString;
+    crate::fields! {
+        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
+        "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
+        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
+        "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
+        "FCCE870BECA333D059D5CD68C43B98F0" as page_count: R256;
+        "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
+    }
 }
 
 fn random_tribles(length: usize) -> Vec<Trible> {

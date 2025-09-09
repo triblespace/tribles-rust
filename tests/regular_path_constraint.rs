@@ -6,9 +6,8 @@ use tribles::prelude::*;
 use tribles::value::schemas::genid::GenId;
 
 pub mod social {
-    #![allow(unused)]
-    use super::*;
     use tribles::prelude::*;
+
     fields! {
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
         "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;

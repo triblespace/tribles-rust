@@ -9,7 +9,7 @@ pub mod social {
     #![allow(unused)]
     use super::*;
     use tribles::prelude::*;
-    crate::fields! {
+    fields! {
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
         "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;
     }

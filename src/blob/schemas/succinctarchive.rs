@@ -417,11 +417,10 @@ mod tests {
     use jerky::int_vectors::DacsByte;
     use proptest::prelude::*;
 
-    pub mod knights1 {
-        #![allow(unused)]
-        use super::*;
+    pub mod knights {
         use crate::prelude::*;
-        crate::fields! {
+        
+        fields! {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
@@ -500,18 +499,18 @@ mod tests {
 
         kb += entity!(&juliet,
         {
-            knights1::name: "Juliet",
-            knights1::loves: &romeo,
-            knights1::title: "Maiden"
+            knights::name: "Juliet",
+            knights::loves: &romeo,
+            knights::title: "Maiden"
         });
         kb += entity!(&romeo, {
-            knights1::name: "Romeo",
-            knights1::loves: &juliet,
-            knights1::title: "Prince"
+            knights::name: "Romeo",
+            knights::loves: &juliet,
+            knights::title: "Prince"
         });
         kb += entity!({
-            knights1::name: "Angelica",
-            knights1::title: "Nurse"
+            knights::name: "Angelica",
+            knights::title: "Nurse"
         });
 
         let archive: SuccinctArchive<OrderedUniverse> = (&kb).into();
@@ -519,10 +518,10 @@ mod tests {
         let r: Vec<_> = find!(
             (juliet, name),
             pattern!(&archive, [
-            {knights1::name: ("Romeo"),
-             knights1::loves: juliet},
+            {knights::name: ("Romeo"),
+             knights::loves: juliet},
             {juliet @
-                knights1::name: name
+                knights::name: name
             }])
         )
         .collect();

@@ -10,9 +10,9 @@ use tribles::repo::memoryrepo::MemoryRepo;
 use tribles::repo::Repository;
 
 pub mod literature {
-    #![allow(unused)]
-    use super::*;
-    crate::fields! {
+    use tribles::prelude::*;
+
+    fields! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;

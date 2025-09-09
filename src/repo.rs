@@ -133,13 +133,12 @@ where
     }
 }
 
+use crate::pattern;
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Debug;
 use std::fmt::{self};
-use crate::pattern;
-
 
 use commit::commit_metadata;
 use hifitime::Epoch;
@@ -171,13 +170,13 @@ use ed25519_dalek::SigningKey;
 
 use crate::blob::schemas::longstring::LongString;
 use crate::blob::schemas::simplearchive::SimpleArchive;
-use crate::value::schemas::hash::Blake3;
 use crate::prelude::*;
+use crate::value::schemas::ed25519 as ed;
+use crate::value::schemas::hash::Blake3;
 use crate::value::schemas::shortstring::ShortString;
 use crate::value::schemas::time::NsTAIInterval;
-use crate::value::schemas::ed25519 as ed;
 
-fields!{
+fields! {
     /// The actual data of the commit.
     "4DD4DDD05CC31734B03ABB4E43188B1F" as pub content: Handle<Blake3, SimpleArchive>;
     /// A commit that this commit is based on.
@@ -942,7 +941,7 @@ where
             branch_name.from_value(),
             Some(head_.to_blob()),
         );
-        
+
         let branch_meta_handle = self
             .storage
             .put(branch_meta)

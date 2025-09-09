@@ -1,19 +1,19 @@
 //! This module contains an example namespace for use in the documentation.
 //! It is not intended to be used in practice.
 
-use crate::prelude::*;
 use crate::entity;
+use crate::prelude::*;
 pub mod literature {
     #![allow(unused)]
     use super::*;
     use crate::prelude::*;
-    use valueschemas::Handle;
-    use valueschemas::Blake3;
-    use valueschemas::ShortString;
-    use valueschemas::GenId;
-    use valueschemas::R256;
     use blobschemas::LongString;
-    
+    use valueschemas::Blake3;
+    use valueschemas::GenId;
+    use valueschemas::Handle;
+    use valueschemas::ShortString;
+    use valueschemas::R256;
+
     crate::fields! {
         /// The title of a work.
         ///

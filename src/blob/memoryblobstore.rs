@@ -361,9 +361,9 @@ mod tests {
     use fake::locales::EN;
     use fake::Fake;
 
+    use blobschemas::LongString;
     use valueschemas::Blake3;
     use valueschemas::Handle;
-    use blobschemas::LongString;
 
     fields! {
         "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;

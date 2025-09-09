@@ -1,12 +1,11 @@
+use crate::entity;
+use crate::pattern;
 use ed25519::Signature;
 use ed25519_dalek::SignatureError;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
-use crate::pattern;
-use crate::entity;
-
 
 use ed25519::signature::Signer;
 

@@ -7,7 +7,7 @@ use tribles::prelude::*;
 
 pub mod literature {
     use tribles::prelude::*;
-    
+
     fields! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;

@@ -3,8 +3,8 @@
 //! This namespace is used to bootstrap the meaning of other namespaces.
 //! It defines meta attributes that are used to describe other attributes.
 
-use tribles_macros::fields;
 use crate::prelude::valueschemas;
+use tribles_macros::fields;
 
 use crate::id::Id;
 use crate::id_hex;
@@ -14,7 +14,7 @@ pub const ATTR_VALUE_SCHEMA: Id = id_hex!("213F89E3F49628A105B3830BD3A6612C");
 pub const ATTR_BLOB_SCHEMA: Id = id_hex!("02FAF947325161918C6D2E7D9DBA3485");
 pub const ATTR_NAME: Id = id_hex!("2E26F8BA886495A8DF04ACF0ED3ACBD4");
 
-fields!{
+fields! {
     "2E26F8BA886495A8DF04ACF0ED3ACBD4" as name: valueschemas::ShortString;
     "213F89E3F49628A105B3830BD3A6612C" as attr_value_schema: valueschemas::GenId;
     "02FAF947325161918C6D2E7D9DBA3485" as attr_blob_schema: valueschemas::GenId;

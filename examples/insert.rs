@@ -16,11 +16,11 @@ use fake::Fake;
 use tribles::repo::BlobStorePut;
 
 use blobschemas::LongString;
-use valueschemas::GenId;
 use valueschemas::Blake3;
+use valueschemas::GenId;
 use valueschemas::Handle;
-use valueschemas::R256;
 use valueschemas::ShortString;
+use valueschemas::R256;
 
 fn main() {
     let mut kb = TribleSet::new();

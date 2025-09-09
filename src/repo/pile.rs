@@ -812,7 +812,8 @@ impl<H: HashProtocol> BlobStoreList<H> for PileReader<H> {
 /// Iterator over branch ids stored in the pile's PATCH, using the PATCH's
 /// built-in key iterator to avoid allocating a full Vec of ids.
 pub struct PileBranchStoreIter<H: HashProtocol> {
-    inner: crate::patch::PATCHIntoOrderedIterator<16, IdentitySchema, Value<Handle<H, SimpleArchive>>>,
+    inner:
+        crate::patch::PATCHIntoOrderedIterator<16, IdentitySchema, Value<Handle<H, SimpleArchive>>>,
 }
 
 impl<H: HashProtocol> Iterator for PileBranchStoreIter<H> {

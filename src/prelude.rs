@@ -36,6 +36,7 @@ pub use crate::blob::BlobSchema;
 pub use crate::blob::MemoryBlobStore;
 pub use crate::blob::ToBlob;
 pub use crate::blob::TryFromBlob;
+pub use crate::field::Field;
 pub use crate::id::fucid;
 pub use crate::id::local_ids;
 pub use crate::id::rngid;
@@ -44,7 +45,6 @@ pub use crate::id::ExclusiveId;
 pub use crate::id::Id;
 pub use crate::id::IdOwner;
 pub use crate::id::RawId;
-pub use crate::field::Field;
 pub use crate::query::find;
 pub use crate::query::intersectionconstraint::and;
 pub use crate::query::intersectionconstraint::IntersectionConstraint;
@@ -68,8 +68,8 @@ pub use anybytes::View;
 // be imported with `use tribles::prelude::*;` and called as `pattern!(...)`.
 // After migrating away from namespace-local wrapper macros, this makes the
 // new global proc-macros ergonomically available.
-pub use crate::macros::pattern;
 pub use crate::macros::entity;
-pub use crate::macros::pattern_changes;
-pub use crate::macros::path;
 pub use crate::macros::fields;
+pub use crate::macros::path;
+pub use crate::macros::pattern;
+pub use crate::macros::pattern_changes;

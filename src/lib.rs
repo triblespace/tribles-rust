@@ -7,6 +7,7 @@ extern crate self as tribles;
 compile_error!("tribles-rust requires a 64-bit little-endian target");
 
 pub mod blob;
+pub mod field;
 pub mod id;
 pub mod metadata;
 pub mod namespace;
@@ -16,7 +17,6 @@ pub mod query;
 pub mod repo;
 pub mod trible;
 pub mod value;
-pub mod field;
 
 pub mod debug;
 pub mod examples;
@@ -28,11 +28,11 @@ pub use macro_pub;
 pub use tribles_macros as macros;
 // Re-export proc-macros at the crate root so they are available within the
 // crate without requiring explicit `use` statements at every call site.
-pub use tribles_macros::pattern;
 pub use tribles_macros::entity;
-pub use tribles_macros::pattern_changes;
-pub use tribles_macros::path;
 pub use tribles_macros::fields;
+pub use tribles_macros::path;
+pub use tribles_macros::pattern;
+pub use tribles_macros::pattern_changes;
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]

@@ -4,6 +4,7 @@ mod universe;
 use crate::id::id_from_value;
 use crate::id::id_into_value;
 use crate::id::Id;
+use crate::prelude::*;
 use crate::query::TriblePattern;
 use crate::trible::Trible;
 use crate::trible::TribleSet;
@@ -13,7 +14,6 @@ use crate::value::RawValue;
 use crate::value::Value;
 use crate::value::ValueSchema;
 use succinctarchiveconstraint::*;
-use crate::prelude::*;
 
 pub use universe::*;
 
@@ -419,7 +419,7 @@ mod tests {
 
     pub mod knights {
         use crate::prelude::*;
-        
+
         fields! {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;

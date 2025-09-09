@@ -12,12 +12,12 @@ use crate::value::ValueSchema;
 
 /// A typed reference to an attribute id together with its value schema.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Field<S: ValueSchema> {
+pub struct Attribute<S: ValueSchema> {
     raw: RawId,
     _schema: PhantomData<S>,
 }
 
-impl<S: ValueSchema> Field<S> {
+impl<S: ValueSchema> Attribute<S> {
     /// Construct a `Field` from a raw 16-byte id.
     ///
     /// This is a `const fn` so it can be used in `const`/`static` declarations.

@@ -36,7 +36,7 @@ pub use crate::blob::BlobSchema;
 pub use crate::blob::MemoryBlobStore;
 pub use crate::blob::ToBlob;
 pub use crate::blob::TryFromBlob;
-pub use crate::field::Field;
+pub use crate::attribute::Attribute;
 pub use crate::id::fucid;
 pub use crate::id::local_ids;
 pub use crate::id::rngid;
@@ -69,7 +69,7 @@ pub use anybytes::View;
 // After migrating away from namespace-local wrapper macros, this makes the
 // new global proc-macros ergonomically available.
 pub use crate::macros::entity;
-pub use crate::macros::fields;
+pub use crate::macros::attributes;
 pub use crate::macros::path;
 pub use crate::macros::pattern;
 pub use crate::macros::pattern_changes;

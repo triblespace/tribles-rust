@@ -634,7 +634,7 @@ mod tests {
     pub mod knights {
         use crate::prelude::*;
 
-        fields! {
+        attributes! {
             "8143F46E812E88C4544E7094080EC523" as loves: valueschemas::GenId;
             "D6E0F2A6E5214E1330565B4D4138E55C" as name: valueschemas::ShortString;
         }

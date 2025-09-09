@@ -14,7 +14,7 @@ pub mod literature {
     use valueschemas::ShortString;
     use valueschemas::R256;
 
-    crate::fields! {
+    attributes! {
         /// The title of a work.
         ///
         /// Small doc paragraph used in the book examples.

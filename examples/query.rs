@@ -19,7 +19,7 @@ use tribles::repo::BlobStorePut;
 pub mod literature {
     use tribles::prelude::*;
 
-    fields! {
+    attributes! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: valueschemas::GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: valueschemas::ShortString;
         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: valueschemas::ShortString;

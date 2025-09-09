@@ -10,7 +10,7 @@ use syn::Token;
 use syn::Type;
 use syn::Visibility;
 
-struct FieldDef {
+struct AttributesDef {
     attrs: Vec<Attribute>,
     vis: Option<Visibility>,
     id: LitStr,
@@ -18,21 +18,21 @@ struct FieldDef {
     ty: Type,
 }
 
-struct FieldsInput {
-    fields: Vec<FieldDef>,
+struct AttributesInput {
+    attributes: Vec<AttributesDef>,
 }
 
-impl Parse for FieldsInput {
+impl Parse for AttributesInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         // Accept the flattened token stream form: parse the tokens directly
         // from the provided ParseStream. This matches the token shape the
         // compiler typically hands us in practice.
         let content = input;
-        let mut fields = Vec::new();
+        let mut attributes = Vec::new();
         while !content.is_empty() {
             let attrs = content.call(Attribute::parse_outer)?;
             // LEGACY PLACEMENT REMOVED: visibility must appear after the
-            // `as` token and before the field name so the fixed-width hex ids
+            // `as` token and before the attribute name so the fixed-width hex ids
             // remain visually aligned. If a caller still passes a `pub` token
             // here we emit a helpful error directing them to the new form.
             if content.peek(Token![pub]) {
@@ -41,7 +41,7 @@ impl Parse for FieldsInput {
                 let v: Visibility = content.parse()?;
                 return Err(syn::Error::new_spanned(
                     v,
-                    "visibility must appear after `as` and before the field name (e.g. `\"...\" as pub name: Type;`)",
+                    "visibility must appear after `as` and before the attribute name (e.g. `\"...\" as pub name: Type;`)",
                 ));
             }
 
@@ -62,7 +62,7 @@ impl Parse for FieldsInput {
             content.parse::<Token![:]>()?;
             let ty: Type = content.parse()?;
             content.parse::<Token![;]>()?;
-            fields.push(FieldDef {
+            attributes.push(AttributesDef {
                 attrs,
                 vis,
                 id,
@@ -70,24 +70,24 @@ impl Parse for FieldsInput {
                 ty,
             });
         }
-        Ok(FieldsInput { fields })
+        Ok(AttributesInput { attributes })
     }
 }
 
-pub(crate) fn fields_impl(input: TokenStream) -> syn::Result<TokenStream> {
+pub(crate) fn attributes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Parse the flattened token stream; this is the form we saw in practice
     // and keeps the macro strict (no extra normalization branch).
     let ts2: TokenStream2 = input.into();
-    let FieldsInput { fields } = syn::parse2(ts2)?;
+    let AttributesInput { attributes } = syn::parse2(ts2)?;
 
     let mut out: TokenStream2 = TokenStream2::new();
-    for FieldDef {
+    for AttributesDef {
         attrs,
         vis,
         id,
         name,
         ty,
-    } in fields
+    } in attributes
     {
         let vis_ts = match vis {
             Some(v) => quote! { #v },
@@ -96,7 +96,7 @@ pub(crate) fn fields_impl(input: TokenStream) -> syn::Result<TokenStream> {
         out.extend(quote! {
             #(#attrs)*
             #[allow(non_upper_case_globals)]
-            #vis_ts const #name: ::tribles::field::Field<#ty> = ::tribles::field::Field::from(::tribles::id::_hex_literal_hex!(#id));
+            #vis_ts const #name: ::tribles::attribute::Attribute<#ty> = ::tribles::attribute::Attribute::from(::tribles::id::_hex_literal_hex!(#id));
         });
     }
 

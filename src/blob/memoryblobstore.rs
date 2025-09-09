@@ -365,7 +365,7 @@ mod tests {
     use valueschemas::Blake3;
     use valueschemas::Handle;
 
-    fields! {
+    attributes! {
         "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
     }
 

@@ -6,24 +6,24 @@
 //! additional features in the future.  The crate currently exposes two macros:
 //! [`pattern!`], which expands namespace patterns into an
 //! [`IntersectionConstraint`] of query constraints, and [`entity!`], which
-//! constructs [`TribleSet`]s from namespace field assignments or inserts
+//! constructs [`TribleSet`]s from namespace attribute assignments or inserts
 //! triples into an existing set.
 //!
 //! ```ignore
-//! ::tribles_macros::pattern!(&set, [ { my_ns::field: (42) } ]);
-//! ::tribles_macros::entity!({ my_ns::field: 42 });
-//! ::tribles_macros::entity!(id, { my_ns::field: 42 });
+//! ::tribles_macros::pattern!(&set, [ { my_ns::attr: (42) } ]);
+//! ::tribles_macros::entity!({ my_ns::attr: 42 });
+//! ::tribles_macros::entity!(id, { my_ns::attr: 42 });
 //! ```
 //!
 //! The `pattern` macro expects the crate path, a namespace module, a dataset
 //! expression implementing [`TriblePattern`], and a bracketed list of entity
 //! patterns. Each entity pattern may specify an identifier using `ident @` or
-//! `(expr) @` notation and contains `field: value` pairs. Values can either
+//! `(expr) @` notation and contains `attribute: value` pairs. Values can either
 //! reference an existing query variable or be written as `(expr)` to match a
 //! literal.
 //!
 //! The `entity` macro similarly starts with the crate and namespace paths and
-//! optionally an explicit entity ID expression before the field list.
+//! optionally an explicit entity ID expression before the attribute list.
 //!
 //! These macros are internal implementation details and should not be used
 //! directly outside of the `tribles` codebase.
@@ -46,16 +46,7 @@ use syn::Ident;
 use syn::Path;
 use syn::Token;
 
-mod fields;
-mod namespace;
-
-#[proc_macro]
-pub fn namespace(input: TokenStream) -> TokenStream {
-    match namespace::namespace_impl(input) {
-        Ok(ts) => ts,
-        Err(e) => e.to_compile_error().into(),
-    }
-}
+mod attributes;
 
 #[proc_macro]
 pub fn path(input: TokenStream) -> TokenStream {
@@ -66,8 +57,8 @@ pub fn path(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn fields(input: TokenStream) -> TokenStream {
-    match fields::fields_impl(input) {
+pub fn attributes(input: TokenStream) -> TokenStream {
+    match attributes::attributes_impl(input) {
         Ok(ts) => ts,
         Err(e) => e.to_compile_error().into(),
     }
@@ -304,10 +295,10 @@ struct MacroInput {
 /// Description of a single entity pattern.
 ///
 /// `id` stores the optional identifier on the left-hand side of the `@` sign.
-/// `fields` holds all `name: value` constraints within the braces.
+/// `attributes` holds all `name: value` constraints within the braces.
 struct Entity {
     id: Option<EntityId>,
-    fields: Vec<Field>,
+    attributes: Vec<Attribute>,
 }
 
 /// Identifier for an [`Entity`].
@@ -319,17 +310,17 @@ enum EntityId {
 }
 
 /// One `name: value` pair.
-struct Field {
+struct Attribute {
     // The field name is now an arbitrary expression that evaluates to a
     // `Field<S>` value (for some schema S). This covers local constants,
     // fully-qualified constants and inline constructors like
     // `Field::<ShortString>::from(hex!("..."))`.
     name: Expr,
-    value: FieldValue,
+    value: AttributeValue,
 }
 
 /// Value of a field pattern.
-enum FieldValue {
+enum AttributeValue {
     /// Bind the field to an existing variable.
     Var(Expr),
     /// Match the field against a literal expression.
@@ -372,29 +363,29 @@ impl Parse for Entity {
         } else {
             None
         };
-        let mut fields = Vec::new();
+        let mut attributes = Vec::new();
         while !content.is_empty() {
-            fields.push(content.parse()?);
+            attributes.push(content.parse()?);
             if content.peek(Token![,]) {
                 content.parse::<Token![,]>()?;
             }
         }
-        Ok(Entity { id, fields })
+        Ok(Entity { id, attributes })
     }
 }
 
-impl Parse for Field {
+impl Parse for Attribute {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let name: Expr = input.parse()?;
         input.parse::<Token![:]>()?;
         let value = if input.peek(syn::token::Paren) {
             let inner;
             parenthesized!(inner in input);
-            FieldValue::Lit(inner.parse()?)
+            AttributeValue::Lit(inner.parse()?)
         } else {
-            FieldValue::Var(input.parse()?)
+            AttributeValue::Var(input.parse()?)
         };
-        Ok(Field { name, value })
+        Ok(Attribute { name, value })
     }
 }
 
@@ -470,10 +461,10 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
         };
         entity_tokens.extend(init);
         // Emit triple constraints for each field within the entity.
-        for Field {
+        for Attribute {
             name: field_expr,
             value,
-        } in entity.fields
+        } in entity.attributes
         {
             let key = field_expr.to_token_stream().to_string();
             let (a_var_ident, af_ident) = attr_map
@@ -501,7 +492,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let _raw_ident = format_ident!("__raw{}", val_id, span = Span::call_site());
 
             let triple_tokens = match value {
-                FieldValue::Lit(expr) => {
+                AttributeValue::Lit(expr) => {
                     quote! {
                         {
                             #[allow(unused_imports)] use ::tribles::query::TriblePattern;
@@ -512,7 +503,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
-                FieldValue::Var(expr) => {
+                AttributeValue::Var(expr) => {
                     quote! {
                         {
                             #[allow(unused_imports)] use ::tribles::query::TriblePattern;
@@ -552,12 +543,12 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
 struct EntityInput {
     set: Option<Expr>,
     id: Option<Expr>,
-    fields: Vec<(Expr, Expr)>,
+    attributes: Vec<(Expr, Expr)>,
 }
 
 impl Parse for EntityInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // Simplified form: [ set_expr?, id_expr? ], { fields }
+        // Simplified form: [ set_expr?, id_expr? ], { attributes }
         let mut set = None;
         let mut id = None;
         if input.peek(syn::token::Brace) {
@@ -577,18 +568,18 @@ impl Parse for EntityInput {
 
         let content;
         braced!(content in input);
-        let mut fields = Vec::new();
+        let mut attributes = Vec::new();
         while !content.is_empty() {
             let name: Expr = content.parse()?;
             content.parse::<Token![:]>()?;
             let value: Expr = content.parse()?;
-            fields.push((name, value));
+            attributes.push((name, value));
             if content.peek(Token![,]) {
                 content.parse::<Token![,]>()?;
             }
         }
 
-        Ok(EntityInput { set, id, fields })
+        Ok(EntityInput { set, id, attributes })
     }
 }
 
@@ -637,7 +628,7 @@ impl Parse for PatternChangesInput {
 }
 
 fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    let EntityInput { set, id, fields } = syn::parse(input)?;
+    let EntityInput { set, id, attributes } = syn::parse(input)?;
     // Use absolute crate path for emitted tokens
     let crate_path_ts: TokenStream2 = quote! { ::tribles };
     let _crate_path = crate_path_ts.clone();
@@ -668,7 +659,7 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     let mut insert_tokens = TokenStream2::new();
     let mut field_idx = 0usize;
-    for (field_expr, value_expr) in fields {
+    for (field_expr, value_expr) in attributes {
         let af_ident = format_ident!("__af{}", field_idx, span = Span::call_site());
         let val_ident = format_ident!("__val{}", field_idx, span = Span::call_site());
         field_idx += 1;
@@ -744,7 +735,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     }
     let mut triples: Vec<TripleInfo> = Vec::new();
 
-    // Map from tokenized field expression -> (attribute_var_ident, attr_field_ident)
+    // Map from tokenized attribute expression -> (attribute_var_ident, attr_field_ident)
     let mut attr_map: HashMap<String, (Ident, Ident)> = HashMap::new();
     let mut attr_idx = 0usize;
     let mut value_idx = 0usize;
@@ -770,12 +761,12 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             }
         }
 
-        for Field {
-            name: field_expr,
+        for Attribute {
+            name: attr_expr,
             value,
-        } in entity.fields
+        } in entity.attributes
         {
-            let key = field_expr.to_token_stream().to_string();
+            let key = attr_expr.to_token_stream().to_string();
             let (a_ident, af_ident) = attr_map
                 .entry(key)
                 .or_insert_with(|| {
@@ -783,7 +774,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                     let af_ident = format_ident!("__af{}", attr_idx, span = Span::call_site());
                     attr_idx += 1;
                     attr_decl_tokens.extend(quote! {
-                        let #af_ident = #field_expr;
+                        let #af_ident = #attr_expr;
                         let #a_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                     });
                     attr_const_tokens.extend(quote! {
@@ -797,7 +788,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             value_idx += 1;
 
             match value {
-                FieldValue::Lit(expr) => {
+                AttributeValue::Lit(expr) => {
                     let val_ident = format_ident!("__c{}", value_idx, span = Span::call_site());
                     value_idx += 1;
                     let _raw_ident = format_ident!("__raw{}", value_idx, span = Span::call_site());
@@ -809,7 +800,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         constraints.push(Box::new(#v_ident.is(#val_ident)));
                     });
                 }
-                FieldValue::Var(expr) => {
+                AttributeValue::Var(expr) => {
                     value_decl_tokens.extend(quote! {
                         let #v_ident = #af_ident.as_variable(#expr);
                     });

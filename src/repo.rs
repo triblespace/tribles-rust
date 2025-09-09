@@ -34,7 +34,7 @@
 //! let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
 //! let mut ws = repo.branch("main").expect("create branch");
 //!
-//! fields! {
+//! attributes! {
 //!     "8F180883F9FD5F787E9E0AF0DF5866B9" as pub author: GenId;
 //!     "0DBB530B37B966D137C50B943700EDB2" as pub firstname: ShortString;
 //!     "6BAA463FD4EAF45F6A103DB9433E4545" as pub lastname: ShortString;
@@ -176,7 +176,7 @@ use crate::value::schemas::hash::Blake3;
 use crate::value::schemas::shortstring::ShortString;
 use crate::value::schemas::time::NsTAIInterval;
 
-fields! {
+attributes! {
     /// The actual data of the commit.
     "4DD4DDD05CC31734B03ABB4E43188B1F" as pub content: Handle<Blake3, SimpleArchive>;
     /// A commit that this commit is based on.

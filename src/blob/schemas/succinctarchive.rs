@@ -420,7 +420,7 @@ mod tests {
     pub mod knights {
         use crate::prelude::*;
 
-        fields! {
+        attributes! {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;

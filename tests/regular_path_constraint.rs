@@ -8,7 +8,7 @@ use tribles::value::schemas::genid::GenId;
 pub mod social {
     use tribles::prelude::*;
 
-    fields! {
+    attributes! {
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
         "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;
     }

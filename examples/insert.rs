@@ -1,11 +1,6 @@
 use crate::entity;
-use crate::path;
-use crate::pattern;
-use crate::pattern_changes;
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Words;
-use tribles::prelude::blobschemas::*;
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use tribles::examples::literature;
@@ -14,13 +9,6 @@ use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 use tribles::repo::BlobStorePut;
-
-use blobschemas::LongString;
-use valueschemas::Blake3;
-use valueschemas::GenId;
-use valueschemas::Handle;
-use valueschemas::ShortString;
-use valueschemas::R256;
 
 fn main() {
     let mut kb = TribleSet::new();

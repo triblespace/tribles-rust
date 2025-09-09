@@ -18,7 +18,7 @@ pub use hex_literal;
 /// Backwards-compatible wrapper macro: forward to the procedural `namespace!`
 /// macro using the absolute `::tribles` crate path. This mirrors the old
 /// declarative implementation and keeps existing call sites compiling while
-/// we continue migrating callers to `fields!`/`namespace!`.
+/// we continue migrating callers to `attributes!`/`namespace!`.
 #[macro_export]
 macro_rules! NS {
     ($($tt:tt)*) => {

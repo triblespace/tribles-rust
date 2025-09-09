@@ -6,7 +6,7 @@ pub mod testmod {
     use tribles::prelude::valueschemas::*;
     use tribles::prelude::*;
 
-    fields! {
+    attributes! {
         /// First doc line
         /// Second doc line
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;

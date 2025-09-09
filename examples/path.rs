@@ -9,7 +9,7 @@ pub mod social {
     #![allow(unused)]
     use super::*;
     use tribles::prelude::*;
-    fields! {
+    attributes! {
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
         "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;
     }

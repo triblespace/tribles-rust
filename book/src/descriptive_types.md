@@ -15,6 +15,8 @@ Key ideas at a glance
 - find! patterns are descriptive type checks / projections: they select
   entities that match a requested shape.
 - entity! constructs ad‑hoc entities (like struct literals).
+- Reified kinds/tags are attached via metadata::tag (GenId); projects often
+  export canonical KIND_* constants you can pattern-match directly against.
 - Prefer passing the Workspace + the checkout result (TribleSet) and an
   entity id around — only materialize a concrete Rust view when required.
 
@@ -56,6 +58,28 @@ need them.
 This avoids duplicating memory and allows cheap zero-copy access to LongString
 blobs.
 
+Manager-owned repository and workspace DI
+----------------------------------------
+
+At runtime, prefer to give a long-lived manager (session, exporter, service)
+ownership of a Repository instance and expose an "open_workspace()" helper
+that returns a Workspace for branch-local reads/writes. Library functions
+should accept a &mut Workspace (or a TribleSet + Workspace) as arguments
+instead of opening piles/repositories themselves. This avoids repeated
+Pile::open + Repository::new churn in hot paths and centralizes lifecycle
+management in one place.
+
+Example (pseudocode):
+
+```rust
+// manager owns a Repository for the process/session lifetime
+let mut repo = manager.repo.open_workspace()?;
+let mem = memory_for_prompt_ws(&mut repo, ...)?; // workspace-variant helper
+```
+
+This pattern keeps startup/teardown centralized and eliminates the common
+hot-loop anti-pattern of repeatedly opening ephemeral repository instances.
+
 2) Use find! as a descriptive type / projection
 ----------------------------------------------
 
@@ -64,15 +88,16 @@ shape of the data you expect. Treat find! patterns as lightweight, inline
 type declarations. If an entity doesn't match, find! won't return it — no
 error, just absence.
 
-Example: find plan snapshot ids
+When your project defines canonical tag ids (GenId constants) prefer to
+match the tag directly in the pattern rather than binding a short-string
+and filtering afterwards.
+
+Example: find plan snapshot ids (match tag directly)
 
 ```rust
-use tribles::value::schemas::shortstring::ShortString;
-
-    for (e, k) in find!((e: Id, k: Value<ShortString>), crate::pattern!(&content, [{ e @ planner::kind: k }])) {
-    if k.from_value::<String>() == "plan_snapshot" {
-        // `e` is a plan snapshot entity id; follow-up finds can read other fields
-    }
+// Match entities that have the canonical plan snapshot tag attached.
+for (e,) in find!((e: Id), tribles::pattern!(&content, [{ e @ metadata::tag: (KIND_PLAN_SNAPSHOT) }])) {
+    // `e` is a plan snapshot entity id; follow-up finds can read other fields
 }
 ```
 
@@ -96,14 +121,17 @@ fn handle_plan_update(ws: &mut Workspace<Pile<Blake3>>, content: &TribleSet, pla
 4) Read LongString as &str (zero-copy)
 -------------------------------------
 
-Blob schema types in tribles are intentionally zerocopy. Converting a
-LongString into a &str is cheap and usually a simple UTF‑8 sanity check.
+Blob schema types in tribles are intentionally zerocopy. Prefer the
+typed View API which returns a borrowed &str without copying when possible.
 
 ```rust
-let blob: tribles::blob::Blob<LongString> = ws.get::<_, LongString>(handle).map_err(|e| ...)?;
-let s: &str = std::str::from_utf8(blob.bytes.as_ref()).map_err(|_| ...)?;
-// use s without an expensive alloc/copy
+let view = ws.get::<View<str>, LongString>(handle).map_err(|e| ...)?;
+let s: &str = view.as_ref(); // zero-copy view tied to the workspace lifetime
+// If you need an owned String: let owned = view.to_string();
 ```
+
+Note: a View borrows data that is managed by the Workspace; avoid returning
+`&str` that outlives the workspace or the View.
 
 5) Structural sharing and normalization patterns
 -----------------------------------------------
@@ -125,7 +153,7 @@ When pushing writes, use the standard push/merge loop to handle concurrent
 writers:
 
 ```rust
-ws.commit(content, Some("codex-plan-tool"));
+ws.commit(content, Some("plan-update"));
 let mut current_ws = ws;
 while let Some(mut incoming) = match repo.push(&mut current_ws) {
     Ok(Some(i)) => Ok(Some(i)),
@@ -166,10 +194,12 @@ fn get_plan_with_steps(ws: &mut Workspace<Pile<Blake3>>, plan_hex: &str) -> io::
 
     // collect linked step entities (the links are lightweight)
     let mut steps: Vec<PlanStepRef> = Vec::new();
-    for (link, _) in find!((link: Id, _k: Value<ShortString>), crate::pattern!(&content, [{ link @ planner::kind: _k }])) {
-        // ... check link.kind == "plan_step" and link.plan_id == plan_id, then
-        // read step_id, step_index, step_status and store the step_text handle
-        // in PlanStepRef without reading the blob yet.
+    // Match entities that have the canonical "plan_step" tag. Projects
+    // should export a KIND_PLAN_STEP constant for this purpose.
+    for (link,) in find!((link: Id), tribles::pattern!(&content, [{ link @ metadata::tag: (KIND_PLAN_STEP) }])) {
+        // ensure it references our plan_id and then extract step_id,
+        // step_index, step_status and store the step_text handle in PlanStepRef
+        // without reading the blob yet (lazy).
     }
 
     // later: lazy read
@@ -224,11 +254,21 @@ Closing notes
 
 This chapter captures the pragmatic type story we use in tribles: describe
 the fields you need at the place you need them, keep the full graph, and
-materialize small views lazily. If you like I can add a short checklist for
-reviewers to evaluate code for the "tribles idioms" (e.g. prefer find!, no
-large unfoldings, zero-copy blob reads, push/merge loop) and a small set of
-copy‑pasteable recipes for the most common operations (read plan, persist
-plan, list recent snapshots).
+materialize small views lazily.
+
+Reviewers' checklist (quick)
+- Prefer find!/pattern! projections for the fields needed by the function.
+- Avoid unfolding the entire graph into a giant nested struct for simple reads.
+- Use ws.get::<View<str>, LongString>(handle) for zero-copy blob reads;
+  allocate only when an owned String is required.
+-- Match canonical tag ids via metadata::tag (KIND_* constants).
+- Manager-owned repo: long-lived Repository instances should be owned by a
+  session/exporter/manager; library code should accept a Workspace or
+  TribleSet rather than opening piles itself.
+- Use push/merge retry loops for writers; avoid holding repo locks across
+  async/await points.
+
+The sections below contain copy‑pasteable recipes for common operations.
 
 Idioms & code recipes
 ---------------------
@@ -280,9 +320,10 @@ implementation uses find! patterns directly — this is the style we prefer.
 ```rust
 impl<'c,'ws> EntityRef<'c,'ws> {
     fn kind(&self) -> Option<String> {
-        for (e, k) in find!((e: Id, k: Value<ShortString>), crate::pattern!(&self.content, [{ e @ planner::kind: k }])) {
+        // Return the canonical tag id (hex) attached to this entity, if any.
+        for (e, tagv) in find!((e: Id, tagv: Id), tribles::pattern!(&self.content, [{ e @ metadata::tag: tagv }])) {
             if e == self.id {
-                return Some(k.from_value());
+                return Some(format!("{:X}", tagv));
             }
         }
         None
@@ -308,8 +349,9 @@ Below is a more complete example that demonstrates a common developer
 workflow: persist a plan update (with structural sharing of steps) and then
 read that snapshot back lazily.
 
-Note: this example is intended for learning; a production implementation
-should re-use the exporter code already present in core/src/tribles_export.rs.
+Note: this example is intended for learning; production code should reuse
+canonical exporter/utilities provided by your repository (they centralize
+repository initialization, tagging conventions and push/merge logic).
 
 ```rust
 // Persist a plan update. Returns the created/existing plan exclusive id.
@@ -331,12 +373,13 @@ fn persist_plan_update(
     let session_gen = tribles::id::Id::try_from(session_uuid).expect("session uuid->genid");
 
     let mut content = TribleSet::new();
+    // attach a canonical tag for plan snapshot instead of storing a short-string kind
     content += crate::entity!(&plan_e, {
         planner::plan_id: &plan_e,
-        planner::kind: "plan_snapshot",
         planner::session: &session_gen,
         planner::created_at: (now, now),
         planner::updated_at: (now, now),
+        metadata::tag: &KIND_PLAN_SNAPSHOT,
     });
 
     if let Some(call) = &args.call_id {
@@ -377,10 +420,10 @@ fn persist_plan_update(
             content += crate::entity!(&link_e, {
                 planner::plan_id: &plan_e,
                 planner::step_id: existing_e,
-                planner::kind: "plan_step",
                 planner::step_index: &idx.to_string(),
                 planner::step_status: status,
                 planner::updated_at: (now, now),
+                metadata::tag: &KIND_PLAN_STEP,
             });
         } else {
             // create a new step entity and link
@@ -389,23 +432,23 @@ fn persist_plan_update(
             content += crate::entity!(&step_e, {
                 planner::step_id: &step_e,
                 planner::step_text: step_blob,
-                planner::kind: "step",
                 planner::created_at: (now, now),
                 planner::updated_at: (now, now),
+                metadata::tag: &KIND_STEP,
             });
             let link_e = ufoid();
             content += crate::entity!(&link_e, {
                 planner::plan_id: &plan_e,
                 planner::step_id: &step_e,
-                planner::kind: "plan_step",
                 planner::step_index: &idx.to_string(),
                 planner::step_status: status,
                 planner::updated_at: (now, now),
+                metadata::tag: &KIND_PLAN_STEP,
             });
         }
     }
 
-    ws.commit(content, Some("codex-plan-tool"));
+            ws.commit(content, Some("plan-update"));
 
     // Push with merge/retry
     let mut current_ws = ws.clone();
@@ -455,11 +498,10 @@ struct PlanStepRef {
 fn plan_steps_from_content(content: &TribleSet, plan_id: Id) -> Vec<PlanStepRef> {
     let mut out = Vec::new();
 
-    // find all link entities (tag = "plan_step") that reference this plan
-    for (link_id, _) in find!((link_id: Id, _k: Value<ShortString>), crate::pattern!(content, [{ link_id @ planner::kind: _k }])) {
-        // ensure it's a plan_step and that it references our plan_id
-        // then extract step_id, step_index, step_status and collect the handle
-        // for the step text. Implementation uses find! for each attribute.
+    // find all link entities that have the plan_step tag
+    for (link_id,) in find!((link_id: Id), tribles::pattern!(content, [{ link_id @ metadata::tag: (KIND_PLAN_STEP) }])) {
+        // ensure it references our plan_id and then extract step_id,
+        // step_index, step_status and collect the text handle for later lazy read.
     }
 
     out
@@ -497,10 +539,10 @@ let mut content = TribleSet::new();
 // base plan snapshot entity
 content += crate::entity!(&plan_e, {
     planner::plan_id: &plan_e,
-    planner::kind: "plan_snapshot",
     planner::session: &session_genid,
     planner::created_at: (now, now),
     planner::updated_at: (now, now),
+    metadata::tag: &KIND_PLAN_SNAPSHOT,
 });
 
 // store explanation if present
@@ -519,7 +561,7 @@ for (idx, item) in args.plan.iter().enumerate() {
     // link that references it with step_index, step_status.
 }
 
-ws.commit(content, Some("codex-plan-tool"));
+ws.commit(content, Some("plan-update"));
 
 // push with merge/retry
 let mut current_ws = ws;
@@ -563,7 +605,8 @@ Further reading and references
 
 - See the tribles macros: NS!, find!, pattern!, entity! in the tribles code
   for exact usage.
-- Look at core/src/tribles_export.rs for real implementations of persist
-  and read flows (plan tool integration examples).
+-- See your project's exporter/utilities for real implementations of persist
+  and read flows; a centralized exporter reduces duplication in repo setup
+  and tagging conventions.
 - Type theory: "row polymorphism", "structural typing", "width subtyping"
   if you want the formal background.

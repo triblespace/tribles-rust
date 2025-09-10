@@ -579,7 +579,11 @@ impl Parse for EntityInput {
             }
         }
 
-        Ok(EntityInput { set, id, attributes })
+        Ok(EntityInput {
+            set,
+            id,
+            attributes,
+        })
     }
 }
 
@@ -628,7 +632,11 @@ impl Parse for PatternChangesInput {
 }
 
 fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    let EntityInput { set, id, attributes } = syn::parse(input)?;
+    let EntityInput {
+        set,
+        id,
+        attributes,
+    } = syn::parse(input)?;
     // Use absolute crate path for emitted tokens
     let crate_path_ts: TokenStream2 = quote! { ::tribles };
     let _crate_path = crate_path_ts.clone();

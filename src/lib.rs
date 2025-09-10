@@ -6,8 +6,8 @@ extern crate self as tribles;
 #[cfg(not(all(target_pointer_width = "64", target_endian = "little")))]
 compile_error!("tribles-rust requires a 64-bit little-endian target");
 
-pub mod blob;
 pub mod attribute;
+pub mod blob;
 pub mod id;
 pub mod metadata;
 pub mod namespace;
@@ -28,8 +28,8 @@ pub use macro_pub;
 pub use tribles_macros as macros;
 // Re-export proc-macros at the crate root so they are available within the
 // crate without requiring explicit `use` statements at every call site.
-pub use tribles_macros::entity;
 pub use tribles_macros::attributes;
+pub use tribles_macros::entity;
 pub use tribles_macros::path;
 pub use tribles_macros::pattern;
 pub use tribles_macros::pattern_changes;

@@ -31,12 +31,12 @@
 pub mod blobschemas;
 pub mod valueschemas;
 
+pub use crate::attribute::Attribute;
 pub use crate::blob::Blob;
 pub use crate::blob::BlobSchema;
 pub use crate::blob::MemoryBlobStore;
 pub use crate::blob::ToBlob;
 pub use crate::blob::TryFromBlob;
-pub use crate::attribute::Attribute;
 pub use crate::id::fucid;
 pub use crate::id::local_ids;
 pub use crate::id::rngid;
@@ -68,8 +68,8 @@ pub use anybytes::View;
 // be imported with `use tribles::prelude::*;` and called as `pattern!(...)`.
 // After migrating away from namespace-local wrapper macros, this makes the
 // new global proc-macros ergonomically available.
-pub use crate::macros::entity;
 pub use crate::macros::attributes;
+pub use crate::macros::entity;
 pub use crate::macros::path;
 pub use crate::macros::pattern;
 pub use crate::macros::pattern_changes;

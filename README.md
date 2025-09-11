@@ -68,11 +68,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use tribles::prelude::*;
-use tribles::prelude::valueschemas::*;
-use tribles::prelude::blobschemas::*;
 
-NS! {
-    pub namespace literature {
+mod literature {
+    use tribles::prelude::*;
+    use tribles::prelude::valueschemas::*;
+    use tribles::prelude::blobschemas::*;
+
+    attributes! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;

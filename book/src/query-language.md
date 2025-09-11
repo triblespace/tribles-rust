@@ -127,10 +127,15 @@ combined with other constraints.  Invoke it through a namespace module
 
 ```rust
 use tribles::prelude::*;
-NS! { namespace social {
+
+mod social {
+  use tribles::prelude::*;
+  use tribles::prelude::valueschemas::*;
+  attributes! {
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: GenId;
     "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: GenId;
-} }
+  }
+}
 let mut kb = TribleSet::new();
 let a = fucid(); let b = fucid(); let c = fucid();
 kb += crate::entity!(&a, { social::follows: &b });

@@ -274,7 +274,7 @@ Idioms & code recipes
 ---------------------
 
 This section contains pragmatic, copy‑pasteable snippets and patterns you can
-reuse. The examples intentionally use the tribles macros (NS!, find!,
+reuse. The examples intentionally use the tribles macros (attributes!, find!,
 pattern!, entity!) directly — that is the intended style.
 
 EntityRef: a tiny ergonomic helper (optional)
@@ -603,7 +603,7 @@ Common pitfalls
 Further reading and references
 ------------------------------
 
-- See the tribles macros: NS!, find!, pattern!, entity! in the tribles code
+- See the tribles macros: attributes!, find!, pattern!, entity! in the tribles code
   for exact usage.
 -- See your project's exporter/utilities for real implementations of persist
   and read flows; a centralized exporter reduces duplication in repo setup

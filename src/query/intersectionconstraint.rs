@@ -1,15 +1,14 @@
 use super::*;
-use arrayvec::ArrayVec;
 
 pub struct IntersectionConstraint<C> {
-    constraints: ArrayVec<C, 16>,
+    constraints: Vec<C>,
 }
 
 impl<'a, C> IntersectionConstraint<C>
 where
     C: Constraint<'a> + 'a,
 {
-    pub fn new(constraints: ArrayVec<C, 16>) -> Self {
+    pub fn new(constraints: Vec<C>) -> Self {
         IntersectionConstraint { constraints }
     }
 }
@@ -32,7 +31,7 @@ where
     }
 
     fn propose(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let mut relevant_constraints: ArrayVec<_, 16> = self
+        let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
             .filter_map(|c| Some((c.estimate(variable, binding)?, c)))
@@ -52,7 +51,7 @@ where
     }
 
     fn confirm(&self, variable: VariableId, binding: &Binding, proposals: &mut Vec<RawValue>) {
-        let mut relevant_constraints: ArrayVec<_, 16> = self
+        let mut relevant_constraints: Vec<_> = self
             .constraints
             .iter()
             .filter_map(|c| Some((c.estimate(variable, binding)?, c)))
@@ -76,9 +75,9 @@ where
 #[macro_export]
 macro_rules! and {
     ($($c:expr),+ $(,)?) => (
-        $crate::query::intersectionconstraint::IntersectionConstraint::new(arrayvec::ArrayVec::from_iter([
+        $crate::query::intersectionconstraint::IntersectionConstraint::new(vec![
             $(Box::new($c) as Box<dyn $crate::query::Constraint>),+
-        ]))
+        ])
     )
 }
 

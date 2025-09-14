@@ -297,17 +297,11 @@ struct MacroInput {
 /// `id` stores the optional identifier on the left-hand side of the `@` sign.
 /// `attributes` holds all `name: value` constraints within the braces.
 struct Entity {
-    id: Option<EntityId>,
+    id: Option<Expr>,
     attributes: Vec<Attribute>,
 }
 
 /// Identifier for an [`Entity`].
-enum EntityId {
-    /// Use an existing variable.
-    Var(Ident),
-    /// Use a literal expression, e.g. `(id)`.
-    Lit(Expr),
-}
 
 /// One `name: value` pair.
 struct Attribute {
@@ -349,20 +343,14 @@ impl Parse for Entity {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
         braced!(content in input);
+        // Try to parse an expression followed by '@'. If present, use it as the id expression.
+        let mut id: Option<Expr> = None;
         let ahead = content.fork();
-        let id = if ahead.peek(Ident) && ahead.peek2(Token![@]) {
-            let ident: Ident = content.parse()?;
+        if ahead.parse::<Expr>().is_ok() && ahead.peek(Token![@]) {
+            let expr: Expr = content.parse()?;
             content.parse::<Token![@]>()?;
-            Some(EntityId::Var(ident))
-        } else if ahead.peek(syn::token::Paren) && ahead.peek2(Token![@]) {
-            let expr_content;
-            parenthesized!(expr_content in content);
-            let expr: Expr = expr_content.parse()?;
-            content.parse::<Token![@]>()?;
-            Some(EntityId::Lit(expr))
-        } else {
-            None
-        };
+            id = Some(expr);
+        }
         let mut attributes = Vec::new();
         while !content.is_empty() {
             attributes.push(content.parse()?);
@@ -373,7 +361,6 @@ impl Parse for Entity {
         Ok(Entity { id, attributes })
     }
 }
-
 impl Parse for Attribute {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let name: Expr = input.parse()?;
@@ -446,18 +433,26 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
         // Variable name representing the entity id.
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
         // Initialization depends on whether an id was supplied.
-        let init = match entity.id {
-            // Existing identifier variable: reuse it directly.
-            Some(EntityId::Var(id)) => quote! { let #e_ident = #id; },
-            // Literal expression: create a new variable bound to the value.
-            Some(EntityId::Lit(expr)) => quote! {
+        let init = if let Some(ref id_expr) = entity.id {
+            if let Expr::Path(ref p) = id_expr {
+                if p.path.segments.len() == 1 {
+                    quote! { let #e_ident = #id_expr; }
+                } else {
+                    quote! {
+                        let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        constraints.push({ let e: ::tribles::id::Id = #id_expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                    }
+                }
+            } else {
+                quote! {
+                    let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                    constraints.push({ let e: ::tribles::id::Id = #id_expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                }
+            }
+        } else {
+            quote! {
                 let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
-            },
-            // No id specified: create a fresh variable for the entity.
-            None => quote! {
-                let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-            },
+            }
         };
         entity_tokens.extend(init);
         // Emit triple constraints for each field within the entity.
@@ -534,63 +529,78 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     Ok(output.into())
 }
 
-/// Parsed input for the [`entity`] macro.
-///
-/// Invocation forms:
-/// `crate_path, namespace_path, { field: value, ... }`
-/// `crate_path, namespace_path, id_expr, { field: value, ... }`
-/// `crate_path, namespace_path, set_expr, id_expr, { field: value, ... }`
-struct EntityInput {
-    set: Option<Expr>,
-    id: Option<Expr>,
-    attributes: Vec<(Expr, Expr)>,
-}
-
-impl Parse for EntityInput {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // Simplified form: [ set_expr?, id_expr? ], { attributes }
-        let mut set = None;
-        let mut id = None;
-        if input.peek(syn::token::Brace) {
-            // nothing
-        } else {
-            let expr1: Expr = input.parse()?;
-            input.parse::<Token![,]>()?;
-            if input.peek(syn::token::Brace) {
-                id = Some(expr1);
-            } else {
-                set = Some(expr1);
-                let id_expr: Expr = input.parse()?;
-                input.parse::<Token![,]>()?;
-                id = Some(id_expr);
-            }
-        }
-
-        let content;
-        braced!(content in input);
-        let mut attributes = Vec::new();
-        while !content.is_empty() {
-            let name: Expr = content.parse()?;
-            content.parse::<Token![:]>()?;
-            let value: Expr = content.parse()?;
-            attributes.push((name, value));
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(EntityInput {
-            set,
-            id,
-            attributes,
-        })
-    }
-}
-
 /// Procedural implementation of the `entity!` macro.
+///
+/// Simplified form: entity!{ [id_spec @] <field>: <value>, ... }
+/// Examples:
+///   entity!{ metadata::name: "x" }
+///   entity!{ ( &my_id ) @ metadata::name: "x" }
+///   entity!{ my_id @ metadata::name: "x" }
 #[proc_macro]
 pub fn entity(input: TokenStream) -> TokenStream {
     match entity_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
+    // Parse a single Entity using the same grammar as pattern! (a braced block
+    // with an optional `id @` prefix followed by attribute pairs).
+    let entity: Entity = syn::parse(input)?;
+    let crate_path_ts: TokenStream2 = quote! { ::tribles };
+
+    // Always create a fresh TribleSet for this single-entity constructor.
+    let set_init = quote! { let mut set = #crate_path_ts::trible::TribleSet::new(); };
+
+    // Prepare id initialization. The macro accepts either an optional `ident@`
+    // form or an explicit parenthesized expression `(expr) @`. If omitted we
+    // allocate a new RNG-based ExclusiveId.
+    let id_init: TokenStream2 = if let Some(expr) = entity.id {
+        quote! { let id_ref: &#crate_path_ts::id::ExclusiveId = #expr; }
+    } else {
+        quote! {
+            let id_tmp: #crate_path_ts::id::ExclusiveId = #crate_path_ts::id::rngid();
+            let id_ref: &#crate_path_ts::id::ExclusiveId = &id_tmp;
+        }
+    };
+
+    // Build insertion statements for each attribute.
+    let mut insert_tokens = TokenStream2::new();
+    for (i, attr) in entity.attributes.into_iter().enumerate() {
+        let field_expr = attr.name;
+        let value_expr = match attr.value {
+            AttributeValue::Var(e) => e,
+            AttributeValue::Lit(e) => e,
+        };
+        let af_ident = format_ident!("__af{}", i, span = Span::call_site());
+        let val_ident = format_ident!("__val{}", i, span = Span::call_site());
+        let stmt = quote! {
+            {
+                let #af_ident = #field_expr;
+                let #val_ident = #af_ident.value_from(#value_expr);
+                let __a_id = #af_ident.id();
+                set.insert(&::tribles::trible::Trible::new(id_ref, &__a_id, &#val_ident));
+            }
+        };
+        insert_tokens.extend(stmt);
+    }
+
+    let output = quote! {
+        {
+            #set_init
+            #id_init
+            #insert_tokens
+            set
+        }
+    };
+
+    Ok(output.into())
+}
+/// Procedural implementation of the `pattern_changes!` macro.
+#[proc_macro]
+pub fn pattern_changes(input: TokenStream) -> TokenStream {
+    match pattern_changes_impl(input) {
         Ok(ts) => ts,
         Err(e) => e.to_compile_error().into(),
     }
@@ -628,83 +638,6 @@ impl Parse for PatternChangesInput {
             changes,
             pattern,
         })
-    }
-}
-
-fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    let EntityInput {
-        set,
-        id,
-        attributes,
-    } = syn::parse(input)?;
-    // Use absolute crate path for emitted tokens
-    let crate_path_ts: TokenStream2 = quote! { ::tribles };
-    let _crate_path = crate_path_ts.clone();
-
-    let (set_init, set_expr) = if let Some(s) = &set {
-        (TokenStream2::new(), quote! { #s })
-    } else {
-        (
-            quote! { let mut set = #crate_path_ts::trible::TribleSet::new(); },
-            quote! { set },
-        )
-    };
-
-    let (id_init, id_expr) = if let Some(expr) = id {
-        (
-            quote! { let id_ref: &#crate_path_ts::id::ExclusiveId = #expr; },
-            quote! { id_ref },
-        )
-    } else {
-        (
-            quote! {
-                let id_tmp: #crate_path_ts::id::ExclusiveId = #crate_path_ts::id::rngid();
-                let id_ref: &#crate_path_ts::id::ExclusiveId = &id_tmp;
-            },
-            quote! { id_ref },
-        )
-    };
-
-    let mut insert_tokens = TokenStream2::new();
-    let mut field_idx = 0usize;
-    for (field_expr, value_expr) in attributes {
-        let af_ident = format_ident!("__af{}", field_idx, span = Span::call_site());
-        let val_ident = format_ident!("__val{}", field_idx, span = Span::call_site());
-        field_idx += 1;
-        let stmt = quote! {
-            {
-                let #af_ident = #field_expr;
-                let #val_ident = #af_ident.value_from(#value_expr);
-                let __a_id = #af_ident.id();
-                #set_expr.insert(&::tribles::trible::Trible::new(#id_expr, &__a_id, &#val_ident));
-            }
-        };
-        insert_tokens.extend(stmt);
-    }
-
-    let output = if set.is_some() {
-        quote! {{
-            #id_init
-            #insert_tokens
-        }}
-    } else {
-        quote! {{
-            #set_init
-            #id_init
-            #insert_tokens
-            set
-        }}
-    };
-
-    Ok(output.into())
-}
-
-/// Procedural implementation of the `pattern_changes!` macro.
-#[proc_macro]
-pub fn pattern_changes(input: TokenStream) -> TokenStream {
-    match pattern_changes_impl(input) {
-        Ok(ts) => ts,
-        Err(e) => e.to_compile_error().into(),
     }
 }
 
@@ -751,16 +684,26 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
         match entity.id {
-            Some(EntityId::Var(id)) => {
-                entity_decl_tokens.extend(quote! { let #e_ident = #id; });
-            }
-            Some(EntityId::Lit(expr)) => {
-                entity_decl_tokens.extend(quote! {
-                    let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                });
-                entity_const_tokens.extend(quote! {
-                    constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
-                });
+            Some(expr) => {
+                if let Expr::Path(ref p) = expr {
+                    if p.path.segments.len() == 1 {
+                        entity_decl_tokens.extend(quote! { let #e_ident = #expr; });
+                    } else {
+                        entity_decl_tokens.extend(quote! {
+                            let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        });
+                        entity_const_tokens.extend(quote! {
+                            constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                        });
+                    }
+                } else {
+                    entity_decl_tokens.extend(quote! {
+                        let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                    });
+                    entity_const_tokens.extend(quote! {
+                        constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                    });
+                }
             }
             None => {
                 entity_decl_tokens.extend(quote! {

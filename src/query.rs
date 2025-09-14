@@ -676,46 +676,46 @@ mod tests {
         (0..1000).for_each(|_| {
             let author = fucid();
             let book = fucid();
-            kb += entity!(&author, {
-                literature::firstname: FirstName(EN).fake::<String>(),
-                literature::lastname: LastName(EN).fake::<String>(),
-            });
-            kb += entity!(&book, {
-                literature::author: &author,
-                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
-            });
+            kb += entity! { &author @
+               literature::firstname: FirstName(EN).fake::<String>(),
+               literature::lastname: LastName(EN).fake::<String>(),
+            };
+            kb += entity! { &book @
+               literature::author: &author,
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+            };
         });
 
         let author = fucid();
         let book = fucid();
-        kb += entity!(&author, {
-            literature::firstname: "Frank",
-            literature::lastname: "Herbert",
-        });
-        kb += entity!(&book, {
-            literature::author: &author,
-            literature::title: "Dune",
-            literature::quote: "I must not fear. Fear is the \
-                    mind-killer. Fear is the little-death that brings total \
-                    obliteration. I will face my fear. I will permit it to \
-                    pass over me and through me. And when it has gone past I \
-                    will turn the inner eye to see its path. Where the fear \
-                    has gone there will be nothing. Only I will remain.".to_blob().get_handle()
-        });
+        kb += entity! { &author @
+           literature::firstname: "Frank",
+           literature::lastname: "Herbert",
+        };
+        kb += entity! { &book @
+           literature::author: &author,
+           literature::title: "Dune",
+           literature::quote: "I must not fear. Fear is the \
+                   mind-killer. Fear is the little-death that brings total \
+                   obliteration. I will face my fear. I will permit it to \
+                   pass over me and through me. And when it has gone past I \
+                   will turn the inner eye to see its path. Where the fear \
+                   has gone there will be nothing. Only I will remain.".to_blob().get_handle()
+        };
 
         (0..100).for_each(|_| {
             let author = fucid();
             let book = fucid();
-            kb += entity!(&author, {
-                literature::firstname: "Fake",
-                literature::lastname: "Herbert",
-            });
-            kb += entity!(&book, {
-                literature::author: &author,
-                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
-            });
+            kb += entity! { &author @
+               literature::firstname: "Fake",
+               literature::lastname: "Herbert",
+            };
+            kb += entity! { &book @
+               literature::author: &author,
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+            };
         });
 
         let r: Vec<_> = find!(

@@ -41,10 +41,10 @@
 //! }
 //! let author = fucid();
 //! ws.commit(
-//!     entity!(&author, {
+//!     entity!{ &author @
 //!         literature::firstname: "Frank",
 //!         literature::lastname: "Herbert",
-//!     }),
+//!      },
 //!     Some("initial commit"),
 //! );
 //!

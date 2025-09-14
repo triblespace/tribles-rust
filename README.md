@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws = repo.branch("main")?;
 
-    ws.commit(crate::entity!(&ufoid(), { literature::firstname: "Alice" }), None);
+    ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
     Ok(())
 }
@@ -92,12 +92,12 @@ fn main() -> std::io::Result<()> {
 
     // Note how the entity macro returns TribleSets that can be cheaply merged
     // into our existing dataset.
-    set += crate::entity!(&author_id, {
+    set += crate::entity!{ &author_id @
                 literature::firstname: "Frank",
                 literature::lastname: "Herbert",
-            });
+            };
 
-    set += crate::entity!(&author_id, {
+    set += crate::entity!{ &author_id @
                 literature::title: "Dune",
                 literature::author: &author_id,
                 literature::quote: blobs.put("Deep in the human unconscious is a \

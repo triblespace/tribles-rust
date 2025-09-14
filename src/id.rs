@@ -639,14 +639,14 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += entity!(&jules, {
-                literature::firstname: "Jules",
-                literature::lastname: "Verne"
-            });
-            kb += entity!(&isaac, {
-                literature::firstname: "Isaac",
-                literature::lastname: "Asimov"
-            });
+            kb += entity! { &jules @
+               literature::firstname: "Jules",
+               literature::lastname: "Verne"
+            };
+            kb += entity! { &isaac @
+               literature::firstname: "Isaac",
+               literature::lastname: "Asimov"
+            };
         }
 
         let mut r: Vec<_> = find!(
@@ -673,14 +673,14 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += entity!(&jules, {
-                literature::firstname: "Jules",
-                literature::lastname: "Verne"
-            });
-            kb += entity!(&isaac, {
-                literature::firstname: "Isaac",
-                literature::lastname: "Asimov"
-            });
+            kb += entity! { &jules @
+               literature::firstname: "Jules",
+               literature::lastname: "Verne"
+            };
+            kb += entity! { &isaac @
+               literature::firstname: "Isaac",
+               literature::lastname: "Asimov"
+            };
         }
 
         let mut ctx = VariableContext::new();

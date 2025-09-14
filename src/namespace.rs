@@ -44,16 +44,16 @@ mod tests {
         let author = ufoid();
         let book = ufoid();
 
-        tribles += entity!(&author, {
-            literature::firstname: "William",
-            literature::lastname: "Shakespeare",
-        });
+        tribles += entity! { &author @
+           literature::firstname: "William",
+           literature::lastname: "Shakespeare",
+        };
 
-        tribles += entity!(&book, {
-            literature::title: "Hamlet",
-            literature::author: &author,
-            literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
-        });
+        tribles += entity! { &book @
+           literature::title: "Hamlet",
+           literature::author: &author,
+           literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
+        };
 
         assert_eq!(tribles.len(), 5);
     }
@@ -65,15 +65,15 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += entity!(&author, {
-            literature::firstname: "William",
-            literature::lastname: "Shakespeare",
-        });
-        kb += entity!(&book, {
-            literature::title: "Hamlet",
-            literature::author: &author,
-            literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
-        });
+        kb += entity! { &author @
+           literature::firstname: "William",
+           literature::lastname: "Shakespeare",
+        };
+        kb += entity! { &book @
+           literature::title: "Hamlet",
+           literature::author: &author,
+           literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
+        };
 
         let r: Vec<_> = find!(
             (book, title, firstname),
@@ -98,29 +98,29 @@ mod tests {
         (0..100).for_each(|_| {
             let author = ufoid();
             let book = ufoid();
-            kb += entity!(&author, {
-                literature::firstname: Name(EN).fake::<String>(),
-                literature::lastname: Name(EN).fake::<String>()
-            });
-            kb += entity!(&book, {
-                literature::title: Name(EN).fake::<String>(),
-                literature::author: &author
-            });
+            kb += entity! { &author @
+               literature::firstname: Name(EN).fake::<String>(),
+               literature::lastname: Name(EN).fake::<String>()
+            };
+            kb += entity! { &book @
+               literature::title: Name(EN).fake::<String>(),
+               literature::author: &author
+            };
         });
 
         let shakespeare = ufoid();
         let hamlet = ufoid();
 
         let mut data_kb = TribleSet::new();
-        data_kb += entity!(&shakespeare, {
-            literature::firstname: "William",
-            literature::lastname: "Shakespeare"
-        });
-        data_kb += entity!(&hamlet, {
-            literature::title: "Hamlet",
-            literature::author: &shakespeare,
-            literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
-        });
+        data_kb += entity! { &shakespeare @
+           literature::firstname: "William",
+           literature::lastname: "Shakespeare"
+        };
+        data_kb += entity! { &hamlet @
+           literature::title: "Hamlet",
+           literature::author: &shakespeare,
+           literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
+        };
 
         kb += data_kb;
 
@@ -153,28 +153,28 @@ mod tests {
         (0..10).for_each(|_| {
             let a = ufoid();
             let b = ufoid();
-            base += entity!(&a, {
-                literature::firstname: Name(EN).fake::<String>(),
-                literature::lastname: Name(EN).fake::<String>()
-            });
-            base += entity!(&b, {
-                literature::title: Name(EN).fake::<String>(),
-                literature::author: &a
-            });
+            base += entity! { &a @
+               literature::firstname: Name(EN).fake::<String>(),
+               literature::lastname: Name(EN).fake::<String>()
+            };
+            base += entity! { &b @
+               literature::title: Name(EN).fake::<String>(),
+               literature::author: &a
+            };
         });
 
         let mut updated = base.clone();
         let shakespeare = ufoid();
         let hamlet = ufoid();
-        updated += entity!(&shakespeare, {
-            literature::firstname: "William",
-            literature::lastname: "Shakespeare"
-        });
-        updated += entity!(&hamlet, {
-            literature::title: "Hamlet",
-            literature::author: &shakespeare,
-            literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
-        });
+        updated += entity! { &shakespeare @
+           literature::firstname: "William",
+           literature::lastname: "Shakespeare"
+        };
+        updated += entity! { &hamlet @
+           literature::title: "Hamlet",
+           literature::author: &shakespeare,
+           literature::quote: "To be, or not to be, that is the question.".to_blob().get_handle()
+        };
 
         let delta = &updated.difference(&base);
         let r: Vec<_> = find!(

@@ -497,21 +497,20 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += entity!(&juliet,
-        {
-            knights::name: "Juliet",
-            knights::loves: &romeo,
-            knights::title: "Maiden"
-        });
-        kb += entity!(&romeo, {
-            knights::name: "Romeo",
-            knights::loves: &juliet,
-            knights::title: "Prince"
-        });
-        kb += entity!({
-            knights::name: "Angelica",
-            knights::title: "Nurse"
-        });
+        kb += entity! { &juliet @
+           knights::name: "Juliet",
+           knights::loves: &romeo,
+           knights::title: "Maiden"
+        };
+        kb += entity! { &romeo @
+           knights::name: "Romeo",
+           knights::loves: &juliet,
+           knights::title: "Prince"
+        };
+        kb += entity! {
+           knights::name: "Angelica",
+           knights::title: "Nurse"
+        };
 
         let archive: SuccinctArchive<OrderedUniverse> = (&kb).into();
 

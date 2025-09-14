@@ -47,30 +47,30 @@ pub fn commit_metadata(
     let commit_entity = crate::id::rngid();
     let now = Epoch::now().expect("system time");
 
-    commit += entity!(&commit_entity, { super::timestamp: (now, now) });
+    commit += entity! { &commit_entity @  super::timestamp: (now, now)  };
 
     if let Some(content) = content {
         let handle = content.get_handle();
         let signature = signing_key.sign(&content.bytes);
 
-        commit += entity!(&commit_entity, {
-            super::content: handle,
-            super::signed_by: signing_key.verifying_key(),
-            super::signature_r: signature,
-            super::signature_s: signature,
-        });
+        commit += entity! { &commit_entity @
+           super::content: handle,
+           super::signed_by: signing_key.verifying_key(),
+           super::signature_r: signature,
+           super::signature_s: signature,
+        };
     }
 
     if let Some(h) = msg {
-        commit += entity!(&commit_entity, {
-            super::message: h,
-        });
+        commit += entity! { &commit_entity @
+           super::message: h,
+        };
     }
 
     for parent in parents {
-        commit += entity!(&commit_entity, {
-            super::parent: parent,
-        });
+        commit += entity! { &commit_entity @
+           super::parent: parent,
+        };
     }
 
     commit

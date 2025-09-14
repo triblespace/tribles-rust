@@ -32,19 +32,19 @@ pub fn branch_metadata(
 
     let metadata_entity = rngid();
 
-    metadata += entity!(&metadata_entity, { super::branch: branch_id });
+    metadata += entity! { &metadata_entity @  super::branch: branch_id  };
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
         let signature = signing_key.sign(&commit_head.bytes);
 
-        metadata += entity!(&metadata_entity, {
-            super::head: handle,
-            super::signed_by: signing_key.verifying_key(),
-            super::signature_r: signature,
-            super::signature_s: signature,
-        });
+        metadata += entity! { &metadata_entity @
+           super::head: handle,
+           super::signed_by: signing_key.verifying_key(),
+           super::signature_r: signature,
+           super::signature_s: signature,
+        };
     }
-    metadata += entity!(&metadata_entity, { metadata::name: name });
+    metadata += entity! { &metadata_entity @  metadata::name: name  };
 
     metadata
 }
@@ -62,14 +62,14 @@ pub fn branch_unsigned(
 
     let mut metadata: TribleSet = Default::default();
 
-    metadata += entity!(&metadata_entity, { super::branch: branch_id });
+    metadata += entity! { &metadata_entity @  super::branch: branch_id  };
 
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
-        metadata += entity!(&metadata_entity, { super::head: handle });
+        metadata += entity! { &metadata_entity @  super::head: handle  };
     }
 
-    metadata += entity!(&metadata_entity, { metadata::name: name });
+    metadata += entity! { &metadata_entity @  metadata::name: name  };
 
     metadata
 }

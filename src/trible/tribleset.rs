@@ -224,14 +224,14 @@ mod tests {
         for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
-            kb += entity!(&author, {
-                literature::firstname: FirstName(EN).fake::<String>(),
-                literature::lastname: LastName(EN).fake::<String>(),
-            });
-            kb += entity!(&book, {
-                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                literature::author: &author
-            });
+            kb += entity! { &author @
+               literature::firstname: FirstName(EN).fake::<String>(),
+               literature::lastname: LastName(EN).fake::<String>(),
+            };
+            kb += entity! { &book @
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::author: &author
+            };
         }
         assert_eq!(kb.len(), 400);
     }
@@ -244,14 +244,14 @@ mod tests {
                 let author = ufoid();
                 let book = ufoid();
                 [
-                    entity!(&author, {
-                        literature::firstname: FirstName(EN).fake::<String>(),
-                        literature::lastname: LastName(EN).fake::<String>(),
-                    }),
-                    entity!(&book, {
-                        literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                        literature::author: &author
-                    }),
+                    entity! { &author @
+                       literature::firstname: FirstName(EN).fake::<String>(),
+                       literature::lastname: LastName(EN).fake::<String>(),
+                    },
+                    entity! { &book @
+                       literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                       literature::author: &author
+                    },
                 ]
             })
             .reduce(TribleSet::new, |a, b| a + b);
@@ -265,22 +265,22 @@ mod tests {
         for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
-            kb1 += entity!(&author, {
-                literature::firstname: FirstName(EN).fake::<String>(),
-                literature::lastname: LastName(EN).fake::<String>(),
-            });
-            kb1 += entity!(&book, {
-                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                literature::author: &author
-            });
-            kb2 += entity!(&author, {
-                literature::firstname: FirstName(EN).fake::<String>(),
-                literature::lastname: LastName(EN).fake::<String>(),
-            });
-            kb2 += entity!(&book, {
-                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                literature::author: &author
-            });
+            kb1 += entity! { &author @
+               literature::firstname: FirstName(EN).fake::<String>(),
+               literature::lastname: LastName(EN).fake::<String>(),
+            };
+            kb1 += entity! { &book @
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::author: &author
+            };
+            kb2 += entity! { &author @
+               literature::firstname: FirstName(EN).fake::<String>(),
+               literature::lastname: LastName(EN).fake::<String>(),
+            };
+            kb2 += entity! { &book @
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::author: &author
+            };
         }
         let intersection = kb1.intersect(&kb2);
         // Verify that the intersection contains only elements present in both kb1 and kb2
@@ -297,23 +297,23 @@ mod tests {
         for _i in 0..100 {
             let author = ufoid();
             let book = ufoid();
-            kb1 += entity!(&author, {
-                literature::firstname: FirstName(EN).fake::<String>(),
-                literature::lastname: LastName(EN).fake::<String>(),
-            });
-            kb1 += entity!(&book, {
-                literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                literature::author: &author
-            });
+            kb1 += entity! { &author @
+               literature::firstname: FirstName(EN).fake::<String>(),
+               literature::lastname: LastName(EN).fake::<String>(),
+            };
+            kb1 += entity! { &book @
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::author: &author
+            };
             if _i % 2 == 0 {
-                kb2 += entity!(&author, {
-                    literature::firstname: FirstName(EN).fake::<String>(),
-                    literature::lastname: LastName(EN).fake::<String>(),
-                });
-                kb2 += entity!(&book, {
-                    literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-                    literature::author: &author
-                });
+                kb2 += entity! { &author @
+                   literature::firstname: FirstName(EN).fake::<String>(),
+                   literature::lastname: LastName(EN).fake::<String>(),
+                };
+                kb2 += entity! { &book @
+                   literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+                   literature::author: &author
+                };
             }
         }
         let difference = kb1.difference(&kb2);
@@ -329,14 +329,14 @@ mod tests {
         let mut kb = TribleSet::new();
         let author = ufoid();
         let book = ufoid();
-        let author_tribles = entity!(&author, {
-            literature::firstname: FirstName(EN).fake::<String>(),
-            literature::lastname: LastName(EN).fake::<String>(),
-        });
-        let book_tribles = entity!(&book, {
-            literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-            literature::author: &author
-        });
+        let author_tribles = entity! { &author @
+           literature::firstname: FirstName(EN).fake::<String>(),
+           literature::lastname: LastName(EN).fake::<String>(),
+        };
+        let book_tribles = entity! { &book @
+           literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+           literature::author: &author
+        };
 
         kb += author_tribles.clone();
         kb += book_tribles.clone();
@@ -348,10 +348,10 @@ mod tests {
             assert!(kb.contains(trible));
         }
 
-        let non_existent_trible = entity!(&ufoid(), {
-            literature::firstname: FirstName(EN).fake::<String>(),
-            literature::lastname: LastName(EN).fake::<String>(),
-        });
+        let non_existent_trible = entity! { &ufoid() @
+           literature::firstname: FirstName(EN).fake::<String>(),
+           literature::lastname: LastName(EN).fake::<String>(),
+        };
 
         for trible in &non_existent_trible {
             assert!(!kb.contains(trible));

@@ -20,8 +20,8 @@ fn pattern_changes_finds_new_inserts() {
     let mut updated = base.clone();
     let shakespeare = ufoid();
     let hamlet = ufoid();
-    updated += entity!(&shakespeare, { literature::firstname: "William", literature::lastname: "Shakespeare" });
-    updated += entity!(&hamlet, { literature::title: "Hamlet", literature::author: &shakespeare });
+    updated += entity! { &shakespeare @ literature::firstname: "William", literature::lastname: "Shakespeare" };
+    updated += entity! { &hamlet @ literature::title: "Hamlet", literature::author: &shakespeare };
 
     let delta = updated.difference(&base);
 
@@ -48,7 +48,7 @@ fn pattern_changes_finds_new_inserts() {
 fn pattern_changes_empty_delta_returns_no_matches() {
     let mut kb = TribleSet::new();
     let shakespeare = ufoid();
-    kb += entity!(&shakespeare, { literature::firstname: "William", literature::lastname: "Shakespeare" });
+    kb += entity! { &shakespeare @ literature::firstname: "William", literature::lastname: "Shakespeare" };
 
     let delta = TribleSet::new();
 

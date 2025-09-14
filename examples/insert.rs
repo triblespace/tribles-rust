@@ -16,14 +16,14 @@ fn main() {
     (0..1000000).for_each(|_| {
         let author = fucid();
         let book = fucid();
-        kb += entity!(&author, {
+        kb += entity! { &author @
             literature::firstname: FirstName(EN).fake::<String>(),
             literature::lastname: LastName(EN).fake::<String>(),
-        });
-        kb += entity!(&book, {
+        };
+        kb += entity! { &book @
             literature::author: &author,
             literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
-            literature::quote: blobs.put(Sentence(5..25).fake::<String>()).unwrap()
-        });
+            literature::quote: blobs.put(Sentence(5..25).fake::<String>()).unwrap(),
+        };
     });
 }

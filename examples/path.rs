@@ -20,8 +20,8 @@ fn main() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += entity!(&a, { social::follows: &b });
-    kb += entity!(&b, { social::likes: &c });
+    kb += entity! { &a @ social::follows: &b };
+    kb += entity! { &b @ social::likes: &c };
 
     for (s, e) in
         find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s (social::follows | social::likes)+ e))

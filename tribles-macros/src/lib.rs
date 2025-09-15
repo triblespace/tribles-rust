@@ -10,17 +10,24 @@
 //! triples into an existing set.
 //!
 //! ```ignore
-//! ::tribles_macros::pattern!(&set, [ { my_ns::attr: (42) } ]);
+//! // Match an entity whose `my_ns::attr` equals the literal 42
+//! ::tribles_macros::pattern!(&set, [ { my_ns::attr: 42 } ]);
+//! // Bind the value of `my_ns::attr` to the variable `v`
+//! ::tribles_macros::pattern!(&set, [ { my_ns::attr: v }]);
+//! // Construct an entity set with an attribute assignment
 //! ::tribles_macros::entity!{  my_ns::attr: 42  };
 //! ::tribles_macros::entity!{ id @  my_ns::attr: 42  };
 //! ```
 //!
-//! The `pattern` macro expects the crate path, a namespace module, a dataset
-//! expression implementing [`TriblePattern`], and a bracketed list of entity
-//! patterns. Each entity pattern may specify an identifier using `ident @` or
-//! `(expr) @` notation and contains `attribute: value` pairs. Values can either
-//! reference an existing query variable or be written as `(expr)` to match a
-//! literal.
+//! The `pattern` macro expects a dataset expression implementing
+//! [`TriblePattern`] and a bracketed list of entity patterns. Each entity
+//! pattern may specify an identifier using `ident @` or `(expr) @` notation and
+//! contains `attribute: value` pairs. For `pattern!` we treat a bare
+//! single-segment identifier (for example `name`) as a *variable binding*;
+//! any other expression (string/number literals, multi-segment paths like
+//! `ns::CONST`, references `&ID`, arithmetic, or a parenthesised expression)
+//! is treated as a literal value. The legacy parenthesised-literal form
+//! remains supported for backwards compatibility.
 //!
 //! The `entity` macro similarly starts with the crate and namespace paths and
 //! optionally an explicit entity ID expression before the attribute list.

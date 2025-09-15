@@ -98,6 +98,26 @@ This query searches the example dataset for the book titled "Dune".  The
 variables and constraint can be adapted to express more complex joins and
 filters.
 
+## Attribute patterns (pattern!)
+
+The `pattern!` macro provides a concise way to match entities by attribute
+assignments. It expands to a constraint that can be used directly inside
+`find!`.
+
+Important: in `pattern!` a bare single-segment identifier is a variable
+binding while string/number literals and more complex expressions are treated
+as literal values. Parenthesised expressions remain supported for explicit
+literals.
+
+```rust
+let mut kb = TribleSet::new();
+let e = ufoid();
+kb += entity! { &e @ literature::firstname: "William", literature::lastname: "Shakespeare" };
+
+let results: Vec<_> = find!((ee: Id), pattern!(&kb, [{ ee @ literature::firstname: "William" }])).collect();
+assert_eq!(results.len(), 1);
+```
+
 ## `matches!`
 
 Sometimes you only want to check whether a constraint has any solutions.

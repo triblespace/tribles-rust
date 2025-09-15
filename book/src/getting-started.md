@@ -35,3 +35,7 @@ directory and pushes a single entity to the `main` branch.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.
+
+Note: the `pattern!` macro used in queries treats a bare identifier as a
+variable binding and more complex expressions (including string literals) as
+literal values; parentheses may still be used to force a literal where desired.

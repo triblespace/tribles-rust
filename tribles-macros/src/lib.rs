@@ -484,30 +484,35 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let _raw_ident = format_ident!("__raw{}", val_id, span = Span::call_site());
 
             // Attribute values are stored as Exprs. For `pattern!` we treat a
-            // parenthesised expression as a literal and everything else as a
-            // variable name to bind; inspect the parsed syn::Expr here.
+            // single-segment identifier (e.g. `name`) as a *variable binding*;
+            // all other expressions are treated as literals (so string/number
+            // literals, paths like `ns::CONST`, references `&X`, binary
+            // expressions, etc. are literal values). This makes the common
+            // case ergonomic (no parens needed) while keeping the legacy
+            // parenthesised-literal form supported.
             let triple_tokens = match value {
                 AttributeValue::Expr(expr) => match expr {
-                    Expr::Paren(_) => {
-                        // literal expression
-                        quote! {
-                            {
-                                #[allow(unused_imports)] use ::tribles::query::TriblePattern;
-                                let #v_tmp_ident = #af_ident.value_from(#expr);
-                                let v_var = #af_ident.as_variable(#ctx_ident.next_variable());
-                                constraints.push(Box::new(v_var.is(#v_tmp_ident)));
-                                constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                            }
-                        }
-                    }
-                    _ => {
-                        // variable: bind the expression as a query variable
+                    // If this is a path with a single segment (a bare identifier)
+                    // treat it as a query variable to bind.
+                    Expr::Path(ref p) if p.path.segments.len() == 1 => {
                         quote! {
                             {
                                 #[allow(unused_imports)] use ::tribles::query::TriblePattern;
                                 let v_var = {
                                     #af_ident.as_variable(#expr)
                                 };
+                                constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
+                            }
+                        }
+                    }
+                    // All other expressions are treated as literal values.
+                    _ => {
+                        quote! {
+                            {
+                                #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                                let #v_tmp_ident = #af_ident.value_from(#expr);
+                                let v_var = #af_ident.as_variable(#ctx_ident.next_variable());
+                                constraints.push(Box::new(v_var.is(#v_tmp_ident)));
                                 constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                             }
                         }

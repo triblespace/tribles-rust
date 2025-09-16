@@ -102,9 +102,9 @@ pub fn verify(
     pattern!(&metadata, [
     {
         super::head: (handle),
-        super::signed_by: pubkey,
-        super::signature_r: r,
-        super::signature_s: s,
+        super::signed_by: ?pubkey,
+        super::signature_r: ?r,
+        super::signature_s: ?s,
     }]))
     .at_most_one()
     {

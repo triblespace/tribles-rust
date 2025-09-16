@@ -704,7 +704,7 @@ where
                 .map_err(|e| BranchError::StorageReader(e))?;
             let set: TribleSet = reader.get(commit).map_err(|e| BranchError::StorageGet(e))?;
 
-           branch::branch_metadata(&signing_key, *branch_id, branch_name, Some(set.to_blob()))
+            branch::branch_metadata(&signing_key, *branch_id, branch_name, Some(set.to_blob()))
         } else {
             branch::branch_unsigned(*branch_id, branch_name, None)
         };
@@ -721,9 +721,7 @@ where
             .map_err(|e| BranchError::BranchUpdate(e))?;
 
         match push_result {
-            PushResult::Success() => {
-                Ok(branch_id)
-            }
+            PushResult::Success() => Ok(branch_id),
             PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
@@ -771,7 +769,7 @@ where
 
         let head_ = match find!(
             (head_: Value<_>),
-            pattern!(&base_branch_meta, [{ head: head_ }])
+            pattern!(&base_branch_meta, [{ head: ?head_ }])
         )
         .at_most_one()
         {
@@ -819,7 +817,7 @@ where
             .map_err(|e| PushError::StorageGet(e))?;
 
         let Ok((branch_name,)) = find!((name: Value<_>),
-            pattern!(base_branch_meta, [{ metadata::name: name }])
+            pattern!(base_branch_meta, [{ metadata::name: ?name }])
         )
         .exactly_one() else {
             return Err(PushError::BadBranchMetadata());
@@ -867,7 +865,7 @@ where
                     .map_err(|e| PushError::StorageGet(e))?;
 
                 let head_ = match find!((head_: Value<_>),
-                    pattern!(&branch_meta, [{ head: head_ }])
+                    pattern!(&branch_meta, [{ head: ?head_ }])
                 )
                 .at_most_one()
                 {
@@ -1081,7 +1079,7 @@ where
 
         while remaining > 0 {
             let meta: TribleSet = ws.get(current).map_err(WorkspaceCheckoutError::Storage)?;
-            let mut parents = find!((p: Value<_>), pattern!(&meta, [{ parent: p }]));
+            let mut parents = find!((p: Value<_>), pattern!(&meta, [{ parent: ?p }]));
             let Some((p,)) = parents.next() else {
                 return Ok(CommitSet::new());
             };
@@ -1108,7 +1106,7 @@ where
     > {
         let meta: TribleSet = ws.get(self.0).map_err(WorkspaceCheckoutError::Storage)?;
         let mut result = CommitSet::new();
-        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ parent: p }])) {
+        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ parent: ?p }])) {
             result.insert(&Entry::new(&p.raw));
         }
         Ok(result)
@@ -1157,7 +1155,7 @@ where
 
             let Ok((content_handle,)) = find!(
                 (c: Value<_>),
-                pattern!(&meta, [{ content: c }])
+                pattern!(&meta, [{ content: ?c }])
             )
             .exactly_one() else {
                 return Err(WorkspaceCheckoutError::BadCommitMetadata());
@@ -1288,7 +1286,7 @@ where
             ancestors(head_),
             move |meta: &TribleSet, _payload: &TribleSet| {
                 if let Ok(Some((ts,))) =
-                    find!((t: Value<_>), pattern!(meta, [{ timestamp: t }])).at_most_one()
+                    find!((t: Value<_>), pattern!(meta, [{ timestamp: ?t }])).at_most_one()
                 {
                     let (ts_start, ts_end): (Epoch, Epoch) =
                         crate::value::FromValue::from_value(&ts);
@@ -1461,7 +1459,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
 
             let Ok((c,)) = find!(
                 (c: Value<_>),
-                pattern!(&meta, [{ content: c }])
+                pattern!(&meta, [{ content: ?c }])
             )
             .exactly_one() else {
                 return Err(WorkspaceCheckoutError::BadCommitMetadata());
@@ -1545,7 +1543,7 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
             .or_else(|_| ws.base_blobs.get(commit))
             .map_err(WorkspaceCheckoutError::Storage)?;
 
-        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ parent: p }])) {
+        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ parent: ?p }])) {
             stack.push(p);
         }
     }

@@ -1,4 +1,6 @@
 #![doc = include_str!("../README.md")]
+// Prefer explicit `?` variable bindings in patterns instead of relying on
+// parenthesisation. Do not suppress `unused_parens` at the crate level.
 #![cfg_attr(nightly, feature(rustc_attrs, decl_macro, file_lock))]
 
 extern crate self as tribles;
@@ -78,13 +80,13 @@ mod readme_example {
         (author: (), first: String, last: Value<_>, quote),
         pattern!(&set, [
             { author @
-                literature::firstname: first,
-                literature::lastname: last
+                literature::firstname: ?first,
+                literature::lastname: ?last
             },
             {
-                literature::title: (title),
-                literature::author: author,
-                literature::quote: quote
+                literature::title: title,
+                literature::author: ?author,
+                literature::quote: ?quote
             }]))
         {
             let q: View<str> = blobs.reader().unwrap().get(q).unwrap();

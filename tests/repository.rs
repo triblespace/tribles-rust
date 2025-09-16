@@ -15,7 +15,9 @@ fn branch_from_and_pull_with_key() {
     let initial = store.put(commit_set).unwrap();
 
     let mut repo = Repository::new(store, key.clone());
-    let branch_id = repo.create_branch("feature", Some(initial)).expect("branch from");
+    let branch_id = repo
+        .create_branch("feature", Some(initial))
+        .expect("branch from");
     let mut ws = repo.pull(*branch_id).expect("pull");
     ws.commit(TribleSet::new(), Some("work"));
     repo.push(&mut ws).expect("push");

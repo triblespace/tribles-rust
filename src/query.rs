@@ -584,7 +584,7 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 /// unless you are implementing a custom query language.
 #[macro_export]
 macro_rules! find {
-    (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
+    (($($Var:tt$(:$Ty:ty)?),*), $Constraint:expr) => {
         {
             let mut ctx = $crate::query::VariableContext::new();
 
@@ -595,8 +595,8 @@ macro_rules! find {
             $(let $Var = ctx.next_variable();)*
               $crate::query::Query::new($Constraint,
                 move |binding| {
-                    $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)+
-                    ($($Var),+,)
+                    $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)*
+                    ($($Var),*,)
             })
         }
     };
@@ -605,8 +605,8 @@ pub use find;
 
 #[macro_export]
 macro_rules! matches {
-    (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
-        $crate::query::find!(($($Var$(:$Ty)?),+), $Constraint).next().is_some()
+    (($($Var:tt$(:$Ty:ty)?),*), $Constraint:expr) => {
+        $crate::query::find!(($($Var$(:$Ty)?),*), $Constraint).next().is_some()
     };
 }
 pub use matches;
@@ -722,12 +722,12 @@ mod tests {
         (author: Value<_>, book: Value<_>, title: Value<_>, quote: Value<_>),
         pattern!(&kb, [
         {author @
-            literature::firstname: ("Frank"),
-            literature::lastname: ("Herbert")},
+            literature::firstname: "Frank",
+            literature::lastname: "Herbert"},
         {book @
-          literature::author: author,
-          literature::title: title,
-          literature::quote: quote
+          literature::author: ?author,
+          literature::title: ?title,
+          literature::quote: ?quote
         }]))
         .collect();
 

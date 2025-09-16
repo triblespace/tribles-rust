@@ -47,6 +47,7 @@ use syn::braced;
 use syn::bracketed;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
+use syn::punctuated::Punctuated;
 use syn::Expr;
 use syn::Ident;
 use syn::Path;
@@ -293,7 +294,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 ///
 /// The invocation has the form `crate_path, namespace_path, dataset, [ .. ]`.
 /// Each item in the bracketed list is parsed into an [`Entity`].
-struct MacroInput {
+struct PatternInput {
     set: Expr,
     pattern: Vec<Entity>,
 }
@@ -316,31 +317,20 @@ struct Attribute {
     // fully-qualified constants and inline constructors like
     // `Field::<ShortString>::from(hex!("..."))`.
     name: Expr,
-    value: AttributeValue,
+    value: Expr,
 }
 
-/// Value of a field pattern. We store the raw parsed expression. Callers
-/// (e.g. `pattern!`) may inspect the Expr to decide whether it was
-/// parenthesised (Expr::Paren) and therefore an explicit literal.
-enum AttributeValue {
-    Expr(Expr),
-}
-
-impl Parse for MacroInput {
+impl Parse for PatternInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         // Simplified form: <set>, [ ... ]
         let set: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let content;
         bracketed!(content in input);
-        let mut pattern = Vec::new();
-        while !content.is_empty() {
-            pattern.push(content.parse()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-        Ok(MacroInput { set, pattern })
+
+        let pattern = Punctuated::<_, Token![,]>::parse_terminated(&content)?.into_iter().collect();
+
+        Ok(PatternInput { set, pattern })
     }
 }
 
@@ -348,34 +338,33 @@ impl Parse for Entity {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
         braced!(content in input);
-        // Try to parse an expression followed by '@'. If present, use it as the id expression.
+
+        // Try to parse an expression followed by `@` as the id. Use a fork to
+        // ensure we only consume the id when `@` is present.
         let mut id: Option<Expr> = None;
-        let ahead = content.fork();
-        if ahead.parse::<Expr>().is_ok() && ahead.peek(Token![@]) {
+        let fork = content.fork();
+        if fork.parse::<Expr>().is_ok() && fork.peek(Token![@]) {
             let expr: Expr = content.parse()?;
             content.parse::<Token![@]>()?;
             id = Some(expr);
         }
-        let mut attributes = Vec::new();
-        while !content.is_empty() {
-            attributes.push(content.parse()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
+
+        let attributes = Punctuated::<_, Token![,]>::parse_terminated(&content)?.into_iter().collect();
+
         Ok(Entity { id, attributes })
     }
 }
+
 impl Parse for Attribute {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let name: Expr = input.parse()?;
         input.parse::<Token![:]>()?;
         // Parse a full expression for the value. Consumers will examine the
         // Expr form (e.g. Expr::Paren) to decide semantics where needed.
-        let value_expr: Expr = input.parse()?;
+        let value: Expr = input.parse()?;
         Ok(Attribute {
             name,
-            value: AttributeValue::Expr(value_expr),
+            value,
         })
     }
 }
@@ -397,7 +386,7 @@ pub fn pattern(input: TokenStream) -> TokenStream {
 fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Parse the outer macro invocation into the typed `MacroInput` structure.
     // New simplified form: <set>, [ ... ]
-    let MacroInput { set, pattern } = syn::parse(input)?;
+    let PatternInput { set, pattern } = syn::parse(input)?;
 
     // Names for the generated context and dataset variables.
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
@@ -498,33 +487,31 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             // case ergonomic (no parens needed) while keeping the legacy
             // parenthesised-literal form supported.
             let triple_tokens = match value {
-                AttributeValue::Expr(expr) => match expr {
-                    // If this is a path with a single segment (a bare identifier)
-                    // treat it as a query variable to bind.
-                    Expr::Path(ref p) if p.path.segments.len() == 1 => {
-                        quote! {
-                            {
-                                #[allow(unused_imports)] use ::tribles::query::TriblePattern;
-                                let v_var = {
-                                    #af_ident.as_variable(#expr)
-                                };
-                                constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                            }
+                // If this is a path with a single segment (a bare identifier)
+                // treat it as a query variable to bind.
+                Expr::Path(ref p) if p.path.segments.len() == 1 => {
+                    quote! {
+                        {
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let v_var = {
+                                #af_ident.as_variable(#value)
+                            };
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
-                    // All other expressions are treated as literal values.
-                    _ => {
-                        quote! {
-                            {
-                                #[allow(unused_imports)] use ::tribles::query::TriblePattern;
-                                let #v_tmp_ident = #af_ident.value_from(#expr);
-                                let v_var = #af_ident.as_variable(#ctx_ident.next_variable());
-                                constraints.push(Box::new(v_var.is(#v_tmp_ident)));
-                                constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
-                            }
+                }
+                // All other expressions are treated as literal values.
+                _ => {
+                    quote! {
+                        {
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let #v_tmp_ident = #af_ident.value_from(#value);
+                            let v_var = #af_ident.as_variable(#ctx_ident.next_variable());
+                            constraints.push(Box::new(v_var.is(#v_tmp_ident)));
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
-                },
+                }
             };
             entity_tokens.extend(triple_tokens);
         }
@@ -560,59 +547,29 @@ pub fn entity(input: TokenStream) -> TokenStream {
     }
 }
 
-// Parsed input for the `entity!` macro (simplified): an optional id expression
-// followed by a comma-separated list of attribute pairs. This parser is used
-// only for the `entity!` procedural macro (not for `pattern!`).
-struct EntityInput {
-    id: Option<Expr>,
-    attributes: Vec<Attribute>,
-}
-
-impl Parse for EntityInput {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // Try to parse an expression followed by `@` as the id. Use a fork to
-        // ensure we only consume the id when `@` is present.
-        let mut id: Option<Expr> = None;
-        let fork = input.fork();
-        if fork.parse::<Expr>().is_ok() && fork.peek(Token![@]) {
-            let expr: Expr = input.parse()?;
-            input.parse::<Token![@]>()?;
-            id = Some(expr);
-        }
-
-        let mut attributes = Vec::new();
-        while !input.is_empty() {
-            attributes.push(input.parse()?);
-            if input.peek(Token![,]) {
-                input.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(EntityInput { id, attributes })
-    }
-}
-
 fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
+    let input: proc_macro2::TokenStream = input.into();
+    let wrapped = quote! { { #input } };
+    
     // Parse simplified invocation: optional id expr + attributes
-    let EntityInput { id, attributes } = syn::parse(input)?;
-    let crate_path_ts: TokenStream2 = quote! { ::tribles };
+    let Entity { id, attributes } = syn::parse2(wrapped)?;
 
-    let set_init = quote! { let mut set = #crate_path_ts::trible::TribleSet::new(); };
+    let set_init = quote! { let mut set = ::tribles::trible::TribleSet::new(); };
 
     // Caller must supply an expression that evaluates to a `&ExclusiveId`.
     let id_init: TokenStream2 = if let Some(expr) = id {
-        quote! { let id_ref: &#crate_path_ts::id::ExclusiveId = #expr; }
+        quote! { let id_ref: &::tribles::id::ExclusiveId = #expr; }
     } else {
         quote! {
-            let id_tmp: #crate_path_ts::id::ExclusiveId = #crate_path_ts::id::rngid();
-            let id_ref: &#crate_path_ts::id::ExclusiveId = &id_tmp;
+            let id_tmp: ::tribles::id::ExclusiveId = ::tribles::id::rngid();
+            let id_ref: &::tribles::id::ExclusiveId = &id_tmp;
         }
     };
 
     let mut insert_tokens = TokenStream2::new();
     for (i, attr) in attributes.into_iter().enumerate() {
         let field_expr = attr.name;
-        let AttributeValue::Expr(value_expr) = attr.value;
+        let value_expr: Expr = attr.value;
         let af_ident = format_ident!("__af{}", i, span = Span::call_site());
         let val_ident = format_ident!("__val{}", i, span = Span::call_site());
         let stmt = quote! {
@@ -778,32 +735,29 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let v_ident = format_ident!("__v{}", value_idx, span = Span::call_site());
             value_idx += 1;
 
+
+            // For pattern_changes we need the literal-vs-variable
+            // distinction. If the expression is parenthesised treat it
+            // as a literal; otherwise treat it as a variable binding.
             match value {
-                AttributeValue::Expr(expr) => {
-                    // For pattern_changes we need the literal-vs-variable
-                    // distinction. If the expression is parenthesised treat it
-                    // as a literal; otherwise treat it as a variable binding.
-                    match expr {
-                        Expr::Paren(_) => {
-                            let val_ident =
-                                format_ident!("__c{}", value_idx, span = Span::call_site());
-                            value_idx += 1;
-                            let _raw_ident =
-                                format_ident!("__raw{}", value_idx, span = Span::call_site());
-                            value_decl_tokens.extend(quote! {
-                                let #val_ident = #af_ident.value_from(#expr);
-                                let #v_ident = #af_ident.as_variable(#ctx_ident.next_variable());
-                            });
-                            value_const_tokens.extend(quote! {
-                                constraints.push(Box::new(#v_ident.is(#val_ident)));
-                            });
-                        }
-                        _ => {
-                            value_decl_tokens.extend(quote! {
-                                let #v_ident = #af_ident.as_variable(#expr);
-                            });
-                        }
-                    }
+                Expr::Paren(_) => {
+                    let val_ident =
+                        format_ident!("__c{}", value_idx, span = Span::call_site());
+                    value_idx += 1;
+                    let _raw_ident =
+                        format_ident!("__raw{}", value_idx, span = Span::call_site());
+                    value_decl_tokens.extend(quote! {
+                        let #val_ident = #af_ident.value_from(#value);
+                        let #v_ident = #af_ident.as_variable(#ctx_ident.next_variable());
+                    });
+                    value_const_tokens.extend(quote! {
+                        constraints.push(Box::new(#v_ident.is(#val_ident)));
+                    });
+                }
+                _ => {
+                    value_decl_tokens.extend(quote! {
+                        let #v_ident = #af_ident.as_variable(#value);
+                    });
                 }
             }
 

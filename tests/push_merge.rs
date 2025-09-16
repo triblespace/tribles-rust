@@ -8,9 +8,9 @@ use tribles::repo::Repository;
 fn push_and_merge_conflict_resolution() {
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
-    let mut ws1 = repo.branch("main").expect("create branch");
-    let branch_id = ws1.branch_id();
-    let mut ws2 = repo.pull(branch_id).expect("pull");
+    let branch_id = repo.create_branch("main", None).expect("create branch");
+    let mut ws1 = repo.pull(*branch_id).expect("pull");
+    let mut ws2 = repo.pull(*branch_id).expect("pull");
 
     ws1.commit(TribleSet::new(), Some("first"));
     ws2.commit(TribleSet::new(), Some("second"));

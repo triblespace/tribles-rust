@@ -10,7 +10,6 @@ pub mod attribute;
 pub mod blob;
 pub mod id;
 pub mod metadata;
-pub mod namespace;
 pub mod patch;
 pub mod prelude;
 pub mod query;

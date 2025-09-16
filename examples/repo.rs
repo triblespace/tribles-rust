@@ -18,8 +18,8 @@ fn main() {
 
     // Create a repository from the pile and initialize the main branch
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-    let mut ws1 = repo.branch("main").expect("create branch");
-    let branch_id = ws1.branch_id();
+    let branch_id = repo.create_branch("main", None).expect("create branch");
+    let mut ws1 = repo.pull(*branch_id).expect("pull");
 
     // First workspace adds Alice and pushes
     let mut change = TribleSet::new();

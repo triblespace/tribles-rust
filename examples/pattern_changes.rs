@@ -23,7 +23,8 @@ fn main() {
     // ANCHOR: pattern_changes_example
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
-    let mut ws = repo.branch("main").expect("branch");
+    let branch_id = repo.create_branch("main", None).expect("branch");
+    let mut ws = repo.pull(*branch_id).expect("pull");
 
     // Commit initial data
     let shakespeare = ufoid();

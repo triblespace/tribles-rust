@@ -79,7 +79,7 @@ mod readme_example {
         for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
         pattern!(&set, [
-            { author @
+            { ?author @
                 literature::firstname: ?first,
                 literature::lastname: ?last
             },

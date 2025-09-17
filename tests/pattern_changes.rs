@@ -28,8 +28,8 @@ fn pattern_changes_finds_new_inserts() {
     let results: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>),
         pattern_changes!(&updated, &delta, [
-            { author @ literature::firstname: ("William"), literature::lastname: ("Shakespeare") },
-            { book @ literature::author: author, literature::title: title }
+            { ?author @ literature::firstname: "William", literature::lastname: "Shakespeare" },
+            { ?book @ literature::author: ?author, literature::title: ?title }
         ])
     )
     .collect();
@@ -55,7 +55,7 @@ fn pattern_changes_empty_delta_returns_no_matches() {
     let results: Vec<_> = find!(
         (a: Value<_>),
         pattern_changes!(&kb, &delta, [
-            { a @ literature::lastname: ("Shakespeare") }
+            { ?a @ literature::lastname: "Shakespeare" }
         ])
     )
     .collect();

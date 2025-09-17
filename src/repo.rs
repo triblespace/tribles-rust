@@ -1543,7 +1543,7 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
             .or_else(|_| ws.base_blobs.get(commit))
             .map_err(WorkspaceCheckoutError::Storage)?;
 
-        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ parent: ?p }])) {
+        for (p,) in find!((p: Value<_>,), pattern!(&meta, [{ parent: ?p }])) {
             stack.push(p);
         }
     }

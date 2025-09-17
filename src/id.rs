@@ -694,7 +694,7 @@ mod tests {
 
         let base = and!(
             local_ids(author),
-            pattern!(&kb, [{ author @ literature::firstname: ?name }])
+            pattern!(&kb, [{ ?author @ literature::firstname: ?name }])
         );
 
         let mut wrapper = crate::debug::query::EstimateOverrideConstraint::new(base);

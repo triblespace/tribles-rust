@@ -596,7 +596,7 @@ macro_rules! find {
               $crate::query::Query::new($Constraint,
                 move |binding| {
                     $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)*
-                    ($($Var),*,)
+                    ($($Var),*)
             })
         }
     };
@@ -721,10 +721,10 @@ mod tests {
         let r: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>, quote: Value<_>),
         pattern!(&kb, [
-        {author @
+        {?author @
             literature::firstname: "Frank",
             literature::lastname: "Herbert"},
-        {book @
+        {?book @
           literature::author: ?author,
           literature::title: ?title,
           literature::quote: ?quote

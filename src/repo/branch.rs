@@ -101,7 +101,7 @@ pub fn verify(
     (pubkey: Value<_>, r, s),
     pattern!(&metadata, [
     {
-        super::head: (handle),
+        super::head: handle,
         super::signed_by: ?pubkey,
         super::signature_r: ?r,
         super::signature_s: ?s,

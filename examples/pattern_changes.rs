@@ -51,8 +51,8 @@ fn main() {
     let results: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>),
         pattern_changes!(&updated, &delta, [
-            { author @ literature::firstname: ("William"), literature::lastname: ("Shakespeare") },
-            { book @ literature::author: author, literature::title: title }
+            { ?author @ literature::firstname: "William", literature::lastname: "Shakespeare" },
+            { ?book @ literature::author: ?author, literature::title: ?title }
         ])
     )
     .map(|(_, b, t)| (b, t))

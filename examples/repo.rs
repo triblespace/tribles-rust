@@ -29,7 +29,7 @@ fn main() {
     repo.push(&mut ws1).expect("push ws1");
 
     // Second workspace adds Bob and attempts to push, merging on conflict
-    let mut ws2 = repo.pull(branch_id).expect("pull");
+    let mut ws2 = repo.pull(*branch_id).expect("pull");
     let mut change = TribleSet::new();
     change += entity! { &ufoid() @ literature::firstname: "Bob" };
     ws2.commit(change, Some("add bob"));

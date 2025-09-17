@@ -584,19 +584,56 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 /// unless you are implementing a custom query language.
 #[macro_export]
 macro_rules! find {
-    (($($Var:tt$(:$Ty:ty)?),*), $Constraint:expr) => {
+    // Zero variables: return unit `()` from the closure.
+    ((), $Constraint:expr) => {
         {
             let mut ctx = $crate::query::VariableContext::new();
 
             macro_rules! __local_find_context {
-                () => {&mut ctx}
+                () => { &mut ctx }
             }
 
-            $(let $Var = ctx.next_variable();)*
-              $crate::query::Query::new($Constraint,
+            $crate::query::Query::new($Constraint,
+                move |_binding| {
+                    ()
+            })
+        }
+    };
+
+    // Single variable case: return a 1-tuple `(v,)` so destructuring `for (v,) in ...` works.
+    (($Var:ident $( : $Ty:ty)? $(,)?), $Constraint:expr) => {
+        {
+            let mut ctx = $crate::query::VariableContext::new();
+
+            macro_rules! __local_find_context {
+                () => { &mut ctx }
+            }
+
+            let $Var = ctx.next_variable();
+            $crate::query::Query::new($Constraint,
                 move |binding| {
-                    $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)*
-                    ($($Var),*)
+                    let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));
+                    ($Var,)
+            })
+        }
+    };
+
+    // Two-or-more variables: return a tuple of all variables.
+    (($first:ident $(:$T1:ty)?, $($rest:ident $(:$Trest:ty)?),+ $(,)?), $Constraint:expr) => {
+        {
+            let mut ctx = $crate::query::VariableContext::new();
+
+            macro_rules! __local_find_context {
+                () => { &mut ctx }
+            }
+
+            let $first = ctx.next_variable();
+            $(let $rest = ctx.next_variable();)+
+            $crate::query::Query::new($Constraint,
+                move |binding| {
+                    let $first$(:$T1)? = $crate::value::FromValue::from_value($first.extract(binding));
+                    $(let $rest$(:$Trest)? = $crate::value::FromValue::from_value($rest.extract(binding));)+
+                    ($first, $($rest),+)
             })
         }
     };
@@ -605,11 +642,19 @@ pub use find;
 
 #[macro_export]
 macro_rules! matches {
-    (($($Var:tt$(:$Ty:ty)?),*), $Constraint:expr) => {
+    (($($Var:ident$(:$Ty:ty)?),* $(,)?), $Constraint:expr) => {
         $crate::query::find!(($($Var$(:$Ty)?),*), $Constraint).next().is_some()
     };
 }
 pub use matches;
+
+// Helper to construct tuples of variables with correct arity. Defined at
+// top-level to avoid nested repetition issues inside other macro_rules!
+macro_rules! __tribles_mk_tuple {
+    () => { () };
+    ($single:ident) => { ($single,) };
+    ($a:ident, $b:ident $(, $rest:ident)*) => { ($a, $b $(, $rest)*) };
+}
 
 #[cfg(test)]
 mod tests {

@@ -87,7 +87,7 @@ pub fn verify(content: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), V
     (pubkey: Value<_>, r, s),
     pattern!(&metadata, [
     {
-        super::content: (handle),
+        super::content: handle,
         super::signed_by: ?pubkey,
         super::signature_r: ?r,
         super::signature_s: ?s

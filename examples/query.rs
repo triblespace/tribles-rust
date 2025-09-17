@@ -54,12 +54,12 @@ fn main() {
     and!(
         author_names.has(firstname),
         pattern!(&kb, [
-        {author @
-            literature::firstname: firstname,
-            literature::lastname: ("Herbert")},
-        { literature::author: author,
-            literature::title: title,
-            literature::quote: quote
+        {?author @
+            literature::firstname: ?firstname,
+            literature::lastname: "Herbert"},
+        { literature::author: ?author,
+            literature::title: ?title,
+            literature::quote: ?quote
         }]))
     )
     .collect();

@@ -1,9 +1,6 @@
 use crate::entity;
 use crate::path;
-use crate::pattern;
-use crate::pattern_changes;
 use tribles::prelude::*;
-use tribles::value::schemas::genid::GenId;
 
 pub mod social {
     #![allow(unused)]

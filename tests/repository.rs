@@ -3,7 +3,6 @@ use rand::rngs::OsRng;
 use tribles::prelude::*;
 use tribles::repo::commit;
 use tribles::repo::memoryrepo::MemoryRepo;
-use tribles::repo::LookupError;
 use tribles::repo::Repository;
 
 #[test]

@@ -1,13 +1,9 @@
 use crate::entity;
-use crate::path;
-use crate::pattern;
 use crate::pattern_changes;
 use std::collections::HashSet;
 
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Words;
-use tribles::prelude::blobschemas::*;
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use fake::faker::name::raw::*;

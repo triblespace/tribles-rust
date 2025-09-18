@@ -712,21 +712,19 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
         match entity.id {
-            Some(ref id_val) => {
-                match id_val {
-                    Value::Var(ref ident) => {
-                        entity_decl_tokens.extend(quote! { let #e_ident = #ident; });
-                    }
-                    Value::Expr(ref expr) => {
-                        entity_decl_tokens.extend(quote! {
+            Some(ref id_val) => match id_val {
+                Value::Var(ref ident) => {
+                    entity_decl_tokens.extend(quote! { let #e_ident = #ident; });
+                }
+                Value::Expr(ref expr) => {
+                    entity_decl_tokens.extend(quote! {
                             let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                         });
-                        entity_const_tokens.extend(quote! {
+                    entity_const_tokens.extend(quote! {
                             constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
                         });
-                    }
                 }
-            }
+            },
             None => {
                 entity_decl_tokens.extend(quote! {
                     let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();

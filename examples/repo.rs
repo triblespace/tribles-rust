@@ -1,7 +1,5 @@
 use crate::entity;
 use crate::path;
-use crate::pattern;
-use crate::pattern_changes;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::examples::literature;

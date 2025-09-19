@@ -109,7 +109,7 @@ fn main() -> std::io::Result<()> {
                 pass over me and through me. And when it has gone past I \
                 will turn the inner eye to see its path. Where the fear \
                 has gone there will be nothing. Only I will remain.").unwrap(),
-            });
+            };
 
     let title = "Dune";
 
@@ -117,14 +117,14 @@ fn main() -> std::io::Result<()> {
     for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
         crate::pattern!(&set, [
-            { author @
-                literature::firstname: first,
-                literature::lastname: last
+            { ?author @
+                literature::firstname: ?first,
+                literature::lastname: ?last
             },
             {
-                literature::title: (title),
-                literature::author: author,
-                literature::quote: quote
+                literature::title: title,
+                literature::author: ?author,
+                literature::quote: ?quote
             }])) {
         let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
         let q = q.as_ref();

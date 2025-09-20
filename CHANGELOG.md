@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NameConflict` error when multiple branches share the same name.
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
+- Book section showing how to stage and fetch workspace blobs with `Workspace::put`
+  and `Workspace::get`.
 - Test coverage for `branch_from` and `pull_with_key`.
 - Migrated `SuccinctArchive` to new `jerky`/`anybytes` APIs and added
   serializable metadata.
@@ -38,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unstable iterator detection.
 - Universes now allocate their own byte sections via a `SectionWriter`, so callers only pass an iterator. `CompressedUniverse::with` no longer clones its values.
 - `SuccinctArchive` constructs universes with `with_sorted_dedup`, avoiding an extra sort/dedup pass when the caller already guarantees ordering.
+- Updated the repository workflow documentation to use `Repository::create_branch`
+  and provide a runnable blob staging example.
 - `with_sorted_dedup` now accepts iterators so compressed universes can build domains without materializing values.
 - `SuccinctArchiveMeta` now accepts the domain's serialized metadata type,
   removing its hardcoded `SectionHandle<RawValue>` dependency.

@@ -16,21 +16,23 @@ should feel familiar to anyone comfortable with Git.
 ## Branching
 
 A branch records a line of history. Creating one writes initial metadata to the
-underlying store and yields a `Workspace` pointing at that branch. Typical steps
-look like:
+underlying store and returns an [`ExclusiveId`](../src/id.rs) guarding the
+branch head. Dereference that ID when you need a plain [`Id`](../src/id.rs) for
+queries or workspace operations. Typical steps look like:
 
 1. Create a repository backed by blob and branch stores.
-2. Open or create a branch to obtain a `Workspace`.
+2. Initialize or look up a branch ID, then `pull` a workspace for it.
 3. Commit changes in the workspace.
 4. Push the workspace to publish those commits.
 
-While `Repository::branch` is a convenient way to start a fresh branch, most
-workflows use `Repository::pull` to obtain a workspace for an existing branch:
+While `Repository::create_branch` registers a new branch, most workflows call
+`Repository::pull` to obtain a workspace for an existing branch:
 
 ```rust
 let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-let mut ws = repo.branch("main").expect("create branch");
-let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
+let branch_id = repo.create_branch("main", None).expect("create branch");
+let mut ws = repo.pull(*branch_id).expect("pull branch");
+let mut ws2 = repo.pull(*branch_id).expect("open branch");
 ```
 
 After committing changes you can push the workspace back:
@@ -62,6 +64,65 @@ covered in more detail in the next chapter:
 ```rust
 let entity_changes = ws.checkout(history_of(my_entity))?;
 ```
+
+## Working with Custom Blobs
+
+Workspaces keep a private blob store that mirrors the repository's backing
+store. This makes it easy to stage large payloads alongside the trible sets you
+plan to commit. The [`Workspace::put`](../src/repo.rs) helper stores any type
+implementing [`ToBlob`](crate::blob::ToBlob) and returns a typed handle you can
+embed like any other value. Handles are `Copy`, so you can commit them and reuse
+them to fetch the blob later. The example below stages a quote and an archived
+`TribleSet`, commits both, then retrieves them again with strongly typed and raw
+views:
+
+```rust
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::blob::Blob;
+use tribles::examples::{self, literature};
+use tribles::prelude::*;
+use tribles::repo::{self, memoryrepo::MemoryRepo, Repository};
+use blobschemas::{LongString, SimpleArchive};
+
+let storage = MemoryRepo::default();
+let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+let branch_id = repo.create_branch("main", None).expect("create branch");
+let mut ws = repo.pull(*branch_id).expect("pull branch");
+
+// Stage rich payloads before creating a commit.
+let quote_handle = ws.put("Fear is the mind-killer".to_owned());
+let archive_handle = ws.put(&examples::dataset());
+
+// Embed the handles inside the change set that will be committed.
+let mut change = tribles::entity! {
+    literature::title: "Dune (annotated)",
+    literature::quote: quote_handle.clone(),
+};
+change += tribles::entity! { repo::content: archive_handle.clone() };
+
+ws.commit(change, Some("Attach annotated dataset"));
+repo.push(&mut ws).expect("push");
+
+// Fetch the staged blobs back with the desired representation.
+let restored_quote: String = ws
+    .get::<String, LongString>(quote_handle)
+    .expect("load quote");
+let restored_set: TribleSet = ws
+    .get::<TribleSet, SimpleArchive>(archive_handle)
+    .expect("load dataset");
+let archive_bytes: Blob<SimpleArchive> = ws
+    .get::<Blob<SimpleArchive>, SimpleArchive>(archive_handle)
+    .expect("load raw blob");
+std::fs::write("dataset.car", archive_bytes.bytes.as_ref()).expect("persist archive");
+```
+
+Blobs staged this way stay local to the workspace until you push the commit.
+`Workspace::get` searches the workspace-local store first and falls back to the
+repository if necessary, so the handles remain valid after you publish the
+commit. This round trip lets you persist logs, archives, or other auxiliary
+files next to your structured data without inventing a separate storage
+channel.
 
 ## Merging and Conflict Handling
 

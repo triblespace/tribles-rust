@@ -26,12 +26,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
+    repo.close()?;
     Ok(())
 }
 ```
 
 Running this program with `cargo run` creates an `example.pile` file in the current
 directory and pushes a single entity to the `main` branch.
+
+When working with pile-backed repositories it is important to close them
+explicitly once you are done so buffered data is flushed and any errors are
+reported while you can still decide how to handle them. The `repo.close()?;`
+call in the example surfaces those errors; if the repository were only dropped,
+failures would have to be logged or panic instead. Alternatively, you can
+recover the underlying pile with `Repository::into_storage` and call
+`Pile::close()` yourself.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.

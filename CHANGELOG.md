@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
+- Rewrote the pile blob metadata chapter to describe the `BlobMetadata`
+  API and linked it from the pile format documentation.
 - Documented that the pile is an immutable append-only log: only the un-applied tail is validated and mutating existing data is undefined behavior.
 - Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
   refreshes before writing, then reads back its blob with `apply_next` to ensure

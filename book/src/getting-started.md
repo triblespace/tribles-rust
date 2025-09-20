@@ -43,3 +43,12 @@ additional modules and examples.
 Note: the `pattern!` macro used in queries treats a bare identifier as a
 variable binding and more complex expressions (including string literals) as
 literal values; parentheses may still be used to force a literal where desired.
+
+## Switching signing identities
+
+The setup above generates a single signing key for brevity, but collaborating
+authors typically hold individual keys. Call `Repository::set_signing_key`
+before branching or pulling when you need a different default identity, or use
+`Repository::create_branch_with_key` and `Repository::pull_with_key` to choose a
+specific key per branch or workspace. The [Managing signing identities](repository-workflows.html#managing-signing-identities)
+section covers this workflow in more detail.

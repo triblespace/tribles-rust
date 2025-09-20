@@ -16,20 +16,26 @@ should feel familiar to anyone comfortable with Git.
 ## Branching
 
 A branch records a line of history. Creating one writes initial metadata to the
-underlying store and yields a `Workspace` pointing at that branch. Typical steps
+underlying store and returns an `ExclusiveId` guard for that branch. Pulling the
+branch yields a `Workspace` pointing at its head. Typical steps
 look like:
 
 1. Create a repository backed by blob and branch stores.
-2. Open or create a branch to obtain a `Workspace`.
+2. Create or look up a branch ID, then call `Repository::pull` to obtain a
+   `Workspace`.
 3. Commit changes in the workspace.
 4. Push the workspace to publish those commits.
 
-While `Repository::branch` is a convenient way to start a fresh branch, most
-workflows use `Repository::pull` to obtain a workspace for an existing branch:
+Use `Repository::create_branch` to initialize new branches. It returns an
+`ExclusiveId` guard that ensures the ID is not simultaneously handed out to
+another writer. Pass the guard's underlying `Id` to `Repository::pull` to obtain
+workspaces for that branch, and drop or `release` the guard once exclusive
+ownership is no longer required:
 
 ```rust
 let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-let mut ws = repo.branch("main").expect("create branch");
+let branch_id = repo.create_branch("main", None).expect("create branch");
+let mut ws = repo.pull(*branch_id).expect("open branch");
 let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
 ```
 

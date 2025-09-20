@@ -14,6 +14,7 @@
 - [Commit Selectors](commit-selectors.md)
 - [Garbage Collection](garbage-collection.md)
 - [Glossary](glossary.md)
+- [Documentation Improvement Ideas](documentation-improvements.md)
 - [Deep Dive](deep-dive/README.md)
   - [Philosophy](deep-dive/philosophy.md)
   - [Identifiers](deep-dive/identifiers.md)
@@ -21,4 +22,4 @@
   - [Blobs](deep-dive/blobs.md)
   - [PATCH](deep-dive/patch.md)
   - [Pile Format](pile-format.md)
-  - [Pile Blob Metadata](pile-metadata-proposal.md)
+  - [Pile Blob Metadata](pile-blob-metadata.md)

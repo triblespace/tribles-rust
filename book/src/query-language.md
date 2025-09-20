@@ -135,7 +135,44 @@ assert!(!matches!((x), and!(x.is(1.into()), x.is(2.into()))));
 Every building block implements the
 [`Constraint`](crate::query::Constraint) trait.  You can implement this trait on
 your own types to integrate custom data sources or query operators with the
-solver.
+solver. Collections that want to power `pattern!` implement
+[`TriblePattern`](crate::query::TriblePattern) so they can materialize the
+entity/attribute/value triples a pattern asks for.  Membership-style helpers
+such as `has(...)` work with anything that implements
+[`ContainsConstraint`](crate::query::ContainsConstraint), making it easy to join
+against pre-existing indexes, caches, or service clients without copying data
+into a [`TribleSet`](crate::trible::TribleSet).
+
+```rust
+use std::collections::HashSet;
+
+use tribles::prelude::*;
+use tribles::prelude::valueschemas::ShortString;
+use tribles::query::hashsetconstraint::SetConstraint;
+
+struct ExternalTags<'a> {
+    tags: &'a HashSet<String>,
+}
+
+impl<'a> ContainsConstraint<'a, ShortString> for ExternalTags<'a> {
+    type Constraint = SetConstraint<ShortString, &'a HashSet<String>, String>;
+
+    fn has(self, variable: Variable<ShortString>) -> Self::Constraint {
+        SetConstraint::new(variable, self.tags)
+    }
+}
+
+let tags: HashSet<String> = ["rust", "datalog"].into_iter().map(String::from).collect();
+let external = ExternalTags { tags: &tags };
+let matches: Vec<_> =
+    find!((tag: Value<ShortString>), external.has(tag)).collect();
+```
+
+The example wraps an external `HashSet` so it can be queried directly.  A
+`TriblePattern` implementation follows the same shape: create a constraint
+type that reads from your backing store and return it from `pattern`.  The query
+engine drives both traits through `Constraint`, so any data source that can
+estimate, propose, and confirm candidate values can participate in `find!`.
 
 ## Regular path queries
 

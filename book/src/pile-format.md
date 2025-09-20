@@ -73,7 +73,8 @@ supported. Using such filesystems risks pile corruption.
 ```
 Each blob entry records its creation timestamp, the length of the payload (which may be zero) and
 its hash. The payload is padded so the next record begins on a
-64&nbsp;byte boundary.
+64&nbsp;byte boundary. The [Pile Blob Metadata](./pile-blob-metadata.md) chapter explains how to
+query these fields through the `PileReader` API.
 
 ## Branch Storage
 ```

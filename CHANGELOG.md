@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NameConflict` error when multiple branches share the same name.
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
+- Garbage-collection chapter now shows how `BlobStoreList` and `copy_reachable`
+  work together to enumerate and traverse blobs in practice.
 - Remote store workflow example in the book showing how to open
   `ObjectStoreRemote` repositories and clarifying that no explicit close is
   required for remote backends.

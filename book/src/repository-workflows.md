@@ -40,6 +40,54 @@ ws.commit(change, Some("initial commit"));
 repo.push(&mut ws)?;
 ```
 
+### Managing signing identities
+
+The key passed to `Repository::new` becomes the default signing identity for
+branch metadata and commits. Collaborative projects often need to switch
+between multiple authors or assign a dedicated key to automation. You can
+adjust the active identity in three ways:
+
+* `Repository::set_signing_key` replaces the repository's default key. Subsequent
+  calls to helpers such as `Repository::branch` or `Repository::pull` use the new
+  key for any commits created from those workspaces.
+* `Repository::create_branch_with_key` signs a branch's metadata with an explicit
+  key, allowing each branch to advertise the author responsible for updating it.
+* `Repository::pull_with_key` opens a workspace that will sign its future commits
+  with the provided key, regardless of the repository default.
+
+The snippet below demonstrates giving an automation bot its own identity while
+letting a human collaborator keep theirs:
+
+```rust,ignore
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::repo::Repository;
+
+let alice = SigningKey::generate(&mut OsRng);
+let automation = SigningKey::generate(&mut OsRng);
+
+// Assume `pile` was opened earlier, e.g. via `Pile::open` as shown in previous sections.
+let mut repo = Repository::new(pile, alice.clone());
+
+// Create a dedicated branch for the automation pipeline using its key.
+let automation_branch = repo
+    .create_branch_with_key("automation", None, automation.clone())?
+    .release();
+
+// Point automation jobs at their dedicated identity by default.
+repo.set_signing_key(automation.clone());
+let mut bot_ws = repo.pull(automation_branch)?;
+
+// Humans can opt into their own signing identity even while automation remains
+// the repository default.
+let mut human_ws = repo.pull_with_key(automation_branch, alice.clone())?;
+```
+
+`human_ws` and `bot_ws` now operate on the same branch but will sign their
+commits with different keys. This pattern is useful when rotating credentials or
+running scheduled jobs under a service identity while preserving authorship in
+the history.
+
 ## Inspecting History
 
 You can explore previous commits using `Workspace::checkout` which returns a

@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented zero-length blob support and added tests for empty blob insertion and retrieval.
 - `with_sorted_dedup` constructor for universes to build from already sorted,
   deduplicated value sequences.
+- Book section documenting how to manage multiple signing identities with
+  `Repository::set_signing_key`, `Repository::create_branch_with_key`, and
+  `Repository::pull_with_key`.
 
 ### Changed
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.

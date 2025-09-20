@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Documented repository storage backends and added a book page tracking future
+  documentation improvements.
 - Glossary chapter in the book for quick reference to core terminology.
 - `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
   documentation updates.

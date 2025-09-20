@@ -36,7 +36,6 @@
   ordering implementations for PATCH at compile time.
 - Expose segment iterators on PATCH using `KeySchema`'s segment permutation instead of raw key ranges.
 - Consolidate pile header size constants to avoid repeated magic numbers.
-- Expose a method on `Repository` to close underlying storage so piles don't emit warnings on drop.
 - Develop property-based tests for pile operations to explore edge cases automatically.
 
 ## Additional Built-in Schemas

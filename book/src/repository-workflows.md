@@ -174,6 +174,54 @@ Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts
 remain.
 
+## Remote Stores
+
+Remote deployments use the [`ObjectStoreRemote`](../src/repo/objectstore.rs)
+backend to speak to any service supported by the
+[`object_store`](https://docs.rs/object_store/latest/object_store/) crate (S3,
+Google Cloud Storage, Azure Blob Storage, HTTP-backed stores, the local
+filesystem, and the in-memory `memory:///` adapter). `ObjectStoreRemote`
+implements both `BlobStore` and `BranchStore`, so the rest of the repository API
+continues to work unchanged – the only difference is the URL you pass to
+`with_url`.
+
+```rust,ignore
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::prelude::*;
+use tribles::repo::objectstore::ObjectStoreRemote;
+use tribles::repo::Repository;
+use tribles::value::schemas::hash::Blake3;
+use url::Url;
+
+fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
+    let url = Url::parse(raw_url)?;
+    let storage = ObjectStoreRemote::<Blake3>::with_url(&url)?;
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+
+    let branch_id = repo.create_branch("main", None)?;
+    let mut ws = repo.pull(*branch_id)?;
+    ws.commit(TribleSet::new(), Some("initial commit"));
+
+    while let Some(mut incoming) = repo.push(&mut ws)? {
+        incoming.merge(&mut ws)?;
+        ws = incoming;
+    }
+
+    Ok(())
+}
+```
+
+`ObjectStoreRemote` writes directly through to the backing service, so there is
+no `repo.close()` equivalent to call at the end. Dropping the repository handle
+is enough to release resources.
+
+Credential configuration follows the `object_store` backend you select. For
+example, S3 endpoints consume AWS access keys or IAM roles, while
+`memory:///foo` provides a purely in-memory store for local testing. Once the
+URL resolves, repositories backed by piles and remote stores share the same
+workflow APIs.
+
 ## Attaching a Foreign History (merge-import)
 
 Sometimes you want to graft an existing branch from another pile into your

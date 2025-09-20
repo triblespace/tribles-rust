@@ -6,24 +6,28 @@
 //! additional features in the future.  The crate currently exposes two macros:
 //! [`pattern!`], which expands namespace patterns into an
 //! [`IntersectionConstraint`] of query constraints, and [`entity!`], which
-//! constructs [`TribleSet`]s from namespace field assignments or inserts
+//! constructs [`TribleSet`]s from namespace attribute assignments or inserts
 //! triples into an existing set.
 //!
 //! ```ignore
-//! ::tribles_macros::pattern!(::tribles, my_ns, &set, [ { field: (42) } ]);
-//! ::tribles_macros::entity!(::tribles, my_ns, { field: 42 });
-//! ::tribles_macros::entity!(::tribles, my_ns, &mut set, id, { field: 42 });
+//! // Match an entity whose `my_ns::attr` equals the literal 42
+//! ::tribles_macros::pattern!(&set, [ { my_ns::attr: 42 } ]);
+//! // Bind the value of `my_ns::attr` to the variable `v` (use `?v`)
+//! ::tribles_macros::pattern!(&set, [ { my_ns::attr: ?v }]);
+//! // Construct an entity set with an attribute assignment
+//! ::tribles_macros::entity!{  my_ns::attr: 42  };
+//! ::tribles_macros::entity!{ id @  my_ns::attr: 42  };
 //! ```
 //!
-//! The `pattern` macro expects the crate path, a namespace module, a dataset
-//! expression implementing [`TriblePattern`], and a bracketed list of entity
-//! patterns. Each entity pattern may specify an identifier using `ident @` or
-//! `(expr) @` notation and contains `field: value` pairs. Values can either
-//! reference an existing query variable or be written as `(expr)` to match a
-//! literal.
+//! The `pattern` macro expects a dataset expression implementing
+//! [`TriblePattern`] and a bracketed list of entity patterns. Each entity
+//! pattern may specify an identifier using `ident @` or `(expr) @` notation and
+//! contains `attribute: value` pairs. For `pattern!` a value prefixed with `?`
+//! (for example `?v`) denotes a variable binding. All other values are parsed
+//! as ordinary Rust expressions and treated as literal values.
 //!
 //! The `entity` macro similarly starts with the crate and namespace paths and
-//! optionally an explicit entity ID expression before the field list.
+//! optionally an explicit entity ID expression before the attribute list.
 //!
 //! These macros are internal implementation details and should not be used
 //! directly outside of the `tribles` codebase.
@@ -35,25 +39,18 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::TokenTree;
 use quote::format_ident;
 use quote::quote;
+use quote::ToTokens;
 use syn::braced;
 use syn::bracketed;
-use syn::parenthesized;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
+use syn::punctuated::Punctuated;
 use syn::Expr;
 use syn::Ident;
 use syn::Path;
 use syn::Token;
 
-mod namespace;
-
-#[proc_macro]
-pub fn namespace(input: TokenStream) -> TokenStream {
-    match namespace::namespace_impl(input) {
-        Ok(ts) => ts,
-        Err(e) => e.to_compile_error().into(),
-    }
-}
+mod attributes;
 
 #[proc_macro]
 pub fn path(input: TokenStream) -> TokenStream {
@@ -63,38 +60,34 @@ pub fn path(input: TokenStream) -> TokenStream {
     }
 }
 
+#[proc_macro]
+pub fn attributes(input: TokenStream) -> TokenStream {
+    match attributes::attributes_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
 struct PathInput {
-    crate_path: Path,
-    ns: Path,
     set: Expr,
     rest: TokenStream2,
 }
 
 impl Parse for PathInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let crate_path: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let ns: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
+        // Simplified form: <set>, <start> <regex> <end>
         let set: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let rest: TokenStream2 = input.parse()?;
-        Ok(PathInput {
-            crate_path,
-            ns,
-            set,
-            rest,
-        })
+        Ok(PathInput { set, rest })
     }
 }
 
 fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    let PathInput {
-        crate_path,
-        ns,
-        set,
-        rest,
-    } = syn::parse(input)?;
+    let PathInput { set, rest } = syn::parse(input)?;
+    // Create a tokenized crate path for use in `quote!` macros below.
+    let crate_path_ts: TokenStream2 = quote! { ::tribles };
+    let _crate_path = crate_path_ts.clone();
     let tokens: Vec<TokenTree> = rest.into_iter().collect();
     if tokens.len() < 2 {
         return Err(syn::Error::new(
@@ -124,7 +117,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     #[derive(Clone)]
     enum Tok {
-        Sym(Ident),
+        Sym(Path),
         Or,
         Star,
         Plus,
@@ -137,9 +130,32 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
         let mut i = 0usize;
         while i < ts.len() {
             match &ts[i] {
-                TokenTree::Ident(id) => {
-                    out.push(Tok::Sym(id.clone()));
-                    i += 1;
+                // Collect one or more tokens forming a Rust path (e.g. `ns::field`).
+                TokenTree::Ident(_) => {
+                    // Gather consecutive Ident and ':' punctuation tokens into
+                    // a single path string and parse it with `syn::Path`.
+                    let mut j = i;
+                    let mut pieces: Vec<String> = Vec::new();
+                    while j < ts.len() {
+                        match &ts[j] {
+                            TokenTree::Ident(id) => {
+                                pieces.push(id.to_string());
+                                j += 1;
+                            }
+                            TokenTree::Punct(p) if p.as_char() == ':' => {
+                                // include the punctuation in the textual path
+                                pieces.push(p.as_char().to_string());
+                                j += 1;
+                            }
+                            _ => break,
+                        }
+                    }
+                    let s = pieces.join("");
+                    let path: Path = syn::parse_str(&s).map_err(|e| {
+                        syn::Error::new(ts[i].span(), format!("invalid path in regex: {}", e))
+                    })?;
+                    out.push(Tok::Sym(path));
+                    i = j;
                 }
                 TokenTree::Punct(p) if p.as_char() == '|' => {
                     out.push(Tok::Or);
@@ -174,7 +190,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     #[derive(Clone)]
     enum OpTok {
-        Sym(Ident),
+        Sym(Path),
         Or,
         Concat,
         Star,
@@ -248,8 +264,11 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let ops: Vec<TokenStream2> = output
         .into_iter()
         .map(|t| match t {
-            OpTok::Sym(ident) => {
-                quote! { PathOp::Attr(#crate_path::id::RawId::from(#ns::ids::#ident)) }
+            OpTok::Sym(path) => {
+                // The Path here refers to a Field constant (e.g. `ns::attr`).
+                // Call `.raw()` on the constant to obtain the underlying RawId
+                // so the path matcher can operate on attribute ids directly.
+                quote! { PathOp::Attr(#path.raw()) }
             }
             OpTok::Or => quote! { PathOp::Union },
             OpTok::Concat => quote! { PathOp::Concat },
@@ -261,7 +280,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
     let output = quote! {
         {
-            use #crate_path::query::regularpathconstraint::{PathOp, RegularPathConstraint, ThompsonEngine};
+            use ::tribles::query::regularpathconstraint::{PathOp, RegularPathConstraint, ThompsonEngine};
             RegularPathConstraint::<ThompsonEngine>::new(#set.clone(), #start, #end, &[#(#ops),*])
         }
     };
@@ -272,9 +291,7 @@ fn path_impl(input: TokenStream) -> syn::Result<TokenStream> {
 ///
 /// The invocation has the form `crate_path, namespace_path, dataset, [ .. ]`.
 /// Each item in the bracketed list is parsed into an [`Entity`].
-struct MacroInput {
-    crate_path: Path,
-    ns: Path,
+struct PatternInput {
     set: Expr,
     pattern: Vec<Entity>,
 }
@@ -282,57 +299,52 @@ struct MacroInput {
 /// Description of a single entity pattern.
 ///
 /// `id` stores the optional identifier on the left-hand side of the `@` sign.
-/// `fields` holds all `name: value` constraints within the braces.
+/// `attributes` holds all `name: value` constraints within the braces.
 struct Entity {
-    id: Option<EntityId>,
-    fields: Vec<Field>,
+    // Allow the entity id before `@` to be a variable binding `?ident`
+    // or any arbitrary expression; reuse the same PatternValue/Value type
+    // used for attribute values so parsing is consistent.
+    id: Option<Value>,
+    attributes: Vec<Attribute>,
 }
 
 /// Identifier for an [`Entity`].
-enum EntityId {
-    /// Use an existing variable.
-    Var(Ident),
-    /// Use a literal expression, e.g. `(id)`.
-    Lit(Expr),
-}
 
 /// One `name: value` pair.
-struct Field {
-    name: Ident,
-    value: FieldValue,
+/// Value used for attribute assignments in `pattern!` and related macros.
+///
+/// We accept an explicit `?ident` form for variable binding. Any other
+/// token sequence is parsed as a normal Rust expression. This makes the
+/// macro unambiguous and avoids relying on ad-hoc parenthesisation rules.
+enum Value {
+    /// `?ident` — bind this identifier as a query variable
+    Var(Ident),
+    /// Arbitrary Rust expression used as a literal value
+    Expr(Expr),
 }
 
-/// Value of a field pattern.
-enum FieldValue {
-    /// Bind the field to an existing variable.
-    Var(Expr),
-    /// Match the field against a literal expression.
-    Lit(Expr),
+struct Attribute {
+    // The field name is an arbitrary expression that evaluates to a
+    // `Field<S>` value (for some schema S). This covers local constants,
+    // fully-qualified constants and inline constructors like
+    // `Field::<ShortString>::from(hex!("..."))`.
+    name: Expr,
+    value: Value,
 }
 
-impl Parse for MacroInput {
+impl Parse for PatternInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let crate_path: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let ns: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
+        // Simplified form: <set>, [ ... ]
         let set: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let content;
         bracketed!(content in input);
-        let mut pattern = Vec::new();
-        while !content.is_empty() {
-            pattern.push(content.parse()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-        Ok(MacroInput {
-            crate_path,
-            ns,
-            set,
-            pattern,
-        })
+
+        let pattern = Punctuated::<_, Token![,]>::parse_terminated(&content)?
+            .into_iter()
+            .collect();
+
+        Ok(PatternInput { set, pattern })
     }
 }
 
@@ -340,43 +352,46 @@ impl Parse for Entity {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let content;
         braced!(content in input);
-        let ahead = content.fork();
-        let id = if ahead.peek(Ident) && ahead.peek2(Token![@]) {
-            let ident: Ident = content.parse()?;
+
+        // Try to parse a PatternValue (which may be `?ident` or an Expr)
+        // followed by `@` as the id. Use a fork so we only consume the id
+        // when `@` actually follows.
+        let mut id: Option<Value> = None;
+        let fork = content.fork();
+        if fork.parse::<Value>().is_ok() && fork.peek(Token![@]) {
+            let pv: Value = content.parse()?;
             content.parse::<Token![@]>()?;
-            Some(EntityId::Var(ident))
-        } else if ahead.peek(syn::token::Paren) && ahead.peek2(Token![@]) {
-            let expr_content;
-            parenthesized!(expr_content in content);
-            let expr: Expr = expr_content.parse()?;
-            content.parse::<Token![@]>()?;
-            Some(EntityId::Lit(expr))
-        } else {
-            None
-        };
-        let mut fields = Vec::new();
-        while !content.is_empty() {
-            fields.push(content.parse()?);
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
+            id = Some(pv);
         }
-        Ok(Entity { id, fields })
+
+        let attributes = Punctuated::<_, Token![,]>::parse_terminated(&content)?
+            .into_iter()
+            .collect();
+
+        Ok(Entity { id, attributes })
     }
 }
 
-impl Parse for Field {
+impl Parse for Attribute {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let name: Ident = input.parse()?;
+        let name: Expr = input.parse()?;
         input.parse::<Token![:]>()?;
-        let value = if input.peek(syn::token::Paren) {
-            let inner;
-            parenthesized!(inner in input);
-            FieldValue::Lit(inner.parse()?)
+        // Peek for an explicit `?` prefix to indicate a variable binding.
+        let value: Value = input.parse()?;
+        Ok(Attribute { name, value })
+    }
+}
+
+impl Parse for Value {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        if input.peek(Token![?]) {
+            input.parse::<Token![?]>()?;
+            let var_ident: Ident = input.parse()?;
+            Ok(Value::Var(var_ident))
         } else {
-            FieldValue::Var(input.parse()?)
-        };
-        Ok(Field { name, value })
+            let expr: Expr = input.parse()?;
+            Ok(Value::Expr(expr))
+        }
     }
 }
 
@@ -396,90 +411,118 @@ pub fn pattern(input: TokenStream) -> TokenStream {
 /// Parse the input token stream and build the constraint generating code.
 fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Parse the outer macro invocation into the typed `MacroInput` structure.
-    let MacroInput {
-        crate_path,
-        ns,
-        set,
-        pattern,
-    } = syn::parse(input)?;
+    // New simplified form: <set>, [ ... ]
+    let PatternInput { set, pattern } = syn::parse(input)?;
 
     // Names for the generated context and dataset variables.
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
     let set_ident = format_ident!("__set", span = Span::call_site());
 
+    // Compute a crate path token stream to reference the host `tribles` crate
+    // in generated code. If the caller provided an explicit crate path (the
+    // legacy form) use that; otherwise default to `::tribles` for the
+    // simplified invocation exported via the prelude.
+    let crate_path_ts: TokenStream2 = quote! { ::tribles };
+
+    // Shadow the parsed `crate_path` with a TokenStream2 for use inside
+    // `quote!` expansions as `#crate_path`.
+    let _crate_path = crate_path_ts.clone();
+    // Shadow the original `crate_path` (Option) with a TokenStream2 that the
+    // quoting machinery can interpolate directly as `#crate_path`.
+    let _crate_path = crate_path_ts.clone();
+
     // Accumulate the token stream for each entity pattern.
     let mut entity_tokens = TokenStream2::new();
     // Token stream that initializes attribute variables once.
     let mut attr_tokens = TokenStream2::new();
-    // Bring the namespace into scope for attribute initialization.
-    attr_tokens.extend(quote! { #[allow(unused_imports)] use #ns as ns; });
+    // For the simplified invocation callers must supply fully-qualified
+    // field module paths (e.g. `literature::firstname`) or `use` them into
+    // scope. We no longer accept a separate `ns` argument.
     // Counter to create unique identifiers for entity variables.
-    // Counter and map for unique attribute variables.
+    // Counter and map for unique attribute variables. We store both the
+    // attribute variable name and the evaluated field expression identifier
+    // so the attribute id can be computed once per unique attribute.
     let mut attr_idx = 0usize;
+    let mut val_idx = 0usize;
     use std::collections::HashMap;
-    let mut attr_map: HashMap<String, Ident> = HashMap::new();
+    let mut attr_map: HashMap<String, (Ident, Ident)> = HashMap::new();
 
     // Expand one block per entity described in the pattern.
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
         // Variable name representing the entity id.
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
-        // Initialization depends on whether an id was supplied.
-        let init = match entity.id {
-            // Existing identifier variable: reuse it directly.
-            Some(EntityId::Var(id)) => quote! { let #e_ident = #id; },
-            // Literal expression: create a new variable bound to the value.
-            Some(EntityId::Lit(expr)) => quote! {
-                let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                constraints.push({ let e: #crate_path::id::Id = #expr; Box::new(#e_ident.is(#crate_path::value::ToValue::to_value(e)))});
-            },
-            // No id specified: create a fresh variable for the entity.
-            None => quote! {
-                let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-            },
+        // Initialization depends on whether an id was supplied. The id may be
+        // a `Value::Var(ident)` or `Value::Expr(expr)`. Treat bare variable
+        // bindings similarly to single-segment path expressions for now.
+        let init = if let Some(ref id_val) = entity.id {
+            match id_val {
+                Value::Var(ref ident) => {
+                    quote! { let #e_ident = #ident; }
+                }
+                Value::Expr(ref id_expr) => {
+                    quote! {
+                        let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        constraints.push({ let e: ::tribles::id::Id = #id_expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                    }
+                }
+            }
+        } else {
+            quote! {
+                let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+            }
         };
         entity_tokens.extend(init);
         // Emit triple constraints for each field within the entity.
-        for Field { name, value } in entity.fields {
-            let field_ident = name;
-
-            // Reuse the same attribute variable for each unique field name.
-            let a_var_ident = attr_map
-                .entry(field_ident.to_string())
+        for Attribute {
+            name: field_expr,
+            value,
+        } in entity.attributes
+        {
+            let key = field_expr.to_token_stream().to_string();
+            let (a_var_ident, af_ident) = attr_map
+                .entry(key)
                 .or_insert_with(|| {
-                    let ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
+                    let a_ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
+                    let af_ident = format_ident!("__af{}", attr_idx, span = Span::call_site());
                     attr_idx += 1;
                     attr_tokens.extend(quote! {
-                        let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                        constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(ns::ids::#field_ident))));
+                        let #af_ident = #field_expr;
+                        let #a_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        constraints.push(Box::new(#a_ident.is(::tribles::value::ToValue::to_value(#af_ident.id()))));
                     });
-                    ident
+                    (a_ident, af_ident)
                 })
                 .clone();
 
+            // Create unique identifiers for value temporaries
+            let val_id = {
+                let v = val_idx;
+                val_idx += 1;
+                v
+            };
+            let v_tmp_ident = format_ident!("__v{}", val_id, span = Span::call_site());
+            let _raw_ident = format_ident!("__raw{}", val_id, span = Span::call_site());
+
+            // Attribute values are represented by `PatternValue`. We accept
+            // an explicit `?ident` form for variable binding; otherwise the
+            // provided expression is treated as a literal value.
             let triple_tokens = match value {
-                // Literal value: create a variable bound to the literal and match it.
-                FieldValue::Lit(expr) => {
+                Value::Var(ref var_ident) => {
                     quote! {
                         {
-                            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                            use #ns as ns;
-                            let v_var: #crate_path::query::Variable<ns::schemas::#field_ident> = #ctx_ident.next_variable();
-                            // literal value converted to a `Value`
-                            let v: #crate_path::value::Value<ns::schemas::#field_ident> = #crate_path::value::ToValue::to_value(#expr);
-                            // ensure the literal matches the variable
-                            constraints.push(Box::new(v_var.is(v)));
-                            // match the triple from the dataset
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let v_var = { #af_ident.as_variable(#var_ident) };
                             constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
                 }
-                // Variable value: only emit pattern matching code.
-                FieldValue::Var(expr) => {
+                Value::Expr(ref expr) => {
                     quote! {
                         {
-                            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
-                            use #ns as ns;
-                            let v_var: #crate_path::query::Variable<ns::schemas::#field_ident> = #expr;
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let #v_tmp_ident = #af_ident.value_from(#expr);
+                            let v_var = #af_ident.as_variable(#ctx_ident.next_variable());
+                            constraints.push(Box::new(v_var.is(#v_tmp_ident)));
                             constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
                         }
                     }
@@ -492,81 +535,25 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Wrap all collected constraints in an intersection constraint
     let output = quote! {
         {
-            let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
+            let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();
             let #ctx_ident = __local_find_context!();
             let #set_ident = #set;
             #attr_tokens
             #entity_tokens
-            #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+            ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }
     };
 
     Ok(output.into())
 }
 
-/// Parsed input for the [`entity`] macro.
-///
-/// Invocation forms:
-/// `crate_path, namespace_path, { field: value, ... }`
-/// `crate_path, namespace_path, id_expr, { field: value, ... }`
-/// `crate_path, namespace_path, set_expr, id_expr, { field: value, ... }`
-struct EntityInput {
-    crate_path: Path,
-    ns: Path,
-    set: Option<Expr>,
-    id: Option<Expr>,
-    fields: Vec<(Ident, Expr)>,
-}
-
-impl Parse for EntityInput {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let crate_path: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let ns: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
-
-        let mut set = None;
-        let mut id = None;
-
-        if input.peek(syn::token::Brace) {
-            // no id, no set
-        } else {
-            let expr1: Expr = input.parse()?;
-            input.parse::<Token![,]>()?;
-            if input.peek(syn::token::Brace) {
-                id = Some(expr1);
-            } else {
-                set = Some(expr1);
-                let id_expr: Expr = input.parse()?;
-                input.parse::<Token![,]>()?;
-                id = Some(id_expr);
-            }
-        }
-
-        let content;
-        braced!(content in input);
-        let mut fields = Vec::new();
-        while !content.is_empty() {
-            let name: Ident = content.parse()?;
-            content.parse::<Token![:]>()?;
-            let value: Expr = content.parse()?;
-            fields.push((name, value));
-            if content.peek(Token![,]) {
-                content.parse::<Token![,]>()?;
-            }
-        }
-
-        Ok(EntityInput {
-            crate_path,
-            ns,
-            set,
-            id,
-            fields,
-        })
-    }
-}
-
 /// Procedural implementation of the `entity!` macro.
+///
+/// Simplified form: entity!{ [id_spec @] <field>: <value>, ... }
+/// Examples:
+///   entity!{ metadata::name: "x" }
+///   entity!{ ( &my_id ) @ metadata::name: "x" }
+///   entity!{ my_id @ metadata::name: "x" }
 #[proc_macro]
 pub fn entity(input: TokenStream) -> TokenStream {
     match entity_impl(input) {
@@ -575,15 +562,85 @@ pub fn entity(input: TokenStream) -> TokenStream {
     }
 }
 
+fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
+    let input: proc_macro2::TokenStream = input.into();
+    let wrapped = quote! { { #input } };
+
+    // Parse simplified invocation: optional id expr + attributes
+    let Entity { id, attributes } = syn::parse2(wrapped)?;
+
+    let set_init = quote! { let mut set = ::tribles::trible::TribleSet::new(); };
+
+    // Caller must supply an expression that evaluates to a `&ExclusiveId`.
+    let id_init: TokenStream2 = if let Some(val) = id {
+        match val {
+            Value::Expr(expr) => quote! { let id_ref: &::tribles::id::ExclusiveId = #expr; },
+            Value::Var(ident) => {
+                return Err(syn::Error::new_spanned(
+                    ident,
+                    "variable bindings (?ident) are not allowed in entity!; use a literal expression here",
+                ));
+            }
+        }
+    } else {
+        quote! {
+            let id_tmp: ::tribles::id::ExclusiveId = ::tribles::id::rngid();
+            let id_ref: &::tribles::id::ExclusiveId = &id_tmp;
+        }
+    };
+
+    let mut insert_tokens = TokenStream2::new();
+    for (i, attr) in attributes.into_iter().enumerate() {
+        let field_expr = attr.name;
+        let value_expr = match attr.value {
+            Value::Expr(e) => e,
+            Value::Var(id) => {
+                return Err(syn::Error::new_spanned(
+                    id,
+                    "variable bindings (?ident) are not allowed in entity!; use a literal expression here",
+                ));
+            }
+        };
+        let af_ident = format_ident!("__af{}", i, span = Span::call_site());
+        let val_ident = format_ident!("__val{}", i, span = Span::call_site());
+        let stmt = quote! {
+            {
+                let #af_ident = #field_expr;
+                let #val_ident = #af_ident.value_from(#value_expr);
+                let __a_id = #af_ident.id();
+                set.insert(&::tribles::trible::Trible::new(id_ref, &__a_id, &#val_ident));
+            }
+        };
+        insert_tokens.extend(stmt);
+    }
+
+    let output = quote! {
+        {
+            #set_init
+            #id_init
+            #insert_tokens
+            set
+        }
+    };
+
+    Ok(output.into())
+}
+/// Procedural implementation of the `pattern_changes!` macro.
+#[proc_macro]
+pub fn pattern_changes(input: TokenStream) -> TokenStream {
+    match pattern_changes_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
 /// Parsed input for the [`pattern_changes`] macro.
 ///
-/// The invocation takes the form `crate_path, namespace_path, current, changes, [..]`.
+/// The new simplified invocation takes the form `current, changes, [ .. ]`.
 /// Both dataset expressions evaluate to [`TribleSet`]s. `current` is the full
 /// dataset and `changes` represents the newly inserted tribles. The pattern
 /// syntax matches that of [`pattern!`].
 struct PatternChangesInput {
-    crate_path: Path,
-    ns: Path,
     curr: Expr,
     changes: Expr,
     pattern: Vec<Entity>,
@@ -591,10 +648,6 @@ struct PatternChangesInput {
 
 impl Parse for PatternChangesInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let crate_path: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let ns: Path = input.parse()?;
-        input.parse::<Token![,]>()?;
         let curr: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let changes: Expr = input.parse()?;
@@ -609,8 +662,6 @@ impl Parse for PatternChangesInput {
             }
         }
         Ok(PatternChangesInput {
-            crate_path,
-            ns,
             curr,
             changes,
             pattern,
@@ -618,88 +669,18 @@ impl Parse for PatternChangesInput {
     }
 }
 
-fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    let EntityInput {
-        crate_path,
-        ns,
-        set,
-        id,
-        fields,
-    } = syn::parse(input)?;
-
-    let (set_init, set_expr) = if let Some(s) = &set {
-        (TokenStream2::new(), quote! { #s })
-    } else {
-        (
-            quote! { let mut set = #crate_path::trible::TribleSet::new(); },
-            quote! { set },
-        )
-    };
-
-    let (id_init, id_expr) = if let Some(expr) = id {
-        (
-            quote! { let id_ref: &#crate_path::id::ExclusiveId = #expr; },
-            quote! { id_ref },
-        )
-    } else {
-        (
-            quote! {
-                let id_tmp: #crate_path::id::ExclusiveId = #crate_path::id::rngid();
-                let id_ref: &#crate_path::id::ExclusiveId = &id_tmp;
-            },
-            quote! { id_ref },
-        )
-    };
-
-    let mut insert_tokens = TokenStream2::new();
-    for (field, value) in fields {
-        let stmt = quote! {
-            {
-                use #ns as ns;
-                let v: #crate_path::value::Value<ns::schemas::#field> =
-                    #crate_path::value::ToValue::to_value(#value);
-                #set_expr.insert(&#crate_path::trible::Trible::new(#id_expr, &ns::ids::#field, &v));
-            }
-        };
-        insert_tokens.extend(stmt);
-    }
-
-    let output = if set.is_some() {
-        quote! {{
-            #id_init
-            #insert_tokens
-        }}
-    } else {
-        quote! {{
-            #set_init
-            #id_init
-            #insert_tokens
-            set
-        }}
-    };
-
-    Ok(output.into())
-}
-
-/// Procedural implementation of the `pattern_changes!` macro.
-#[proc_macro]
-pub fn pattern_changes(input: TokenStream) -> TokenStream {
-    match pattern_changes_impl(input) {
-        Ok(ts) => ts,
-        Err(e) => e.to_compile_error().into(),
-    }
-}
-
 fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     use std::collections::HashMap;
 
     let PatternChangesInput {
-        crate_path,
-        ns,
         curr,
         changes,
         pattern,
     } = syn::parse(input)?;
+    // We always generate expansions referencing the canonical ::tribles crate
+    // path; no legacy crate/ns parameters are accepted by this macro.
+    let crate_path_ts: TokenStream2 = quote! { ::tribles };
+    let _crate_path = crate_path_ts.clone();
 
     // Identifiers used throughout the expansion
     let ctx_ident = format_ident!("__ctx", span = Span::call_site());
@@ -723,66 +704,79 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     }
     let mut triples: Vec<TripleInfo> = Vec::new();
 
-    let mut attr_map: HashMap<String, Ident> = HashMap::new();
+    // Map from tokenized attribute expression -> (attribute_var_ident, attr_field_ident)
+    let mut attr_map: HashMap<String, (Ident, Ident)> = HashMap::new();
     let mut attr_idx = 0usize;
     let mut value_idx = 0usize;
 
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
         let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
         match entity.id {
-            Some(EntityId::Var(id)) => {
-                entity_decl_tokens.extend(quote! { let #e_ident = #id; });
-            }
-            Some(EntityId::Lit(expr)) => {
-                entity_decl_tokens.extend(quote! {
-                    let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                });
-                entity_const_tokens.extend(quote! {
-                    constraints.push({ let e: #crate_path::id::Id = #expr; Box::new(#e_ident.is(#crate_path::value::ToValue::to_value(e)))});
-                });
-            }
+            Some(ref id_val) => match id_val {
+                Value::Var(ref ident) => {
+                    entity_decl_tokens.extend(quote! { let #e_ident = #ident; });
+                }
+                Value::Expr(ref expr) => {
+                    entity_decl_tokens.extend(quote! {
+                            let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        });
+                    entity_const_tokens.extend(quote! {
+                            constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                        });
+                }
+            },
             None => {
                 entity_decl_tokens.extend(quote! {
-                    let #e_ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                    let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                 });
             }
         }
 
-        for Field { name, value } in entity.fields {
-            let field_ident = name;
-            let a_ident = attr_map
-                .entry(field_ident.to_string())
+        for Attribute {
+            name: attr_expr,
+            value,
+        } in entity.attributes
+        {
+            let key = attr_expr.to_token_stream().to_string();
+            let (a_ident, af_ident) = attr_map
+                .entry(key)
                 .or_insert_with(|| {
-                    let ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
+                    let a_ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
+                    let af_ident = format_ident!("__af{}", attr_idx, span = Span::call_site());
                     attr_idx += 1;
                     attr_decl_tokens.extend(quote! {
-                        let #ident: #crate_path::query::Variable<#crate_path::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                        let #af_ident = #attr_expr;
+                        let #a_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
                     });
                     attr_const_tokens.extend(quote! {
-                        constraints.push(Box::new(#ident.is(#crate_path::value::ToValue::to_value(ns::ids::#field_ident))));
+                        constraints.push(Box::new(#a_ident.is(::tribles::value::ToValue::to_value(#af_ident.id()))));
                     });
-                    ident
+                    (a_ident, af_ident)
                 })
                 .clone();
 
             let v_ident = format_ident!("__v{}", value_idx, span = Span::call_site());
             value_idx += 1;
 
+            // For pattern_changes we use the explicit `?ident` binding form
+            // to indicate a variable. Any other expression is treated as a
+            // literal value.
             match value {
-                FieldValue::Lit(expr) => {
+                Value::Expr(expr) => {
                     let val_ident = format_ident!("__c{}", value_idx, span = Span::call_site());
                     value_idx += 1;
+                    let _raw_ident = format_ident!("__raw{}", value_idx, span = Span::call_site());
                     value_decl_tokens.extend(quote! {
-                        let #v_ident: #crate_path::query::Variable<ns::schemas::#field_ident> = #ctx_ident.next_variable();
-                        let #val_ident: #crate_path::value::Value<ns::schemas::#field_ident> = #crate_path::value::ToValue::to_value(#expr);
+                        let #val_ident = #af_ident.value_from(#expr);
+                        let #v_ident = #af_ident.as_variable(#ctx_ident.next_variable());
                     });
                     value_const_tokens.extend(quote! {
                         constraints.push(Box::new(#v_ident.is(#val_ident)));
                     });
                 }
-                FieldValue::Var(expr) => {
+                Value::Var(var_ident) => {
                     value_decl_tokens.extend(quote! {
-                        let #v_ident: #crate_path::query::Variable<ns::schemas::#field_ident> = #expr;
+                        let #v_ident = #af_ident.as_variable(#var_ident);
                     });
                 }
             }
@@ -819,37 +813,39 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
 
         let case = quote! {
             {
-                let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
-                #[allow(unused_imports)] use #crate_path::query::TriblePattern;
+                let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();
+                #[allow(unused_imports)] use ::tribles::query::TriblePattern;
                 #triple_tokens
-                #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+                ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
             }
         };
         case_exprs.push(case);
     }
 
     let union_expr = quote! {
-        #crate_path::query::unionconstraint::UnionConstraint::new(vec![
-            #(Box::new(#case_exprs) as Box<dyn #crate_path::query::Constraint>),*
+            ::tribles::query::unionconstraint::UnionConstraint::new(vec![
+            #(Box::new(#case_exprs) as Box<dyn ::tribles::query::Constraint>),*
         ])
     };
+
+    let ns_use = TokenStream2::new();
 
     let output = quote! {
         {
             let #ctx_ident = __local_find_context!();
                         let #curr_ident = #curr;
             let #delta_ident = #changes;
-            #[allow(unused_imports)] use #ns as ns;
+            #ns_use
             #attr_decl_tokens
             #entity_decl_tokens
             #value_decl_tokens
-            let mut constraints: #crate_path::arrayvec::ArrayVec<Box<dyn #crate_path::query::Constraint>, 16> = #crate_path::arrayvec::ArrayVec::new();
-            #[allow(unused_imports)] use #crate_path::query::TriblePattern;
+            let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();
+            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
             #attr_const_tokens
             #entity_const_tokens
             #value_const_tokens
             constraints.push(Box::new(#union_expr));
-            #crate_path::query::intersectionconstraint::IntersectionConstraint::new(constraints)
+            ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
         }
     };
 

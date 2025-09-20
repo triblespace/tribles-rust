@@ -1,12 +1,15 @@
-use tribles::prelude::valueschemas::*;
+use crate::entity;
+use crate::pattern_changes;
 use tribles::prelude::*;
 
-NS! {
-    pub namespace literature {
-        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
-        "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
-        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
-        "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
+pub mod literature {
+    use tribles::prelude::*;
+
+    attributes! {
+        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: valueschemas::GenId;
+        "0DBB530B37B966D137C50B943700EDB2" as firstname: valueschemas::ShortString;
+        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: valueschemas::ShortString;
+        "A74AA63539354CDA47F387A4C3A8D54C" as title: valueschemas::ShortString;
     }
 }
 
@@ -17,16 +20,16 @@ fn pattern_changes_finds_new_inserts() {
     let mut updated = base.clone();
     let shakespeare = ufoid();
     let hamlet = ufoid();
-    updated += literature::entity!(&shakespeare, { firstname: "William", lastname: "Shakespeare" });
-    updated += literature::entity!(&hamlet, { title: "Hamlet", author: &shakespeare });
+    updated += entity! { &shakespeare @ literature::firstname: "William", literature::lastname: "Shakespeare" };
+    updated += entity! { &hamlet @ literature::title: "Hamlet", literature::author: &shakespeare };
 
     let delta = updated.difference(&base);
 
     let results: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>),
-        literature::pattern_changes!(&updated, &delta, [
-            { author @ firstname: ("William"), lastname: ("Shakespeare") },
-            { book @ author: author, title: title }
+        pattern_changes!(&updated, &delta, [
+            { ?author @ literature::firstname: "William", literature::lastname: "Shakespeare" },
+            { ?book @ literature::author: ?author, literature::title: ?title }
         ])
     )
     .collect();
@@ -45,14 +48,14 @@ fn pattern_changes_finds_new_inserts() {
 fn pattern_changes_empty_delta_returns_no_matches() {
     let mut kb = TribleSet::new();
     let shakespeare = ufoid();
-    kb += literature::entity!(&shakespeare, { firstname: "William", lastname: "Shakespeare" });
+    kb += entity! { &shakespeare @ literature::firstname: "William", literature::lastname: "Shakespeare" };
 
     let delta = TribleSet::new();
 
     let results: Vec<_> = find!(
         (a: Value<_>),
-        literature::pattern_changes!(&kb, &delta, [
-            { a @ lastname: ("Shakespeare") }
+        pattern_changes!(&kb, &delta, [
+            { ?a @ literature::lastname: "Shakespeare" }
         ])
     )
     .collect();

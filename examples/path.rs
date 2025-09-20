@@ -1,10 +1,14 @@
+use crate::entity;
+use crate::path;
 use tribles::prelude::*;
-use tribles::value::schemas::genid::GenId;
 
-NS! {
-    namespace social {
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: GenId;
-        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: GenId;
+pub mod social {
+    #![allow(unused)]
+    use super::*;
+    use tribles::prelude::*;
+    attributes! {
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;
     }
 }
 
@@ -13,11 +17,11 @@ fn main() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += social::entity!(&a, { follows: &b });
-    kb += social::entity!(&b, { likes: &c });
+    kb += entity! { &a @ social::follows: &b };
+    kb += entity! { &b @ social::likes: &c };
 
     for (s, e) in
-        find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s (follows | likes)+ e))
+        find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s (social::follows | social::likes)+ e))
     {
         println!("{:?} -> {:?}", s, e);
     }

@@ -4,9 +4,11 @@ use crate::prelude::*;
 use crate::value::schemas::genid::GenId;
 use crate::value::schemas::UnknownValue;
 
-NS! {
-    /// Namespace used by the query harness with unconstrained values.
-    pub namespace qns {
+/// Namespace used by the query harness with unconstrained values.
+pub mod qns {
+    use crate::prelude::*;
+
+    attributes! {
         "A74AA63539354CDA47F387A4C3A8D54C" as title: UnknownValue;
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: UnknownValue;
@@ -35,24 +37,24 @@ fn query_harness() {
     let title = Value::<UnknownValue>::new(title_raw);
 
     let mut set = TribleSet::new();
-    set += qns::entity!(&author, {
-        firstname: firstname,
-        lastname: lastname,
-    });
-    set += qns::entity!(&book, {
-        title: title,
-        author: &author,
-    });
+    set += entity! { &author @
+       qns::firstname: firstname,
+       qns::lastname: lastname,
+    };
+    set += entity! { &book @
+       qns::title: title,
+       qns::author: &author,
+    };
 
     // Find the title and author first name for Shakespeare's book.
     let result: Vec<_> = find!(
         (book, title, firstname),
-        qns::pattern!(&set, [
-            { firstname: firstname,
-              lastname: (lastname) },
+        pattern!(&set, [
+            { qns::firstname: firstname,
+              qns::lastname: (lastname) },
             { book @
-                title: title,
-                author: (author) }
+                qns::title: title,
+                qns::author: (author) }
         ])
     )
     .collect();

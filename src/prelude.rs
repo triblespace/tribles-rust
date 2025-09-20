@@ -31,6 +31,7 @@
 pub mod blobschemas;
 pub mod valueschemas;
 
+pub use crate::attribute::Attribute;
 pub use crate::blob::Blob;
 pub use crate::blob::BlobSchema;
 pub use crate::blob::MemoryBlobStore;
@@ -44,7 +45,6 @@ pub use crate::id::ExclusiveId;
 pub use crate::id::Id;
 pub use crate::id::IdOwner;
 pub use crate::id::RawId;
-pub use crate::namespace::NS;
 pub use crate::query::find;
 pub use crate::query::intersectionconstraint::and;
 pub use crate::query::intersectionconstraint::IntersectionConstraint;
@@ -64,3 +64,12 @@ pub use crate::value::TryToValue;
 pub use crate::value::Value;
 pub use crate::value::ValueSchema;
 pub use anybytes::View;
+// Re-export the pattern/entity procedural macros into the prelude so they can
+// be imported with `use tribles::prelude::*;` and called as `pattern!(...)`.
+// After migrating away from namespace-local wrapper macros, this makes the
+// new global proc-macros ergonomically available.
+pub use crate::macros::attributes;
+pub use crate::macros::entity;
+pub use crate::macros::path;
+pub use crate::macros::pattern;
+pub use crate::macros::pattern_changes;

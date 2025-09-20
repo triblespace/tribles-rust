@@ -9,6 +9,7 @@ use crate::id::id_from_value;
 use crate::id::id_into_value;
 use crate::id::Id;
 use crate::id_hex;
+use crate::prelude::*;
 use crate::query::TriblePattern;
 use crate::trible::Trible;
 use crate::trible::TribleSet;
@@ -591,7 +592,7 @@ mod tests {
     use crate::blob::ToBlob;
     use crate::blob::TryFromBlob;
     use crate::id::fucid;
-    use crate::namespace::NS;
+    use crate::prelude::*;
     use crate::query::find;
     use crate::trible::Trible;
     use crate::value::schemas::shortstring::ShortString;
@@ -604,8 +605,10 @@ mod tests {
     use proptest::prelude::*;
     use std::marker::PhantomData;
 
-    NS! {
-        pub namespace knights1 {
+    pub mod knights {
+        use crate::prelude::*;
+
+        attributes! {
             "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
             "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
             "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
@@ -690,31 +693,30 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += knights1::entity!(&juliet,
-        {
-            name: "Juliet",
-            loves: &romeo,
-            title: "Maiden"
-        });
-        kb += knights1::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet,
-            title: "Prince"
-        });
-        kb += knights1::entity!({
-            name: "Angelica",
-            title: "Nurse"
-        });
+        kb += entity! { &juliet @
+           knights::name: "Juliet",
+           knights::loves: &romeo,
+           knights::title: "Maiden"
+        };
+        kb += entity! { &romeo @
+           knights::name: "Romeo",
+           knights::loves: &juliet,
+           knights::title: "Prince"
+        };
+        kb += entity! {
+           knights::name: "Angelica",
+           knights::title: "Nurse"
+        };
 
         let archive: SuccinctArchive<OrderedUniverse> = (&kb).into();
 
         let r: Vec<_> = find!(
             (juliet, name),
-            knights1::pattern!(&archive, [
-            {name: ("Romeo"),
-             loves: juliet},
+            pattern!(&archive, [
+            {knights::name: ("Romeo"),
+             knights::loves: juliet},
             {juliet @
-                name: name
+                knights::name: name
             }])
         )
         .collect();

@@ -1,10 +1,13 @@
+use crate::entity;
+use crate::path;
 use tribles::prelude::*;
-use tribles::value::schemas::genid::GenId;
 
-NS! {
-    namespace social {
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: GenId;
-        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: GenId;
+pub mod social {
+    use tribles::prelude::*;
+
+    attributes! {
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: valueschemas::GenId;
     }
 }
 
@@ -13,11 +16,11 @@ fn simple_path() {
     let mut kb = TribleSet::new();
     let a = fucid();
     let b = fucid();
-    kb += social::entity!(&a, { follows: &b });
+    kb += entity! { &a @ social::follows: &b };
     let a_val = a.to_value();
     let b_val = b.to_value();
     let results: Vec<_> =
-        find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s follows e)).collect();
+        find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s social::follows e)).collect();
     assert!(results.contains(&(a_val, b_val)));
 }
 
@@ -27,14 +30,14 @@ fn alternation() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += social::entity!(&a, { follows: &b });
-    kb += social::entity!(&a, { likes: &c });
+    kb += entity! { &a @ social::follows: &b };
+    kb += entity! { &a @ social::likes: &c };
     let a_val = a.to_value();
     let b_val = b.to_value();
     let c_val = c.to_value();
 
     let results: Vec<_> =
-        find!((s: Value<_>, e: Value<_>), social::path!(kb.clone(), s (follows | likes) e))
+        find!((s: Value<_>, e: Value<_>), path!(kb.clone(), s (social::follows | social::likes) e))
             .collect();
     assert!(results.contains(&(a_val, b_val)));
     assert!(results.contains(&(a_val, c_val)));
@@ -46,13 +49,13 @@ fn repetition() {
     let a = fucid();
     let b = fucid();
     let c = fucid();
-    kb += social::entity!(&a, { follows: &b });
-    kb += social::entity!(&b, { follows: &c });
+    kb += entity! { &a @ social::follows: &b };
+    kb += entity! { &b @ social::follows: &c };
 
     let start_val = a.to_value();
     let end_val = c.to_value();
     let results: Vec<_> = find!((s: Value<_>, e: Value<_>),
-        and!(s.is(start_val), e.is(end_val), social::path!(kb.clone(), s follows+ e)))
+        and!(s.is(start_val), e.is(end_val), path!(kb.clone(), s social::follows+ e)))
     .collect();
     assert!(results.contains(&(start_val, end_val)));
 }

@@ -1,3 +1,5 @@
+use crate::entity;
+use crate::path;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::examples::literature;
@@ -14,20 +16,20 @@ fn main() {
 
     // Create a repository from the pile and initialize the main branch
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-    let mut ws1 = repo.branch("main").expect("create branch");
-    let branch_id = ws1.branch_id();
+    let branch_id = repo.create_branch("main", None).expect("create branch");
+    let mut ws1 = repo.pull(*branch_id).expect("pull");
 
     // First workspace adds Alice and pushes
     let mut change = TribleSet::new();
-    change += literature::entity!(&ufoid(), { firstname: "Alice" });
+    change += entity! { &ufoid() @ literature::firstname: "Alice" };
 
     ws1.commit(change, Some("add alice"));
     repo.push(&mut ws1).expect("push ws1");
 
     // Second workspace adds Bob and attempts to push, merging on conflict
-    let mut ws2 = repo.pull(branch_id).expect("pull");
+    let mut ws2 = repo.pull(*branch_id).expect("pull");
     let mut change = TribleSet::new();
-    change += literature::entity!(&ufoid(), { firstname: "Bob" });
+    change += entity! { &ufoid() @ literature::firstname: "Bob" };
     ws2.commit(change, Some("add bob"));
 
     match repo.push(&mut ws2).expect("push ws2") {

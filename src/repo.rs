@@ -34,19 +34,17 @@
 //! let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
 //! let mut ws = repo.branch("main").expect("create branch");
 //!
-//! NS! {
-//!     pub namespace literature {
-//!         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
-//!         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
-//!         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
-//!     }
+//! attributes! {
+//!     "8F180883F9FD5F787E9E0AF0DF5866B9" as pub author: GenId;
+//!     "0DBB530B37B966D137C50B943700EDB2" as pub firstname: ShortString;
+//!     "6BAA463FD4EAF45F6A103DB9433E4545" as pub lastname: ShortString;
 //! }
 //! let author = fucid();
 //! ws.commit(
-//!     literature::entity!(&author, {
-//!         firstname: "Frank",
-//!         lastname: "Herbert",
-//!     }),
+//!     entity!{ &author @
+//!         literature::firstname: "Frank",
+//!         literature::lastname: "Herbert",
+//!      },
 //!     Some("initial commit"),
 //! );
 //!
@@ -135,13 +133,14 @@ where
     }
 }
 
+use crate::pattern;
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Debug;
 use std::fmt::{self};
 
-use commit::commit;
+use commit::commit_metadata;
 use hifitime::Epoch;
 use itertools::Itertools;
 
@@ -155,61 +154,49 @@ use crate::blob::TryFromBlob;
 use crate::find;
 use crate::id::ufoid;
 use crate::id::Id;
-use crate::metadata::metadata;
+use crate::metadata;
 use crate::patch::Entry;
 use crate::patch::IdentitySchema;
 use crate::patch::PATCH;
 use crate::prelude::valueschemas::GenId;
-use crate::repo::branch::branch;
+use crate::repo::branch::branch_metadata;
 use crate::trible::TribleSet;
 use crate::value::schemas::hash::Handle;
 use crate::value::schemas::hash::HashProtocol;
 use crate::value::Value;
 use crate::value::ValueSchema;
 use crate::value::VALUE_LEN;
-use crate::NS;
 use ed25519_dalek::SigningKey;
 
 use crate::blob::schemas::longstring::LongString;
 use crate::blob::schemas::simplearchive::SimpleArchive;
+use crate::prelude::*;
 use crate::value::schemas::ed25519 as ed;
 use crate::value::schemas::hash::Blake3;
 use crate::value::schemas::shortstring::ShortString;
 use crate::value::schemas::time::NsTAIInterval;
 
-NS! {
-    /// The `commits` namespace contains attributes describing commits in a repository.
-    /// Commits are a fundamental building block of version control systems.
-    /// They represent a snapshot of the repository at a specific point in time.
-    /// Commits are immutable, append-only, and form a chain of history.
-    /// Each commit is identified by a unique hash, and contains a reference to the previous commit.
-    /// Commits are signed by the author, and can be verified by anyone with the author's public key.
-    pub namespace repo {
-        /// The actual data of the commit.
-        "4DD4DDD05CC31734B03ABB4E43188B1F" as content: Handle<Blake3, SimpleArchive>;
-        /// A commit that this commit is based on.
-        "317044B612C690000D798CA660ECFD2A" as parent: Handle<Blake3, SimpleArchive>;
-        /// A (potentially long) message describing the commit.
-        /// Stored as a LongString blob handle to avoid length limits.
-        "B59D147839100B6ED4B165DF76EDF3BB" as message: Handle<Blake3, LongString>;
-        /// A short message describing the commit.
-        /// Used by tools displaying the commit history.
-        "12290C0BE0E9207E324F24DDE0D89300" as short_message: ShortString;
-        /// The hash of the first commit in the commit chain of the branch.
-        "272FBC56108F336C4D2E17289468C35F" as head: Handle<Blake3, SimpleArchive>;
-        /// An id used to track the branch.
-        /// This id is unique to the branch, and is used to identify the branch in the repository.
-        "8694CC73AF96A5E1C7635C677D1B928A" as branch: GenId;
-        /// Timestamp range when this commit was created.
-        "71FF566AB4E3119FC2C5E66A18979586" as timestamp: NsTAIInterval;
-        //"723C45065E7FCF1D52E86AD8D856A20D" as cached_rollup: Handle<Blake3, SuccinctArchive<CachedUniverse<1024, 1024, CompressedUniverse<DacsOpt>>, Rank9Sel>>;
-        /// The author of the signature identified by their ed25519 public key.
-        "ADB4FFAD247C886848161297EFF5A05B" as signed_by: ed::ED25519PublicKey;
-        /// The `r` part of a ed25519 signature.
-        "9DF34F84959928F93A3C40AEB6E9E499" as signature_r: ed::ED25519RComponent;
-        /// The `s` part of a ed25519 signature.
-        "1ACE03BF70242B289FDF00E4327C3BC6" as signature_s: ed::ED25519SComponent;
-    }
+attributes! {
+    /// The actual data of the commit.
+    "4DD4DDD05CC31734B03ABB4E43188B1F" as pub content: Handle<Blake3, SimpleArchive>;
+    /// A commit that this commit is based on.
+    "317044B612C690000D798CA660ECFD2A" as pub parent: Handle<Blake3, SimpleArchive>;
+    /// A (potentially long) message describing the commit.
+    "B59D147839100B6ED4B165DF76EDF3BB" as pub message: Handle<Blake3, LongString>;
+    /// A short message describing the commit.
+    "12290C0BE0E9207E324F24DDE0D89300" as pub short_message: ShortString;
+    /// The hash of the first commit in the commit chain of the branch.
+    "272FBC56108F336C4D2E17289468C35F" as pub head: Handle<Blake3, SimpleArchive>;
+    /// An id used to track the branch.
+    "8694CC73AF96A5E1C7635C677D1B928A" as pub branch: GenId;
+    /// Timestamp range when this commit was created.
+    "71FF566AB4E3119FC2C5E66A18979586" as pub timestamp: NsTAIInterval;
+    /// The author of the signature identified by their ed25519 public key.
+    "ADB4FFAD247C886848161297EFF5A05B" as pub signed_by: ed::ED25519PublicKey;
+    /// The `r` part of a ed25519 signature.
+    "9DF34F84959928F93A3C40AEB6E9E499" as pub signature_r: ed::ED25519RComponent;
+    /// The `s` part of a ed25519 signature.
+    "1ACE03BF70242B289FDF00E4327C3BC6" as pub signature_s: ed::ED25519SComponent;
 }
 
 /// The `ListBlobs` trait is used to list all blobs in a repository.
@@ -691,84 +678,37 @@ where
     /// The branch is signed by the branch signing key.
     ///
     /// # Parameters
-    /// * `branch_name` - The name of the branch to create.
-    ///
-    /// # Returns
-    /// A new workspace bound to the created branch.
-    ///
-    pub fn branch(
-        &mut self,
-        branch_name: &str,
-    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
-        self.branch_with_key(branch_name, self.signing_key.clone())
-    }
-
-    /// Creates a new branch with an explicit signing key.
-    pub fn branch_with_key(
-        &mut self,
-        branch_name: &str,
-        signing_key: SigningKey,
-    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
-        let branch_id = *ufoid();
-        let branch_set = branch::branch_unsigned(branch_id, branch_name, None);
-        let branch_blob = branch_set.to_blob();
-        let branch_handle = self
-            .storage
-            .put(branch_blob)
-            .map_err(|e| BranchError::StoragePut(e))?;
-
-        let push_result = self
-            .storage
-            .update(branch_id, None, branch_handle)
-            .map_err(|e| BranchError::BranchUpdate(e))?;
-
-        match push_result {
-            PushResult::Success() => {
-                let base_blobs = self
-                    .storage
-                    .reader()
-                    .map_err(|e| BranchError::StorageReader(e))?;
-                Ok(Workspace {
-                    base_blobs,
-                    local_blobs: MemoryBlobStore::new(),
-                    head: None,
-                    base_branch_id: branch_id,
-                    base_branch_meta: branch_handle,
-                    signing_key,
-                })
-            }
-            PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
-        }
-    }
-
-    /// Creates a new branch starting from an existing commit.
-    ///
     /// * `branch_name` - Name of the new branch.
     /// * `commit` - Commit to initialize the branch from.
-    pub fn branch_from(
+    pub fn create_branch(
         &mut self,
         branch_name: &str,
-        commit: CommitHandle,
-    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
-        self.branch_from_with_key(branch_name, commit, self.signing_key.clone())
+        commit: Option<CommitHandle>,
+    ) -> Result<ExclusiveId, BranchError<Storage>> {
+        self.create_branch_with_key(branch_name, commit, self.signing_key.clone())
     }
 
     /// Same as [`branch_from`] but uses the provided signing key.
-    pub fn branch_from_with_key(
+    pub fn create_branch_with_key(
         &mut self,
         branch_name: &str,
-        commit: CommitHandle,
+        commit: Option<CommitHandle>,
         signing_key: SigningKey,
-    ) -> Result<Workspace<Storage>, BranchError<Storage>> {
-        let branch_id = *ufoid();
+    ) -> Result<ExclusiveId, BranchError<Storage>> {
+        let branch_id = ufoid();
 
-        let reader = self
-            .storage
-            .reader()
-            .map_err(|e| BranchError::StorageReader(e))?;
-        let set: TribleSet = reader.get(commit).map_err(|e| BranchError::StorageGet(e))?;
+        let branch_set = if let Some(commit) = commit {
+            let reader = self
+                .storage
+                .reader()
+                .map_err(|e| BranchError::StorageReader(e))?;
+            let set: TribleSet = reader.get(commit).map_err(|e| BranchError::StorageGet(e))?;
 
-        let branch_set = branch(&signing_key, branch_id, branch_name, Some(set.to_blob()));
+            branch::branch_metadata(&signing_key, *branch_id, branch_name, Some(set.to_blob()))
+        } else {
+            branch::branch_unsigned(*branch_id, branch_name, None)
+        };
+
         let branch_blob = branch_set.to_blob();
         let branch_handle = self
             .storage
@@ -777,24 +717,11 @@ where
 
         let push_result = self
             .storage
-            .update(branch_id, None, branch_handle)
+            .update(*branch_id, None, branch_handle)
             .map_err(|e| BranchError::BranchUpdate(e))?;
 
         match push_result {
-            PushResult::Success() => {
-                let base_blobs = self
-                    .storage
-                    .reader()
-                    .map_err(|e| BranchError::StorageReader(e))?;
-                Ok(Workspace {
-                    base_blobs,
-                    local_blobs: MemoryBlobStore::new(),
-                    head: Some(commit),
-                    base_branch_id: branch_id,
-                    base_branch_meta: branch_handle,
-                    signing_key,
-                })
-            }
+            PushResult::Success() => Ok(branch_id),
             PushResult::Conflict(_) => Err(BranchError::AlreadyExists()),
         }
     }
@@ -840,9 +767,9 @@ where
             Err(e) => return Err(PullError::BlobStorage(e)),
         };
 
-        let head = match find!(
-            (head: Value<_>),
-            repo::pattern!(&base_branch_meta, [{ head: head }])
+        let head_ = match find!(
+            (head_: Value<_>),
+            pattern!(&base_branch_meta, [{ head: ?head_ }])
         )
         .at_most_one()
         {
@@ -855,58 +782,11 @@ where
         Ok(Workspace {
             base_blobs,
             local_blobs: MemoryBlobStore::new(),
-            head,
+            head: head_,
             base_branch_id: branch_id,
             base_branch_meta: base_branch_meta_handle,
             signing_key,
         })
-    }
-
-    /// Find the id of a branch by its name.
-    pub fn branch_id_by_name(&mut self, name: &str) -> Result<Option<Id>, LookupError<Storage>> {
-        let ids: Vec<Id> = {
-            let iter = self
-                .storage
-                .branches()
-                .map_err(LookupError::StorageBranches)?;
-            iter.map(|r| r.map_err(|e| LookupError::StorageBranches(e)))
-                .collect::<Result<_, _>>()?
-        };
-
-        let mut handles = Vec::new();
-        for id in ids {
-            if let Some(handle) = self
-                .storage
-                .head(id)
-                .map_err(|e| LookupError::BranchHead(e))?
-            {
-                handles.push((id, handle));
-            }
-        }
-
-        let reader = self
-            .storage
-            .reader()
-            .map_err(|e| LookupError::StorageReader(e))?;
-        let mut matches = Vec::new();
-        for (id, handle) in handles {
-            let meta: TribleSet = reader.get(handle).map_err(|e| LookupError::StorageGet(e))?;
-
-            let branch_name = find!((n: Value<_>), metadata::pattern!(meta, [{ name: n }]))
-                .exactly_one()
-                .map_err(|_| LookupError::BadBranchMetadata())?
-                .0;
-
-            if branch_name.from_value::<String>() == name {
-                matches.push(id);
-            }
-        }
-
-        match matches.len() {
-            0 => Ok(None),
-            1 => Ok(Some(matches[0])),
-            _ => Err(LookupError::NameConflict(matches)),
-        }
     }
 
     /// Pushes the workspace's new blobs and commit to the persistent repository.
@@ -937,22 +817,22 @@ where
             .map_err(|e| PushError::StorageGet(e))?;
 
         let Ok((branch_name,)) = find!((name: Value<_>),
-            metadata::pattern!(base_branch_meta, [{ name: name }])
+            pattern!(base_branch_meta, [{ metadata::name: ?name }])
         )
         .exactly_one() else {
             return Err(PushError::BadBranchMetadata());
         };
 
         let head_handle = workspace.head.ok_or(PushError::BadBranchMetadata())?;
-        let head: TribleSet = repo_reader
+        let head_: TribleSet = repo_reader
             .get(head_handle)
             .map_err(|e| PushError::StorageGet(e))?;
 
-        let branch_meta = branch(
+        let branch_meta = branch_metadata(
             &workspace.signing_key,
             workspace.base_branch_id,
             branch_name.from_value(),
-            Some(head.to_blob()),
+            Some(head_.to_blob()),
         );
 
         let branch_meta_handle = self
@@ -984,8 +864,8 @@ where
                     .get(conflicting_meta)
                     .map_err(|e| PushError::StorageGet(e))?;
 
-                let head = match find!((head: Value<_>),
-                    repo::pattern!(&branch_meta, [{ head: head }])
+                let head_ = match find!((head_: Value<_>),
+                    pattern!(&branch_meta, [{ head: ?head_ }])
                 )
                 .at_most_one()
                 {
@@ -1000,7 +880,7 @@ where
                         .reader()
                         .map_err(|e| PushError::StorageReader(e))?,
                     local_blobs: MemoryBlobStore::new(),
-                    head,
+                    head: head_,
                     base_branch_id: workspace.base_branch_id,
                     base_branch_meta: conflicting_meta,
                     signing_key: workspace.signing_key.clone(),
@@ -1199,11 +1079,11 @@ where
 
         while remaining > 0 {
             let meta: TribleSet = ws.get(current).map_err(WorkspaceCheckoutError::Storage)?;
-            let mut parents = find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }]));
-            let Some((parent,)) = parents.next() else {
+            let mut parents = find!((p: Value<_>), pattern!(&meta, [{ parent: ?p }]));
+            let Some((p,)) = parents.next() else {
                 return Ok(CommitSet::new());
             };
-            current = parent;
+            current = p;
             remaining -= 1;
         }
 
@@ -1226,8 +1106,8 @@ where
     > {
         let meta: TribleSet = ws.get(self.0).map_err(WorkspaceCheckoutError::Storage)?;
         let mut result = CommitSet::new();
-        for (parent,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
-            result.insert(&Entry::new(&parent.raw));
+        for (p,) in find!((p: Value<_>), pattern!(&meta, [{ parent: ?p }])) {
+            result.insert(&Entry::new(&p.raw));
         }
         Ok(result)
     }
@@ -1275,7 +1155,7 @@ where
 
             let Ok((content_handle,)) = find!(
                 (c: Value<_>),
-                repo::pattern!(&meta, [{ content: c }])
+                pattern!(&meta, [{ content: ?c }])
             )
             .exactly_one() else {
                 return Err(WorkspaceCheckoutError::BadCommitMetadata());
@@ -1312,10 +1192,10 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        let head_ = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
         let entity = self.0;
         filter(
-            ancestors(head),
+            ancestors(head_),
             move |_: &TribleSet, payload: &TribleSet| payload.iter().any(|t| t.e() == &entity),
         )
         .select(ws)
@@ -1350,8 +1230,8 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
-        let patch = collect_reachable(ws, head)?;
+        let head_ = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        let patch = collect_reachable(ws, head_)?;
         let exclude = collect_reachable(ws, self.start)?;
         Ok(patch.difference(&exclude))
     }
@@ -1383,8 +1263,8 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
-        collect_reachable(ws, head)
+        let head_ = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        collect_reachable(ws, head_)
     }
 }
 
@@ -1399,14 +1279,14 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let head = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
+        let head_ = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
         let start = self.0;
         let end = self.1;
         filter(
-            ancestors(head),
+            ancestors(head_),
             move |meta: &TribleSet, _payload: &TribleSet| {
                 if let Ok(Some((ts,))) =
-                    find!((t: Value<_>), repo::pattern!(meta, [{ timestamp: t }])).at_most_one()
+                    find!((t: Value<_>), pattern!(meta, [{ timestamp: ?t }])).at_most_one()
                 {
                     let (ts_start, ts_end): (Epoch, Epoch) =
                         crate::value::FromValue::from_value(&ts);
@@ -1465,14 +1345,14 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
     /// Performs a commit in the workspace.
     /// This method creates a new commit blob (stored in the local blobset)
     /// and updates the current commit handle.
-    pub fn commit(&mut self, content: TribleSet, message: Option<&str>) {
+    pub fn commit(&mut self, content_: TribleSet, message_: Option<&str>) {
         // 1. Create a commit blob from the current head, content and the commit message (if any).
-        let content_blob = content.to_blob();
+        let content_blob = content_.to_blob();
         // If a message is provided, store it as a LongString blob and pass the handle.
-        let message_handle = message.map(|m| self.put::<LongString, String>(m.to_string()));
+        let message_handle = message_.map(|m| self.put::<LongString, String>(m.to_string()));
         let parents = self.head.iter().copied();
 
-        let commit_set = crate::repo::commit::commit(
+        let commit_set = crate::repo::commit::commit_metadata(
             &self.signing_key,
             parents,
             message_handle,
@@ -1513,7 +1393,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         }
         // 2. Compute a merge commit from self.current_commit and other.current_commit.
         let parents = self.head.iter().copied().chain(other.head.iter().copied());
-        let merge_commit = commit(
+        let merge_commit = commit_metadata(
             &self.signing_key,
             parents,
             None, // No message for the merge commit
@@ -1544,7 +1424,7 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         // ensure `copy_reachable` was used beforehand when importing.
 
         let parents = self.head.iter().copied().chain(Some(other));
-        let merge_commit = commit(&self.signing_key, parents, None, None);
+        let merge_commit = commit_metadata(&self.signing_key, parents, None, None);
         let commit_handle = self
             .local_blobs
             .put(merge_commit)
@@ -1577,17 +1457,17 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
                 .or_else(|_| self.base_blobs.get(commit))
                 .map_err(WorkspaceCheckoutError::Storage)?;
 
-            let Ok((content,)) = find!(
+            let Ok((c,)) = find!(
                 (c: Value<_>),
-                repo::pattern!(&meta, [{ content: c }])
+                pattern!(&meta, [{ content: ?c }])
             )
             .exactly_one() else {
                 return Err(WorkspaceCheckoutError::BadCommitMetadata());
             };
 
             let set: TribleSet = local
-                .get(content)
-                .or_else(|_| self.base_blobs.get(content))
+                .get(c)
+                .or_else(|_| self.base_blobs.get(c))
                 .map_err(WorkspaceCheckoutError::Storage)?;
 
             result.union(set);
@@ -1663,7 +1543,7 @@ fn collect_reachable<Blobs: BlobStore<Blake3>>(
             .or_else(|_| ws.base_blobs.get(commit))
             .map_err(WorkspaceCheckoutError::Storage)?;
 
-        for (p,) in find!((p: Value<_>), repo::pattern!(&meta, [{ parent: p }])) {
+        for (p,) in find!((p: Value<_>,), pattern!(&meta, [{ parent: ?p }])) {
             stack.push(p);
         }
     }

@@ -584,19 +584,56 @@ impl<'a, C: Constraint<'a>, P: Fn(&Binding) -> R, R> fmt::Debug for Query<C, P, 
 /// unless you are implementing a custom query language.
 #[macro_export]
 macro_rules! find {
-    (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
+    // Zero variables: return unit `()` from the closure.
+    ((), $Constraint:expr) => {
         {
             let mut ctx = $crate::query::VariableContext::new();
 
             macro_rules! __local_find_context {
-                () => {&mut ctx}
+                () => { &mut ctx }
             }
 
-            $(let $Var = ctx.next_variable();)*
-              $crate::query::Query::new($Constraint,
+            $crate::query::Query::new($Constraint,
+                move |_binding| {
+                    ()
+            })
+        }
+    };
+
+    // Single variable case: return a 1-tuple `(v,)` so destructuring `for (v,) in ...` works.
+    (($Var:ident $( : $Ty:ty)? $(,)?), $Constraint:expr) => {
+        {
+            let mut ctx = $crate::query::VariableContext::new();
+
+            macro_rules! __local_find_context {
+                () => { &mut ctx }
+            }
+
+            let $Var = ctx.next_variable();
+            $crate::query::Query::new($Constraint,
                 move |binding| {
-                    $(let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));)+
-                    ($($Var),+,)
+                    let $Var$(:$Ty)? = $crate::value::FromValue::from_value($Var.extract(binding));
+                    ($Var,)
+            })
+        }
+    };
+
+    // Two-or-more variables: return a tuple of all variables.
+    (($first:ident $(:$T1:ty)?, $($rest:ident $(:$Trest:ty)?),+ $(,)?), $Constraint:expr) => {
+        {
+            let mut ctx = $crate::query::VariableContext::new();
+
+            macro_rules! __local_find_context {
+                () => { &mut ctx }
+            }
+
+            let $first = ctx.next_variable();
+            $(let $rest = ctx.next_variable();)+
+            $crate::query::Query::new($Constraint,
+                move |binding| {
+                    let $first$(:$T1)? = $crate::value::FromValue::from_value($first.extract(binding));
+                    $(let $rest$(:$Trest)? = $crate::value::FromValue::from_value($rest.extract(binding));)+
+                    ($first, $($rest),+)
             })
         }
     };
@@ -605,11 +642,19 @@ pub use find;
 
 #[macro_export]
 macro_rules! matches {
-    (($($Var:tt$(:$Ty:ty)?),+), $Constraint:expr) => {
-        $crate::query::find!(($($Var$(:$Ty)?),+), $Constraint).next().is_some()
+    (($($Var:ident$(:$Ty:ty)?),* $(,)?), $Constraint:expr) => {
+        $crate::query::find!(($($Var$(:$Ty)?),*), $Constraint).next().is_some()
     };
 }
 pub use matches;
+
+// Helper to construct tuples of variables with correct arity. Defined at
+// top-level to avoid nested repetition issues inside other macro_rules!
+macro_rules! __tribles_mk_tuple {
+    () => { () };
+    ($single:ident) => { ($single,) };
+    ($a:ident, $b:ident $(, $rest:ident)*) => { ($a, $b $(, $rest)*) };
+}
 
 #[cfg(test)]
 mod tests {
@@ -631,10 +676,12 @@ mod tests {
 
     use super::*;
 
-    NS! {
-        pub namespace knights5 {
-            "8143F46E812E88C4544E7094080EC523" as loves: GenId;
-            "D6E0F2A6E5214E1330565B4D4138E55C" as name: ShortString;
+    pub mod knights {
+        use crate::prelude::*;
+
+        attributes! {
+            "8143F46E812E88C4544E7094080EC523" as loves: valueschemas::GenId;
+            "D6E0F2A6E5214E1330565B4D4138E55C" as name: valueschemas::ShortString;
         }
     }
 
@@ -674,58 +721,58 @@ mod tests {
         (0..1000).for_each(|_| {
             let author = fucid();
             let book = fucid();
-            kb += literature::entity!(&author, {
-                firstname: FirstName(EN).fake::<String>(),
-                lastname: LastName(EN).fake::<String>(),
-            });
-            kb += literature::entity!(&book, {
-                author: &author,
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
-            });
+            kb += entity! { &author @
+               literature::firstname: FirstName(EN).fake::<String>(),
+               literature::lastname: LastName(EN).fake::<String>(),
+            };
+            kb += entity! { &book @
+               literature::author: &author,
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+            };
         });
 
         let author = fucid();
         let book = fucid();
-        kb += literature::entity!(&author, {
-            firstname: "Frank",
-            lastname: "Herbert",
-        });
-        kb += literature::entity!(&book, {
-            author: &author,
-            title: "Dune",
-            quote: "I must not fear. Fear is the \
-                    mind-killer. Fear is the little-death that brings total \
-                    obliteration. I will face my fear. I will permit it to \
-                    pass over me and through me. And when it has gone past I \
-                    will turn the inner eye to see its path. Where the fear \
-                    has gone there will be nothing. Only I will remain.".to_blob().get_handle()
-        });
+        kb += entity! { &author @
+           literature::firstname: "Frank",
+           literature::lastname: "Herbert",
+        };
+        kb += entity! { &book @
+           literature::author: &author,
+           literature::title: "Dune",
+           literature::quote: "I must not fear. Fear is the \
+                   mind-killer. Fear is the little-death that brings total \
+                   obliteration. I will face my fear. I will permit it to \
+                   pass over me and through me. And when it has gone past I \
+                   will turn the inner eye to see its path. Where the fear \
+                   has gone there will be nothing. Only I will remain.".to_blob().get_handle()
+        };
 
         (0..100).for_each(|_| {
             let author = fucid();
             let book = fucid();
-            kb += literature::entity!(&author, {
-                firstname: "Fake",
-                lastname: "Herbert",
-            });
-            kb += literature::entity!(&book, {
-                author: &author,
-                title: Words(1..3).fake::<Vec<String>>().join(" "),
-                quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
-            });
+            kb += entity! { &author @
+               literature::firstname: "Fake",
+               literature::lastname: "Herbert",
+            };
+            kb += entity! { &book @
+               literature::author: &author,
+               literature::title: Words(1..3).fake::<Vec<String>>().join(" "),
+               literature::quote: Sentence(5..25).fake::<String>().to_blob().get_handle()
+            };
         });
 
         let r: Vec<_> = find!(
         (author: Value<_>, book: Value<_>, title: Value<_>, quote: Value<_>),
-        literature::pattern!(&kb, [
-        {author @
-            firstname: ("Frank"),
-            lastname: ("Herbert")},
-        {book @
-          author: author,
-          title: title,
-          quote: quote
+        pattern!(&kb, [
+        {?author @
+            literature::firstname: "Frank",
+            literature::lastname: "Herbert"},
+        {?book @
+          literature::author: ?author,
+          literature::title: ?title,
+          literature::quote: ?quote
         }]))
         .collect();
 

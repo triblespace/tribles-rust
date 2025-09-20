@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws = repo.branch("main")?;
 
-    ws.commit(literature::entity!(&ufoid(), { firstname: "Alice" }), None);
+    ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
     Ok(())
 }
@@ -35,3 +35,7 @@ directory and pushes a single entity to the `main` branch.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.
+
+Note: the `pattern!` macro used in queries treats a bare identifier as a
+variable binding and more complex expressions (including string literals) as
+literal values; parentheses may still be used to force a literal where desired.

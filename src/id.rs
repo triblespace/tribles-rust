@@ -639,23 +639,23 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += literature::entity!(&jules, {
-                firstname: "Jules",
-                lastname: "Verne"
-            });
-            kb += literature::entity!(&isaac, {
-                firstname: "Isaac",
-                lastname: "Asimov"
-            });
+            kb += entity! { &jules @
+               literature::firstname: "Jules",
+               literature::lastname: "Verne"
+            };
+            kb += entity! { &isaac @
+               literature::firstname: "Isaac",
+               literature::lastname: "Asimov"
+            };
         }
 
         let mut r: Vec<_> = find!(
             (author: ExclusiveId, name: String),
             and!(
                 local_ids(author),
-                literature::pattern!(&kb, [
-                    {author @
-                        firstname: name
+                pattern!(&kb, [
+                    {?author @
+                        literature::firstname: ?name
                     }])
             )
         )
@@ -673,14 +673,14 @@ mod tests {
         {
             let isaac = ufoid();
             let jules = ufoid();
-            kb += literature::entity!(&jules, {
-                firstname: "Jules",
-                lastname: "Verne"
-            });
-            kb += literature::entity!(&isaac, {
-                firstname: "Isaac",
-                lastname: "Asimov"
-            });
+            kb += entity! { &jules @
+               literature::firstname: "Jules",
+               literature::lastname: "Verne"
+            };
+            kb += entity! { &isaac @
+               literature::firstname: "Isaac",
+               literature::lastname: "Asimov"
+            };
         }
 
         let mut ctx = VariableContext::new();
@@ -694,7 +694,7 @@ mod tests {
 
         let base = and!(
             local_ids(author),
-            literature::pattern!(&kb, [{ author @ firstname: name }])
+            pattern!(&kb, [{ ?author @ literature::firstname: ?name }])
         );
 
         let mut wrapper = crate::debug::query::EstimateOverrideConstraint::new(base);

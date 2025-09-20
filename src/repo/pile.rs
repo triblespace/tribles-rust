@@ -814,7 +814,6 @@ impl<H: HashProtocol> BlobStoreList<H> for PileReader<H> {
 pub struct PileBranchStoreIter<H: HashProtocol> {
     inner:
         crate::patch::PATCHIntoOrderedIterator<16, IdentitySchema, Value<Handle<H, SimpleArchive>>>,
-    applied_length: usize,
 }
 
 impl<H: HashProtocol> Iterator for PileBranchStoreIter<H> {
@@ -942,10 +941,7 @@ where
         // allocating a temporary Vec of ids while preserving tree-order.
         let cloned = self.branches.clone();
         let inner = cloned.into_iter_ordered();
-        Ok(PileBranchStoreIter {
-            inner,
-            applied_length: self.applied_length,
-        })
+        Ok(PileBranchStoreIter { inner })
     }
 
     fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {

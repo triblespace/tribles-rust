@@ -8,7 +8,8 @@ fn main() {
     let mut repo = Repository::new(MemoryRepo::default(), SigningKey::generate(&mut OsRng));
 
     // create a new branch and add a commit
-    let mut workspace = repo.branch("feature").expect("create branch");
+    let branch_id = repo.create_branch("feature", None).expect("create branch");
+    let mut workspace = repo.pull(*branch_id).expect("pull");
     workspace.commit(TribleSet::new(), Some("start feature work"));
 
     // attempt to push, merging conflicts before retrying

@@ -1,3 +1,5 @@
+use crate::entity;
+use crate::pattern;
 use ed25519::signature::Signer;
 use ed25519::Signature;
 use ed25519_dalek::SignatureError;
@@ -10,19 +12,17 @@ use crate::blob::Blob;
 use crate::find;
 use crate::id::rngid;
 use crate::id::Id;
-use crate::metadata::metadata;
+use crate::metadata;
 use crate::prelude::blobschemas::SimpleArchive;
 use crate::trible::TribleSet;
 use crate::value::Value;
-
-use super::repo;
 
 /// Builds a metadata [`TribleSet`] describing a branch and signs it.
 ///
 /// The metadata records the branch `name`, its unique `branch_id` and
 /// optionally the handle of the initial commit. The commit handle is signed with
 /// `signing_key` allowing the repository to verify its authenticity.
-pub fn branch(
+pub fn branch_metadata(
     signing_key: &SigningKey,
     branch_id: Id,
     name: &str,
@@ -32,20 +32,19 @@ pub fn branch(
 
     let metadata_entity = rngid();
 
-    metadata += repo::entity!(&metadata_entity, { branch: branch_id });
+    metadata += entity! { &metadata_entity @  super::branch: branch_id  };
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
         let signature = signing_key.sign(&commit_head.bytes);
 
-        metadata += repo::entity!(&metadata_entity,
-        {
-            head: handle,
-            signed_by: signing_key.verifying_key(),
-            signature_r: signature,
-            signature_s: signature,
-        });
+        metadata += entity! { &metadata_entity @
+           super::head: handle,
+           super::signed_by: signing_key.verifying_key(),
+           super::signature_r: signature,
+           super::signature_s: signature,
+        };
     }
-    metadata += metadata::entity!(&metadata_entity, { name: name });
+    metadata += entity! { &metadata_entity @  metadata::name: name  };
 
     metadata
 }
@@ -63,14 +62,14 @@ pub fn branch_unsigned(
 
     let mut metadata: TribleSet = Default::default();
 
-    metadata += repo::entity!(&metadata_entity, { branch: branch_id });
+    metadata += entity! { &metadata_entity @  super::branch: branch_id  };
 
     if let Some(commit_head) = commit_head {
         let handle = commit_head.get_handle();
-        metadata += repo::entity!(&metadata_entity, { head: handle });
+        metadata += entity! { &metadata_entity @  super::head: handle  };
     }
 
-    metadata += metadata::entity!(&metadata_entity, { name: name });
+    metadata += entity! { &metadata_entity @  metadata::name: name  };
 
     metadata
 }
@@ -100,12 +99,12 @@ pub fn verify(
     let handle = commit_head.get_handle();
     let (pubkey, r, s) = match find!(
     (pubkey: Value<_>, r, s),
-    repo::pattern!(&metadata, [
+    pattern!(&metadata, [
     {
-        head: (handle),
-        signed_by: pubkey,
-        signature_r: r,
-        signature_s: s,
+        super::head: handle,
+        super::signed_by: ?pubkey,
+        super::signature_r: ?r,
+        super::signature_s: ?s,
     }]))
     .at_most_one()
     {

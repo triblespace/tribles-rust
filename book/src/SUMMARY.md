@@ -9,6 +9,7 @@
 - [Query Language](query-language.md)
 - [Incremental Queries](incremental-queries.md)
 - [Schemas](schemas.md)
+- [Descriptive Typing & find! Idiom](descriptive_types.md)
 - [Repository Workflows](repository-workflows.md)
 - [Commit Selectors](commit-selectors.md)
 - [Garbage Collection](garbage-collection.md)

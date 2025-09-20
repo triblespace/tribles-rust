@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
     let mut ws = repo.branch("main")?;
 
-    ws.commit(literature::entity!(&ufoid(), { firstname: "Alice" }), None);
+    ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
     Ok(())
 }
@@ -68,11 +68,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use tribles::prelude::*;
-use tribles::prelude::valueschemas::*;
-use tribles::prelude::blobschemas::*;
 
-NS! {
-    pub namespace literature {
+mod literature {
+    use tribles::prelude::*;
+    use tribles::prelude::valueschemas::*;
+    use tribles::prelude::blobschemas::*;
+
+    attributes! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
@@ -90,39 +92,39 @@ fn main() -> std::io::Result<()> {
 
     // Note how the entity macro returns TribleSets that can be cheaply merged
     // into our existing dataset.
-    set += literature::entity!(&author_id, {
-                firstname: "Frank",
-                lastname: "Herbert",
-            });
+    set += crate::entity!{ &author_id @
+                literature::firstname: "Frank",
+                literature::lastname: "Herbert",
+            };
 
-    set += literature::entity!({
-                title: "Dune",
-                author: &author_id,
-                quote: blobs.put("Deep in the human unconscious is a \
+    set += crate::entity!{ &author_id @
+                literature::title: "Dune",
+                literature::author: &author_id,
+                literature::quote: blobs.put("Deep in the human unconscious is a \
                 pervasive need for a logical universe that makes sense. \
                 But the real universe is always one step beyond logic.").unwrap(),
-                quote: blobs.put("I must not fear. Fear is the \
+                literature::quote: blobs.put("I must not fear. Fear is the \
                 mind-killer. Fear is the little-death that brings total \
                 obliteration. I will face my fear. I will permit it to \
                 pass over me and through me. And when it has gone past I \
                 will turn the inner eye to see its path. Where the fear \
                 has gone there will be nothing. Only I will remain.").unwrap(),
-            });
+            };
 
     let title = "Dune";
 
     // We can then find all entities matching a certain pattern in our dataset.
     for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
-        literature::pattern!(&set, [
-            { author @
-                firstname: first,
-                lastname: last
+        crate::pattern!(&set, [
+            { ?author @
+                literature::firstname: ?first,
+                literature::lastname: ?last
             },
             {
-                title: (title),
-                author: author,
-                quote: quote
+                literature::title: title,
+                literature::author: ?author,
+                literature::quote: ?quote
             }])) {
         let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
         let q = q.as_ref();

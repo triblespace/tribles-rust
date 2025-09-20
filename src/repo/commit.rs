@@ -1,3 +1,5 @@
+use crate::entity;
+use crate::pattern;
 use ed25519::Signature;
 use ed25519_dalek::SignatureError;
 use ed25519_dalek::SigningKey;
@@ -6,8 +8,6 @@ use ed25519_dalek::VerifyingKey;
 use itertools::Itertools;
 
 use ed25519::signature::Signer;
-
-use super::repo;
 
 use crate::blob::schemas::longstring::LongString;
 use crate::blob::schemas::simplearchive::SimpleArchive;
@@ -37,7 +37,7 @@ impl From<SignatureError> for ValidationError {
 /// The resulting [`TribleSet`] is signed using `signing_key` so that its
 /// authenticity can later be verified. If `msg` is provided it is stored as a
 /// long commit message via a LongString blob handle.
-pub fn commit(
+pub fn commit_metadata(
     signing_key: &SigningKey,
     parents: impl IntoIterator<Item = Value<Handle<Blake3, SimpleArchive>>>,
     msg: Option<Value<Handle<Blake3, LongString>>>,
@@ -47,33 +47,30 @@ pub fn commit(
     let commit_entity = crate::id::rngid();
     let now = Epoch::now().expect("system time");
 
-    commit += repo::entity!(&commit_entity, { timestamp: (now, now) });
+    commit += entity! { &commit_entity @  super::timestamp: (now, now)  };
 
     if let Some(content) = content {
         let handle = content.get_handle();
         let signature = signing_key.sign(&content.bytes);
 
-        commit += repo::entity!(&commit_entity,
-        {
-            content: handle,
-            signed_by: signing_key.verifying_key(),
-            signature_r: signature,
-            signature_s: signature,
-        });
+        commit += entity! { &commit_entity @
+           super::content: handle,
+           super::signed_by: signing_key.verifying_key(),
+           super::signature_r: signature,
+           super::signature_s: signature,
+        };
     }
 
     if let Some(h) = msg {
-        commit += repo::entity!(&commit_entity,
-        {
-            message: h,
-        });
+        commit += entity! { &commit_entity @
+           super::message: h,
+        };
     }
 
     for parent in parents {
-        commit += repo::entity!(&commit_entity,
-        {
-            parent: parent,
-        });
+        commit += entity! { &commit_entity @
+           super::parent: parent,
+        };
     }
 
     commit
@@ -88,12 +85,12 @@ pub fn verify(content: Blob<SimpleArchive>, metadata: TribleSet) -> Result<(), V
     let handle = content.get_handle();
     let (pubkey, r, s) = match find!(
     (pubkey: Value<_>, r, s),
-    repo::pattern!(&metadata, [
+    pattern!(&metadata, [
     {
-        content: (handle),
-        signed_by: pubkey,
-        signature_r: r,
-        signature_s: s
+        super::content: handle,
+        super::signed_by: ?pubkey,
+        super::signature_r: ?r,
+        super::signature_s: ?s
     }]))
     .at_most_one()
     {

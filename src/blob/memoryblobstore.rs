@@ -353,11 +353,7 @@ impl<H: HashProtocol> BlobStore<H> for MemoryBlobStore<H> {
 
 #[cfg(test)]
 mod tests {
-    use crate::blob::schemas::longstring::LongString;
-    use crate::trible::TribleSet;
-    use crate::value::schemas::hash::Blake3;
-    use crate::value::schemas::hash::Handle;
-    use crate::NS;
+    use crate::prelude::*;
 
     use super::*;
     use anybytes::Bytes;
@@ -365,10 +361,12 @@ mod tests {
     use fake::locales::EN;
     use fake::Fake;
 
-    NS! {
-        pub namespace knights2 {
-            "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
-        }
+    use blobschemas::LongString;
+    use valueschemas::Blake3;
+    use valueschemas::Handle;
+
+    attributes! {
+        "5AD0FAFB1FECBC197A385EC20166899E" as description: Handle<Blake3, LongString>;
     }
 
     #[test]
@@ -376,9 +374,9 @@ mod tests {
         let mut kb = TribleSet::new();
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..200 {
-            kb.union(knights2::entity!({
+            kb.union(entity!{
                 description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
-            }));
+             });
         }
         blobs.keep(kb);
     }

@@ -6,7 +6,6 @@ use criterion::BenchmarkId;
 use criterion::Criterion;
 use criterion::Throughput;
 use jerky::bit_vector::rank9sel::Rank9SelIndex;
-use jerky::int_vectors::DacsByte;
 use rand::thread_rng;
 use rand::Rng;
 use rayon::prelude::*;
@@ -36,7 +35,7 @@ use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 
-type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse<DacsByte>>;
+type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse>;
 
 //use peak_alloc::PeakAlloc;
 //#[global_allocator]

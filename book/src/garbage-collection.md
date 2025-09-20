@@ -35,6 +35,41 @@ Content blobs that are not `SimpleArchive` instances (for example large binary
 attachments) act as leaves. They become reachable when some archive references
 their handle and are otherwise eligible for forgetting.
 
+## Automating the Walk
+
+The repository module already provides most of the required plumbing.
+[`copy_reachable`](https://docs.rs/tribles/latest/tribles/repo/fn.copy_reachable.html)
+accepts whichever handles you treat as roots, then scans each blob’s bytes and
+queues any discovered children for you. The in‑memory `MemoryBlobStore`
+demonstrates the wiring end‑to‑end by feeding `copy_reachable` every stored
+handle:
+
+```rust
+use tribles::blob::memoryblobstore::MemoryBlobStore;
+use tribles::repo::{self, BlobStoreList};
+use tribles::value::schemas::hash::Blake3;
+
+let mut store = MemoryBlobStore::<Blake3>::default();
+// ... populate the store or import data ...
+
+let reader = store.reader()?;
+let roots = reader
+    .blobs()
+    .collect::<Result<Vec<_>, _>>()?;
+
+let mut scratch = MemoryBlobStore::<Blake3>::default();
+let stats = repo::copy_reachable(&reader, &mut scratch, roots)?;
+println!("visited {} blobs, copied {}", stats.visited, stats.stored);
+```
+
+Every blob store reader implements the [`BlobStoreList`](https://docs.rs/tribles/latest/tribles/repo/trait.BlobStoreList.html)
+trait, which exposes helpers such as `blobs()` for enumerating stored handles.
+In practice you would seed `copy_reachable` with the handles extracted from
+branch metadata or other root sets instead of iterating the entire store. The
+helper takes any `IntoIterator` of handles, so once branch heads (and other
+roots) have been identified, they can be fed directly into the traversal without
+writing custom queues or visitor logic.
+
 ## Future Work
 
 The public API for triggering garbage collection is still open. The blob store

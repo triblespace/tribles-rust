@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NameConflict` error when multiple branches share the same name.
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
+- Garbage-collection chapter now shows how `BlobStoreList` and `copy_reachable`
+  work together to enumerate and traverse blobs in practice.
 - Test coverage for `branch_from` and `pull_with_key`.
 - Migrated `SuccinctArchive` to new `jerky`/`anybytes` APIs and added
   serializable metadata.

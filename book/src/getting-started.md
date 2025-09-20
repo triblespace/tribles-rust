@@ -22,7 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pile = Pile::open(Path::new("example.pile"))?;
     pile.restore()?;
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-    let mut ws = repo.branch("main")?;
+    let branch_id = repo.create_branch("main", None)?;
+    let mut ws = repo.pull(*branch_id)?;
 
     ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
@@ -31,7 +32,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Running this program with `cargo run` creates an `example.pile` file in the current
-directory and pushes a single entity to the `main` branch.
+directory and pushes a single entity to the `main` branch. `Repository::create_branch`
+registers the branch and returns an `ExclusiveId` guard; pass its `Id`
+to `Repository::pull` (via dereferencing or `ExclusiveId::release`) to obtain a
+`Workspace` for writing commits.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.

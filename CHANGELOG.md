@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deduplicated value sequences.
 
 ### Changed
+- Updated the README and book examples to use `Repository::create_branch` plus
+  `pull` instead of the removed `branch` helper when initializing workspaces.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.

@@ -13,6 +13,48 @@ Both stores can be in memory, on disk or backed by a remote service. The
 examples in `examples/repo.rs` and `examples/workspace.rs` showcase this API and
 should feel familiar to anyone comfortable with Git.
 
+## Storage Backends and Composition
+
+`Repository` accepts any storage that implements both the `BlobStore` and
+`BranchStore` traits, so you can combine backends to fit your deployment. The
+crate ships with a few ready-made options:
+
+- [`MemoryRepo`](../src/repo/memoryrepo.rs) stores everything in memory and is
+  ideal for tests or short-lived tooling where persistence is optional.
+- [`Pile`](../src/repo/pile.rs) persists blobs and branch metadata in a single
+  append-only file. It is the default choice for durable local repositories and
+  integrates with the pile tooling described in [Pile Format](pile-format.md).
+- [`ObjectStoreRemote`](../src/repo/objectstore.rs) connects to
+  [`object_store`](https://docs.rs/object_store/latest/object_store/) endpoints
+  (S3, local filesystems, etc.). It keeps all repository data in the remote
+  service and is useful when you want a shared blob store without running a
+  dedicated server.
+- [`HybridStore`](../src/repo/hybridstore.rs) lets you split responsibilities,
+  e.g. storing blobs on disk while keeping branch heads in memory or another
+  backend. Any combination that satisfies the trait bounds works.
+
+Backends that need explicit shutdown can implement `StorageClose`. When the
+repository type exposes that trait bound you can call `repo.close()?` to flush
+and release resources instead of relying on `Drop` to run at an unknown time.
+
+```rust,ignore
+use tribles::repo::hybridstore::HybridStore;
+use tribles::repo::memoryrepo::MemoryRepo;
+use tribles::repo::objectstore::ObjectStoreRemote;
+use tribles::repo::Repository;
+use tribles::value::schemas::hash::Blake3;
+use url::Url;
+
+let blob_remote: ObjectStoreRemote<Blake3> =
+    ObjectStoreRemote::with_url(&Url::parse("s3://bucket/prefix")?)?;
+let branch_store = MemoryRepo::default();
+let storage = HybridStore::new(blob_remote, branch_store);
+let mut repo = Repository::new(storage, signing_key);
+
+// Work with repo as usual …
+// repo.close()?; // if the underlying storage supports StorageClose
+```
+
 ## Branching
 
 A branch records a line of history. Creating one writes initial metadata to the

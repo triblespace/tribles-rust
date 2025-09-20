@@ -32,7 +32,8 @@
 //!
 //! let storage = MemoryRepo::default();
 //! let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
-//! let mut ws = repo.branch("main").expect("create branch");
+//! let branch_id = repo.create_branch("main", None).expect("create branch");
+//! let mut ws = repo.pull(*branch_id).expect("pull branch");
 //!
 //! attributes! {
 //!     "8F180883F9FD5F787E9E0AF0DF5866B9" as pub author: GenId;
@@ -54,6 +55,7 @@
 //! }
 //! ```
 //!
+//! `create_branch` registers a new branch and returns an `ExclusiveId` guard.
 //! `pull` creates a new workspace from an existing branch while
 //! `branch_from` can be used to start a new branch from a specific commit
 //! handle. See `examples/workspace.rs` for a more complete example.
@@ -83,8 +85,8 @@
 //! - A `Repository` stores commits and branch metadata similar to a remote.
 //! - `Workspace` is akin to a working directory combined with an index. It
 //!   tracks changes against a branch head until you `push` them.
-//! - `branch` and `branch_from` correspond to creating new branches from the
-//!   current head or from a specific commit, respectively.
+//! - `create_branch` and `branch_from` correspond to creating new branches from
+//!   scratch or from a specific commit, respectively.
 //! - `push` updates the repository atomically. If the branch advanced in the
 //!   meantime, you receive a conflict workspace which can be merged before
 //!   retrying the push.
@@ -92,7 +94,7 @@
 //!
 //! `pull` uses the repository's default signing key for new commits. If you
 //! need to work with a different identity, the `_with_key` variants allow providing
-//! an explicit key when branching or checking out.
+//! an explicit key when creating branches or pulling workspaces.
 //!
 //! These parallels should help readers leverage their Git knowledge when
 //! working with trible repositories.

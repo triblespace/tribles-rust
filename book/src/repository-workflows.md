@@ -13,71 +13,71 @@ Both stores can be in memory, on disk or backed by a remote service. The
 examples in `examples/repo.rs` and `examples/workspace.rs` showcase this API and
 should feel familiar to anyone comfortable with Git.
 
-## Remote Stores
+## Storage Backends and Composition
 
-Remote deployments use the [`ObjectStoreRemote`](../src/repo/objectstore.rs)
-backend to speak to any service supported by the
-[`object_store`](https://docs.rs/object_store/latest/object_store/) crate (S3,
-Google Cloud Storage, Azure Blob Storage, HTTP-backed stores, the local
-filesystem, and the in-memory `memory:///` adapter). `ObjectStoreRemote`
-implements both `BlobStore` and `BranchStore`, so the rest of the repository API
-continues to work unchanged – the only difference is the URL you pass to
-`with_url`.
+`Repository` accepts any storage that implements both the `BlobStore` and
+`BranchStore` traits, so you can combine backends to fit your deployment. The
+crate ships with a few ready-made options:
+
+- [`MemoryRepo`](../src/repo/memoryrepo.rs) stores everything in memory and is
+  ideal for tests or short-lived tooling where persistence is optional.
+- [`Pile`](../src/repo/pile.rs) persists blobs and branch metadata in a single
+  append-only file. It is the default choice for durable local repositories and
+  integrates with the pile tooling described in [Pile Format](pile-format.md).
+- [`ObjectStoreRemote`](../src/repo/objectstore.rs) connects to
+  [`object_store`](https://docs.rs/object_store/latest/object_store/) endpoints
+  (S3, local filesystems, etc.). It keeps all repository data in the remote
+  service and is useful when you want a shared blob store without running a
+  dedicated server.
+- [`HybridStore`](../src/repo/hybridstore.rs) lets you split responsibilities,
+  e.g. storing blobs on disk while keeping branch heads in memory or another
+  backend. Any combination that satisfies the trait bounds works.
+
+Backends that need explicit shutdown can implement `StorageClose`. When the
+repository type exposes that trait bound you can call `repo.close()?` to flush
+and release resources instead of relying on `Drop` to run at an unknown time.
 
 ```rust,ignore
-use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
-use tribles::prelude::*;
+use tribles::repo::hybridstore::HybridStore;
+use tribles::repo::memoryrepo::MemoryRepo;
 use tribles::repo::objectstore::ObjectStoreRemote;
 use tribles::repo::Repository;
 use tribles::value::schemas::hash::Blake3;
 use url::Url;
 
-fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
-    let url = Url::parse(raw_url)?;
-    let storage = ObjectStoreRemote::<Blake3>::with_url(&url)?;
-    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+let blob_remote: ObjectStoreRemote<Blake3> =
+    ObjectStoreRemote::with_url(&Url::parse("s3://bucket/prefix")?)?;
+let branch_store = MemoryRepo::default();
+let storage = HybridStore::new(blob_remote, branch_store);
+let mut repo = Repository::new(storage, signing_key);
 
-    let branch_id = repo.create_branch("main", None)?;
-    let mut ws = repo.pull(*branch_id)?;
-    ws.commit(TribleSet::new(), Some("initial commit"));
-
-    while let Some(mut incoming) = repo.push(&mut ws)? {
-        incoming.merge(&mut ws)?;
-        ws = incoming;
-    }
-
-    Ok(())
-}
+// Work with repo as usual …
+// repo.close()?; // if the underlying storage supports StorageClose
 ```
-
-`ObjectStoreRemote` writes directly through to the backing service, so there is
-no `repo.close()` equivalent to call at the end. Dropping the repository handle
-is enough to release resources.
-
-Credential configuration follows the `object_store` backend you select. For
-example, S3 endpoints consume AWS access keys or IAM roles, while
-`memory:///foo` provides a purely in-memory store for local testing. Once the
-URL resolves, repositories backed by piles and remote stores share the same
-workflow APIs.
 
 ## Branching
 
 A branch records a line of history. Creating one writes initial metadata to the
-underlying store and yields a `Workspace` pointing at that branch. Typical steps
+underlying store and returns an `ExclusiveId` guard for that branch. Pulling the
+branch yields a `Workspace` pointing at its head. Typical steps
 look like:
 
 1. Create a repository backed by blob and branch stores.
-2. Open or create a branch to obtain a `Workspace`.
+2. Create or look up a branch ID, then call `Repository::pull` to obtain a
+   `Workspace`.
 3. Commit changes in the workspace.
 4. Push the workspace to publish those commits.
 
-While `Repository::branch` is a convenient way to start a fresh branch, most
-workflows use `Repository::pull` to obtain a workspace for an existing branch:
+Use `Repository::create_branch` to initialize new branches. It returns an
+`ExclusiveId` guard that ensures the ID is not simultaneously handed out to
+another writer. Pass the guard's underlying `Id` to `Repository::pull` to obtain
+workspaces for that branch, and drop or `release` the guard once exclusive
+ownership is no longer required:
 
 ```rust
 let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-let mut ws = repo.branch("main").expect("create branch");
+let branch_id = repo.create_branch("main", None).expect("create branch");
+let mut ws = repo.pull(*branch_id).expect("open branch");
 let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
 ```
 
@@ -173,6 +173,54 @@ A simplified view of the push/merge cycle:
 Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts
 remain.
+
+## Remote Stores
+
+Remote deployments use the [`ObjectStoreRemote`](../src/repo/objectstore.rs)
+backend to speak to any service supported by the
+[`object_store`](https://docs.rs/object_store/latest/object_store/) crate (S3,
+Google Cloud Storage, Azure Blob Storage, HTTP-backed stores, the local
+filesystem, and the in-memory `memory:///` adapter). `ObjectStoreRemote`
+implements both `BlobStore` and `BranchStore`, so the rest of the repository API
+continues to work unchanged – the only difference is the URL you pass to
+`with_url`.
+
+```rust,ignore
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::prelude::*;
+use tribles::repo::objectstore::ObjectStoreRemote;
+use tribles::repo::Repository;
+use tribles::value::schemas::hash::Blake3;
+use url::Url;
+
+fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
+    let url = Url::parse(raw_url)?;
+    let storage = ObjectStoreRemote::<Blake3>::with_url(&url)?;
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+
+    let branch_id = repo.create_branch("main", None)?;
+    let mut ws = repo.pull(*branch_id)?;
+    ws.commit(TribleSet::new(), Some("initial commit"));
+
+    while let Some(mut incoming) = repo.push(&mut ws)? {
+        incoming.merge(&mut ws)?;
+        ws = incoming;
+    }
+
+    Ok(())
+}
+```
+
+`ObjectStoreRemote` writes directly through to the backing service, so there is
+no `repo.close()` equivalent to call at the end. Dropping the repository handle
+is enough to release resources.
+
+Credential configuration follows the `object_store` backend you select. For
+example, S3 endpoints consume AWS access keys or IAM roles, while
+`memory:///foo` provides a purely in-memory store for local testing. Once the
+URL resolves, repositories backed by piles and remote stores share the same
+workflow APIs.
 
 ## Attaching a Foreign History (merge-import)
 

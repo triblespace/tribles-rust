@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Documented repository storage backends and added a book page tracking future
+  documentation improvements.
 - Glossary chapter in the book for quick reference to core terminology.
 - `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
   documentation updates.
@@ -31,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deduplicated value sequences.
 
 ### Changed
+- Updated the README and book examples to use `Repository::create_branch` plus
+  `pull` instead of the removed `branch` helper when initializing workspaces.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
@@ -54,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
+- Rewrote the pile blob metadata chapter to describe the `BlobMetadata`
+  API and linked it from the pile format documentation.
 - Documented that the pile is an immutable append-only log: only the un-applied tail is validated and mutating existing data is undefined behavior.
 - Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
   refreshes before writing, then reads back its blob with `apply_next` to ensure
@@ -97,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Corrected the blob book example to import the repository module via `tribles::repo`.
 - Removed an unused `anyhow` import from the succinct archive schema.
 - `SuccinctArchive::from` now handles empty `TribleSet`s and returns an
   empty archive instead of panicking.

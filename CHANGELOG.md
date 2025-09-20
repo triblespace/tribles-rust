@@ -18,10 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Test coverage for `branch_from` and `pull_with_key`.
+- Migrated `SuccinctArchive` to new `jerky`/`anybytes` APIs and added
+  serializable metadata.
+- Implemented `ToBlob`/`TryFromBlob` for `SuccinctArchive`, enabling archive
+  serialization as a blob.
 - `Pile::restore` method to repair piles with trailing corruption.
 - Documented zero-length blob support and added tests for empty blob insertion and retrieval.
+- `with_sorted_dedup` constructor for universes to build from already sorted,
+  deduplicated value sequences.
 
 ### Changed
+- Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+- `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
+- `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
+- Simplified blob deserialization by reading archive metadata via `Bytes::view_suffix`.
+- `OrderedUniverse` now stores values as `View<[RawValue]>` for zero-copy access.
+- Simplified `OrderedUniverse::with_sorted_dedup` to always collect incoming
+  values before writing them into the reserved section, avoiding reliance on
+  unstable iterator detection.
+- Universes now allocate their own byte sections via a `SectionWriter`, so callers only pass an iterator. `CompressedUniverse::with` no longer clones its values.
+- `SuccinctArchive` constructs universes with `with_sorted_dedup`, avoiding an extra sort/dedup pass when the caller already guarantees ordering.
+- `with_sorted_dedup` now accepts iterators so compressed universes can build domains without materializing values.
+- `SuccinctArchiveMeta` now accepts the domain's serialized metadata type,
+  removing its hardcoded `SectionHandle<RawValue>` dependency.
+- `SuccinctArchiveMeta` bounds metadata types with jerky's `Metadata` marker
+  to guarantee zero-copy-safe layouts.
+- `CompressedUniverse` now relies solely on jerky's `DacsByte` and a section-
+  backed fragment table, enabling fully zero-copy serialization via
+  `Serializable`.
 - Documented that branch updates do not ensure referenced blobs exist, enabling
   piles to serve as head-only stores.
 - Clarified that multiple pile writers require filesystems with atomic append
@@ -70,6 +94,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Removed an unused `anyhow` import from the succinct archive schema.
+- `SuccinctArchive::from` now handles empty `TribleSet`s and returns an
+  empty archive instead of panicking.
+- `CachedUniverse::search` avoids underflow when querying an empty universe.
 - Opening excessively large piles now returns an error instead of panicking when calculating the mapped size.
 - Regression tests verify blob bytes remain intact after branch updates and across flushes.
 - `PileReader::metadata` now validates blob contents and returns `None` for corrupted blobs.

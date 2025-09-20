@@ -31,6 +31,7 @@ mod getting_started {
 }
 
 fn main() {
+#     let _ = std::fs::remove_file("example.pile");
     let mut pile = Pile::open(Path::new("example.pile")).expect("open pile");
     pile.restore().expect("restore pile");
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
@@ -43,13 +44,14 @@ fn main() {
     ws.commit(entity! { &ufoid() @ getting_started::firstname: "Alice" }, None);
     assert!(repo.push(&mut ws).expect("push branch").is_none());
     repo.close().expect("close repository");
-    std::fs::remove_file("example.pile").expect("remove example pile");
+#     std::fs::remove_file("example.pile").expect("remove example pile");
 }
 ```
 
 Running this program with `cargo run` pushes a single entity to the `main`
-branch. The example removes the pile file at the end so repeated doc test runs
-start fresh; comment out that line if you want to inspect the stored data.
+branch. The doc test includes hidden cleanup to remove the `example.pile` file
+between runs, so feel free to keep the file when adapting the example locally if
+you would like to inspect the stored data.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.

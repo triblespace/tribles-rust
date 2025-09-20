@@ -31,8 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Getting started guide now demonstrates defining custom attributes alongside
-  the quick-start example and exercises the quick-start snippet as a runnable
-  doc test.
+  the quick-start example, hides doc-test-only cleanup, and exercises the
+  quick-start snippet as a runnable doc test.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.

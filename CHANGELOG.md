@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented repository storage backends and added a book page tracking future
   documentation improvements.
 - Glossary chapter in the book for quick reference to core terminology.
+- Expanded the Identifiers chapter with a `local_ids` + `IdOwner` workflow
+  example showing how to borrow freshly minted IDs in queries.
 - `nth_ancestor` commit selector corresponding to Git's `A~N` syntax and
   documentation updates.
 - `parents` commit selector corresponding to Git's `A^@` syntax.
@@ -30,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deduplicated value sequences.
 
 ### Changed
+- Clarified that `find!` retrieves `ExclusiveId` bindings via `FromValue` and
+  that restricting queries with `local_ids` keeps the conversion safe.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.

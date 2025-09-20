@@ -157,6 +157,69 @@ confident that no other information has been written about the entities in quest
 By default, all minted `ExclusiveId`s are associated with the thread they are dropped from.
 These IDs can be found in queries via the `local_ids` function.
 
+Once the IDs are back in scope you can either work with them directly as
+[`ExclusiveId`](crate::id::ExclusiveId)s or move them into an explicit
+[`IdOwner`](crate::id::IdOwner) for a longer lived transaction.  The example
+below shows both approaches in action:
+
+```rust
+use tribles::examples::literature;
+use tribles::prelude::*;
+
+let mut kb = TribleSet::new();
+{
+    let isaac = ufoid();
+    let jules = ufoid();
+    kb += entity! { &isaac @
+        literature::firstname: "Isaac",
+        literature::lastname: "Asimov",
+    };
+    kb += entity! { &jules @
+        literature::firstname: "Jules",
+        literature::lastname: "Verne",
+    };
+} // `isaac` and `jules` fall back to this thread's implicit IdOwner here.
+
+let mut txn_owner = IdOwner::new();
+let mut updates = TribleSet::new();
+
+for (author, name) in find!(
+    (author: ExclusiveId, name: String),
+    and!(
+        local_ids(author),
+        pattern!(&kb, [{
+            ?author @ literature::firstname: ?name
+        }])
+    )
+) {
+    // `author` is an ExclusiveId borrowed from the implicit thread owner.
+    let author_id = txn_owner.insert(author);
+
+    {
+        let borrowed = txn_owner
+            .borrow(&author_id)
+            .expect("the ID was inserted above");
+        updates += entity! { &borrowed @ literature::lastname: name.clone() };
+    } // `borrowed` drops here and returns the ID to `txn_owner`.
+}
+```
+
+Binding the variable as an [`ExclusiveId`](crate::id::ExclusiveId) means the
+closure that [`find!`](crate::query::find) installs will run the
+[`FromValue`](crate::value::FromValue) implementation for `ExclusiveId`.
+`FromValue` simply unwraps [`TryFromValue`](crate::value::TryFromValue), which
+invokes [`Id::aquire`](crate::id::Id::aquire) and would panic if the current
+thread did not own the identifier.  The
+[`local_ids`](crate::query::local_ids) constraint keeps the query safe by only
+enumerating IDs already owned by this thread.  In the example we immediately
+move the acquired guard into `txn_owner`, enabling subsequent calls to
+[`IdOwner::borrow`](crate::id::IdOwner::borrow) that yield
+[`OwnedId`](crate::id::OwnedId)s.  Dropping an `OwnedId` automatically returns
+the identifier to its owner so you can borrow it again later.  If you only need
+the ID for a quick update you can skip the explicit owner entirely, bind the
+variable as a plain [`Id`](crate::id::Id), and call
+[`Id::aquire`](crate::id::Id::aquire) when exclusive access is required.
+
 ## Ownership and Eventual Consistency
 
 While a simple grow set like the history stored in a [Head](crate::remote::Head)

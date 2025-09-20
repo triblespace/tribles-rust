@@ -106,16 +106,20 @@ repo.push(&mut ws).expect("push");
 
 // Fetch the staged blobs back with the desired representation.
 let restored_quote: String = ws
-    .get::<String, LongString>(quote_handle)
+    .get(quote_handle)
     .expect("load quote");
 let restored_set: TribleSet = ws
-    .get::<TribleSet, SimpleArchive>(archive_handle)
+    .get(archive_handle)
     .expect("load dataset");
 let archive_bytes: Blob<SimpleArchive> = ws
-    .get::<Blob<SimpleArchive>, SimpleArchive>(archive_handle)
+    .get(archive_handle)
     .expect("load raw blob");
 std::fs::write("dataset.car", archive_bytes.bytes.as_ref()).expect("persist archive");
 ```
+
+Rust infers the blob schema for both `put` and `get` from the handles and the
+assignment context, so the calls stay concise without explicit turbofish
+annotations.
 
 Blobs staged this way stay local to the workspace until you push the commit.
 `Workspace::get` searches the workspace-local store first and falls back to the

@@ -56,13 +56,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pile = Pile::open(Path::new("example.pile"))?;
     pile.restore()?;
     let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-    let mut ws = repo.branch("main")?;
+    let branch_id = repo.create_branch("main", None)?;
+    let mut ws = repo.pull(*branch_id)?;
 
     ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
     Ok(())
 }
 ```
+
+`Repository::create_branch` returns an `ExclusiveId` guard for the new branch.
+Dereference it (or call `release`) when passing the branch identifier to
+`Repository::pull` so additional workspaces can target the same branch.
 
 # Example
 

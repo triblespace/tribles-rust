@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NameConflict` error when multiple branches share the same name.
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
+- Book section showing how to stage and fetch workspace blobs with `Workspace::put`
+  and `Workspace::get`.
+- Guidance on integrating custom constraints with external data sources in the book.
+- Garbage-collection chapter now shows how `BlobStoreList` and `copy_reachable`
+  work together to enumerate and traverse blobs in practice.
+- Remote store workflow example in the book showing how to open
+  `ObjectStoreRemote` repositories and clarifying that no explicit close is
+  required for remote backends.
 - Test coverage for `branch_from` and `pull_with_key`.
 - Migrated `SuccinctArchive` to new `jerky`/`anybytes` APIs and added
   serializable metadata.
@@ -28,11 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented zero-length blob support and added tests for empty blob insertion and retrieval.
 - `with_sorted_dedup` constructor for universes to build from already sorted,
   deduplicated value sequences.
+- Book section documenting how to manage multiple signing identities with
+  `Repository::set_signing_key`, `Repository::create_branch_with_key`, and
+  `Repository::pull_with_key`.
 
 ### Changed
 - Getting started guide now demonstrates defining custom attributes alongside
   the quick-start example, hides doc-test-only cleanup, and exercises the
   quick-start snippet as a runnable doc test.
+- Updated the README and book examples to use `Repository::create_branch` plus
+  `pull` instead of the removed `branch` helper when initializing workspaces.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
@@ -43,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unstable iterator detection.
 - Universes now allocate their own byte sections via a `SectionWriter`, so callers only pass an iterator. `CompressedUniverse::with` no longer clones its values.
 - `SuccinctArchive` constructs universes with `with_sorted_dedup`, avoiding an extra sort/dedup pass when the caller already guarantees ordering.
+- Updated the repository workflow documentation to use `Repository::create_branch`
+  and provide a runnable blob staging example.
+- Getting started guide now highlights the need to close pile-backed repositories so callers can handle flush errors explicitly.
 - `with_sorted_dedup` now accepts iterators so compressed universes can build domains without materializing values.
 - `SuccinctArchiveMeta` now accepts the domain's serialized metadata type,
   removing its hardcoded `SectionHandle<RawValue>` dependency.
@@ -53,9 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Serializable`.
 - Documented that branch updates do not ensure referenced blobs exist, enabling
   piles to serve as head-only stores.
+- Clarified repository workflow docs with a sidebar comparing `copy_reachable`
+  and `repo::transfer`, including garbage-collection scenarios that only copy
+  live blobs.
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
+- Rewrote the pile blob metadata chapter to describe the `BlobMetadata`
+  API and linked it from the pile format documentation.
 - Documented that the pile is an immutable append-only log: only the un-applied tail is validated and mutating existing data is undefined behavior.
 - Removed in-flight blob tracking. `Pile::put` now holds a shared lock,
   refreshes before writing, then reads back its blob with `apply_next` to ensure
@@ -99,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Corrected the blob book example to import the repository module via `tribles::repo`.
 - Removed an unused `anyhow` import from the succinct archive schema.
 - `SuccinctArchive::from` now handles empty `TribleSet`s and returns an
   empty archive instead of panicking.

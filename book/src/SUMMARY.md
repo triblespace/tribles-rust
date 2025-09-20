@@ -22,4 +22,4 @@
   - [Blobs](deep-dive/blobs.md)
   - [PATCH](deep-dive/patch.md)
   - [Pile Format](pile-format.md)
-  - [Pile Blob Metadata](pile-metadata-proposal.md)
+  - [Pile Blob Metadata](pile-blob-metadata.md)

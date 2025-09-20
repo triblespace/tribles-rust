@@ -48,10 +48,19 @@ fn main() {
 }
 ```
 
-Running this program with `cargo run` pushes a single entity to the `main`
-branch. The doc test includes hidden cleanup to remove the `example.pile` file
-between runs, so feel free to keep the file when adapting the example locally if
-you would like to inspect the stored data.
+Running this program with `cargo run` creates an `example.pile` file in the current
+directory and pushes a single entity to the `main` branch. `Repository::create_branch`
+registers the branch and returns an `ExclusiveId` guard; pass its `Id`
+to `Repository::pull` (via dereferencing or `ExclusiveId::release`) to obtain a
+`Workspace` for writing commits.
+
+When working with pile-backed repositories it is important to close them
+explicitly once you are done so buffered data is flushed and any errors are
+reported while you can still decide how to handle them. The `repo.close()?;`
+call in the example surfaces those errors; if the repository were only dropped,
+failures would have to be logged or panic instead. Alternatively, you can
+recover the underlying pile with `Repository::into_storage` and call
+`Pile::close()` yourself.
 
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.
@@ -59,3 +68,12 @@ additional modules and examples.
 Note: the `pattern!` macro used in queries treats a bare identifier as a
 variable binding and more complex expressions (including string literals) as
 literal values; parentheses may still be used to force a literal where desired.
+
+## Switching signing identities
+
+The setup above generates a single signing key for brevity, but collaborating
+authors typically hold individual keys. Call `Repository::set_signing_key`
+before branching or pulling when you need a different default identity, or use
+`Repository::create_branch_with_key` and `Repository::pull_with_key` to choose a
+specific key per branch or workspace. The [Managing signing identities](repository-workflows.html#managing-signing-identities)
+section covers this workflow in more detail.

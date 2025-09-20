@@ -61,6 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Serializable`.
 - Documented that branch updates do not ensure referenced blobs exist, enabling
   piles to serve as head-only stores.
+- Clarified repository workflow docs with a sidebar comparing `copy_reachable`
+  and `repo::transfer`, including garbage-collection scenarios that only copy
+  live blobs.
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").

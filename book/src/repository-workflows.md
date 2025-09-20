@@ -298,6 +298,23 @@ Internally this uses `repo::copy_reachable` and `Workspace::merge_commit`.
 Because `copy_reachable` scans aligned 32‑byte chunks, it is forward‑compatible
 with new formats as long as embedded handles remain 32‑aligned.
 
+> **Sidebar — Choosing a copy routine**
+> - `repo::copy_reachable` walks the graph starting from the commits you
+>   provide. It follows 32-byte-aligned handles inside each blob and only
+>   uploads objects that are actually reachable from those heads. This keeps
+>   merge-import fast when both piles share the same hash protocol and you just
+>   need to graft a foreign history, and it doubles as a mark-and-sweep style
+>   collector when you want to copy only the live blobs into a fresh pile.
+> - `repo::transfer` iterates every blob that the source store exposes and
+>   returns an iterator of `(old_handle, new_handle)` pairs as it writes them
+>   into the destination. That exhaustive pass is ideal for full backups or for
+>   migrating into a store that uses a different hash protocol where you must
+>   rewrite every reference.
+>
+> Reachable copy keeps imports minimal; the transfer helper trades extra work
+> for a complete mapping when you need to rewrite handles or duplicate an
+> entire pile.
+
 ### Programmatic example (Rust)
 
 The same flow can be used directly from Rust when you have two piles on disk and

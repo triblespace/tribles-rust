@@ -58,20 +58,26 @@ let mut repo = Repository::new(storage, signing_key);
 ## Branching
 
 A branch records a line of history. Creating one writes initial metadata to the
-underlying store and yields a `Workspace` pointing at that branch. Typical steps
+underlying store and returns an `ExclusiveId` guard for that branch. Pulling the
+branch yields a `Workspace` pointing at its head. Typical steps
 look like:
 
 1. Create a repository backed by blob and branch stores.
-2. Open or create a branch to obtain a `Workspace`.
+2. Create or look up a branch ID, then call `Repository::pull` to obtain a
+   `Workspace`.
 3. Commit changes in the workspace.
 4. Push the workspace to publish those commits.
 
-While `Repository::branch` is a convenient way to start a fresh branch, most
-workflows use `Repository::pull` to obtain a workspace for an existing branch:
+Use `Repository::create_branch` to initialize new branches. It returns an
+`ExclusiveId` guard that ensures the ID is not simultaneously handed out to
+another writer. Pass the guard's underlying `Id` to `Repository::pull` to obtain
+workspaces for that branch, and drop or `release` the guard once exclusive
+ownership is no longer required:
 
 ```rust
 let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-let mut ws = repo.branch("main").expect("create branch");
+let branch_id = repo.create_branch("main", None).expect("create branch");
+let mut ws = repo.pull(*branch_id).expect("open branch");
 let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
 ```
 
@@ -81,6 +87,54 @@ After committing changes you can push the workspace back:
 ws.commit(change, Some("initial commit"));
 repo.push(&mut ws)?;
 ```
+
+### Managing signing identities
+
+The key passed to `Repository::new` becomes the default signing identity for
+branch metadata and commits. Collaborative projects often need to switch
+between multiple authors or assign a dedicated key to automation. You can
+adjust the active identity in three ways:
+
+* `Repository::set_signing_key` replaces the repository's default key. Subsequent
+  calls to helpers such as `Repository::branch` or `Repository::pull` use the new
+  key for any commits created from those workspaces.
+* `Repository::create_branch_with_key` signs a branch's metadata with an explicit
+  key, allowing each branch to advertise the author responsible for updating it.
+* `Repository::pull_with_key` opens a workspace that will sign its future commits
+  with the provided key, regardless of the repository default.
+
+The snippet below demonstrates giving an automation bot its own identity while
+letting a human collaborator keep theirs:
+
+```rust,ignore
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::repo::Repository;
+
+let alice = SigningKey::generate(&mut OsRng);
+let automation = SigningKey::generate(&mut OsRng);
+
+// Assume `pile` was opened earlier, e.g. via `Pile::open` as shown in previous sections.
+let mut repo = Repository::new(pile, alice.clone());
+
+// Create a dedicated branch for the automation pipeline using its key.
+let automation_branch = repo
+    .create_branch_with_key("automation", None, automation.clone())?
+    .release();
+
+// Point automation jobs at their dedicated identity by default.
+repo.set_signing_key(automation.clone());
+let mut bot_ws = repo.pull(automation_branch)?;
+
+// Humans can opt into their own signing identity even while automation remains
+// the repository default.
+let mut human_ws = repo.pull_with_key(automation_branch, alice.clone())?;
+```
+
+`human_ws` and `bot_ws` now operate on the same branch but will sign their
+commits with different keys. This pattern is useful when rotating credentials or
+running scheduled jobs under a service identity while preserving authorship in
+the history.
 
 ## Inspecting History
 
@@ -168,6 +222,54 @@ Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts
 remain.
 
+## Remote Stores
+
+Remote deployments use the [`ObjectStoreRemote`](../src/repo/objectstore.rs)
+backend to speak to any service supported by the
+[`object_store`](https://docs.rs/object_store/latest/object_store/) crate (S3,
+Google Cloud Storage, Azure Blob Storage, HTTP-backed stores, the local
+filesystem, and the in-memory `memory:///` adapter). `ObjectStoreRemote`
+implements both `BlobStore` and `BranchStore`, so the rest of the repository API
+continues to work unchanged – the only difference is the URL you pass to
+`with_url`.
+
+```rust,ignore
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use tribles::prelude::*;
+use tribles::repo::objectstore::ObjectStoreRemote;
+use tribles::repo::Repository;
+use tribles::value::schemas::hash::Blake3;
+use url::Url;
+
+fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
+    let url = Url::parse(raw_url)?;
+    let storage = ObjectStoreRemote::<Blake3>::with_url(&url)?;
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+
+    let branch_id = repo.create_branch("main", None)?;
+    let mut ws = repo.pull(*branch_id)?;
+    ws.commit(TribleSet::new(), Some("initial commit"));
+
+    while let Some(mut incoming) = repo.push(&mut ws)? {
+        incoming.merge(&mut ws)?;
+        ws = incoming;
+    }
+
+    Ok(())
+}
+```
+
+`ObjectStoreRemote` writes directly through to the backing service, so there is
+no `repo.close()` equivalent to call at the end. Dropping the repository handle
+is enough to release resources.
+
+Credential configuration follows the `object_store` backend you select. For
+example, S3 endpoints consume AWS access keys or IAM roles, while
+`memory:///foo` provides a purely in-memory store for local testing. Once the
+URL resolves, repositories backed by piles and remote stores share the same
+workflow APIs.
+
 ## Attaching a Foreign History (merge-import)
 
 Sometimes you want to graft an existing branch from another pile into your
@@ -195,6 +297,23 @@ trible branch merge-import \
 Internally this uses `repo::copy_reachable` and `Workspace::merge_commit`.
 Because `copy_reachable` scans aligned 32‑byte chunks, it is forward‑compatible
 with new formats as long as embedded handles remain 32‑aligned.
+
+> **Sidebar — Choosing a copy routine**
+> - `repo::copy_reachable` walks the graph starting from the commits you
+>   provide. It follows 32-byte-aligned handles inside each blob and only
+>   uploads objects that are actually reachable from those heads. This keeps
+>   merge-import fast when both piles share the same hash protocol and you just
+>   need to graft a foreign history, and it doubles as a mark-and-sweep style
+>   collector when you want to copy only the live blobs into a fresh pile.
+> - `repo::transfer` iterates every blob that the source store exposes and
+>   returns an iterator of `(old_handle, new_handle)` pairs as it writes them
+>   into the destination. That exhaustive pass is ideal for full backups or for
+>   migrating into a store that uses a different hash protocol where you must
+>   rewrite every reference.
+>
+> Reachable copy keeps imports minimal; the transfer helper trades extra work
+> for a complete mapping when you need to rewrite handles or duplicate an
+> entire pile.
 
 ### Programmatic example (Rust)
 

@@ -462,7 +462,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 Value::Expr(ref id_expr) => {
                     quote! {
                         let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                        constraints.push({ let e: ::tribles::id::Id = #id_expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                        constraints.push(Box::new(#e_ident.is(::tribles::value::ToValue::to_value(#id_expr))));
                     }
                 }
             }
@@ -716,12 +716,10 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 Value::Var(ref ident) => {
                     entity_decl_tokens.extend(quote! { let #e_ident = #ident; });
                 }
-                Value::Expr(ref expr) => {
-                    entity_decl_tokens.extend(quote! {
-                            let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
-                        });
+                Value::Expr(ref id_expr) => {
                     entity_const_tokens.extend(quote! {
-                            constraints.push({ let e: ::tribles::id::Id = #expr; Box::new(#e_ident.is(::tribles::value::ToValue::to_value(e)))});
+                            let #e_ident: ::tribles::query::Variable<::tribles::value::schemas::genid::GenId> = #ctx_ident.next_variable();
+                            constraints.push(Box::new(#e_ident.is(::tribles::value::ToValue::to_value(#id_expr))));
                         });
                 }
             },

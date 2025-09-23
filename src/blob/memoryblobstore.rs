@@ -4,14 +4,15 @@ use crate::blob::BlobSchema;
 use crate::blob::ToBlob;
 use crate::repo::BlobStore;
 use crate::repo::BlobStoreGet;
+use crate::repo::BlobStoreKeep;
 use crate::repo::BlobStoreList;
 use crate::repo::BlobStorePut;
-use crate::trible::TribleSet;
 use crate::value::schemas::hash::Handle;
 use crate::value::schemas::hash::HashProtocol;
 use crate::value::Value;
+use crate::value::VALUE_LEN;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Debug;
@@ -27,7 +28,7 @@ use super::TryFromBlob;
 
 enum MemoryBlobStoreOps<H: HashProtocol> {
     Insert(Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>),
-    Keep(TribleSet),
+    Keep(HashSet<[u8; VALUE_LEN]>),
 }
 
 type MemoryBlobStoreMap<H> = BTreeMap<Value<Handle<H, UnknownBlob>>, Blob<UnknownBlob>>;
@@ -45,8 +46,8 @@ impl<H: HashProtocol> Apply<MemoryBlobStoreMap<H>, ()> for MemoryBlobStoreOps<H>
                 // ignore it if the blob is already present.
                 first.entry(*handle).or_insert(blob.clone());
             }
-            MemoryBlobStoreOps::Keep(trible_set) => {
-                first.retain(|k, _| trible_set.vae.has_prefix(&k.raw))
+            MemoryBlobStoreOps::Keep(retain) => {
+                first.retain(|handle, _| retain.contains(&handle.raw))
             }
         }
     }
@@ -165,8 +166,21 @@ impl<H: HashProtocol> MemoryBlobStore<H> {
     ///
     /// This is a simple mark-and-sweep style GC used to prune unreferenced
     /// blobs from long lived stores.
-    pub fn keep(&mut self, tribles: TribleSet) {
-        self.write_handle.append(MemoryBlobStoreOps::Keep(tribles));
+    pub fn keep<I>(&mut self, handles: I)
+    where
+        I: IntoIterator<Item = Value<Handle<H, UnknownBlob>>>,
+    {
+        let retain: HashSet<[u8; VALUE_LEN]> = handles.into_iter().map(|h| h.raw).collect();
+        self.write_handle.append(MemoryBlobStoreOps::Keep(retain));
+    }
+}
+
+impl<H: HashProtocol> BlobStoreKeep<H> for MemoryBlobStore<H> {
+    fn keep<I>(&mut self, handles: I)
+    where
+        I: IntoIterator<Item = Value<Handle<H, UnknownBlob>>>,
+    {
+        MemoryBlobStore::keep(self, handles);
     }
 }
 
@@ -371,6 +385,9 @@ mod tests {
 
     #[test]
     fn keep() {
+        use crate::repo::potential_handles;
+        use crate::trible::TribleSet;
+
         let mut kb = TribleSet::new();
         let mut blobs = MemoryBlobStore::new();
         for _i in 0..200 {
@@ -378,6 +395,6 @@ mod tests {
                 description: blobs.put(Bytes::from_source(Name(EN).fake::<String>()).view().unwrap()).unwrap()
              });
         }
-        blobs.keep(kb);
+        blobs.keep(potential_handles::<Blake3>(&kb));
     }
 }

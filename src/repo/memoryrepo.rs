@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 
+use crate::blob::schemas::UnknownBlob;
 use crate::blob::BlobSchema;
 use crate::blob::MemoryBlobStore;
 use crate::blob::ToBlob;
@@ -41,6 +42,15 @@ impl crate::repo::BlobStore<Blake3> for MemoryRepo {
     type ReaderError = <MemoryBlobStore<Blake3> as crate::repo::BlobStore<Blake3>>::ReaderError;
     fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError> {
         self.blobs.reader()
+    }
+}
+
+impl crate::repo::BlobStoreKeep<Blake3> for MemoryRepo {
+    fn keep<I>(&mut self, handles: I)
+    where
+        I: IntoIterator<Item = Value<Handle<Blake3, UnknownBlob>>>,
+    {
+        self.blobs.keep(handles);
     }
 }
 

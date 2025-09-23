@@ -136,7 +136,7 @@ where
 }
 
 use crate::pattern;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Debug;
@@ -251,6 +251,14 @@ pub trait BlobStore<H: HashProtocol>: BlobStorePut<H> {
     fn reader(&mut self) -> Result<Self::Reader, Self::ReaderError>;
 }
 
+/// Trait for blob stores that can retain a supplied set of handles.
+pub trait BlobStoreKeep<H: HashProtocol> {
+    /// Retain only the blobs identified by `handles`.
+    fn keep<I>(&mut self, handles: I)
+    where
+        I: IntoIterator<Item = Value<Handle<H, UnknownBlob>>>;
+}
+
 #[derive(Debug)]
 pub enum PushResult<H>
 where
@@ -336,14 +344,11 @@ where
     }
 }
 
-/// Copies every blob from `source` into `target`.
-///
-/// The returned iterator yields a `(old, new)` handle pair for each transferred
-/// blob, allowing callers to update references from the source store to the
-/// newly inserted blobs in the target.
-pub fn transfer<'a, BS, BT, HS, HT, S>(
+/// Copies the specified blob handles from `source` into `target`.
+pub fn transfer<'a, BS, BT, HS, HT, Handles>(
     source: &'a BS,
     target: &'a mut BT,
+    handles: Handles,
 ) -> impl Iterator<
     Item = Result<
         (
@@ -351,148 +356,135 @@ pub fn transfer<'a, BS, BT, HS, HT, S>(
             Value<Handle<HT, UnknownBlob>>,
         ),
         TransferError<
-            <BS as BlobStoreList<HS>>::Err,
+            Infallible,
             <BS as BlobStoreGet<HS>>::GetError<Infallible>,
             <BT as BlobStorePut<HT>>::PutError,
         >,
     >,
 > + 'a
 where
-    BS: BlobStoreList<HS> + BlobStoreGet<HS>,
-    BT: BlobStorePut<HT>,
+    BS: BlobStoreGet<HS> + 'a,
+    BT: BlobStorePut<HT> + 'a,
     HS: 'static + HashProtocol,
     HT: 'static + HashProtocol,
+    Handles: IntoIterator<Item = Value<Handle<HS, UnknownBlob>>> + 'a,
+    Handles::IntoIter: 'a,
 {
-    source.blobs().map(
-        move |source_handle: Result<
-            Value<Handle<HS, UnknownBlob>>,
-            <BS as BlobStoreList<HS>>::Err,
-        >| {
-            let source_handle = source_handle.map_err(TransferError::List)?;
-            let blob: Blob<UnknownBlob> = source.get(source_handle).map_err(TransferError::Load)?;
-            let target_handle = target.put(blob).map_err(TransferError::Store)?;
-            Ok((source_handle, target_handle))
-        },
-    )
+    handles.into_iter().map(move |source_handle| {
+        let blob: Blob<UnknownBlob> = source.get(source_handle).map_err(TransferError::Load)?;
+        let target_handle = target.put(blob).map_err(TransferError::Store)?;
+        Ok((source_handle, target_handle))
+    })
 }
 
-/// Statistics returned by `copy_reachable`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct CopyReachableStats {
-    /// Number of distinct blob handles discovered (visited).
-    pub visited: usize,
-    /// Number of blobs written into the target store (including de‑duped writes).
-    pub stored: usize,
-}
-
-/// Error type for `copy_reachable` operations.
-#[derive(Debug)]
-pub enum CopyReachableError<LoadErr, StoreErr>
-where
-    LoadErr: Error + Debug + 'static,
-    StoreErr: Error + Debug + 'static,
-{
-    Load(LoadErr),
-    Store(StoreErr),
-}
-
-impl<LoadErr, StoreErr> fmt::Display for CopyReachableError<LoadErr, StoreErr>
-where
-    LoadErr: Error + Debug + 'static,
-    StoreErr: Error + Debug + 'static,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Load(e) => write!(f, "load error: {e}"),
-            Self::Store(e) => write!(f, "store error: {e}"),
-        }
-    }
-}
-
-impl<LoadErr, StoreErr> Error for CopyReachableError<LoadErr, StoreErr>
-where
-    LoadErr: Error + Debug + 'static,
-    StoreErr: Error + Debug + 'static,
-{
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::Load(e) => Some(e),
-            Self::Store(e) => Some(e),
-        }
-    }
-}
-
-/// Conservatively copy all blobs reachable from the provided root handles in `source`
-/// into `target` by scanning each loaded blob's bytes for 32‑byte aligned chunks and
-/// attempting to treat each as a hash handle in the same hash protocol.
-///
-/// - Requires no schema/namespace knowledge and is robust to future additions.
-/// - Duplicate blobs are naturally de‑duplicated by the target store's hashing.
-/// - The traversal starts from the provided roots (e.g., a branch head commit handle).
-pub fn copy_reachable<BS, BT, H>(
-    source: &BS,
-    target: &mut BT,
-    roots: impl IntoIterator<Item = Value<Handle<H, UnknownBlob>>>,
-) -> Result<
-    CopyReachableStats,
-    CopyReachableError<
-        <BS as BlobStoreGet<H>>::GetError<Infallible>,
-        <BT as BlobStorePut<H>>::PutError,
-    >,
->
+/// Iterator that visits every blob handle reachable from a set of roots.
+pub struct ReachableHandles<'a, BS, H>
 where
     BS: BlobStoreGet<H>,
-    BT: BlobStorePut<H>,
     H: 'static + HashProtocol,
 {
-    use std::collections::HashSet;
-    use std::collections::VecDeque;
+    source: &'a BS,
+    queue: VecDeque<Value<Handle<H, UnknownBlob>>>,
+    visited: HashSet<[u8; VALUE_LEN]>,
+}
 
-    let mut visited: HashSet<[u8; 32]> = HashSet::new();
-    let mut queue: VecDeque<Value<Handle<H, UnknownBlob>>> = VecDeque::new();
-    for r in roots.into_iter() {
-        queue.push_back(r);
+impl<'a, BS, H> ReachableHandles<'a, BS, H>
+where
+    BS: BlobStoreGet<H>,
+    H: 'static + HashProtocol,
+{
+    fn new(source: &'a BS, roots: impl IntoIterator<Item = Value<Handle<H, UnknownBlob>>>) -> Self {
+        let mut queue = VecDeque::new();
+        for handle in roots {
+            queue.push_back(handle);
+        }
+
+        Self {
+            source,
+            queue,
+            visited: HashSet::new(),
+        }
     }
 
-    let mut stats = CopyReachableStats::default();
+    fn enqueue_from_blob(&mut self, blob: &Blob<UnknownBlob>) {
+        let bytes = blob.bytes.as_ref();
+        let mut offset = 0usize;
 
-    while let Some(handle) = queue.pop_front() {
-        let raw: [u8; 32] = handle.raw;
-        if !visited.insert(raw) {
-            continue;
+        while offset + VALUE_LEN <= bytes.len() {
+            let mut raw = [0u8; VALUE_LEN];
+            raw.copy_from_slice(&bytes[offset..offset + VALUE_LEN]);
+
+            if !self.visited.contains(&raw) {
+                let candidate = Value::<Handle<H, UnknownBlob>>::new(raw);
+                if self
+                    .source
+                    .get::<anybytes::Bytes, UnknownBlob>(candidate)
+                    .is_ok()
+                {
+                    self.queue.push_back(candidate);
+                }
+            }
+
+            offset += VALUE_LEN;
         }
-        stats.visited += 1;
+    }
+}
 
-        // Load blob from source; skip if missing.
-        let blob: Blob<UnknownBlob> = match source.get(handle) {
-            Ok(b) => b,
-            Err(_e) => {
-                // Not present in source; ignore.
+impl<'a, BS, H> Iterator for ReachableHandles<'a, BS, H>
+where
+    BS: BlobStoreGet<H>,
+    H: 'static + HashProtocol,
+{
+    type Item = Value<Handle<H, UnknownBlob>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(handle) = self.queue.pop_front() {
+            let raw = handle.raw;
+
+            if !self.visited.insert(raw) {
                 continue;
             }
-        };
 
-        // Store into target (de‑dup handled by storage layer).
-        let _ = target
-            .put(blob.clone())
-            .map_err(CopyReachableError::Store)?;
-        stats.stored += 1;
-
-        // Scan bytes for 32‑byte aligned candidates; push if load succeeds.
-        let bytes: &[u8] = blob.bytes.as_ref();
-        let mut i = 0usize;
-        while i + 32 <= bytes.len() {
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(&bytes[i..i + 32]);
-            let cand: Value<Handle<H, UnknownBlob>> = Value::new(arr);
-            if !visited.contains(&arr) && source.get::<anybytes::Bytes, UnknownBlob>(cand).is_ok() {
-                queue.push_back(cand);
+            if let Ok(blob) = self.source.get(handle) {
+                self.enqueue_from_blob(&blob);
             }
-            i += 32;
-        }
-    }
 
-    Ok(stats)
+            return Some(handle);
+        }
+
+        None
+    }
+}
+
+/// Create a breadth-first iterator over blob handles reachable from `roots`.
+pub fn reachable<'a, BS, H>(
+    source: &'a BS,
+    roots: impl IntoIterator<Item = Value<Handle<H, UnknownBlob>>>,
+) -> ReachableHandles<'a, BS, H>
+where
+    BS: BlobStoreGet<H>,
+    H: 'static + HashProtocol,
+{
+    ReachableHandles::new(source, roots)
+}
+
+/// Iterate over every 32-byte candidate in the value column of a [`TribleSet`].
+///
+/// This is a conservative conversion used when scanning metadata for potential
+/// blob handles. Each 32-byte chunk is treated as a `Handle<H, UnknownBlob>`.
+/// Callers can feed the resulting iterator into [`BlobStoreKeep::keep`] or other
+/// helpers that accept collections of handles.
+pub fn potential_handles<'a, H>(
+    set: &'a TribleSet,
+) -> impl Iterator<Item = Value<Handle<H, UnknownBlob>>> + 'a
+where
+    H: HashProtocol,
+{
+    set.vae.iter().map(|raw| {
+        let mut value = [0u8; VALUE_LEN];
+        value.copy_from_slice(&raw[0..VALUE_LEN]);
+        Value::<Handle<H, UnknownBlob>>::new(value)
+    })
 }
 
 /// An error that can occur when creating a commit.
@@ -1423,7 +1415,8 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         // Validate that `other` can be loaded from either local or base blobs.
         // If it cannot be loaded we still proceed with the merge; dereference
         // failures will surface later when reading history. Callers should
-        // ensure `copy_reachable` was used beforehand when importing.
+        // ensure the reachable blobs were imported beforehand (e.g. by
+        // combining `reachable` with `transfer`).
 
         let parents = self.head.iter().copied().chain(Some(other));
         let merge_commit = commit_metadata(&self.signing_key, parents, None, None);

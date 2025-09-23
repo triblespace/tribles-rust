@@ -338,8 +338,9 @@ current repository without rewriting its commits. Tribles supports a
 conservative, schema‑agnostic import followed by a single merge commit:
 
 1. Copy all reachable blobs from the source branch head into the target pile
-   using `copy_reachable`, which walks every 32‑byte aligned chunk in each
-   blob and enqueues any candidate that dereferences in the source.
+   by streaming the `reachable` walker into `repo::transfer`. The traversal
+   scans every 32‑byte aligned chunk and enqueues any candidate that
+   dereferences in the source.
 2. Create a single merge commit that has two parents: your current branch head
    and the imported head. No content is attached to the merge; it simply ties
    the DAGs together.
@@ -355,26 +356,25 @@ trible branch merge-import \
   --to-pile   /path/to/dst.pile --to-name   self
 ```
 
-Internally this uses `repo::copy_reachable` and `Workspace::merge_commit`.
-Because `copy_reachable` scans aligned 32‑byte chunks, it is forward‑compatible
-with new formats as long as embedded handles remain 32‑aligned.
+Internally this uses the `reachable` walker in combination with
+`repo::transfer` plus `Workspace::merge_commit`. Because the traversal scans
+aligned 32‑byte chunks, it is forward‑compatible with new formats as long as
+embedded handles remain 32‑aligned.
 
 > **Sidebar — Choosing a copy routine**
-> - `repo::copy_reachable` walks the graph starting from the commits you
->   provide. It follows 32-byte-aligned handles inside each blob and only
->   uploads objects that are actually reachable from those heads. This keeps
->   merge-import fast when both piles share the same hash protocol and you just
->   need to graft a foreign history, and it doubles as a mark-and-sweep style
->   collector when you want to copy only the live blobs into a fresh pile.
-> - `repo::transfer` iterates every blob that the source store exposes and
->   returns an iterator of `(old_handle, new_handle)` pairs as it writes them
->   into the destination. That exhaustive pass is ideal for full backups or for
->   migrating into a store that uses a different hash protocol where you must
->   rewrite every reference.
+> - `repo::transfer` pairs the reachability walker (or any other iterator you
+>   provide) with targeted copies, returning `(old_handle, new_handle)` pairs
+>   for the supplied handles. Feed it the `reachable` iterator when you only
+>   want live blobs, the output of
+>   [`potential_handles`](https://docs.rs/tribles/latest/tribles/repo/fn.potential_handles.html)
+>   when scanning metadata, or a collected list from
+>   `BlobStoreList::blobs()` when duplicating an entire store.
+> - `MemoryBlobStore::keep` (and other `BlobStoreKeep` implementations) retain
+>   whichever handles you stream to them, making it easy to drop unreachable
+>   blobs once you've walked your roots.
 >
-> Reachable copy keeps imports minimal; the transfer helper trades extra work
-> for a complete mapping when you need to rewrite handles or duplicate an
-> entire pile.
+> Reachable copy keeps imports minimal; the transfer helper lets you rewrite
+> specific handles while duplicating data into another store.
 
 ### Programmatic example (Rust)
 
@@ -385,8 +385,7 @@ want to attach the history of one branch to another:
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
-use tribles::repo::pile::Pile;
-use tribles::repo::Repository;
+use tribles::repo::{self, pile::Pile, Repository};
 use tribles::value::schemas::hash::Blake3;
 use tribles::value::schemas::hash::Handle;
 
@@ -407,8 +406,14 @@ fn merge_import_example(
         src.head(src_branch_id)?.ok_or_else(|| anyhow::anyhow!("source head not found"))?;
 
     // 3) Conservatively copy all reachable blobs from source → destination
-    let stats = repo::copy_reachable(&src.reader()?, &mut dst, [src_head.transmute()])?;
-    eprintln!("copied: visited={} stored={}", stats.visited, stats.stored);
+    let reader = src.reader()?;
+    let mapping: Vec<_> = repo::transfer(
+        &reader,
+        &mut dst,
+        repo::reachable(&reader, [src_head.transmute()]),
+    )
+    .collect::<Result<_, _>>()?;
+    eprintln!("copied {} reachable blobs", mapping.len());
 
     // 4) Attach via a single merge commit in the destination branch
     let mut repo = Repository::new(dst, SigningKey::generate(&mut OsRng));

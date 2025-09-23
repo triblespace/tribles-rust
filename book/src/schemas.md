@@ -7,8 +7,8 @@ raw bytes to concrete application types and decouple persisted data from a
 particular implementation. This separation lets you refactor to new libraries
 or frameworks without rewriting what's already stored. The crate ships with a
 collection of ready‑made schemas located in
-[`src/value/schemas`](../src/value/schemas) and
-[`src/blob/schemas`](../src/blob/schemas).
+[`tribles::value::schemas`](https://docs.rs/tribles/latest/tribles/value/schemas/index.html) and
+[`tribles::blob::schemas`](https://docs.rs/tribles/latest/tribles/blob/schemas/index.html).
 
 ### Why 32 bytes?
 

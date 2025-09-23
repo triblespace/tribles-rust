@@ -84,5 +84,5 @@ schema and a simple blob schema for arbitrary bytes.
 {{#include ../../examples/custom_schema.rs:custom_schema}}
 ```
 
-See [`examples/custom_schema.rs`](../../examples/custom_schema.rs) for the full
+See [`examples/custom_schema.rs`](https://github.com/triblespace/tribles-rust/blob/main/examples/custom_schema.rs) for the full
 source.

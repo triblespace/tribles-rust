@@ -283,6 +283,35 @@ Each push either succeeds or returns a workspace containing the other changes.
 Merging incorporates your commits and the process repeats until no conflicts
 remain.
 
+### Troubleshooting push, branch, and pull failures
+
+`Repository::push`, `Repository::create_branch`, and `Repository::pull` surface
+errors from the underlying blob and branch stores. These APIs intentionally do
+not hide storage issues, because diagnosing an I/O failure or a corrupt commit
+usually requires operator intervention. The table below lists the error variants
+along with common causes and remediation steps.
+
+| API | Error variant | Likely causes and guidance |
+| --- | --- | --- |
+| `Repository::push` | `PushError::StorageBranches` | Enumerating branch metadata in the backing store failed. Check connectivity and credentials for the branch store (for example, the object-store bucket, filesystem directory, or HTTP endpoint). |
+| `Repository::push` | `PushError::StorageReader` | Creating a blob reader failed before any transfer started. The blob store may be offline, misconfigured, or returning permission errors. |
+| `Repository::push` | `PushError::StorageGet` | Fetching existing commit metadata failed. The underlying store returned an error or the metadata blob could not be decoded, which often signals corruption or truncated uploads. Inspect the referenced blob in the store to confirm it exists and is readable. |
+| `Repository::push` | `PushError::StoragePut` | Uploading new content or metadata blobs failed. Look for transient network failures, insufficient space, or rejected writes in the blob store logs. Retrying after fixing the storage issue will re-send the missing blobs. |
+| `Repository::push` | `PushError::BranchUpdate` | Updating the branch head failed. Many backends implement optimistic compare-and-swap semantics; stale heads or concurrent writers therefore surface here as update errors. Refresh the workspace and retry after resolving any store-side errors. |
+| `Repository::push` | `PushError::BadBranchMetadata` | The branch metadata could not be parsed. Inspect the stored metadata blobs for corruption or manual edits and repair them before retrying the push. |
+| Branch creation APIs | `BranchError::StorageReader` | Creating a blob reader failed. Treat this like `PushError::StorageReader`: verify the blob store connectivity and credentials. |
+| Branch creation APIs | `BranchError::StorageGet` | Reading branch metadata during initialization failed. Check for corrupted metadata blobs or connectivity problems. |
+| Branch creation APIs | `BranchError::StoragePut` | Persisting branch metadata failed. Inspect store logs for rejected writes or quota issues. |
+| Branch creation APIs | `BranchError::BranchHead` | Retrieving the current head of the branch failed. This usually points to an unavailable branch store or inconsistent metadata. |
+| Branch creation APIs | `BranchError::BranchUpdate` | Updating the branch entry failed. Resolve branch-store errors and ensure no other writers are racing the update before retrying. |
+| Branch creation APIs | `BranchError::AlreadyExists` | A branch with the requested name already exists. Choose a different name or delete the existing branch before recreating it. |
+| Branch creation APIs | `BranchError::BranchNotFound` | The specified base branch does not exist. Verify the branch identifier and that the base branch has not been deleted. |
+| `Repository::pull` | `PullError::BranchNotFound` | The branch is missing from the repository. Check the branch name/ID and confirm that it has not been removed. |
+| `Repository::pull` | `PullError::BranchStorage` | Accessing the branch store failed. This mirrors `BranchError::BranchHead` and usually indicates an unavailable or misconfigured backend. |
+| `Repository::pull` | `PullError::BlobReader` | Creating a blob reader failed before commits could be fetched. Ensure the blob store is reachable and that the credentials grant read access. |
+| `Repository::pull` | `PullError::BlobStorage` | Reading commit or metadata blobs failed. Investigate missing objects, network failures, or permission problems in the blob store. |
+| `Repository::pull` | `PullError::BadBranchMetadata` | The branch metadata is malformed. Inspect and repair the stored metadata before retrying the pull. |
+
 ## Remote Stores
 
 Remote deployments use the [`ObjectStoreRemote`](../src/repo/objectstore.rs)

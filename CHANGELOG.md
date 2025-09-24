@@ -78,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   garbage-collection scenarios that only copy live blobs.
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
+- Streamlined the merge troubleshooting note to highlight
+  `MergeError::DifferentRepos` and the `reachable` + `repo::transfer` steps for
+  cross-repository merges.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
 - Rewrote the pile blob metadata chapter to describe the `BlobMetadata`
   API and linked it from the pile format documentation.

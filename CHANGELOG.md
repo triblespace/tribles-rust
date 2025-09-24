@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Getting started guide now demonstrates defining custom attributes alongside
   the quick-start example, hides doc-test-only cleanup, and exercises the
   quick-start snippet as a runnable doc test.
+- Updated README and book code samples to use the public `entity!`/`pattern!`
+  macros so snippets copy-and-paste outside the crate.
 - Updated the README and book examples to use `Repository::create_branch` plus
   `pull` instead of the removed `branch` helper when initializing workspaces.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.

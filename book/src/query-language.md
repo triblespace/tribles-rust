@@ -195,8 +195,8 @@ mod social {
 }
 let mut kb = TribleSet::new();
 let a = fucid(); let b = fucid(); let c = fucid();
-kb += crate::entity!{ &a @ social::follows: &b };
-kb += crate::entity!{ &b @ social::likes: &c };
+kb += entity!{ &a @ social::follows: &b };
+kb += entity!{ &b @ social::likes: &c };
 
 let results: Vec<_> = find!((s: Value<_>, e: Value<_>),
     path!(&kb, s (social::follows | social::likes)+ e)).collect();

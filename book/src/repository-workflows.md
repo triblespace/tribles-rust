@@ -233,6 +233,13 @@ while let Some(mut incoming) = repo.push(&mut ws)? {
 }
 ```
 
+> **Troubleshooting:** `Workspace::merge` succeeds only when both workspaces
+> share a blob store. Merging a workspace pulled from a different pile or
+> remote returns `MergeError::DifferentRepos`. Decide which repository will own
+> the combined history, transfer the other branch's reachable blobs into it with
+> `repo::transfer(reachable(...))`, create a branch for that imported head, and
+> merge locally once both workspaces target the same store.
+
 After a successful push the branch may have advanced further than the head
 supplied, because the repository refreshes its view after releasing the lock.
 An error indicating a corrupted pile does not necessarily mean the push failed;

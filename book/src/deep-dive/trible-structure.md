@@ -76,6 +76,27 @@ resistant to skew.
   resistance, making it likely that a similar format would emerge through
   convergent evolution and could serve as a universal data interchange format.
 
+## Set operations and monotonic semantics
+
+`TribleSet`s provide familiar set-theoretic helpers such as
+[`TribleSet::union`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.union),
+[`TribleSet::intersection`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.intersection)
+and
+[`TribleSet::difference`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.difference).
+Each of these operations returns a new `TribleSet` view without modifying the
+inputs, making it straightforward to merge datasets, locate their overlap or
+identify the facts that still need to propagate between replicas while keeping
+all sources intact.
+
+This design reflects the crate's commitment to CALM-friendly, monotonic
+semantics. New information can be added freely, but existing facts are never
+destroyed. Consequently, `difference` is intended for comparing snapshots
+(e.g. "which facts are present in the remote set that I have not yet
+indexed?") rather than for destructive deletion. This keeps workflows
+declarative and convergent: sets can be combined in any order without
+introducing conflicts, and subtraction simply reports the gaps that remain to
+be filled.
+
 # Direction and Consistency
 
 In other triple stores the direction of the edge drawn by a triple is often

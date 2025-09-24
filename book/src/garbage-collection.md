@@ -97,7 +97,6 @@ helper converts its value column into the conservative stream of
 
 The public API for triggering garbage collection is still evolving. The
 composition-friendly walker introduced above is one building block; future work
-could layer additional convenience helpers (for example
-`Repository::forget_unreachable()`) or integrate with external retention
+could layer additional convenience helpers or integrate with external retention
 policies. Conservative reachability by scanning `SimpleArchive` bytes remains
 the foundation for safe space reclamation.

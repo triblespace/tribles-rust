@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remote store workflow example in the book showing how to open
   `ObjectStoreRemote` repositories and clarifying that no explicit close is
   required for remote backends.
+- Documented `TribleSet` set operations and monotonic semantics in the Trible
+  Structure chapter.
 - Test coverage for `branch_from` and `pull_with_key`.
 - Migrated `SuccinctArchive` to new `jerky`/`anybytes` APIs and added
   serializable metadata.

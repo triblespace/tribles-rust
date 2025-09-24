@@ -17,15 +17,15 @@ prioritise the most useful additions.
   `repo::branch::verify` expose helpers to validate the signed metadata before
   accepting remote history. A short example walking through verification before
   merging would make the security model clearer.
-- **Repository migration helpers** &mdash; `repo::transfer` iterates over every
-  blob in a source store, re-inserts it into a target store and returns the old
-  and new handles. It is perfect for seeding a new pile or duplicating data, and
-  the book could include a recipe that demonstrates the handle translation step
-  in practice.
+- **Repository migration helpers** &mdash; `repo::transfer` rewrites whichever
+  handles you feed it, returning the old and new identifiers so callers can
+  update references. A migration recipe could show how to collect handles from
+  `BlobStoreList::blobs()` for full copies or from `reachable` when only live
+  data should be duplicated.
 - **Conservative GC tooling** &mdash; The garbage-collection chapter already covers
   the high-level approach, but it could reference concrete APIs such as
-  `repo::copy_reachable` and `MemoryBlobStore::keep` to show how to compute and
-  retain the reachable set in code.
+  `repo::reachable`, `repo::transfer`, and `MemoryBlobStore::keep` to show how to
+  compute and retain the reachable set in code.
 
 Treat these bullets as a living backlog for book improvements. As the
 implementation evolves, refresh the list so the documentation keeps pace with

@@ -24,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Book section showing how to stage and fetch workspace blobs with `Workspace::put`
   and `Workspace::get`.
 - Guidance on integrating custom constraints with external data sources in the book.
-- Garbage-collection chapter now shows how `BlobStoreList` and `copy_reachable`
-  work together to enumerate and traverse blobs in practice.
+- Garbage-collection chapter now shows how `BlobStoreList`, `reachable`, and
+  `transfer` work together to enumerate and traverse blobs in practice.
 - Remote store workflow example in the book showing how to open
   `ObjectStoreRemote` repositories and clarifying that no explicit close is
   required for remote backends.
@@ -73,9 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Serializable`.
 - Documented that branch updates do not ensure referenced blobs exist, enabling
   piles to serve as head-only stores.
-- Clarified repository workflow docs with a sidebar comparing `copy_reachable`
-  and `repo::transfer`, including garbage-collection scenarios that only copy
-  live blobs.
+- Clarified repository workflow docs with a sidebar highlighting
+  `repo::transfer` alongside `BlobStoreKeep::keep`, including
+  garbage-collection scenarios that only copy live blobs.
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
 - Documented the pile as a write-ahead log database ("WAL-as-a-DB").
@@ -116,6 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `entity!` now implemented as a procedural macro alongside `pattern!`.
 - `ThompsonEngine` implementing a new `PathEngine` trait for regular path queries,
   and `RegularPathConstraint` is now generic over `PathEngine`.
+- `reachable` iterator, `transfer` helper, and `potential_handles` expose the
+  conservative blob traversal for composition. `BlobStoreKeep::keep` and
+  `MemoryBlobStore::keep` now retain blobs by handle iterators.
 - Implemented `size_hint`, `ExactSizeIterator`, and `FusedIterator` for `PATCHIterator` and `PATCHOrderedIterator`.
 - Compile-time check restricting builds to 64-bit little-endian targets.
 - `PileReader` now reconstructs blob data from the underlying memory map,

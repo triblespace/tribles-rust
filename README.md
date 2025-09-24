@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let branch_id = repo.create_branch("main", None)?;
     let mut ws = repo.pull(*branch_id)?;
 
-    ws.commit(crate::entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
+    ws.commit(entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
     repo.push(&mut ws)?;
     Ok(())
 }
@@ -97,12 +97,12 @@ fn main() -> std::io::Result<()> {
 
     // Note how the entity macro returns TribleSets that can be cheaply merged
     // into our existing dataset.
-    set += crate::entity!{ &author_id @
+    set += entity!{ &author_id @
                 literature::firstname: "Frank",
                 literature::lastname: "Herbert",
             };
 
-    set += crate::entity!{ &author_id @
+    set += entity!{ &author_id @
                 literature::title: "Dune",
                 literature::author: &author_id,
                 literature::quote: blobs.put("Deep in the human unconscious is a \
@@ -121,7 +121,7 @@ fn main() -> std::io::Result<()> {
     // We can then find all entities matching a certain pattern in our dataset.
     for (_, f, l, q) in find!(
         (author: (), first: String, last: Value<_>, quote),
-        crate::pattern!(&set, [
+        pattern!(&set, [
             { ?author @
                 literature::firstname: ?first,
                 literature::lastname: ?last

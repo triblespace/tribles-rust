@@ -28,7 +28,7 @@ let quote_b = memory_store
     .put("I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.")
     .unwrap();
 
-let set = crate::entity!{
+let set = entity!{
    literature::title: "Dune",
    literature::author: &book_author_id,
    literature::quote: quote_a,
@@ -50,7 +50,7 @@ let signature: Signature = commit_author_key.sign(
 );
 
 // Store the handle in another TribleSet.
-let _meta_set = crate::entity!{
+let _meta_set = entity!{
    repo::content: archived_set_handle,
    repo::short_message: "Initial commit",
    repo::signed_by: commit_author_key.verifying_key(),

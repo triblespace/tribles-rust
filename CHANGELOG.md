@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Documented repository storage backends and added a book page tracking future
   documentation improvements.
+- Expanded the documentation backlog with notes on remote object-store conflict
+  handling, succinct archive indexes, and extending regular path engines.
 - Glossary chapter in the book for quick reference to core terminology.
 - Expanded the Identifiers chapter with a `local_ids` + `IdOwner` workflow
   example showing how to borrow freshly minted IDs in queries.

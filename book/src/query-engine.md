@@ -44,11 +44,14 @@ still allowing the engine to explore the search space efficiently.
 The query engine and data model are flexible enough to support many query
 styles, including graph, relational and document-oriented queries.
 
-For example, the [`namespace`](crate::namespace) module offers macros that
-generate constraints for a given trible pattern in a query-by-example style
-reminiscent of SPARQL or GraphQL but tailored to a document-graph data model.
-It would also be possible to layer a property-graph language like Cypher or a
-relational language like Datalog on top of the engine.[^3]
+For example, the [`pattern!`](crate::pattern!) and
+[`entity!`](crate::entity!) macros—available at the crate root and re-exported
+via [`tribles::prelude`](crate::prelude) (for instance with
+`use tribles::prelude::*;`)—generate constraints for a given trible pattern in
+a query-by-example style reminiscent of SPARQL or GraphQL but tailored to a
+document-graph data model. It would also be possible to layer a property-graph
+language like Cypher or a relational language like Datalog on top of the
+engine.[^3]
 
 Great care has been taken to ensure that query languages with different styles
 and semantics can coexist and even be mixed with other languages and data models

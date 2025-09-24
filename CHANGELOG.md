@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Query Engine chapter now directs readers to the crate-level `pattern!` and
+  `entity!` macros and shows how to import them via the prelude.
 - Clarified that `find!` retrieves `ExclusiveId` bindings via `FromValue` and
   that restricting queries with `local_ids` keeps the conversion safe.
 - Getting started guide now demonstrates defining custom attributes alongside

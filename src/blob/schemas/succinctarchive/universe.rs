@@ -9,11 +9,12 @@ use anybytes::area::{SectionHandle, SectionWriter};
 use anybytes::Bytes;
 use anybytes::View;
 use indxvec::Search;
-use jerky::int_vectors::{Access, DacsByte, DacsByteMeta, NumVals};
+use jerky::int_vectors::{Access, DacsByte, NumVals};
+use jerky::int_vectors::dacs_byte::DacsByteMeta;
 use jerky::serialization::Serializable;
 use quick_cache::sync::Cache;
 
-pub trait Universe {
+pub trait Universe: Serializable {
     fn with_sorted_dedup<I>(values: I, sections: &mut SectionWriter<'_>) -> Self
     where
         I: Iterator<Item = RawValue>;
@@ -267,10 +268,9 @@ where
 #[cfg(test)]
 mod tests {
     use std::iter::repeat_with;
-    use std::marker::PhantomData;
 
-    use crate::value::RawValue;
     use anybytes::area::ByteArea;
+    use jerky::Serializable;
 
     use crate::id::fucid;
     use crate::id::id_into_value;

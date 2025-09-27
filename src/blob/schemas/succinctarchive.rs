@@ -35,8 +35,8 @@ use jerky::bit_vector::BitVectorDataMeta;
 use jerky::bit_vector::NumBits;
 use jerky::bit_vector::Rank;
 use jerky::bit_vector::Select;
-use jerky::char_sequences::{WaveletMatrix, WaveletMatrixBuilder};
 use jerky::char_sequences::wavelet_matrix::WaveletMatrixMeta;
+use jerky::char_sequences::{WaveletMatrix, WaveletMatrixBuilder};
 use jerky::serialization::{Metadata, Serializable};
 
 pub struct SuccinctArchiveBlob;
@@ -246,7 +246,8 @@ where
 
 impl<U> From<&TribleSet> for SuccinctArchive<U>
 where
-    U: Universe + Serializable,
+    U: Universe + Serializable<Error = jerky::error::Error>,
+    <U as Serializable>::Meta: Clone,
 {
     fn from(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
@@ -459,7 +460,7 @@ where
         };
 
         let mut meta_sec = sections.reserve::<SuccinctArchiveMeta<U::Meta>>(1).unwrap();
-        meta_sec.as_mut_slice()[0] = meta;
+        meta_sec.as_mut_slice()[0] = meta.clone();
         meta_sec.freeze().unwrap();
 
         let bytes = area.freeze().unwrap();
@@ -498,15 +499,16 @@ where
 
 impl<U> Serializable for SuccinctArchive<U>
 where
-    U: Universe + Serializable,
+    U: Universe + Serializable<Error = jerky::error::Error>,
 {
     type Meta = SuccinctArchiveMeta<U::Meta>;
+    type Error = jerky::error::Error;
 
     fn metadata(&self) -> Self::Meta {
         self.meta()
     }
 
-    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> anyhow::Result<Self> {
+    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> Result<Self, Self::Error> {
         let domain = U::from_bytes(meta.domain, bytes.clone())?;
 
         let e_a = BitVector::from_bytes(meta.e_a, bytes.clone())?;
@@ -587,7 +589,8 @@ impl std::fmt::Debug for SuccinctArchiveError {
 
 impl<U> TryFromBlob<SuccinctArchiveBlob> for SuccinctArchive<U>
 where
-    U: Universe + Serializable,
+    U: Universe + Serializable<Error = jerky::error::Error>,
+    <U as Serializable>::Meta: Copy + 'static,
 {
     type Error = SuccinctArchiveError;
 
@@ -606,12 +609,10 @@ mod tests {
     use std::convert::TryInto;
 
     use crate::blob::ToBlob;
-    use crate::blob::TryFromBlob;
     use crate::id::fucid;
     use crate::prelude::*;
     use crate::query::find;
     use crate::trible::Trible;
-    use crate::value::schemas::shortstring::ShortString;
     use crate::value::ToValue;
     use crate::value::TryToValue;
 
@@ -619,7 +620,6 @@ mod tests {
     use anybytes::area::ByteArea;
     use itertools::Itertools;
     use proptest::prelude::*;
-    use std::marker::PhantomData;
 
     pub mod knights {
         use crate::prelude::*;
@@ -749,12 +749,12 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += entity!{&juliet @
+        kb += entity! {&juliet @
             knights::name: "Juliet",
             knights::loves: &romeo,
             knights::title: "Maiden"
         };
-        kb += entity!{&romeo @
+        kb += entity! {&romeo @
             knights::name: "Romeo",
             knights::loves: &juliet,
             knights::title: "Prince"

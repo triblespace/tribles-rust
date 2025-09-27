@@ -9,8 +9,8 @@ use anybytes::area::{SectionHandle, SectionWriter};
 use anybytes::Bytes;
 use anybytes::View;
 use indxvec::Search;
-use jerky::int_vectors::{Access, DacsByte, NumVals};
 use jerky::int_vectors::dacs_byte::DacsByteMeta;
+use jerky::int_vectors::{Access, DacsByte, NumVals};
 use jerky::serialization::Serializable;
 use quick_cache::sync::Cache;
 
@@ -69,23 +69,29 @@ impl OrderedUniverse {
         Self::from_section(section)
     }
 
-    fn from_section(mut section: anybytes::area::Section<'_, RawValue>) -> Self {
+    fn from_section(section: anybytes::area::Section<'_, RawValue>) -> Self {
         let handle = section.handle();
         let bytes = section.freeze().unwrap();
         let values = bytes.view::<[RawValue]>().expect("view");
         Self { values, handle }
     }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
 }
 
 impl Serializable for OrderedUniverse {
     type Meta = SectionHandle<RawValue>;
+    type Error = jerky::error::Error;
 
     fn metadata(&self) -> Self::Meta {
         self.handle
     }
 
-    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> anyhow::Result<Self> {
-        let values = meta.view(&bytes).map_err(anyhow::Error::from)?;
+    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> Result<Self, Self::Error> {
+        let values = meta.view(&bytes).map_err(Self::Error::from)?;
         Ok(Self {
             values,
             handle: meta,
@@ -160,7 +166,9 @@ impl Universe for CompressedUniverse {
         if self.len() == 0 {
             return None;
         }
-        (0..self.len()).binary_by(|p| self.access(p).cmp(v)).ok()
+        (0..=self.len() - 1)
+            .binary_by(|p| self.access(p).cmp(v))
+            .ok()
     }
 
     #[inline]
@@ -178,6 +186,7 @@ pub struct CompressedUniverseMeta {
 
 impl Serializable for CompressedUniverse {
     type Meta = CompressedUniverseMeta;
+    type Error = jerky::error::Error;
 
     fn metadata(&self) -> Self::Meta {
         CompressedUniverseMeta {
@@ -186,8 +195,8 @@ impl Serializable for CompressedUniverse {
         }
     }
 
-    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> anyhow::Result<Self> {
-        let fragments = meta.fragments.view(&bytes).map_err(anyhow::Error::from)?;
+    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> Result<Self, Self::Error> {
+        let fragments = meta.fragments.view(&bytes).map_err(Self::Error::from)?;
         let data = DacsByte::from_bytes(meta.data, bytes)?;
         Ok(Self {
             fragments,
@@ -233,7 +242,9 @@ where
 
         self.search_cache
             .get_or_insert_with::<_, Infallible>(v, || {
-                Ok((0..self.len()).binary_by(|p| self.access(p).cmp(v)).ok())
+                Ok((0..=self.len() - 1)
+                    .binary_by(|p| self.access(p).cmp(v))
+                    .ok())
             })
             .unwrap()
     }
@@ -250,12 +261,13 @@ where
     U: Universe + Serializable,
 {
     type Meta = U::Meta;
+    type Error = U::Error;
 
     fn metadata(&self) -> Self::Meta {
         self.inner.metadata()
     }
 
-    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> anyhow::Result<Self> {
+    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> Result<Self, Self::Error> {
         let inner = U::from_bytes(meta, bytes)?;
         Ok(Self {
             access_cache: Cache::new(ACCESS_CACHE),
@@ -295,10 +307,10 @@ mod tests {
 
         let mut area = ByteArea::new().unwrap();
         let mut sections = area.sections();
-        let count_universe = CompressedUniverse::with(count_data.iter().copied(), &mut sections);
-        let fucid_universe = CompressedUniverse::with(fucid_data.iter().copied(), &mut sections);
-        let ufoid_universe = CompressedUniverse::with(ufoid_data.iter().copied(), &mut sections);
-        let genid_universe = CompressedUniverse::with(genid_data.iter().copied(), &mut sections);
+        let _count_universe = CompressedUniverse::with(count_data.iter().copied(), &mut sections);
+        let _fucid_universe = CompressedUniverse::with(fucid_data.iter().copied(), &mut sections);
+        let _ufoid_universe = CompressedUniverse::with(ufoid_data.iter().copied(), &mut sections);
+        let _genid_universe = CompressedUniverse::with(genid_data.iter().copied(), &mut sections);
         drop(sections);
         let _bytes = area.freeze().unwrap();
 
@@ -334,10 +346,10 @@ mod tests {
 
         let mut area = ByteArea::new().unwrap();
         let mut sections = area.sections();
-        let count_universe = OrderedUniverse::with(count_data.iter().copied(), &mut sections);
-        let fucid_universe = OrderedUniverse::with(fucid_data.iter().copied(), &mut sections);
-        let ufoid_universe = OrderedUniverse::with(ufoid_data.iter().copied(), &mut sections);
-        let genid_universe = OrderedUniverse::with(genid_data.iter().copied(), &mut sections);
+        let _count_universe = OrderedUniverse::with(count_data.iter().copied(), &mut sections);
+        let _fucid_universe = OrderedUniverse::with(fucid_data.iter().copied(), &mut sections);
+        let _ufoid_universe = OrderedUniverse::with(ufoid_data.iter().copied(), &mut sections);
+        let _genid_universe = OrderedUniverse::with(genid_data.iter().copied(), &mut sections);
         drop(sections);
         let _bytes = area.freeze().unwrap();
 

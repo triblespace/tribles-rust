@@ -56,6 +56,7 @@ coz = "0.1"
 rayon = "1.7"
 tempfile = "3.15.0"
 criterion = "0.6.0"
+trybuild = "1.0.99"
 
 [build-dependencies]
 rustversion = "1.0"

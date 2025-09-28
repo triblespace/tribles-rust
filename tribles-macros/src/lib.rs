@@ -415,8 +415,8 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let PatternInput { set, pattern } = syn::parse(input)?;
 
     // Names for the generated context and dataset variables.
-    let ctx_ident = format_ident!("__ctx", span = Span::call_site());
-    let set_ident = format_ident!("__set", span = Span::call_site());
+    let ctx_ident = format_ident!("__ctx", span = Span::mixed_site());
+    let set_ident = format_ident!("__set", span = Span::mixed_site());
 
     // Compute a crate path token stream to reference the host `tribles` crate
     // in generated code. If the caller provided an explicit crate path (the
@@ -450,7 +450,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // Expand one block per entity described in the pattern.
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
         // Variable name representing the entity id.
-        let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
+        let e_ident = format_ident!("__e{}", entity_idx, span = Span::mixed_site());
         // Initialization depends on whether an id was supplied. The id may be
         // a `Value::Var(ident)` or `Value::Expr(expr)`. Treat bare variable
         // bindings similarly to single-segment path expressions for now.
@@ -482,8 +482,8 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let (a_var_ident, af_ident) = attr_map
                 .entry(key)
                 .or_insert_with(|| {
-                    let a_ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
-                    let af_ident = format_ident!("__af{}", attr_idx, span = Span::call_site());
+                    let a_ident = format_ident!("__a{}", attr_idx, span = Span::mixed_site());
+                    let af_ident = format_ident!("__af{}", attr_idx, span = Span::mixed_site());
                     attr_idx += 1;
                     attr_tokens.extend(quote! {
                         let #af_ident = #field_expr;
@@ -500,8 +500,8 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 val_idx += 1;
                 v
             };
-            let v_tmp_ident = format_ident!("__v{}", val_id, span = Span::call_site());
-            let _raw_ident = format_ident!("__raw{}", val_id, span = Span::call_site());
+            let v_tmp_ident = format_ident!("__v{}", val_id, span = Span::mixed_site());
+            let _raw_ident = format_ident!("__raw{}", val_id, span = Span::mixed_site());
 
             // Attribute values are represented by `PatternValue`. We accept
             // an explicit `?ident` form for variable binding; otherwise the
@@ -601,8 +601,8 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 ));
             }
         };
-        let af_ident = format_ident!("__af{}", i, span = Span::call_site());
-        let val_ident = format_ident!("__val{}", i, span = Span::call_site());
+        let af_ident = format_ident!("__af{}", i, span = Span::mixed_site());
+        let val_ident = format_ident!("__val{}", i, span = Span::mixed_site());
         let stmt = quote! {
             {
                 let #af_ident = #field_expr;
@@ -683,9 +683,9 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let _crate_path = crate_path_ts.clone();
 
     // Identifiers used throughout the expansion
-    let ctx_ident = format_ident!("__ctx", span = Span::call_site());
-    let curr_ident = format_ident!("__curr", span = Span::call_site());
-    let delta_ident = format_ident!("__delta", span = Span::call_site());
+    let ctx_ident = format_ident!("__ctx", span = Span::mixed_site());
+    let curr_ident = format_ident!("__curr", span = Span::mixed_site());
+    let delta_ident = format_ident!("__delta", span = Span::mixed_site());
 
     // Prepare declarations shared by all union branches
     let mut attr_decl_tokens = TokenStream2::new();
@@ -710,7 +710,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut value_idx = 0usize;
 
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
-        let e_ident = format_ident!("__e{}", entity_idx, span = Span::call_site());
+        let e_ident = format_ident!("__e{}", entity_idx, span = Span::mixed_site());
         match entity.id {
             Some(ref id_val) => match id_val {
                 Value::Var(ref ident) => {
@@ -739,8 +739,8 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let (a_ident, af_ident) = attr_map
                 .entry(key)
                 .or_insert_with(|| {
-                    let a_ident = format_ident!("__a{}", attr_idx, span = Span::call_site());
-                    let af_ident = format_ident!("__af{}", attr_idx, span = Span::call_site());
+                    let a_ident = format_ident!("__a{}", attr_idx, span = Span::mixed_site());
+                    let af_ident = format_ident!("__af{}", attr_idx, span = Span::mixed_site());
                     attr_idx += 1;
                     attr_decl_tokens.extend(quote! {
                         let #af_ident = #attr_expr;
@@ -753,7 +753,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 })
                 .clone();
 
-            let v_ident = format_ident!("__v{}", value_idx, span = Span::call_site());
+            let v_ident = format_ident!("__v{}", value_idx, span = Span::mixed_site());
             value_idx += 1;
 
             // For pattern_changes we use the explicit `?ident` binding form
@@ -761,9 +761,9 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             // literal value.
             match value {
                 Value::Expr(expr) => {
-                    let val_ident = format_ident!("__c{}", value_idx, span = Span::call_site());
+                    let val_ident = format_ident!("__c{}", value_idx, span = Span::mixed_site());
                     value_idx += 1;
-                    let _raw_ident = format_ident!("__raw{}", value_idx, span = Span::call_site());
+                    let _raw_ident = format_ident!("__raw{}", value_idx, span = Span::mixed_site());
                     value_decl_tokens.extend(quote! {
                         let #val_ident = #af_ident.value_from(#expr);
                         let #v_ident = #af_ident.as_variable(#ctx_ident.next_variable());

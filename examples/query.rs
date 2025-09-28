@@ -1,5 +1,4 @@
 use crate::entity;
-use crate::pattern_changes;
 use std::collections::HashSet;
 
 use fake::faker::lorem::en::Sentence;

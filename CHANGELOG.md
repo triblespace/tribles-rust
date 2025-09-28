@@ -148,6 +148,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Resolved hygiene issues in `pattern!`/`pattern_changes!` so user bindings like
+  `__ctx` no longer collide with generated identifiers, and added trybuild
+  coverage to prevent regressions.
 - Corrected the blob book example to import the repository module via `tribles::repo`.
 - Removed an unused `anyhow` import from the succinct archive schema.
 - `SuccinctArchive::from` now handles empty `TribleSet`s and returns an

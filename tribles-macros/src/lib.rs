@@ -321,7 +321,7 @@ struct Entity {
 enum Value {
     /// `?ident` — bind this identifier as a query variable
     Var(Ident),
-    /// `_?ident` — generate a scoped query variable unique to this macro call
+    /// `_?ident` — allocate a scoped query variable unique to this macro call
     LocalVar(Ident),
     /// Arbitrary Rust expression used as a literal value
     Expr(Expr),
@@ -463,7 +463,6 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut local_tokens = TokenStream2::new();
     let mut local_map: HashMap<String, Ident> = HashMap::new();
     let mut local_idx = 0usize;
-
     let mut get_local_var = |name: &Ident| {
         let key = format!("_?{}", name);
         local_map
@@ -929,8 +928,8 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let #curr_ident = #curr;
             let #delta_ident = #changes;
             #ns_use
-            #local_decl_tokens
             #attr_decl_tokens
+            #local_decl_tokens
             #entity_decl_tokens
             #value_decl_tokens
             let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();

@@ -136,9 +136,9 @@ fn main() -> std::io::Result<()> {
         let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
         let q = q.as_ref();
 
-        println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
-    }
-    Ok(())
+println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
+}
+Ok(())
 }
 ```
 

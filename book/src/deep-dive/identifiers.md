@@ -204,6 +204,13 @@ for (author, name) in find!(
 }
 ```
 
+Sometimes you want to compare two attributes without exposing the comparison
+variable outside the pattern. Prefixing the binding with `_?`, such as
+`_?name`, allocates a scoped variable local to the macro invocation. Both
+`pattern!` and `pattern_changes!` will reuse the same generated query variable
+whenever the `_?` form appears again, letting you express equality constraints
+inline without touching the outer [`find!`](crate::query::find) signature.
+
 Binding the variable as an [`ExclusiveId`](crate::id::ExclusiveId) means the
 closure that [`find!`](crate::query::find) installs will run the
 [`FromValue`](crate::value::FromValue) implementation for `ExclusiveId`.

@@ -134,11 +134,26 @@ fn main() -> std::io::Result<()> {
         let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
         let q = q.as_ref();
 
-        println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
-    }
-    Ok(())
+println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
+}
+Ok(())
 }
 ```
+
+You can also introduce temporary equality constraints inside a pattern without
+adding them to the surrounding `find!` bindings. Prefix a variable name with
+`_?` to allocate a scoped query variable that lives only for the duration of the
+macro expansion:
+
+```ignore
+pattern!(&set, [{
+    ?author @ literature::firstname: _?name,
+    literature::lastname: _?name,
+}]);
+```
+
+This binds both attributes to the same generated variable, ensuring the first
+and last names match without cluttering the outer query signature.
 
 ## Tribles Book
 

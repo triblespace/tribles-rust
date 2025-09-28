@@ -319,6 +319,8 @@ struct Entity {
 enum Value {
     /// `?ident` — bind this identifier as a query variable
     Var(Ident),
+    /// `_?ident` — allocate a scoped variable local to the macro invocation
+    LocalVar(Ident),
     /// Arbitrary Rust expression used as a literal value
     Expr(Expr),
 }
@@ -384,6 +386,16 @@ impl Parse for Attribute {
 
 impl Parse for Value {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        if input.peek(Token![_]) {
+            let fork = input.fork();
+            fork.parse::<Token![_]>()?;
+            if fork.peek(Token![?]) {
+                input.parse::<Token![_]>()?;
+                input.parse::<Token![?]>()?;
+                let var_ident: Ident = input.parse()?;
+                return Ok(Value::LocalVar(var_ident));
+            }
+        }
         if input.peek(Token![?]) {
             input.parse::<Token![?]>()?;
             let var_ident: Ident = input.parse()?;
@@ -446,6 +458,9 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut val_idx = 0usize;
     use std::collections::HashMap;
     let mut attr_map: HashMap<String, (Ident, Ident)> = HashMap::new();
+    let mut local_tokens = TokenStream2::new();
+    let mut local_map: HashMap<String, Ident> = HashMap::new();
+    let mut local_idx = 0usize;
 
     // Expand one block per entity described in the pattern.
     for (entity_idx, entity) in pattern.into_iter().enumerate() {
@@ -458,6 +473,22 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             match id_val {
                 Value::Var(ref ident) => {
                     quote! { let #e_ident = #ident; }
+                }
+                Value::LocalVar(ref ident) => {
+                    let key = format!("_?{}", ident);
+                    let local_ident = if let Some(existing) = local_map.get(&key) {
+                        existing.clone()
+                    } else {
+                        let new_ident =
+                            format_ident!("__local{}", local_idx, span = Span::mixed_site());
+                        local_idx += 1;
+                        local_tokens.extend(quote! {
+                            let #new_ident = #ctx_ident.next_variable();
+                        });
+                        local_map.insert(key, new_ident.clone());
+                        new_ident
+                    };
+                    quote! { let #e_ident = #local_ident; }
                 }
                 Value::Expr(ref id_expr) => {
                     quote! {
@@ -516,6 +547,28 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                Value::LocalVar(ref local_ident) => {
+                    let key = format!("_?{}", local_ident);
+                    let stored_ident = if let Some(existing) = local_map.get(&key) {
+                        existing.clone()
+                    } else {
+                        let new_ident =
+                            format_ident!("__local{}", local_idx, span = Span::mixed_site());
+                        local_idx += 1;
+                        local_tokens.extend(quote! {
+                            let #new_ident = #ctx_ident.next_variable();
+                        });
+                        local_map.insert(key, new_ident.clone());
+                        new_ident
+                    };
+                    quote! {
+                        {
+                            #[allow(unused_imports)] use ::tribles::query::TriblePattern;
+                            let v_var = { #af_ident.as_variable(#stored_ident) };
+                            constraints.push(Box::new(#set_ident.pattern(#e_ident, #a_var_ident, v_var)));
+                        }
+                    }
+                }
                 Value::Expr(ref expr) => {
                     quote! {
                         {
@@ -538,6 +591,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();
             let #ctx_ident = __local_find_context!();
             let #set_ident = #set;
+            #local_tokens
             #attr_tokens
             #entity_tokens
             ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
@@ -581,6 +635,12 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
                     "variable bindings (?ident) are not allowed in entity!; use a literal expression here",
                 ));
             }
+            Value::LocalVar(ident) => {
+                return Err(syn::Error::new_spanned(
+                    ident,
+                    "local variable bindings (_?ident) are not allowed in entity!; use a literal expression here",
+                ));
+            }
         }
     } else {
         quote! {
@@ -598,6 +658,12 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
                 return Err(syn::Error::new_spanned(
                     id,
                     "variable bindings (?ident) are not allowed in entity!; use a literal expression here",
+                ));
+            }
+            Value::LocalVar(id) => {
+                return Err(syn::Error::new_spanned(
+                    id,
+                    "local variable bindings (_?ident) are not allowed in entity!; use a literal expression here",
                 ));
             }
         };
@@ -697,6 +763,10 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut value_decl_tokens = TokenStream2::new();
     let mut value_const_tokens = TokenStream2::new();
 
+    let mut local_decl_tokens = TokenStream2::new();
+    let mut local_map: HashMap<String, Ident> = HashMap::new();
+    let mut local_idx = 0usize;
+
     struct TripleInfo {
         e_ident: Ident,
         a_ident: Ident,
@@ -715,6 +785,22 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             Some(ref id_val) => match id_val {
                 Value::Var(ref ident) => {
                     entity_decl_tokens.extend(quote! { let #e_ident = #ident; });
+                }
+                Value::LocalVar(ref ident) => {
+                    let key = format!("_?{}", ident);
+                    let local_ident = if let Some(existing) = local_map.get(&key) {
+                        existing.clone()
+                    } else {
+                        let new_ident =
+                            format_ident!("__local{}", local_idx, span = Span::mixed_site());
+                        local_idx += 1;
+                        local_decl_tokens.extend(quote! {
+                            let #new_ident = #ctx_ident.next_variable();
+                        });
+                        local_map.insert(key, new_ident.clone());
+                        new_ident
+                    };
+                    entity_decl_tokens.extend(quote! { let #e_ident = #local_ident; });
                 }
                 Value::Expr(ref id_expr) => {
                     entity_const_tokens.extend(quote! {
@@ -777,6 +863,24 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         let #v_ident = #af_ident.as_variable(#var_ident);
                     });
                 }
+                Value::LocalVar(ref ident) => {
+                    let key = format!("_?{}", ident);
+                    let local_ident = if let Some(existing) = local_map.get(&key) {
+                        existing.clone()
+                    } else {
+                        let new_ident =
+                            format_ident!("__local{}", local_idx, span = Span::mixed_site());
+                        local_idx += 1;
+                        local_decl_tokens.extend(quote! {
+                            let #new_ident = #ctx_ident.next_variable();
+                        });
+                        local_map.insert(key, new_ident.clone());
+                        new_ident
+                    };
+                    value_decl_tokens.extend(quote! {
+                        let #v_ident = #af_ident.as_variable(#local_ident);
+                    });
+                }
             }
 
             triples.push(TripleInfo {
@@ -835,6 +939,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let #delta_ident = #changes;
             #ns_use
             #attr_decl_tokens
+            #local_decl_tokens
             #entity_decl_tokens
             #value_decl_tokens
             let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();

@@ -321,7 +321,7 @@ struct Entity {
 enum Value {
     /// `?ident` — bind this identifier as a query variable
     Var(Ident),
-    /// `_?ident` — allocate a scoped query variable unique to this macro call
+    /// `_?ident` — allocate a scoped variable local to the macro invocation
     LocalVar(Ident),
     /// Arbitrary Rust expression used as a literal value
     Expr(Expr),
@@ -463,8 +463,8 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut local_tokens = TokenStream2::new();
     let mut local_map: HashMap<String, Ident> = HashMap::new();
     let mut local_idx = 0usize;
-    let mut get_local_var = |name: &Ident| {
-        let key = format!("_?{}", name);
+    let mut get_local_var = |ident: &Ident| {
+        let key = format!("_?{}", ident);
         local_map
             .entry(key)
             .or_insert_with(|| {
@@ -865,8 +865,8 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
                         let #v_ident = #af_ident.as_variable(#var_ident);
                     });
                 }
-                Value::LocalVar(var_ident) => {
-                    let local_ident = get_local_var(&var_ident);
+                Value::LocalVar(ref var_ident) => {
+                    let local_ident = get_local_var(var_ident);
                     value_decl_tokens.extend(quote! {
                         let #v_ident = #af_ident.as_variable(#local_ident);
                     });

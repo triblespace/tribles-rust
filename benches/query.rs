@@ -1,5 +1,3 @@
-#![cfg(feature = "succinct-archive")]
-
 use crate::entity;
 use crate::path;
 use crate::pattern;

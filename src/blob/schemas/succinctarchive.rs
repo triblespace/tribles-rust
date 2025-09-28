@@ -9,7 +9,6 @@ use crate::id::id_from_value;
 use crate::id::id_into_value;
 use crate::id::Id;
 use crate::id_hex;
-use crate::prelude::*;
 use crate::query::TriblePattern;
 use crate::trible::Trible;
 use crate::trible::TribleSet;
@@ -36,7 +35,8 @@ use jerky::bit_vector::BitVectorDataMeta;
 use jerky::bit_vector::NumBits;
 use jerky::bit_vector::Rank;
 use jerky::bit_vector::Select;
-use jerky::char_sequences::{WaveletMatrix, WaveletMatrixBuilder, WaveletMatrixMeta};
+use jerky::char_sequences::wavelet_matrix::WaveletMatrixMeta;
+use jerky::char_sequences::{WaveletMatrix, WaveletMatrixBuilder};
 use jerky::serialization::{Metadata, Serializable};
 
 pub struct SuccinctArchiveBlob;
@@ -246,7 +246,8 @@ where
 
 impl<U> From<&TribleSet> for SuccinctArchive<U>
 where
-    U: Universe + Serializable,
+    U: Universe + Serializable<Error = jerky::error::Error>,
+    <U as Serializable>::Meta: Clone,
 {
     fn from(set: &TribleSet) -> Self {
         let triple_count = set.eav.len() as usize;
@@ -459,7 +460,7 @@ where
         };
 
         let mut meta_sec = sections.reserve::<SuccinctArchiveMeta<U::Meta>>(1).unwrap();
-        meta_sec.as_mut_slice()[0] = meta;
+        meta_sec.as_mut_slice()[0] = meta.clone();
         meta_sec.freeze().unwrap();
 
         let bytes = area.freeze().unwrap();
@@ -498,15 +499,16 @@ where
 
 impl<U> Serializable for SuccinctArchive<U>
 where
-    U: Universe + Serializable,
+    U: Universe + Serializable<Error = jerky::error::Error>,
 {
     type Meta = SuccinctArchiveMeta<U::Meta>;
+    type Error = jerky::error::Error;
 
     fn metadata(&self) -> Self::Meta {
         self.meta()
     }
 
-    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> anyhow::Result<Self> {
+    fn from_bytes(meta: Self::Meta, bytes: Bytes) -> Result<Self, Self::Error> {
         let domain = U::from_bytes(meta.domain, bytes.clone())?;
 
         let e_a = BitVector::from_bytes(meta.e_a, bytes.clone())?;
@@ -569,19 +571,36 @@ where
     }
 }
 
+pub struct SuccinctArchiveError;
+
+impl std::error::Error for SuccinctArchiveError {}
+
+impl std::fmt::Display for SuccinctArchiveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SuccinctArchiveError")
+    }
+}
+
+impl std::fmt::Debug for SuccinctArchiveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SuccinctArchiveError")
+    }
+}
+
 impl<U> TryFromBlob<SuccinctArchiveBlob> for SuccinctArchive<U>
 where
-    U: Universe + Serializable,
+    U: Universe + Serializable<Error = jerky::error::Error>,
+    <U as Serializable>::Meta: Copy + 'static,
 {
-    type Error = anyhow::Error;
+    type Error = SuccinctArchiveError;
 
     fn try_from_blob(blob: Blob<SuccinctArchiveBlob>) -> Result<Self, Self::Error> {
         let bytes = blob.bytes;
         let mut tail = bytes.clone();
         let meta = *tail
             .view_suffix::<SuccinctArchiveMeta<U::Meta>>()
-            .map_err(anyhow::Error::from)?;
-        SuccinctArchive::from_bytes(meta, bytes)
+            .map_err(|_| SuccinctArchiveError)?;
+        SuccinctArchive::from_bytes(meta, bytes).map_err(|_| SuccinctArchiveError)
     }
 }
 
@@ -590,12 +609,10 @@ mod tests {
     use std::convert::TryInto;
 
     use crate::blob::ToBlob;
-    use crate::blob::TryFromBlob;
     use crate::id::fucid;
     use crate::prelude::*;
     use crate::query::find;
     use crate::trible::Trible;
-    use crate::value::schemas::shortstring::ShortString;
     use crate::value::ToValue;
     use crate::value::TryToValue;
 
@@ -603,15 +620,14 @@ mod tests {
     use anybytes::area::ByteArea;
     use itertools::Itertools;
     use proptest::prelude::*;
-    use std::marker::PhantomData;
 
     pub mod knights {
         use crate::prelude::*;
 
         attributes! {
-            "328edd7583de04e2bedd6bd4fd50e651" as loves: GenId;
-            "328147856cc1984f0806dbb824d2b4cb" as name: ShortString;
-            "328f2c33d2fdd675e733388770b2d6c4" as title: ShortString;
+            "328edd7583de04e2bedd6bd4fd50e651" as loves: valueschemas::GenId;
+            "328147856cc1984f0806dbb824d2b4cb" as name: valueschemas::ShortString;
+            "328f2c33d2fdd675e733388770b2d6c4" as title: valueschemas::ShortString;
         }
     }
 
@@ -713,10 +729,10 @@ mod tests {
         let r: Vec<_> = find!(
             (juliet, name),
             pattern!(&archive, [
-            {knights::name: ("Romeo"),
-             knights::loves: juliet},
-            {juliet @
-                knights::name: name
+            {knights::name: "Romeo",
+             knights::loves: ?juliet},
+            {?juliet @
+                knights::name: ?name
             }])
         )
         .collect();
@@ -733,17 +749,16 @@ mod tests {
 
         let mut kb = TribleSet::new();
 
-        kb += knights1::entity!(&juliet,
-        {
-            name: "Juliet",
-            loves: &romeo,
-            title: "Maiden"
-        });
-        kb += knights1::entity!(&romeo, {
-            name: "Romeo",
-            loves: &juliet,
-            title: "Prince"
-        });
+        kb += entity! {&juliet @
+            knights::name: "Juliet",
+            knights::loves: &romeo,
+            knights::title: "Maiden"
+        };
+        kb += entity! {&romeo @
+            knights::name: "Romeo",
+            knights::loves: &juliet,
+            knights::title: "Prince"
+        };
 
         let archive: SuccinctArchive<OrderedUniverse> = (&kb).into();
         let blob = (&archive).to_blob();

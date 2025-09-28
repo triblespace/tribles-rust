@@ -2,7 +2,6 @@
 
 pub mod longstring;
 pub mod simplearchive;
-#[cfg(feature = "succinct-archive")]
 pub mod succinctarchive;
 
 use anybytes::Bytes;

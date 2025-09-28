@@ -119,16 +119,18 @@ fn main() -> std::io::Result<()> {
     let title = "Dune";
 
     // We can then find all entities matching a certain pattern in our dataset.
-    for (_, f, l, q) in find!(
-        (author: (), first: String, last: Value<_>, quote),
+    // Use `_?ident` when you need a fresh variable scoped to this macro call
+    // without declaring it in the find! projection list.
+    for (f, l, q) in find!(
+        (first: String, last: Value<_>, quote),
         pattern!(&set, [
-            { ?author @
+            { _?author @
                 literature::firstname: ?first,
                 literature::lastname: ?last
             },
             {
                 literature::title: title,
-                literature::author: ?author,
+                literature::author: _?author,
                 literature::quote: ?quote
             }])) {
         let q: View<str> = blobs.reader().unwrap().get(q).unwrap();

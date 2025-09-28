@@ -54,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
 - Simplified blob deserialization by reading archive metadata via `Bytes::view_suffix`.
+- `SuccinctArchive`'s `Serializable` implementation now reports concrete
+  `jerky::error::Error` values instead of relying on `anyhow`.
+- Removed the custom empty `WaveletMatrix` metadata workaround now that the
+  builder accepts zero-length sequences.
+- `SuccinctArchive::from` now seeds wavelet matrices without guarding against
+  empty archives because the builder handles zero-length iterators.
 - `OrderedUniverse` now stores values as `View<[RawValue]>` for zero-copy access.
 - Simplified `OrderedUniverse::with_sorted_dedup` to always collect incoming
   values before writing them into the reserved section, avoiding reliance on

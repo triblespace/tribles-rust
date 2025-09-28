@@ -60,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builder accepts zero-length sequences.
 - `SuccinctArchive::from` now seeds wavelet matrices without guarding against
   empty archives because the builder handles zero-length iterators.
+- Verified the wavelet-matrix builder path against empty archives via
+  `./scripts/preflight.sh` after the jerky upgrade.
 - `OrderedUniverse` now stores values as `View<[RawValue]>` for zero-copy access.
 - Simplified `OrderedUniverse::with_sorted_dedup` to always collect incoming
   values before writing them into the reserved section, avoiding reliance on

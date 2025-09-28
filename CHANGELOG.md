@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test coverage for `branch_from` and `pull_with_key`.
 - Migrated `SuccinctArchive` to new `jerky`/`anybytes` APIs and added
   serializable metadata.
+- `_?name` scoped variables for `pattern!`/`pattern_changes!` along with
+  documentation and tests demonstrating their use.
 - Implemented `ToBlob`/`TryFromBlob` for `SuccinctArchive`, enabling archive
   serialization as a blob.
 - `Pile::restore` method to repair piles with trailing corruption.

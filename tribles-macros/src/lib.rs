@@ -460,22 +460,22 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut val_idx = 0usize;
     use std::collections::HashMap;
     let mut attr_map: HashMap<String, (Ident, Ident)> = HashMap::new();
-    let mut local_var_tokens = TokenStream2::new();
-    let mut local_var_map: HashMap<String, Ident> = HashMap::new();
-    let mut local_var_idx = 0usize;
+    let mut local_tokens = TokenStream2::new();
+    let mut local_map: HashMap<String, Ident> = HashMap::new();
+    let mut local_idx = 0usize;
 
     let mut get_local_var = |name: &Ident| {
         let key = format!("_?{}", name);
-        local_var_map
+        local_map
             .entry(key)
             .or_insert_with(|| {
                 let ident = format_ident!(
-                    "__lv{}",
-                    local_var_idx,
+                    "__local{}",
+                    local_idx,
                     span = Span::mixed_site()
                 );
-                local_var_idx += 1;
-                local_var_tokens.extend(quote! {
+                local_idx += 1;
+                local_tokens.extend(quote! {
                     let #ident = #ctx_ident.next_variable();
                 });
                 ident
@@ -588,7 +588,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
             let mut constraints: ::std::vec::Vec<Box<dyn ::tribles::query::Constraint>> = ::std::vec::Vec::new();
             let #ctx_ident = __local_find_context!();
             let #set_ident = #set;
-            #local_var_tokens
+            #local_tokens
             #attr_tokens
             #entity_tokens
             ::tribles::query::intersectionconstraint::IntersectionConstraint::new(constraints)
@@ -635,7 +635,7 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
             Value::LocalVar(ident) => {
                 return Err(syn::Error::new_spanned(
                     ident,
-                    "local variables (_?ident) are not allowed in entity!; use a literal expression here",
+                    "local variable bindings (_?ident) are not allowed in entity!; use a literal expression here",
                 ));
             }
         }
@@ -660,7 +660,7 @@ fn entity_impl(input: TokenStream) -> syn::Result<TokenStream> {
             Value::LocalVar(id) => {
                 return Err(syn::Error::new_spanned(
                     id,
-                    "local variables (_?ident) are not allowed in entity!; use a literal expression here",
+                    "local variable bindings (_?ident) are not allowed in entity!; use a literal expression here",
                 ));
             }
         };
@@ -772,20 +772,20 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let mut attr_idx = 0usize;
     let mut value_idx = 0usize;
     let mut local_decl_tokens = TokenStream2::new();
-    let mut local_var_map: HashMap<String, Ident> = HashMap::new();
-    let mut local_var_idx = 0usize;
+    let mut local_map: HashMap<String, Ident> = HashMap::new();
+    let mut local_idx = 0usize;
 
     let mut get_local_var = |ident: &Ident| {
         let key = format!("_?{}", ident);
-        local_var_map
+        local_map
             .entry(key)
             .or_insert_with(|| {
                 let ident = format_ident!(
-                    "__lv{}",
-                    local_var_idx,
+                    "__local{}",
+                    local_idx,
                     span = Span::mixed_site()
                 );
-                local_var_idx += 1;
+                local_idx += 1;
                 local_decl_tokens.extend(quote! {
                     let #ident = #ctx_ident.next_variable();
                 });
@@ -926,7 +926,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     let output = quote! {
         {
             let #ctx_ident = __local_find_context!();
-                        let #curr_ident = #curr;
+            let #curr_ident = #curr;
             let #delta_ident = #changes;
             #ns_use
             #local_decl_tokens

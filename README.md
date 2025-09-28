@@ -142,6 +142,21 @@ fn main() -> std::io::Result<()> {
 }
 ```
 
+You can also introduce temporary equality constraints inside a pattern without
+adding them to the surrounding `find!` bindings. Prefix a variable name with
+`_?` to allocate a scoped query variable that lives only for the duration of the
+macro expansion:
+
+```ignore
+pattern!(&set, [{
+    ?author @ literature::firstname: _?name,
+    literature::lastname: _?name,
+}]);
+```
+
+This binds both attributes to the same generated variable, ensuring the first
+and last names match without cluttering the outer query signature.
+
 ## Tribles Book
 
 For a step-by-step narrative guide, see the [Tribles Book](book/README.md).

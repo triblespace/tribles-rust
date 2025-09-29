@@ -96,7 +96,7 @@ Example: find plan snapshot ids (match tag directly)
 
 ```rust
 // Match entities that have the canonical plan snapshot tag attached.
-for (e,) in find!((e: Id), tribles::pattern!(&content, [{ e @ metadata::tag: (KIND_PLAN_SNAPSHOT) }])) {
+for (e,) in find!((e: Id), tribles::pattern!(&content, [{ ?e @ metadata::tag: (KIND_PLAN_SNAPSHOT) }])) {
     // `e` is a plan snapshot entity id; follow-up finds can read other fields
 }
 ```

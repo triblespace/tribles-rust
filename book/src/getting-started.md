@@ -65,9 +65,10 @@ recover the underlying pile with `Repository::into_storage` and call
 See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
 additional modules and examples.
 
-Note: the `pattern!` macro used in queries treats a bare identifier as a
-variable binding and more complex expressions (including string literals) as
-literal values; parentheses may still be used to force a literal where desired.
+Note: the `pattern!` macro used in queries treats values prefixed with `?` as
+variable bindings and more complex expressions (including string literals) as
+literal values. Use `_?ident` when you want a fresh variable that is scoped to
+the macro invocation without listing it in the query head.
 
 ## Switching signing identities
 

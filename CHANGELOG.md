@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `_?ident` scoped variables for `pattern!` and `pattern_changes!`, enabling
+  fresh bindings without declaring them in `find!` heads, along with
+  documentation and tests.
 - Documented repository storage backends and added a book page tracking future
   documentation improvements.
 - Expanded the documentation backlog with notes on remote object-store conflict
@@ -53,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Query Engine chapter now directs readers to the crate-level `pattern!` and
   `entity!` macros and shows how to import them via the prelude.
+- Removed the outdated note that parentheses "force" literals in the getting
+  started guide now that the macros rely on regular Rust expression syntax for
+  literal detection.
 - Clarified that `find!` retrieves `ExclusiveId` bindings via `FromValue` and
   that restricting queries with `local_ids` keeps the conversion safe.
 - Getting started guide now demonstrates defining custom attributes alongside
@@ -150,6 +156,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Restored `_?ident` locals in `pattern!`/`pattern_changes!` to infer their
+  value schema from usage instead of forcing `GenId`, so scoped bindings work on
+  non-`GenId` attributes again.
 - Resolved hygiene issues in `pattern!`/`pattern_changes!` so user bindings like
   `__ctx` no longer collide with generated identifiers, and added trybuild
   coverage to prevent regressions.

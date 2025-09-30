@@ -1042,6 +1042,25 @@ where
     }
 }
 
+impl<Blobs> CommitSelector<Blobs> for Option<CommitHandle>
+where
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        _ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let mut patch = CommitSet::new();
+        if let Some(handle) = self {
+            patch.insert(&Entry::new(&handle.raw));
+        }
+        Ok(patch)
+    }
+}
+
 impl<Blobs> CommitSelector<Blobs> for Ancestors
 where
     Blobs: BlobStore<Blake3>,
@@ -1196,8 +1215,32 @@ where
     }
 }
 
-impl<Blobs> CommitSelector<Blobs> for std::ops::Range<CommitHandle>
+// Generic range selectors: allow any selector type to be used as a range
+// endpoint. We compute the set of commits reachable from each endpoint by
+// collecting reachable commits for every handle returned by the endpoint
+// selector and unioning the results. This preserves existing semantics for
+// CommitHandle endpoints while allowing selectors like `Ancestors(...)` to
+// be used directly as well.
+
+fn collect_reachable_from_patch<Blobs: BlobStore<Blake3>>(
+    ws: &mut Workspace<Blobs>,
+    patch: CommitSet,
+) -> Result<
+    CommitSet,
+    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+> {
+    let mut result = CommitSet::new();
+    for raw in patch.iter() {
+        let handle = Value::new(*raw);
+        let reach = collect_reachable(ws, handle)?;
+        result.union(reach);
+    }
+    Ok(result)
+}
+
+impl<T, Blobs> CommitSelector<Blobs> for std::ops::Range<T>
 where
+    T: CommitSelector<Blobs>,
     Blobs: BlobStore<Blake3>,
 {
     fn select(
@@ -1207,14 +1250,18 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        let patch = collect_reachable(ws, self.end)?;
-        let exclude = collect_reachable(ws, self.start)?;
-        Ok(patch.difference(&exclude))
+        let end_patch = self.end.select(ws)?;
+        let start_patch = self.start.select(ws)?;
+
+        let end_reach = collect_reachable_from_patch(ws, end_patch)?;
+        let start_reach = collect_reachable_from_patch(ws, start_patch)?;
+        Ok(end_reach.difference(&start_reach))
     }
 }
 
-impl<Blobs> CommitSelector<Blobs> for std::ops::RangeFrom<CommitHandle>
+impl<T, Blobs> CommitSelector<Blobs> for std::ops::RangeFrom<T>
 where
+    T: CommitSelector<Blobs>,
     Blobs: BlobStore<Blake3>,
 {
     fn select(
@@ -1226,13 +1273,15 @@ where
     > {
         let head_ = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
         let patch = collect_reachable(ws, head_)?;
-        let exclude = collect_reachable(ws, self.start)?;
+        let exclude_patch = self.start.select(ws)?;
+        let exclude = collect_reachable_from_patch(ws, exclude_patch)?;
         Ok(patch.difference(&exclude))
     }
 }
 
-impl<Blobs> CommitSelector<Blobs> for std::ops::RangeTo<CommitHandle>
+impl<T, Blobs> CommitSelector<Blobs> for std::ops::RangeTo<T>
 where
+    T: CommitSelector<Blobs>,
     Blobs: BlobStore<Blake3>,
 {
     fn select(
@@ -1242,7 +1291,8 @@ where
         CommitSet,
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
-        collect_reachable(ws, self.end)
+        let end_patch = self.end.select(ws)?;
+        collect_reachable_from_patch(ws, end_patch)
     }
 }
 

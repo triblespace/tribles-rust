@@ -22,8 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `parents` commit selector corresponding to Git's `A^@` syntax.
 - `INVENTORY.md` file and instructions for recording future work.
 - README now links to the corresponding chapters on https://triblespace.github.io/tribles-rust.
-- `branch_id_by_name` helper to resolve branch IDs from names. Returns a
-  `NameConflict` error when multiple branches share the same name.
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Book section showing how to stage and fetch workspace blobs with `Workspace::put`

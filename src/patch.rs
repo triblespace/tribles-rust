@@ -1162,8 +1162,11 @@ where
         PATCHIterator::new(self)
     }
 
-    /// Iterates over all keys in the PATCH.
-    /// The keys are returned in key ordering and tree order.
+    /// Iterates over all keys in the PATCH in tree order.
+    ///
+    /// The traversal visits every key according to the tree's ordering, without
+    /// accepting a prefix filter. For prefix-aware iteration, see
+    /// [`PATCH::iter_prefix_count`].
     pub fn iter_ordered<'a>(&'a self) -> PATCHOrderedIterator<'a, KEY_LEN, O, V> {
         PATCHOrderedIterator::new(self)
     }
@@ -1348,8 +1351,11 @@ impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> std::iter::FusedIterato
 {
 }
 
-/// An iterator over all keys in a PATCH that have a given prefix.
-/// The keys are returned in tree ordering and in tree order.
+/// An iterator over every key in a PATCH, returned in tree order.
+///
+/// This iterator walks the full tree and does not accept a prefix filter. For
+/// prefix-aware iteration, use [`PATCHPrefixIterator`], constructed via
+/// [`PATCH::iter_prefix_count`].
 pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
     stack: Vec<ArrayVec<&'a Head<KEY_LEN, O, V>, 256>>,
     remaining: usize,

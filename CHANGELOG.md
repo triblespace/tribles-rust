@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
+  describe the full tree-order traversal without a prefix filter and point to
+  the prefix iterator for filtered traversal.
 - Query Engine chapter now directs readers to the crate-level `pattern!` and
   `entity!` macros and shows how to import them via the prelude.
 - Removed the outdated note that parentheses "force" literals in the getting

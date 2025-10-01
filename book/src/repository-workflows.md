@@ -62,10 +62,11 @@ underlying store and returns an [`ExclusiveId`](../src/id.rs) guarding the
 branch head. Dereference that ID when you need a plain [`Id`](../src/id.rs) for
 queries or workspace operations. Typical steps look like:
 
-1. Create a repository backed by blob and branch stores.
-2. Initialize or look up a branch ID, then `pull` a workspace for it.
-3. Commit changes in the workspace.
-4. Push the workspace to publish those commits.
+1. Create a repository backed by blob and branch stores via `Repository::new`.
+2. Initialize or look up a branch ID with helpers like `Repository::create_branch`,
+   then call `Repository::pull` to obtain a workspace for it.
+3. Commit changes in the workspace using `Workspace::commit`.
+4. Push the workspace with `Repository::push` to publish those commits.
 
 While `Repository::create_branch` registers a new branch, most workflows call
 `Repository::pull` to obtain a workspace for an existing branch:
@@ -94,7 +95,7 @@ between multiple authors or assign a dedicated key to automation. You can
 adjust the active identity in three ways:
 
 * `Repository::set_signing_key` replaces the repository's default key. Subsequent
-  calls to helpers such as `Repository::branch` or `Repository::pull` use the new
+  calls to helpers such as `Repository::create_branch` or `Repository::pull` use the new
   key for any commits created from those workspaces.
 * `Repository::create_branch_with_key` signs a branch's metadata with an explicit
   key, allowing each branch to advertise the author responsible for updating it.

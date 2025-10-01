@@ -1,13 +1,22 @@
 //! Procedural macro implementations used by the `tribles` crate.
 //!
-//! The macros here mirror the declarative macros defined in
-//! [`src/namespace.rs`](https://github.com/tribles/tribles-rust/blob/main/src/namespace.rs)
-//! but are implemented with `proc_macro` to allow more complex analysis and
-//! additional features in the future.  The crate currently exposes two macros:
-//! [`pattern!`], which expands namespace patterns into an
-//! [`IntersectionConstraint`] of query constraints, and [`entity!`], which
-//! constructs [`TribleSet`]s from namespace attribute assignments or inserts
-//! triples into an existing set.
+//! The macros here power the public helpers re-exported by the `tribles` crate
+//! (for example `tribles::pattern!` and `tribles::entity!`). They originated as
+//! declarative macros in the main crate but now live here as procedural macros
+//! so we can perform richer analysis, emit better diagnostics, and extend the
+//! syntax without running into `macro_rules!` limitations. The crate currently
+//! exposes five macros:
+//!
+//! * `path!` produces `RegularPathConstraint` values from a compact
+//!   regular-expression-like syntax so queries can follow attribute paths.
+//! * `attributes!` generates strongly typed attribute constants from the
+//!   canonical hex identifiers used in schemas.
+//! * `pattern!` expands namespace patterns into an `IntersectionConstraint` of
+//!   query constraints.
+//! * `entity!` constructs `TribleSet`s from namespace attribute assignments or
+//!   inserts triples into an existing set.
+//! * `pattern_changes!` mirrors `pattern!` but produces a `UnionConstraint`
+//!   across a base dataset and a set of staged insertions.
 //!
 //! ```ignore
 //! // Match an entity whose `my_ns::attr` equals the literal 42

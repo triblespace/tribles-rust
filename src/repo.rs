@@ -1216,11 +1216,11 @@ where
 }
 
 // Generic range selectors: allow any selector type to be used as a range
-// endpoint. We compute the set of commits reachable from each endpoint by
-// collecting reachable commits for every handle returned by the endpoint
-// selector and unioning the results. This preserves existing semantics for
-// CommitHandle endpoints while allowing selectors like `Ancestors(...)` to
-// be used directly as well.
+// endpoint. We still walk the history reachable from the end selector but now
+// stop descending a branch as soon as we encounter a commit produced by the
+// start selector. This keeps the mechanics explicit—`start..end` literally
+// walks from `end` until it hits `start`—while continuing to support selectors
+// such as `Ancestors(...)` at either boundary.
 
 fn collect_reachable_from_patch<Blobs: BlobStore<Blake3>>(
     ws: &mut Workspace<Blobs>,
@@ -1235,6 +1235,45 @@ fn collect_reachable_from_patch<Blobs: BlobStore<Blake3>>(
         let reach = collect_reachable(ws, handle)?;
         result.union(reach);
     }
+    Ok(result)
+}
+
+fn collect_reachable_from_patch_until<Blobs: BlobStore<Blake3>>(
+    ws: &mut Workspace<Blobs>,
+    seeds: CommitSet,
+    stop: &CommitSet,
+) -> Result<
+    CommitSet,
+    WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+> {
+    let mut visited = HashSet::new();
+    let mut stack: Vec<CommitHandle> = seeds.iter().map(|raw| Value::new(*raw)).collect();
+    let mut result = CommitSet::new();
+
+    while let Some(commit) = stack.pop() {
+        if !visited.insert(commit) {
+            continue;
+        }
+
+        if stop.get(&commit.raw).is_some() {
+            continue;
+        }
+
+        result.insert(&Entry::new(&commit.raw));
+
+        let meta: TribleSet = ws
+            .local_blobs
+            .reader()
+            .unwrap()
+            .get(commit)
+            .or_else(|_| ws.base_blobs.get(commit))
+            .map_err(WorkspaceCheckoutError::Storage)?;
+
+        for (p,) in find!((p: Value<_>,), pattern!(&meta, [{ parent: ?p }])) {
+            stack.push(p);
+        }
+    }
+
     Ok(result)
 }
 
@@ -1253,9 +1292,7 @@ where
         let end_patch = self.end.select(ws)?;
         let start_patch = self.start.select(ws)?;
 
-        let end_reach = collect_reachable_from_patch(ws, end_patch)?;
-        let start_reach = collect_reachable_from_patch(ws, start_patch)?;
-        Ok(end_reach.difference(&start_reach))
+        collect_reachable_from_patch_until(ws, end_patch, &start_patch)
     }
 }
 
@@ -1272,10 +1309,12 @@ where
         WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
     > {
         let head_ = ws.head.ok_or(WorkspaceCheckoutError::NoHead)?;
-        let patch = collect_reachable(ws, head_)?;
         let exclude_patch = self.start.select(ws)?;
-        let exclude = collect_reachable_from_patch(ws, exclude_patch)?;
-        Ok(patch.difference(&exclude))
+
+        let mut head_patch = CommitSet::new();
+        head_patch.insert(&Entry::new(&head_.raw));
+
+        collect_reachable_from_patch_until(ws, head_patch, &exclude_patch)
     }
 }
 

@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
   describe the full tree-order traversal without a prefix filter and point to
   the prefix iterator for filtered traversal.
+- Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
+  macros in the `tribles-macros` crate overview.
+- Reframed commit range selectors so `start..end` walks from the end selector
+  until encountering a commit yielded by the start selector, reducing
+  redundant ancestor exploration and making the traversal cost explicit.
 - Query Engine chapter now directs readers to the crate-level `pattern!` and
   `entity!` macros and shows how to import them via the prelude.
 - Removed the outdated note that parentheses "force" literals in the getting
@@ -508,8 +513,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Introduced an `ancestors` selector to retrieve a commit and its history.
 - Commit selectors now return a `CommitSet` patch of commit handles instead of a `Vec`.
 - Renamed the `CommitPatch` type alias to `CommitSet`.
-- The `..` commit selector now computes `reachable(end) minus reachable(start)`
-  via set operations, matching Git's two-dot semantics even across merges.
+- The `..` commit selector now walks from the end boundary until it encounters
+  a commit returned by the start selector. To reproduce Git's set-difference
+  semantics, wrap the boundary explicitly as `ancestors(start)..end`.
 - Added a `symmetric_diff` selector corresponding to Git's `A...B` three-dot
   syntax.
 - Refined candidate built-in schemas in `INVENTORY.md`; removed `Bool`, the

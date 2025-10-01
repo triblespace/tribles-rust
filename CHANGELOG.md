@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
+  macros in the `tribles-macros` crate overview.
 - Reframed commit range selectors so `start..end` walks from the end selector
   until encountering a commit yielded by the start selector, reducing
   redundant ancestor exploration and making the traversal cost explicit.

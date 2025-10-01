@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
+  macros in the `tribles-macros` crate overview.
 - Query Engine chapter now directs readers to the crate-level `pattern!` and
   `entity!` macros and shows how to import them via the prelude.
 - Removed the outdated note that parentheses "force" literals in the getting

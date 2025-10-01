@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
+  describe the full tree-order traversal without a prefix filter and point to
+  the prefix iterator for filtered traversal.
 - Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
   macros in the `tribles-macros` crate overview.
 - Reframed commit range selectors so `start..end` walks from the end selector

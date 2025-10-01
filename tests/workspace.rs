@@ -157,6 +157,78 @@ fn workspace_checkout_range_variants() {
 }
 
 #[test]
+fn workspace_checkout_range_stops_at_explicit_boundaries() {
+    use std::iter;
+
+    use tribles::blob::schemas::simplearchive::SimpleArchive;
+    use tribles::blob::Blob;
+    use tribles::repo::commit::commit_metadata;
+    use tribles::value::schemas::hash::{Blake3, Handle};
+    use tribles::value::schemas::r256::R256;
+    use tribles::value::Value;
+
+    type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let branch_id = repo.create_branch("main", None).expect("create branch");
+    let mut ws = repo.pull(*branch_id).expect("pull");
+
+    let signing = SigningKey::generate(&mut OsRng);
+
+    let root_e = ufoid();
+    let root_a = ufoid();
+    let root_v: Value<R256> = 0i128.to_value();
+    let root_t = Trible::new(&root_e, &root_a, &root_v);
+    let mut root_set = TribleSet::new();
+    root_set.insert(&root_t);
+
+    let root_blob: Blob<SimpleArchive> = root_set.clone().to_blob();
+    let _: CommitHandle = ws.put(root_blob.clone());
+    let root_commit = commit_metadata(
+        &signing,
+        iter::empty::<CommitHandle>(),
+        None,
+        Some(root_blob),
+    );
+    let root_commit_blob: Blob<SimpleArchive> = root_commit.to_blob();
+    let c_root: CommitHandle = ws.put(root_commit_blob);
+
+    let child_a_e = ufoid();
+    let child_a_a = ufoid();
+    let child_a_v: Value<R256> = 1i128.to_value();
+    let child_a_t = Trible::new(&child_a_e, &child_a_a, &child_a_v);
+    let mut child_a_set = TribleSet::new();
+    child_a_set.insert(&child_a_t);
+
+    let child_a_blob: Blob<SimpleArchive> = child_a_set.clone().to_blob();
+    let _: CommitHandle = ws.put(child_a_blob.clone());
+    let child_a_commit = commit_metadata(&signing, iter::once(c_root), None, Some(child_a_blob));
+    let child_a_commit_blob: Blob<SimpleArchive> = child_a_commit.to_blob();
+    let c_a: CommitHandle = ws.put(child_a_commit_blob);
+
+    let child_b_e = ufoid();
+    let child_b_a = ufoid();
+    let child_b_v: Value<R256> = 2i128.to_value();
+    let child_b_t = Trible::new(&child_b_e, &child_b_a, &child_b_v);
+    let mut child_b_set = TribleSet::new();
+    child_b_set.insert(&child_b_t);
+
+    let child_b_blob: Blob<SimpleArchive> = child_b_set.clone().to_blob();
+    let _: CommitHandle = ws.put(child_b_blob.clone());
+    let child_b_commit = commit_metadata(&signing, iter::once(c_root), None, Some(child_b_blob));
+    let child_b_commit_blob: Blob<SimpleArchive> = child_b_commit.to_blob();
+    let c_b: CommitHandle = ws.put(child_b_commit_blob);
+
+    let result = ws.checkout(c_a..c_b).expect("checkout");
+
+    let mut expected = root_set.clone();
+    expected.union(child_b_set);
+
+    assert_eq!(result, expected);
+}
+
+#[test]
 fn workspace_checkout_symmetric_diff() {
     use tribles::value::schemas::r256::R256;
 

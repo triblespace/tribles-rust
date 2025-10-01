@@ -7,11 +7,16 @@ commits. It currently supports individual commit handles, lists of handles and a
 handful of higher level selectors.
 
 Most selectors operate on ranges inspired by Git's two‑dot syntax. `a..b`
-selects all commits reachable from `b` that are not reachable from `a`. In set
-terms it computes `ancestors(b) - ancestors(a)`. Omitting the start defaults `a`
-to the empty set so `..b` yields `ancestors(b)`. Omitting the end defaults `b`
-to the current `HEAD`, making `a..` resolve to `ancestors(HEAD) - ancestors(a)`
-while `..` expands to `ancestors(HEAD)`.
+walks the parents reachable from `b` and stops descending a branch once it
+encounters a commit selected by `a`. Each boundary is exclusive, so the
+boundary commits themselves are omitted while ancestors reachable through other
+paths remain visible. Omitting the start defaults `a` to an empty selector,
+making `..b` walk all ancestors of `b`. Omitting the end defaults `b` to the
+current `HEAD`, so `a..` gathers history from `HEAD` until the walk reaches `a`
+and `..` expands to the full ancestor chain of `HEAD`.
+
+To reproduce Git's set-difference semantics, wrap the boundary in `ancestors`:
+`ancestors(a)..b` behaves like `git log a..b`.
 
 ```rust
 // Check out the entire history of the current branch
@@ -32,8 +37,8 @@ queries over the commit graph.
 - `parents(commit)` – direct parents of a commit.
 - `symmetric_diff(a, b)` – commits reachable from either `a` or `b` but not
   both.
-- Standard ranges: `a..b`, `a..`, `..b` and `..` following the two‑dot
-  semantics described above.
+- Standard ranges: `a..b`, `a..`, `..b` and `..` that stop walking once the
+  start boundary is encountered.
 - `filter(selector, predicate)` – retains commits for which `predicate`
   returns `true`.
 - `history_of(entity)` – commits touching a specific entity (built on
@@ -110,6 +115,10 @@ than commits are listed for completeness but are unlikely to be implemented.
 | `@{-N}` | `previous_checkout(N)` | [gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt--neg-1) | Not planned: relies on reflog history |
 
 Only a subset of Git's revision grammar will likely be supported. Selectors relying on reflog history, remote configuration, or searching commits and blobs add complexity with little benefit for workspace checkout. They are listed above for completeness but remain unplanned for now.
+
+> Note: `range(A, B)` differs subtly from Git's two-dot syntax. It walks parents
+> from `B` until a commit from `A` is encountered instead of subtracting the
+> entire ancestor closure of `A`. Use `ancestors(A)..B` for Git's behaviour.
 
 ## TimeRange
 

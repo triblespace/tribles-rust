@@ -83,7 +83,7 @@ debug = true
 opt-level = 3
 
 [profile.release]
-debug = false
+debug = true
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)', 'cfg(kani)'] }

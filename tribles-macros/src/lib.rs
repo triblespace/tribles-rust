@@ -477,11 +477,7 @@ fn pattern_impl(input: TokenStream) -> syn::Result<TokenStream> {
         local_map
             .entry(key)
             .or_insert_with(|| {
-                let ident = format_ident!(
-                    "__local{}",
-                    local_idx,
-                    span = Span::mixed_site()
-                );
+                let ident = format_ident!("__local{}", local_idx, span = Span::mixed_site());
                 local_idx += 1;
                 local_tokens.extend(quote! {
                     let #ident = #ctx_ident.next_variable();
@@ -788,11 +784,7 @@ fn pattern_changes_impl(input: TokenStream) -> syn::Result<TokenStream> {
         local_map
             .entry(key)
             .or_insert_with(|| {
-                let ident = format_ident!(
-                    "__local{}",
-                    local_idx,
-                    span = Span::mixed_site()
-                );
+                let ident = format_ident!("__local{}", local_idx, span = Span::mixed_site());
                 local_idx += 1;
                 local_decl_tokens.extend(quote! {
                     let #ident = #ctx_ident.next_variable();

@@ -1541,20 +1541,27 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
                 .or_else(|_| self.base_blobs.get(commit))
                 .map_err(WorkspaceCheckoutError::Storage)?;
 
-            let Ok((c,)) = find!(
-                (c: Value<_>),
-                pattern!(&meta, [{ content: ?c }])
-            )
-            .exactly_one() else {
-                return Err(WorkspaceCheckoutError::BadCommitMetadata());
-            };
+            // Some commits (for example merge commits) intentionally do not
+            // carry a content blob. Treat those as no-ops during checkout so
+            // callers can request ancestor ranges without failing when a
+            // merge commit is encountered.
+            let content_opt =
+                match find!((c: Value<_>), pattern!(&meta, [{ content: ?c }])).at_most_one() {
+                    Ok(Some((c,))) => Some(c),
+                    Ok(None) => None,
+                    Err(_) => return Err(WorkspaceCheckoutError::BadCommitMetadata()),
+                };
 
-            let set: TribleSet = local
-                .get(c)
-                .or_else(|_| self.base_blobs.get(c))
-                .map_err(WorkspaceCheckoutError::Storage)?;
-
-            result.union(set);
+            if let Some(c) = content_opt {
+                let set: TribleSet = local
+                    .get(c)
+                    .or_else(|_| self.base_blobs.get(c))
+                    .map_err(WorkspaceCheckoutError::Storage)?;
+                result.union(set);
+            } else {
+                // No content for this commit (e.g. merge-only commit); skip it.
+                continue;
+            }
         }
         Ok(result)
     }

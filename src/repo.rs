@@ -1454,17 +1454,20 @@ impl<Blobs: BlobStore<Blake3>> Workspace<Blobs> {
         self.head = Some(commit_handle);
     }
 
-    /// Merges another workspace (or its commit state) into this one.
-    /// This returns a new commit that combines the changes from both.
+    /// Merge another workspace (or its commit state) into this one.
+    ///
+    /// Notes on semantics
+    /// - This operation will copy the *staged* blobs created in `other`
+    ///   (i.e., `other.local_blobs`) into `self.local_blobs`, then create a
+    ///   merge commit whose parents are `self.head` and `other.head`.
+    /// - The merge does *not* automatically import the entire base history
+    ///   reachable from `other`'s head. If the incoming parent commits
+    ///   reference blobs that do not exist in this repository's storage,
+    ///   reading those commits later will fail until the missing blobs are
+    ///   explicitly imported (for example via `repo::transfer(reachable(...))`).
+    /// - This design keeps merge permissive and leaves cross-repository blob
+    ///   import as an explicit user action.
     pub fn merge(&mut self, other: &mut Workspace<Blobs>) -> Result<CommitHandle, MergeError> {
-        if self.base_blobs != other.base_blobs {
-            // Cannot merge workspaces with different base blobs,
-            // as this would potentially require transferring a huge number of blobs
-            // between the merged workspace to the current one.
-            // A better design would be to transfer the blobs first,
-            // then merge the commit states via detached commits.
-            return Err(MergeError::DifferentRepos());
-        }
         // 1. Transfer all blobs from the other workspace to self.local_blobs.
         let other_local = other.local_blobs.reader().unwrap();
         for r in other_local.blobs() {

@@ -23,7 +23,8 @@ fn main() {
     change += entity! { &ufoid() @ literature::firstname: "Alice" };
 
     ws1.commit(change, Some("add alice"));
-    repo.push(&mut ws1).expect("push ws1");
+    // Single-attempt push; handle conflicts manually when required.
+    repo.try_push(&mut ws1).expect("try_push ws1");
 
     // Second workspace adds Bob and attempts to push, merging on conflict
     let mut ws2 = repo.pull(*branch_id).expect("pull");
@@ -31,11 +32,11 @@ fn main() {
     change += entity! { &ufoid() @ literature::firstname: "Bob" };
     ws2.commit(change, Some("add bob"));
 
-    match repo.push(&mut ws2).expect("push ws2") {
+    match repo.try_push(&mut ws2).expect("try_push ws2") {
         None => println!("Push ws2 succeeded"),
         Some(mut other) => loop {
             other.merge(&mut ws2).expect("merge");
-            match repo.push(&mut other).expect("push conflict") {
+            match repo.try_push(&mut other).expect("push conflict") {
                 None => break,
                 Some(next) => other = next,
             }

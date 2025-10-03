@@ -18,10 +18,7 @@ fn workspace_commit_updates_head() {
 
     ws.commit(TribleSet::new(), Some("change"));
 
-    match repo.push(&mut ws) {
-        Ok(None) => {}
-        Ok(_) | Err(_) => panic!("push failed"),
-    }
+    repo.push(&mut ws).expect("push");
 }
 
 #[test]

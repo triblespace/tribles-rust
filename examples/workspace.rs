@@ -13,7 +13,7 @@ fn main() {
     workspace.commit(TribleSet::new(), Some("start feature work"));
 
     // attempt to push, merging conflicts before retrying
-    while let Some(mut incoming) = repo.push(&mut workspace).expect("push") {
+    while let Some(mut incoming) = repo.try_push(&mut workspace).expect("push") {
         // merge our local changes into the conflicting workspace
         incoming.merge(&mut workspace).expect("merge");
         // push the merged workspace on the next iteration

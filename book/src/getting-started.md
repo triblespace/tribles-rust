@@ -42,7 +42,10 @@ fn main() {
     let mut ws = repo.pull(*branch_id).expect("pull branch");
 
     ws.commit(entity! { &ufoid() @ getting_started::firstname: "Alice" }, None);
-    assert!(repo.push(&mut ws).expect("push branch").is_none());
+    // Single-attempt push: prefer `try_push` when you want the raw conflict
+    // workspace on CAS failure. Use `push` to let the repository merge and
+    // retry automatically.
+    assert!(repo.try_push(&mut ws).expect("try_push branch").is_none());
     repo.close().expect("close repository");
 #     std::fs::remove_file("example.pile").expect("remove example pile");
 }

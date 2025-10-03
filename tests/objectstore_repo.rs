@@ -27,10 +27,7 @@ fn objectstore_workspace_commit_updates_head() {
 
     ws.commit(TribleSet::new(), Some("change"));
 
-    match repo.push(&mut ws).expect("push") {
-        None => {}
-        _ => panic!("push failed"),
-    }
+    repo.push(&mut ws).expect("push");
 }
 
 #[test]
@@ -66,20 +63,14 @@ fn objectstore_push_and_merge_conflict_resolution() {
     ws1.commit(TribleSet::new(), Some("first"));
     ws2.commit(TribleSet::new(), Some("second"));
 
-    match repo.push(&mut ws1).expect("push") {
-        None => {}
-        _ => panic!("expected success"),
-    }
+    repo.push(&mut ws1).expect("push");
 
-    let mut conflict_ws = match repo.push(&mut ws2).expect("push") {
+    let mut conflict_ws = match repo.try_push(&mut ws2).expect("push") {
         Some(ws) => ws,
         _ => panic!("expected conflict"),
     };
 
     conflict_ws.merge(&mut ws2).unwrap();
 
-    match repo.push(&mut conflict_ws).expect("push") {
-        None => {}
-        _ => panic!("expected success after merge"),
-    }
+    repo.push(&mut conflict_ws).expect("push");
 }

@@ -195,7 +195,8 @@ let mut change = tribles::entity! {
 change += tribles::entity! { repo::content: archive_handle.clone() };
 
 ws.commit(change, Some("Attach annotated dataset"));
-repo.push(&mut ws).expect("push");
+// Single-attempt push. Use `push` to let the repository merge and retry automatically.
+repo.try_push(&mut ws).expect("try_push");
 
 // Fetch the staged blobs back with the desired representation.
 let restored_quote: String = ws
@@ -224,14 +225,29 @@ channel.
 ## Merging and Conflict Handling
 
 When pushing a workspace another client might have already updated the branch.
-`Repository::push` attempts to update the branch atomically and returns an
-optional conflicting `Workspace` if the head moved. The usual loop looks like:
+There are two ways to handle this:
+
+- `Repository::try_push` — a single-attempt push that uploads local blobs and
+  attempts a CAS update once. If the branch advanced concurrently it returns
+  `Ok(Some(conflict_ws))` so callers can merge and retry explicitly:
 
 ```rust
-while let Some(mut incoming) = repo.push(&mut ws)? {
-    incoming.merge(&mut ws)?;
-    ws = incoming;
+ws.commit(content, Some("codex-turn"));
+let mut current_ws = ws;
+while let Some(mut incoming) = repo.try_push(&mut current_ws)? {
+    // Merge the local staged changes into the incoming workspace and retry.
+    incoming.merge(&mut current_ws)?;
+    current_ws = incoming;
 }
+```
+
+- `Repository::push` — a convenience wrapper that performs the merge-and-retry
+  loop for you. Call this when you prefer the repository to handle conflicts
+  automatically; it either succeeds (returns `Ok(None)`) or returns an error.
+
+```rust
+ws.commit(content, Some("codex-turn"));
+repo.push(&mut ws)?; // will internally merge and retry until success
 ```
 
 > **Troubleshooting:** `Workspace::merge` succeeds only when both workspaces
@@ -349,7 +365,7 @@ fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
     let mut ws = repo.pull(*branch_id)?;
     ws.commit(TribleSet::new(), Some("initial commit"));
 
-    while let Some(mut incoming) = repo.push(&mut ws)? {
+    while let Some(mut incoming) = repo.try_push(&mut ws)? {
         incoming.merge(&mut ws)?;
         ws = incoming;
     }
@@ -458,7 +474,7 @@ fn merge_import_example(
     ws.merge_commit(src_head)?; // parents = { current HEAD, src_head }
 
     // 5) Push with standard conflict resolution
-    while let Some(mut incoming) = repo.push(&mut ws)? {
+    while let Some(mut incoming) = repo.try_push(&mut ws)? {
         incoming.merge(&mut ws)?;
         ws = incoming;
     }

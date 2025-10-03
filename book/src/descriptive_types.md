@@ -150,19 +150,28 @@ and easy to reason about.
 ------------------------------------
 
 When pushing writes, use the standard push/merge loop to handle concurrent
-writers:
+writers. Two options are available:
+
+- Manual conflict handling with `try_push` (single attempt; returns a
+  conflicting workspace on CAS failure):
 
 ```rust
 ws.commit(content, Some("plan-update"));
 let mut current_ws = ws;
-while let Some(mut incoming) = match repo.push(&mut current_ws) {
-    Ok(Some(i)) => Ok(Some(i)),
-    Ok(None) => Ok(None),
-    Err(e) => Err(io::Error::new(...)),
-}? {
+while let Some(mut incoming) = repo.try_push(&mut current_ws)? {
     incoming.merge(&mut current_ws)?;
     current_ws = incoming;
 }
+```
+
+- Automatic retries with `push` (convenience wrapper that merges and retries
+  until success or error):
+
+```rust
+ws.commit(content, Some("plan-update"));
+// `push` will handle merge+retry internally; it returns Ok(None) on success
+// or an error if the operation ultimately failed.
+repo.push(&mut ws)?;
 ```
 
 Practical anti‑patterns

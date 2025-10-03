@@ -60,7 +60,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ws = repo.pull(*branch_id)?;
 
     ws.commit(entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
-    repo.push(&mut ws)?;
+    // Use `try_push` for a single attempt that returns a conflict workspace on
+    // CAS failure; use `push` to let the repository merge and retry
+    // automatically.
+    repo.try_push(&mut ws)?;
     Ok(())
 }
 ```

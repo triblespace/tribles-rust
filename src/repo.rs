@@ -49,7 +49,10 @@
 //!     Some("initial commit"),
 //! );
 //!
-//! match repo.push(&mut ws).expect("push") {
+//! // Single-attempt push: `try_push` uploads local blobs and attempts a
+//! // single CAS update. On conflict it returns a workspace containing the
+//! // new branch state which you should merge into before retrying.
+//! match repo.try_push(&mut ws).expect("try_push") {
 //!     None => {}
 //!     Some(_) => panic!("unexpected conflict"),
 //! }
@@ -62,16 +65,23 @@
 //!
 //! ## Handling conflicts
 //!
-//! `push` may return `Some(conflict_ws)` when the branch has changed.
-//! The returned workspace contains the updated branch metadata and must be
-//! pushed after merging your changes:
+//! The single-attempt primitive is [`Repository::try_push`]. It returns
+//! `Ok(None)` on success or `Ok(Some(conflict_ws))` when the branch advanced
+//! concurrently. Callers that want explicit conflict handling may use this
+//! form:
 //!
 //! ```rust,ignore
-//! while let Some(mut other) = repo.push(&mut ws)? {
+//! while let Some(mut other) = repo.try_push(&mut ws)? {
+//!     // Merge our staged changes into the incoming workspace and retry.
 //!     other.merge(&mut ws)?;
 //!     ws = other;
 //! }
 //! ```
+//!
+//! For convenience `Repository::push` is provided as a retrying wrapper that
+//! performs the merge-and-retry loop for you. Call `push` when you prefer the
+//! repository to handle conflicts automatically; call `try_push` when you need
+//! to inspect or control the intermediate conflict workspace yourself.
 //!
 //! `push` performs a compare‐and‐swap (CAS) update on the branch metadata.
 //! This optimistic concurrency control keeps branches consistent without
@@ -539,7 +549,28 @@ pub enum PushError<Storage: BranchStore<Blake3> + BlobStore<Blake3>> {
     BranchUpdate(Storage::UpdateError),
     /// Malformed branch metadata.
     BadBranchMetadata(),
+    /// Merge failed while retrying a push.
+    MergeError(MergeError),
 }
+
+// Allow using the `?` operator to convert MergeError into PushError in
+// contexts where PushError is the function error type. This keeps call sites
+// succinct by avoiding manual mapping closures like
+// `.map_err(|e| PushError::MergeError(e))?`.
+impl<Storage> From<MergeError> for PushError<Storage>
+where
+    Storage: BranchStore<Blake3> + BlobStore<Blake3>,
+{
+    fn from(e: MergeError) -> Self {
+        PushError::MergeError(e)
+    }
+}
+
+// Note: we intentionally avoid generic `From` impls for storage-associated
+// error types because they can overlap with other blanket implementations
+// and lead to coherence conflicts. Call sites use explicit mapping via the
+// enum variant constructors (e.g. `map_err(PushError::StoragePut)`) where
+// needed which keeps conversions explicit and stable.
 
 #[derive(Debug)]
 pub enum BranchError<Storage>
@@ -786,29 +817,48 @@ where
     /// Pushes the workspace's new blobs and commit to the persistent repository.
     /// This syncs the local BlobSet with the repository's BlobStore and performs
     /// an atomic branch update (using the stored base_branch_meta).
-    pub fn push(
+    pub fn push(&mut self, workspace: &mut Workspace<Storage>) -> Result<(), PushError<Storage>> {
+        // Retrying push: attempt a single push and, on conflict, merge the
+        // local workspace into the returned conflict workspace and retry.
+        // This implements the common push-merge-retry loop as a convenience
+        // wrapper around `try_push`.
+        while let Some(mut conflict_ws) = self.try_push(workspace)? {
+            // Keep the previous merge order: merge the caller's staged
+            // changes into the incoming conflict workspace. This preserves
+            // the semantic ordering of parents used in the merge commit.
+            conflict_ws.merge(workspace)?;
+
+            // Move the merged incoming workspace into the caller's workspace
+            // so the next try_push operates against the fresh branch state.
+            // Using assignment here is equivalent to `swap` but avoids
+            // retaining the previous `workspace` contents in the temp var.
+            *workspace = conflict_ws;
+        }
+
+        Ok(())
+    }
+
+    /// Single-attempt push: upload local blobs and try to update the branch
+    /// head once. Returns `Ok(None)` on success, or `Ok(Some(conflict_ws))`
+    /// when the branch was updated concurrently and the caller should merge.
+    pub fn try_push(
         &mut self,
         workspace: &mut Workspace<Storage>,
     ) -> Result<Option<Workspace<Storage>>, PushError<Storage>> {
-        // 1. Sync `self.local_blobset` to repository's BlobStore.
+        // 1. Sync `workspace.local_blobs` to repository's BlobStore.
         let workspace_reader = workspace.local_blobs.reader().unwrap();
         for handle in workspace_reader.blobs() {
             let handle = handle.expect("infallible blob enumeration");
             let blob: Blob<UnknownBlob> =
                 workspace_reader.get(handle).expect("infallible blob read");
-            self.storage
-                .put(blob)
-                .map_err(|e| PushError::StoragePut(e))?;
+            self.storage.put(blob).map_err(PushError::StoragePut)?;
         }
         // 2. Create a new branch meta blob referencing the new workspace head.
-        let repo_reader = self
-            .storage
-            .reader()
-            .map_err(|e| PushError::StorageReader(e))?;
+        let repo_reader = self.storage.reader().map_err(PushError::StorageReader)?;
 
         let base_branch_meta: TribleSet = repo_reader
             .get(workspace.base_branch_meta)
-            .map_err(|e| PushError::StorageGet(e))?;
+            .map_err(PushError::StorageGet)?;
 
         let Ok((branch_name,)) = find!((name: Value<_>),
             pattern!(base_branch_meta, [{ metadata::name: ?name }])
@@ -820,7 +870,7 @@ where
         let head_handle = workspace.head.ok_or(PushError::BadBranchMetadata())?;
         let head_: TribleSet = repo_reader
             .get(head_handle)
-            .map_err(|e| PushError::StorageGet(e))?;
+            .map_err(PushError::StorageGet)?;
 
         let branch_meta = branch_metadata(
             &workspace.signing_key,
@@ -832,10 +882,9 @@ where
         let branch_meta_handle = self
             .storage
             .put(branch_meta)
-            .map_err(|e| PushError::StoragePut(e))?;
+            .map_err(PushError::StoragePut)?;
 
-        // 3. Use CAS (comparing against self.base_branch_meta) to update the branch pointer.
-
+        // 3. Use CAS (comparing against workspace.base_branch_meta) to update the branch pointer.
         let result = self
             .storage
             .update(
@@ -843,20 +892,17 @@ where
                 Some(workspace.base_branch_meta),
                 branch_meta_handle,
             )
-            .map_err(|e| PushError::BranchUpdate(e))?;
+            .map_err(PushError::BranchUpdate)?;
 
         match result {
             PushResult::Success() => Ok(None),
             PushResult::Conflict(conflicting_meta) => {
                 let conflicting_meta = conflicting_meta.ok_or(PushError::BadBranchMetadata())?;
 
-                let repo_reader = self
-                    .storage
-                    .reader()
-                    .map_err(|e| PushError::StorageReader(e))?;
+                let repo_reader = self.storage.reader().map_err(PushError::StorageReader)?;
                 let branch_meta: TribleSet = repo_reader
                     .get(conflicting_meta)
-                    .map_err(|e| PushError::StorageGet(e))?;
+                    .map_err(PushError::StorageGet)?;
 
                 let head_ = match find!((head_: Value<_>),
                     pattern!(&branch_meta, [{ head: ?head_ }])
@@ -869,10 +915,7 @@ where
                 };
 
                 let conflict_ws = Workspace {
-                    base_blobs: self
-                        .storage
-                        .reader()
-                        .map_err(|e| PushError::StorageReader(e))?,
+                    base_blobs: self.storage.reader().map_err(PushError::StorageReader)?,
                     local_blobs: MemoryBlobStore::new(),
                     head: head_,
                     base_branch_id: workspace.base_branch_id,

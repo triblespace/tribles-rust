@@ -808,6 +808,7 @@ where
             base_blobs,
             local_blobs: MemoryBlobStore::new(),
             head: head_,
+            base_head: head_,
             base_branch_id: branch_id,
             base_branch_meta: base_branch_meta_handle,
             signing_key,
@@ -853,9 +854,17 @@ where
                 workspace_reader.get(handle).expect("infallible blob read");
             self.storage.put(blob).map_err(PushError::StoragePut)?;
         }
+
+        // 1.5 If the workspace's head did not change since the workspace was
+        // created, there's no commit to reference and therefore no branch
+        // metadata update is required. This avoids touching the branch store
+        // in the common case where only blobs were staged or nothing changed.
+        if workspace.base_head == workspace.head {
+            return Ok(None);
+        }
+
         // 2. Create a new branch meta blob referencing the new workspace head.
         let repo_reader = self.storage.reader().map_err(PushError::StorageReader)?;
-
         let base_branch_meta: TribleSet = repo_reader
             .get(workspace.base_branch_meta)
             .map_err(PushError::StorageGet)?;
@@ -895,7 +904,17 @@ where
             .map_err(PushError::BranchUpdate)?;
 
         match result {
-            PushResult::Success() => Ok(None),
+            PushResult::Success() => {
+                // Update workspace base pointers so subsequent pushes can detect
+                // that the workspace is already synchronized and avoid re-upload.
+                workspace.base_branch_meta = branch_meta_handle;
+                workspace.base_head = workspace.head;
+                // Clear staged local blobs now that they have been uploaded and
+                // the branch metadata updated. This frees memory and prevents
+                // repeated uploads of the same staged blobs on subsequent pushes.
+                workspace.local_blobs = MemoryBlobStore::new();
+                Ok(None)
+            }
             PushResult::Conflict(conflicting_meta) => {
                 let conflicting_meta = conflicting_meta.ok_or(PushError::BadBranchMetadata())?;
 
@@ -918,6 +937,7 @@ where
                     base_blobs: self.storage.reader().map_err(PushError::StorageReader)?,
                     local_blobs: MemoryBlobStore::new(),
                     head: head_,
+                    base_head: head_,
                     base_branch_id: workspace.base_branch_id,
                     base_branch_meta: conflicting_meta,
                     signing_key: workspace.signing_key.clone(),
@@ -947,6 +967,12 @@ pub struct Workspace<Blobs: BlobStore<Blake3>> {
     base_branch_meta: BranchMetaHandle,
     /// Handle to the current commit in the working branch. `None` for an empty branch.
     head: Option<CommitHandle>,
+    /// The branch head snapshot when this workspace was created (pull time).
+    ///
+    /// This allows `try_push` to cheaply detect whether the commit head has
+    /// advanced since the workspace was created without querying the remote
+    /// branch store.
+    base_head: Option<CommitHandle>,
     /// Signing key used for commit/branch signing.
     signing_key: SigningKey,
 }
@@ -962,6 +988,7 @@ where
             .field("base_blobs", &self.base_blobs)
             .field("base_branch_id", &self.base_branch_id)
             .field("base_branch_meta", &self.base_branch_meta)
+            .field("base_head", &self.base_head)
             .field("head", &self.head)
             .finish()
     }

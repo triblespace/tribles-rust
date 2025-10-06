@@ -1,13 +1,10 @@
 use crate::entity;
-use crate::path;
 use crate::pattern;
-use crate::pattern_changes;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::BenchmarkId;
 use criterion::Criterion;
 use criterion::Throughput;
-use jerky::bit_vector::rank9sel::Rank9SelIndex;
 use rand::thread_rng;
 use rand::Rng;
 use rayon::prelude::*;
@@ -17,12 +14,10 @@ use std::iter::FromIterator;
 use tribles::blob::schemas::succinctarchive::CachedUniverse;
 use tribles::blob::schemas::succinctarchive::CompressedUniverse;
 use tribles::blob::schemas::succinctarchive::SuccinctArchive;
-use tribles::blob::schemas::succinctarchive::Universe;
 use tribles::blob::schemas::UnknownBlob;
 use tribles::repo::BlobStorePut;
 
 use tribles::prelude::blobschemas::*;
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
 
 use tribles::patch::Entry;
@@ -45,15 +40,14 @@ type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse>;
 
 pub mod literature {
     #![allow(unused)]
-    use super::*;
-    use crate::blob::schemas::longstring::LongString;
-    use crate::prelude::*;
-    use crate::value::schemas::genid::GenId;
-    use crate::value::schemas::hash::Blake3;
-    use crate::value::schemas::hash::Handle;
-    use crate::value::schemas::r256::R256;
-    use crate::value::schemas::shortstring::ShortString;
-    crate::attributes! {
+    use tribles::prelude::*;
+    use tribles::blob::schemas::longstring::LongString;
+    use tribles::value::schemas::genid::GenId;
+    use tribles::value::schemas::hash::Blake3;
+    use tribles::value::schemas::hash::Handle;
+    use tribles::value::schemas::r256::R256;
+    use tribles::value::schemas::shortstring::ShortString;
+    attributes! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
         "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
@@ -663,13 +657,13 @@ fn query_benchmark(c: &mut Criterion) {
             find!(
             (author: Value<_>, title: Value<_>, quote: Value<_>),
             pattern!(&kb, [
-            {author @
-                literature::firstname: ("Frank"),
-                literature::lastname: ("Herbert")},
-            { literature::author: author,
-              literature::title: title,
-              literature::quote: quote
-            }]))
+                {?author @
+                    literature::firstname: "Frank",
+                    literature::lastname: "Herbert"},
+                { literature::author: ?author,
+                literature::title: ?title,
+                literature::quote: ?quote
+                }]))
             .count()
         })
     });
@@ -678,15 +672,15 @@ fn query_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("tribleset/multi", 1000), |b| {
         b.iter(|| {
             find!(
-            (author: Value<_>, title: Value<_>, quote: Value<_>),
+            (title: Value<_>, quote: Value<_>),
             pattern!(&kb, [
-            {author @
-                literature::firstname: (black_box("Fake")),
-                literature::lastname: (black_box("Herbert"))},
-            { literature::author: author,
-              literature::title: title,
-              literature::quote: quote
-            }]))
+                {_?author @
+                    literature::firstname: "Fake",
+                    literature::lastname: "Herbert"},
+                { literature::author: _?author,
+                literature::title: ?title,
+                literature::quote: ?quote
+                }]))
             .count()
         })
     });
@@ -701,13 +695,13 @@ fn query_benchmark(c: &mut Criterion) {
             find!(
             (author: Value<_>, title: Value<_>, quote: Value<_>),
             pattern!(&kb_archive, [
-            {author @
-                literature::firstname: (black_box("Frank")),
-                literature::lastname: (black_box("Herbert"))},
-            { literature::author: author,
-              literature::title: title,
-              literature::quote: quote
-            }]))
+                {?author @
+                    literature::firstname: "Frank",
+                    literature::lastname: "Herbert"},
+                { literature::author: ?author,
+                literature::title: ?title,
+                literature::quote: ?quote
+                }]))
             .count()
         })
     });
@@ -716,14 +710,14 @@ fn query_benchmark(c: &mut Criterion) {
     group.bench_function(BenchmarkId::new("archive/multi", 1000), |b| {
         b.iter(|| {
             find!(
-            (author: Value<_>, title: Value<_>, quote: Value<_>),
+            (title: Value<_>, quote: Value<_>),
             pattern!(&kb_archive, [
-            {author @
-                literature::firstname: (black_box("Fake")),
-                literature::lastname: (black_box("Herbert"))},
-            { literature::author: author,
-              literature::title: title,
-              literature::quote: quote
+            {_?author @
+                literature::firstname: "Fake",
+                literature::lastname: "Herbert"},
+            { literature::author: _?author,
+              literature::title: ?title,
+              literature::quote: ?quote
             }]))
             .count()
         })
@@ -761,7 +755,7 @@ fn pile_benchmark(c: &mut Criterion) {
             |data: Vec<Bytes>| {
                 let tmp_dir = tempfile::tempdir().unwrap();
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile = Pile::open(&tmp_pile).unwrap();
+                let mut pile: Pile<Blake3> = Pile::open(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
                     pile.put(UnknownBlob::blob_from(data.clone())).unwrap();
                 });
@@ -790,7 +784,7 @@ fn pile_benchmark(c: &mut Criterion) {
             |data: Vec<Bytes>| {
                 let tmp_dir = tempfile::tempdir().unwrap();
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile = Pile::open(&tmp_pile).unwrap();
+                let mut pile: Pile<Blake3> = Pile::open(&tmp_pile).unwrap();
                 data.iter().for_each(|data| {
                     pile.put(UnknownBlob::blob_from(data.clone())).unwrap();
                     pile.flush().unwrap();
@@ -807,7 +801,7 @@ fn pile_benchmark(c: &mut Criterion) {
                 let mut rng = rand::thread_rng();
                 let tmp_dir = tempfile::tempdir().unwrap();
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile = Pile::open(&tmp_pile).unwrap();
+                let mut pile: Pile<Blake3> = Pile::open(&tmp_pile).unwrap();
 
                 (0..RECORD_COUNT).for_each(|_| {
                     let mut record = vec![0u8; RECORD_LEN];
@@ -823,7 +817,7 @@ fn pile_benchmark(c: &mut Criterion) {
             },
             |tmp_dir: TempDir| {
                 let tmp_pile = tmp_dir.path().join("test.pile");
-                let mut pile = Pile::open(&tmp_pile).unwrap();
+                let mut pile: Pile<Blake3> = Pile::open(&tmp_pile).unwrap();
                 pile.restore().unwrap();
                 drop(tmp_dir)
             },
@@ -899,8 +893,8 @@ fn pile_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    //std_benchmark,
-    //im_benchmark,
+    std_benchmark,
+    im_benchmark,
     patch_benchmark,
     tribleset_benchmark,
     archive_benchmark,

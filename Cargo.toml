@@ -48,7 +48,7 @@ reft-light = "0.3.1"
 tribles-macros = { path = "tribles-macros" }
 page_size = "0.6.0"
 
-#[dev-dependencies]
+[dev-dependencies]
 im = "15.1.0"
 peak_alloc = "0.3.0"
 fake = "4.3.0"

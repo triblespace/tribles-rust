@@ -1,35 +1,6 @@
 use crate::entity;
-use crate::path;
 use crate::pattern;
-use crate::pattern_changes;
-use criterion::criterion_group;
-use criterion::criterion_main;
-use criterion::BenchmarkId;
-use criterion::Criterion;
-use criterion::Throughput;
-use jerky::bit_vector::rank9sel::Rank9SelIndex;
-use rand::thread_rng;
-use rand::Rng;
-use rayon::prelude::*;
-use std::collections::HashSet;
-use std::hint::black_box;
-use std::iter::FromIterator;
-use tribles::blob::schemas::succinctarchive::CachedUniverse;
-use tribles::blob::schemas::succinctarchive::CompressedUniverse;
-use tribles::blob::schemas::succinctarchive::SuccinctArchive;
-use tribles::blob::schemas::succinctarchive::Universe;
-use tribles::blob::schemas::UnknownBlob;
-use tribles::repo::BlobStorePut;
-
-use tribles::prelude::blobschemas::*;
-use tribles::prelude::valueschemas::*;
 use tribles::prelude::*;
-
-use tribles::patch::Entry;
-use tribles::patch::IdentitySchema;
-use tribles::patch::PATCH;
-
-use im::OrdSet;
 
 use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Words;
@@ -37,22 +8,15 @@ use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
 
-type UNIVERSE = CachedUniverse<1_048_576, 1_048_576, CompressedUniverse>;
-
-//use peak_alloc::PeakAlloc;
-//#[global_allocator]
-//static PEAK_ALLOC: PeakAlloc = PeakAlloc;
-
 pub mod literature {
     #![allow(unused)]
-    use super::*;
-    use crate::blob::schemas::longstring::LongString;
-    use crate::prelude::*;
-    use crate::value::schemas::genid::GenId;
-    use crate::value::schemas::hash::Blake3;
-    use crate::value::schemas::hash::Handle;
-    use crate::value::schemas::r256::R256;
-    use crate::value::schemas::shortstring::ShortString;
+    use tribles::prelude::*;
+    use tribles::value::schemas::genid::GenId;
+    use tribles::value::schemas::hash::Blake3;
+    use tribles::value::schemas::hash::Handle;
+    use tribles::value::schemas::r256::R256;
+    use tribles::value::schemas::shortstring::ShortString;
+    use tribles::blob::schemas::longstring::LongString;
     attributes! {
         "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
         "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
@@ -61,29 +25,6 @@ pub mod literature {
         "FCCE870BECA333D059D5CD68C43B98F0" as page_count: R256;
         "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
     }
-}
-
-fn random_tribles(length: usize) -> Vec<Trible> {
-    let owner = IdOwner::new();
-    let mut rng = thread_rng();
-
-    let mut vec = Vec::new();
-
-    let mut e = owner.defer_insert(fucid());
-    let mut a = owner.defer_insert(fucid());
-
-    for _i in 0..length {
-        if rng.gen_bool(0.5) {
-            e = owner.defer_insert(fucid());
-        }
-        if rng.gen_bool(0.5) {
-            a = owner.defer_insert(fucid());
-        }
-
-        let v = fucid();
-        vec.push(Trible::new(&e, &a, &v.to_value()))
-    }
-    return vec;
 }
 
 fn main() {
@@ -123,28 +64,28 @@ fn main() {
     let fanks = find!(
         (author: Value<_>),
         pattern!(&kb, [
-        {author @ literature::firstname: ("Frank")}]))
+        {?author @ literature::firstname: "Frank"}]))
     .count();
 
     let herberts = find!(
         (author: Value<_>),
         pattern!(&kb, [
-        {author @ literature::lastname: ("Herbert")}]))
+        {?author @ literature::lastname: "Herbert"}]))
     .count();
 
     println!("Found {} authors named Frank", fanks);
     println!("Found {} authors with the last name Herbert", herberts);
 
     (0..1000000).for_each(|_| {
-        let count = find!(
-        (author: Value<_>, title: Value<_>, quote: Value<_>),
+        let _count = find!(
+        (title: Value<_>, quote: Value<_>),
         pattern!(&kb, [
-        {author @
-            literature::firstname: ("Frank"),
-            literature::lastname: ("Herbert")},
-        { literature::author: author,
-          literature::title: title,
-          literature::quote: quote
+        {_?author @
+            literature::firstname: "Frank",
+            literature::lastname: "Herbert"},
+        { literature::author: _?author,
+          literature::title: ?title,
+          literature::quote: ?quote
         }]))
         .count();
     });

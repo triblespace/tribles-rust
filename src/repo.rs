@@ -909,6 +909,9 @@ where
                 // that the workspace is already synchronized and avoid re-upload.
                 workspace.base_branch_meta = branch_meta_handle;
                 workspace.base_head = workspace.head;
+                // Refresh the workspace base blob reader to ensure newly
+                // uploaded blobs are visible to subsequent checkout operations.
+                workspace.base_blobs = self.storage.reader().map_err(PushError::StorageReader)?;
                 // Clear staged local blobs now that they have been uploaded and
                 // the branch metadata updated. This frees memory and prevents
                 // repeated uploads of the same staged blobs on subsequent pushes.

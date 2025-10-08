@@ -70,11 +70,8 @@ pub enum ValidationState {
     Invalid,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct BlobMetadata {
-    pub timestamp: u64,
-    pub length: u64,
-}
+use crate::repo::BlobMetadata;
+use crate::repo::BlobStoreMeta;
 
 #[derive(Debug, Clone)]
 struct IndexEntry {
@@ -211,43 +208,8 @@ impl<H: HashProtocol> PileReader<H> {
         }
     }
 
-    /// Returns the metadata for the given blob handle if it exists and has
-    /// been flushed to disk.
-    pub fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Option<BlobMetadata>
-    where
-        S: BlobSchema,
-        Handle<H, S>: ValueSchema,
-    {
-        let hash: &Value<Hash<H>> = handle.as_transmute();
-        let entry = self.blobs.get(&hash.raw)?;
-        let IndexEntry {
-            state,
-            timestamp,
-            offset,
-            len,
-        } = entry.clone();
-        let bytes = unsafe {
-            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(offset), len as usize)
-                .as_ref()
-                .unwrap();
-            Bytes::from_raw_parts(slice, self.mmap.clone())
-        };
-        let state = state.get_or_init(|| {
-            let computed_hash = Hash::<H>::digest(&bytes);
-            if computed_hash == *hash {
-                ValidationState::Validated
-            } else {
-                ValidationState::Invalid
-            }
-        });
-        match state {
-            ValidationState::Validated => Some(BlobMetadata {
-                timestamp,
-                length: bytes.len() as u64,
-            }),
-            ValidationState::Invalid => None,
-        }
-    }
+// metadata moved into BlobStoreMeta impl below
+
 }
 
 impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
@@ -1291,7 +1253,7 @@ mod tests {
         pile.flush().unwrap();
 
         let reader = pile.reader().unwrap();
-        let metadata = reader.metadata(handle).unwrap();
+        let metadata = reader.metadata(handle).unwrap().expect("metadata");
         assert_eq!(metadata.length, data.len() as u64);
         let after = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1312,11 +1274,11 @@ mod tests {
         let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(vec![1u8; 4]));
         let handle = pile.put(blob).unwrap();
 
-        assert!(reader.metadata(handle).is_none());
+        assert!(reader.metadata(handle).unwrap().is_none());
 
         pile.flush().unwrap();
         let reader = pile.reader().unwrap();
-        assert!(reader.metadata(handle).is_some());
+        assert!(reader.metadata(handle).unwrap().is_some());
         pile.close().unwrap();
     }
 
@@ -1457,7 +1419,7 @@ mod tests {
         let mut pile: Pile = Pile::open(&path).unwrap();
         pile.restore().unwrap();
         let reader = pile.reader().unwrap();
-        let meta = reader.metadata(handle).unwrap();
+        let meta = reader.metadata(handle).unwrap().expect("metadata");
         assert_eq!(meta.length, 32);
         assert!(meta.timestamp > 0);
         pile.close().unwrap();
@@ -1702,10 +1664,55 @@ mod tests {
         pile.flush().unwrap();
 
         let reader = pile.reader().unwrap();
-        let meta = reader.metadata(handle).expect("metadata");
+        let meta = reader.metadata(handle).unwrap().expect("metadata");
         assert_eq!(meta.length, data.len() as u64);
         pile.close().unwrap();
     }
 
     // recover_grow test removed as growth strategy no longer exists
+}
+
+
+impl<H: HashProtocol> crate::repo::BlobStoreMeta<H> for PileReader<H> {
+    type MetaError = std::convert::Infallible;
+
+    fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Result<Option<crate::repo::BlobMetadata>, Self::MetaError>
+    where
+        S: BlobSchema + 'static,
+        Handle<H, S>: ValueSchema,
+    {
+        // re-use existing implementation logic
+        let hash: &Value<Hash<H>> = handle.as_transmute();
+        let entry = match self.blobs.get(&hash.raw) {
+            Some(e) => e,
+            None => return Ok(None),
+        };
+        let IndexEntry {
+            state,
+            timestamp,
+            offset,
+            len,
+        } = entry.clone();
+        let bytes = unsafe {
+            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(offset), len as usize)
+                .as_ref()
+                .unwrap();
+            Bytes::from_raw_parts(slice, self.mmap.clone())
+        };
+        let state = state.get_or_init(|| {
+            let computed_hash = Hash::<H>::digest(&bytes);
+            if computed_hash == *hash {
+                ValidationState::Validated
+            } else {
+                ValidationState::Invalid
+            }
+        });
+        match state {
+            ValidationState::Validated => Ok(Some(crate::repo::BlobMetadata {
+                timestamp,
+                length: bytes.len() as u64,
+            })),
+            ValidationState::Invalid => Ok(None),
+        }
+    }
 }

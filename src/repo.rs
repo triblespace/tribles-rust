@@ -222,6 +222,40 @@ pub trait BlobStoreList<H: HashProtocol> {
     fn blobs<'a>(&'a self) -> Self::Iter<'a>;
 }
 
+/// Metadata about a blob in a repository.
+#[derive(Debug, Clone)]
+pub struct BlobMetadata {
+    /// Timestamp in milliseconds since UNIX epoch when the blob was created/stored.
+    pub timestamp: u64,
+    /// Length of the blob in bytes.
+    pub length: u64,
+}
+
+/// Trait exposing metadata lookup for blobs available in a repository reader.
+pub trait BlobStoreMeta<H: HashProtocol> {
+    /// Error type returned by metadata calls.
+    type MetaError: std::error::Error + Send + Sync + 'static;
+
+    fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Result<Option<BlobMetadata>, Self::MetaError>
+    where
+        S: BlobSchema + 'static,
+        Handle<H, S>: ValueSchema;
+}
+
+/// Trait exposing a monotonic "forget" operation.
+///
+/// Forget is idempotent and monotonic: it removes materialization from a
+/// particular repository but does not semantically delete derived facts.
+pub trait BlobStoreForget<H: HashProtocol> {
+    type ForgetError: std::error::Error + Send + Sync + 'static;
+
+    fn forget<S>(&mut self, handle: Value<Handle<H, S>>) -> Result<(), Self::ForgetError>
+    where
+        S: BlobSchema + 'static,
+        Handle<H, S>: ValueSchema;
+}
+
+
 /// The `GetBlob` trait is used to retrieve blobs from a repository.
 pub trait BlobStoreGet<H: HashProtocol> {
     type GetError<E: std::error::Error>: Error;

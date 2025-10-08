@@ -10,6 +10,7 @@ use tribles::blob::Blob;
 use tribles::prelude::BlobStore;
 use tribles::prelude::BlobStorePut;
 use tribles::repo::pile::Pile;
+use tribles::repo::BlobStoreMeta;
 use tribles::value::schemas::hash::Blake3;
 
 #[test]
@@ -22,7 +23,7 @@ fn metadata_detects_corrupted_blob() {
     let blob: Blob<UnknownBlob> = Blob::new(Bytes::from_source(data.clone()));
     let handle = pile.put(blob).unwrap();
     pile.flush().unwrap();
-    assert!(pile.reader().unwrap().metadata(handle).is_some());
+    assert!(pile.reader().unwrap().metadata(handle).unwrap().is_some());
     drop(pile);
 
     {
@@ -45,5 +46,5 @@ fn metadata_detects_corrupted_blob() {
     let mut reopened: Pile<Blake3> = Pile::open(&path).unwrap();
     reopened.restore().unwrap();
     let reader = reopened.reader().unwrap();
-    assert!(reader.metadata(handle).is_none());
+    assert!(reader.metadata(handle).unwrap().is_none());
 }

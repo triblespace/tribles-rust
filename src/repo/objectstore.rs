@@ -8,11 +8,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use anybytes::Bytes;
-use futures::executor::block_on;
-use futures::executor::block_on_stream;
-use futures::executor::BlockingStream;
 use futures::Stream;
 use futures::StreamExt;
+use tokio::runtime::Runtime;
+use crossbeam_channel::{bounded, Receiver};
 
 use object_store::parse_url;
 use object_store::path::Path;
@@ -55,6 +54,7 @@ const BLOB_INFIX: &str = "blobs";
 pub struct ObjectStoreRemote<H> {
     store: Arc<dyn ObjectStore>,
     prefix: Path,
+    rt: Arc<Runtime>,
     _hasher: PhantomData<H>,
 }
 
@@ -66,34 +66,57 @@ impl<H> fmt::Debug for ObjectStoreRemote<H> {
     }
 }
 
-#[derive(Clone, Debug)]
+impl<H> fmt::Debug for ObjectStoreReader<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ObjectStoreReader")
+            .field("prefix", &self.prefix)
+            .finish()
+    }
+}
+
+#[derive(Clone)]
 pub struct ObjectStoreReader<H> {
     store: Arc<dyn ObjectStore>,
     prefix: Path,
+    rt: Arc<Runtime>,
     _hasher: PhantomData<H>,
 }
 
 pub struct BlockingIter<T> {
-    inner: BlockingStream<Pin<Box<dyn Stream<Item = T> + Send>>>,
+    rx: Receiver<T>,
 }
 
 impl<T> BlockingIter<T> {
-    fn new<S>(stream: S) -> Self
+    fn from_stream<S>(handle: tokio::runtime::Handle, stream: S, capacity: usize) -> Self
     where
         S: Stream<Item = T> + Send + 'static,
+        T: Send + 'static,
     {
-        let boxed: Pin<Box<dyn Stream<Item = T> + Send>> = Box::pin(stream);
-        Self {
-            inner: block_on_stream(boxed),
-        }
+        let (tx, rx) = bounded(capacity);
+        let handle_for_spawn = handle.clone();
+        let handle_for_task = handle.clone();
+        handle_for_spawn.spawn(async move {
+            let mut s = Box::pin(stream);
+            let rt = handle_for_task;
+            while let Some(item) = s.next().await {
+                let tx_clone = tx.clone();
+                let bh = rt.clone();
+                // send on blocking pool to avoid blocking a runtime worker
+                match bh.spawn_blocking(move || tx_clone.send(item)).await {
+                    Ok(Ok(())) => {}
+                    _ => break,
+                }
+            }
+            // tx dropped here -> closes channel
+        });
+        BlockingIter { rx }
     }
 }
 
 impl<T> Iterator for BlockingIter<T> {
     type Item = T;
-
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.rx.recv().ok()
     }
 }
 
@@ -112,10 +135,12 @@ impl<H> ObjectStoreRemote<H> {
         Ok(ObjectStoreRemote {
             store: Arc::from(store),
             prefix: path,
+            rt: Arc::new(tokio::runtime::Builder::new_multi_thread().enable_all().worker_threads(2).build().expect("build runtime")),
             _hasher: PhantomData,
         })
     }
 }
+
 
 impl<H> BlobStorePut<H> for ObjectStoreRemote<H>
 where
@@ -133,7 +158,7 @@ where
         let handle = blob.get_handle();
         let path = self.prefix.child(BLOB_INFIX).child(hex::encode(handle.raw));
         let bytes: bytes::Bytes = blob.bytes.into();
-        let result = block_on(async {
+        let result = self.rt.block_on(async {
             self.store
                 .put_opts(&path, bytes.into(), PutMode::Create.into())
                 .await
@@ -156,6 +181,7 @@ where
         Ok(ObjectStoreReader {
             store: self.store.clone(),
             prefix: self.prefix.clone(),
+            rt: self.rt.clone(),
             _hasher: PhantomData,
         })
     }
@@ -187,15 +213,15 @@ where
             }
             Err(e) => Err(ListBranchesErr::List(e)),
         });
-        Ok(BlockingIter::new(stream))
+        Ok(BlockingIter::from_stream(self.rt.handle().clone(), stream, 16))
     }
 
     fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
         let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(id));
-        let result = block_on(async { self.store.get(&path).await });
+        let result = self.rt.block_on(async { self.store.get(&path).await });
         match result {
             Ok(object) => {
-                let bytes = block_on(object.bytes())?;
+                let bytes = self.rt.block_on(object.bytes())?;
                 let value = (&bytes[..]).try_into()?;
                 Ok(Some(Value::new(value)))
             }
@@ -213,7 +239,7 @@ where
         let path = self.prefix.child(BRANCH_INFIX).child(hex::encode(id));
         let new_bytes = bytes::Bytes::copy_from_slice(&new.raw);
         if let Some(old_hash) = old {
-            let mut result = block_on(async { self.store.get(&path).await });
+            let mut result = self.rt.block_on(async { self.store.get(&path).await });
             loop {
                 match result {
                     Ok(obj) => {
@@ -221,13 +247,13 @@ where
                             e_tag: obj.meta.e_tag.clone(),
                             version: obj.meta.version.clone(),
                         };
-                        let stored_bytes = block_on(obj.bytes())?;
+                        let stored_bytes = self.rt.block_on(obj.bytes())?;
                         let stored_value = (&stored_bytes[..]).try_into()?;
                         let stored_hash = Value::new(stored_value);
                         if old_hash != stored_hash {
                             return Ok(PushResult::Conflict(Some(stored_hash)));
                         }
-                        match block_on(async {
+                        match self.rt.block_on(async {
                             self.store
                                 .put_opts(
                                     &path,
@@ -238,7 +264,7 @@ where
                         }) {
                             Ok(_) => return Ok(PushResult::Success()),
                             Err(object_store::Error::Precondition { .. }) => {
-                                result = block_on(async { self.store.get(&path).await });
+                                result = self.rt.block_on(async { self.store.get(&path).await });
                                 continue;
                             }
                             Err(e) => return Err(PushBranchErr::StoreErr(e)),
@@ -252,17 +278,17 @@ where
             }
         } else {
             loop {
-                match block_on(async {
+                match self.rt.block_on(async {
                     self.store
                         .put_opts(&path, new_bytes.clone().into(), PutMode::Create.into())
                         .await
                 }) {
                     Ok(_) => return Ok(PushResult::Success()),
                     Err(object_store::Error::AlreadyExists { .. }) => {
-                        let result = block_on(async { self.store.get(&path).await });
+                        let result = self.rt.block_on(async { self.store.get(&path).await });
                         match result {
                             Ok(obj) => {
-                                let bytes = block_on(obj.bytes())?;
+                                let bytes = self.rt.block_on(obj.bytes())?;
                                 let value = (&bytes[..]).try_into()?;
                                 return Ok(PushResult::Conflict(Some(Value::new(value))));
                             }
@@ -312,7 +338,7 @@ where
             }
             Err(e) => Err(ListBlobsErr::List(e)),
         });
-        BlockingIter::new(stream)
+        BlockingIter::from_stream(self.rt.handle().clone(), stream, 16)
     }
 }
 
@@ -362,8 +388,8 @@ where
         Handle<H, S>: ValueSchema,
     {
         let path = self.blob_path(hex::encode(handle.raw));
-        let object = block_on(async { self.store.get(&path).await })?;
-        let bytes = block_on(object.bytes())?;
+        let object = self.rt.block_on(async { self.store.get(&path).await })?;
+        let bytes = self.rt.block_on(object.bytes())?;
         let bytes: Bytes = bytes.into();
         let blob: Blob<S> = Blob::new(bytes);
         blob.try_from_blob().map_err(GetBlobErr::Conversion)
@@ -463,5 +489,55 @@ impl From<object_store::Error> for PushBranchErr {
 impl From<TryFromSliceError> for PushBranchErr {
     fn from(err: TryFromSliceError) -> Self {
         Self::ValidationErr(err)
+    }
+}
+
+
+impl<H> crate::repo::BlobStoreMeta<H> for ObjectStoreReader<H>
+where
+    H: HashProtocol,
+{
+    type MetaError = object_store::Error;
+
+    fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Result<Option<crate::repo::BlobMetadata>, Self::MetaError>
+    where
+        S: BlobSchema + 'static,
+        Handle<H, S>: ValueSchema,
+    {
+        let handle_hex = hex::encode(handle.raw);
+        let path = self.prefix.child(BLOB_INFIX).child(handle_hex);
+        match self.rt.block_on(async { self.store.head(&path).await }) {
+            Ok(meta) => {
+                let ts = meta.last_modified.timestamp_millis() as u64;
+                let len = meta.size;
+                Ok(Some(crate::repo::BlobMetadata {
+                    timestamp: ts,
+                    length: len,
+                }))
+            }
+            Err(object_store::Error::NotFound { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl<H> crate::repo::BlobStoreForget<H> for ObjectStoreRemote<H>
+where
+    H: HashProtocol,
+{
+    type ForgetError = object_store::Error;
+
+    fn forget<S>(&mut self, handle: Value<Handle<H, S>>) -> Result<(), Self::ForgetError>
+    where
+        S: BlobSchema + 'static,
+        Handle<H, S>: ValueSchema,
+    {
+        let handle_hex = hex::encode(handle.raw);
+        let path = self.prefix.child(BLOB_INFIX).child(handle_hex);
+        match self.rt.block_on(async { self.store.delete(&path).await }) {
+            Ok(_) => Ok(()),
+            Err(object_store::Error::NotFound { .. }) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 }

@@ -70,7 +70,6 @@ pub enum ValidationState {
     Invalid,
 }
 
-use crate::repo::BlobMetadata;
 use crate::repo::BlobStoreMeta;
 
 #[derive(Debug, Clone)]
@@ -208,8 +207,7 @@ impl<H: HashProtocol> PileReader<H> {
         }
     }
 
-// metadata moved into BlobStoreMeta impl below
-
+    // metadata moved into BlobStoreMeta impl below
 }
 
 impl<H: HashProtocol> BlobStoreGet<H> for PileReader<H> {
@@ -975,6 +973,53 @@ where
     }
 }
 
+impl<H: HashProtocol> crate::repo::BlobStoreMeta<H> for PileReader<H> {
+    type MetaError = std::convert::Infallible;
+
+    fn metadata<S>(
+        &self,
+        handle: Value<Handle<H, S>>,
+    ) -> Result<Option<crate::repo::BlobMetadata>, Self::MetaError>
+    where
+        S: BlobSchema + 'static,
+        Handle<H, S>: ValueSchema,
+    {
+        // re-use existing implementation logic
+        let hash: &Value<Hash<H>> = handle.as_transmute();
+        let entry = match self.blobs.get(&hash.raw) {
+            Some(e) => e,
+            None => return Ok(None),
+        };
+        let IndexEntry {
+            state,
+            timestamp,
+            offset,
+            len,
+        } = entry.clone();
+        let bytes = unsafe {
+            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(offset), len as usize)
+                .as_ref()
+                .unwrap();
+            Bytes::from_raw_parts(slice, self.mmap.clone())
+        };
+        let state = state.get_or_init(|| {
+            let computed_hash = Hash::<H>::digest(&bytes);
+            if computed_hash == *hash {
+                ValidationState::Validated
+            } else {
+                ValidationState::Invalid
+            }
+        });
+        match state {
+            ValidationState::Validated => Ok(Some(crate::repo::BlobMetadata {
+                timestamp,
+                length: bytes.len() as u64,
+            })),
+            ValidationState::Invalid => Ok(None),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1670,49 +1715,4 @@ mod tests {
     }
 
     // recover_grow test removed as growth strategy no longer exists
-}
-
-
-impl<H: HashProtocol> crate::repo::BlobStoreMeta<H> for PileReader<H> {
-    type MetaError = std::convert::Infallible;
-
-    fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Result<Option<crate::repo::BlobMetadata>, Self::MetaError>
-    where
-        S: BlobSchema + 'static,
-        Handle<H, S>: ValueSchema,
-    {
-        // re-use existing implementation logic
-        let hash: &Value<Hash<H>> = handle.as_transmute();
-        let entry = match self.blobs.get(&hash.raw) {
-            Some(e) => e,
-            None => return Ok(None),
-        };
-        let IndexEntry {
-            state,
-            timestamp,
-            offset,
-            len,
-        } = entry.clone();
-        let bytes = unsafe {
-            let slice = slice_from_raw_parts(self.mmap.as_ptr().add(offset), len as usize)
-                .as_ref()
-                .unwrap();
-            Bytes::from_raw_parts(slice, self.mmap.clone())
-        };
-        let state = state.get_or_init(|| {
-            let computed_hash = Hash::<H>::digest(&bytes);
-            if computed_hash == *hash {
-                ValidationState::Validated
-            } else {
-                ValidationState::Invalid
-            }
-        });
-        match state {
-            ValidationState::Validated => Ok(Some(crate::repo::BlobMetadata {
-                timestamp,
-                length: bytes.len() as u64,
-            })),
-            ValidationState::Invalid => Ok(None),
-        }
-    }
 }

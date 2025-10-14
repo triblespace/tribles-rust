@@ -236,7 +236,10 @@ pub trait BlobStoreMeta<H: HashProtocol> {
     /// Error type returned by metadata calls.
     type MetaError: std::error::Error + Send + Sync + 'static;
 
-    fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Result<Option<BlobMetadata>, Self::MetaError>
+    fn metadata<S>(
+        &self,
+        handle: Value<Handle<H, S>>,
+    ) -> Result<Option<BlobMetadata>, Self::MetaError>
     where
         S: BlobSchema + 'static,
         Handle<H, S>: ValueSchema;
@@ -254,7 +257,6 @@ pub trait BlobStoreForget<H: HashProtocol> {
         S: BlobSchema + 'static,
         Handle<H, S>: ValueSchema;
 }
-
 
 /// The `GetBlob` trait is used to retrieve blobs from a repository.
 pub trait BlobStoreGet<H: HashProtocol> {

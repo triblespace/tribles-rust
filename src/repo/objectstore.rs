@@ -4,14 +4,13 @@ use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use anybytes::Bytes;
+use crossbeam_channel::{bounded, Receiver};
 use futures::Stream;
 use futures::StreamExt;
 use tokio::runtime::Runtime;
-use crossbeam_channel::{bounded, Receiver};
 
 use object_store::parse_url;
 use object_store::path::Path;
@@ -135,12 +134,17 @@ impl<H> ObjectStoreRemote<H> {
         Ok(ObjectStoreRemote {
             store: Arc::from(store),
             prefix: path,
-            rt: Arc::new(tokio::runtime::Builder::new_multi_thread().enable_all().worker_threads(2).build().expect("build runtime")),
+            rt: Arc::new(
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .worker_threads(2)
+                    .build()
+                    .expect("build runtime"),
+            ),
             _hasher: PhantomData,
         })
     }
 }
-
 
 impl<H> BlobStorePut<H> for ObjectStoreRemote<H>
 where
@@ -213,7 +217,11 @@ where
             }
             Err(e) => Err(ListBranchesErr::List(e)),
         });
-        Ok(BlockingIter::from_stream(self.rt.handle().clone(), stream, 16))
+        Ok(BlockingIter::from_stream(
+            self.rt.handle().clone(),
+            stream,
+            16,
+        ))
     }
 
     fn head(&mut self, id: Id) -> Result<Option<Value<Handle<H, SimpleArchive>>>, Self::HeadError> {
@@ -492,14 +500,16 @@ impl From<TryFromSliceError> for PushBranchErr {
     }
 }
 
-
 impl<H> crate::repo::BlobStoreMeta<H> for ObjectStoreReader<H>
 where
     H: HashProtocol,
 {
     type MetaError = object_store::Error;
 
-    fn metadata<S>(&self, handle: Value<Handle<H, S>>) -> Result<Option<crate::repo::BlobMetadata>, Self::MetaError>
+    fn metadata<S>(
+        &self,
+        handle: Value<Handle<H, S>>,
+    ) -> Result<Option<crate::repo::BlobMetadata>, Self::MetaError>
     where
         S: BlobSchema + 'static,
         Handle<H, S>: ValueSchema,

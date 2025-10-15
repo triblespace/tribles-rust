@@ -38,6 +38,17 @@
 - Consolidate pile header size constants to avoid repeated magic numbers.
 - Develop property-based tests for pile operations to explore edge cases automatically.
 
+## Formal Verification
+- Catalogue invariants for core data structures and map them to dedicated Kani
+  harnesses.
+- Build shared bounded-data generators to keep new proofs and fuzzers
+  maintainable.
+- Integrate `cargo miri test` and document the workflow for contributors.
+- Stand up a `cargo fuzz` workspace with harnesses for PATCH encoding,
+  query planning, and repository sync flows.
+- Record deterministic simulation scenarios that exercise conflict resolution
+  and garbage collection edge cases.
+
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large
 integers and archives.  The following ideas could broaden what can be stored

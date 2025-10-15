@@ -42,91 +42,93 @@ Add the crate to your project:
 cargo add tribles
 ```
 
-Then create a pile-backed repository and commit some data. The snippet below uses the `literature` example namespace which is expanded further down in the [Example](#example) section.
-
-```rust,ignore
-use tribles::prelude::*;
-use tribles::examples::literature;
-use tribles::repo::Repository;
-use std::path::Path;
-use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut pile = Pile::open(Path::new("example.pile"))?;
-    pile.restore()?;
-    let mut repo = Repository::new(pile, SigningKey::generate(&mut OsRng));
-    let branch_id = repo.create_branch("main", None)?;
-    let mut ws = repo.pull(*branch_id)?;
-
-    ws.commit(entity!{ &ufoid() @ literature::firstname: "Alice" }, None);
-    // Use `try_push` for a single attempt that returns a conflict workspace on
-    // CAS failure; use `push` to let the repository merge and retry
-    // automatically.
-    repo.try_push(&mut ws)?;
-    Ok(())
-}
-```
-
-`Repository::create_branch` returns an `ExclusiveId` guard for the new branch.
-Dereference it (or call `release`) when passing the branch identifier to
-`Repository::pull` so additional workspaces can target the same branch.
-
-# Example
+Then spin up a repository-backed workspace, mint the attributes your program
+needs, populate the repository with data, and query it—all in a single
+program.
 
 ```rust
 use tribles::prelude::*;
+use tribles::prelude::blobschemas::LongString;
+use tribles::repo::{memoryrepo::MemoryRepo, Repository};
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
 
 mod literature {
     use tribles::prelude::*;
-    use tribles::prelude::valueschemas::*;
-    use tribles::prelude::blobschemas::*;
+    use tribles::prelude::blobschemas::LongString;
+    use tribles::prelude::valueschemas::{Blake3, GenId, Handle, R256, ShortString};
 
     attributes! {
-        "8F180883F9FD5F787E9E0AF0DF5866B9" as author: GenId;
-        "0DBB530B37B966D137C50B943700EDB2" as firstname: ShortString;
-        "6BAA463FD4EAF45F6A103DB9433E4545" as lastname: ShortString;
-        "A74AA63539354CDA47F387A4C3A8D54C" as title: ShortString;
-        "FCCE870BECA333D059D5CD68C43B98F0" as page_count: R256;
-        "6A03BAF6CFB822F04DA164ADAAEB53F6" as quote: Handle<Blake3, LongString>;
+        /// The title of a work.
+        ///
+        /// Small doc paragraph used in the book examples.
+        "A74AA63539354CDA47F387A4C3A8D54C" as pub title: ShortString;
+
+        /// A quote from a work.
+        "6A03BAF6CFB822F04DA164ADAAEB53F6" as pub quote: Handle<Blake3, LongString>;
+
+        /// The author of a work.
+        "8F180883F9FD5F787E9E0AF0DF5866B9" as pub author: GenId;
+
+        /// The first name of an author.
+        "0DBB530B37B966D137C50B943700EDB2" as pub firstname: ShortString;
+
+        /// The last name of an author.
+        "6BAA463FD4EAF45F6A103DB9433E4545" as pub lastname: ShortString;
+
+        /// The number of pages in the work.
+        "FCCE870BECA333D059D5CD68C43B98F0" as pub page_count: R256;
     }
 }
 
-fn main() -> std::io::Result<()> {
-    let mut blobs = MemoryBlobStore::new();
-    let mut set = TribleSet::new();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Repositories manage shared history; MemoryRepo keeps everything in-memory
+    // for quick experiments. Swap in a `Pile` when you need durable storage.
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let branch_id = repo
+        .create_branch("main", None)
+        .expect("create branch");
+    let mut ws = repo.pull(*branch_id).expect("pull workspace");
 
+    // Workspaces stage TribleSets before committing them. The entity! macro
+    // returns sets that merge cheaply into our current working set.
     let author_id = ufoid();
+    let mut library = TribleSet::new();
 
-    // Note how the entity macro returns TribleSets that can be cheaply merged
-    // into our existing dataset.
-    set += entity!{ &author_id @
-                literature::firstname: "Frank",
-                literature::lastname: "Herbert",
-            };
+    library += entity! { &author_id @
+        literature::firstname: "Frank",
+        literature::lastname: "Herbert",
+    };
 
-    set += entity!{ &author_id @
-                literature::title: "Dune",
-                literature::author: &author_id,
-                literature::quote: blobs.put("Deep in the human unconscious is a \
-                pervasive need for a logical universe that makes sense. \
-                But the real universe is always one step beyond logic.").unwrap(),
-                literature::quote: blobs.put("I must not fear. Fear is the \
-                mind-killer. Fear is the little-death that brings total \
-                obliteration. I will face my fear. I will permit it to \
-                pass over me and through me. And when it has gone past I \
-                will turn the inner eye to see its path. Where the fear \
-                has gone there will be nothing. Only I will remain.").unwrap(),
-            };
+    library += entity! { &author_id @
+        literature::title: "Dune",
+        literature::author: &author_id,
+        literature::quote: ws.put::<LongString, _>(
+            "Deep in the human unconscious is a pervasive need for a logical \
+             universe that makes sense. But the real universe is always one \
+             step beyond logic."
+        ),
+        literature::quote: ws.put::<LongString, _>(
+            "I must not fear. Fear is the mind-killer. Fear is the little-death \
+             that brings total obliteration. I will face my fear. I will permit \
+             it to pass over me and through me. And when it has gone past I will \
+             turn the inner eye to see its path. Where the fear has gone there \
+             will be nothing. Only I will remain."
+        ),
+    };
 
+    ws.commit(library, Some("import dune"));
+
+    // `checkout(..)` returns the accumulated TribleSet for the branch.
+    let catalog = ws.checkout(..)?;
     let title = "Dune";
 
-    // We can then find all entities matching a certain pattern in our dataset.
     // Use `_?ident` when you need a fresh variable scoped to this macro call
     // without declaring it in the find! projection list.
-    for (f, l, q) in find!(
+    for (f, l, quote) in find!(
         (first: String, last: Value<_>, quote),
-        pattern!(&set, [
+        pattern!(&catalog, [
             { _?author @
                 literature::firstname: ?first,
                 literature::lastname: ?last
@@ -135,15 +137,39 @@ fn main() -> std::io::Result<()> {
                 literature::title: title,
                 literature::author: _?author,
                 literature::quote: ?quote
-            }])) {
-        let q: View<str> = blobs.reader().unwrap().get(q).unwrap();
-        let q = q.as_ref();
+            }
+        ])
+    ) {
+        let quote: View<str> = ws.get(quote)?;
+        let quote = quote.as_ref();
+        println!("'{quote}'\n - from {title} by {f} {}.", l.from_value::<&str>());
+    }
 
-println!("'{q}'\n - from {title} by {f} {}.", l.from_value::<&str>())
-}
-Ok(())
+    // Use `try_push` for a single attempt that returns a conflict workspace on
+    // CAS failure; use `push` to let the repository merge and retry
+    // automatically.
+    if let Some(mut conflict_ws) = repo
+        .try_push(&mut ws)
+        .expect("push staged commits")
+    {
+        // Resolve conflicts by merging the returned workspace as needed.
+        ws.merge(&mut conflict_ws)
+            .expect("merge conflicting history");
+        repo.push(&mut ws).expect("finalize push after merge");
+    }
+
+    Ok(())
 }
 ```
+
+`Repository::create_branch` returns an `ExclusiveId` guard for the new branch.
+Dereference it (or call `release`) when passing the branch identifier to
+`Repository::pull` so additional workspaces can target the same branch.
+
+The example inlines the `tribles::examples::literature` namespace with
+`attributes!` so the quick-start walkthrough and crate examples stay aligned
+while still compiling in standalone projects. Update the 32-character hex
+strings when you adapt the code to keep attribute identifiers globally unique.
 
 You can also introduce temporary equality constraints inside a pattern without
 adding them to the surrounding `find!` bindings. Prefix a variable name with

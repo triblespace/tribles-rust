@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Formal verification roadmap outlining Kani, Miri, fuzzing, and simulation
+  testing plans in the book.
 - `_?ident` scoped variables for `pattern!` and `pattern_changes!`, enabling
   fresh bindings without declaring them in `find!` heads, along with
   documentation and tests.

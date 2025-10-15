@@ -15,6 +15,7 @@
 - [Garbage Collection](garbage-collection.md)
 - [Glossary](glossary.md)
 - [Documentation Improvement Ideas](documentation-improvements.md)
+- [Formal Verification Roadmap](formal-verification.md)
 - [Deep Dive](deep-dive/README.md)
   - [Philosophy](deep-dive/philosophy.md)
   - [Identifiers](deep-dive/identifiers.md)

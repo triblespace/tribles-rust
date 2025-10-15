@@ -74,6 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   macros so snippets copy-and-paste outside the crate.
 - Updated the README and book examples to use `Repository::create_branch` plus
   `pull` instead of the removed `branch` helper when initializing workspaces.
+- Combined the README quick-start and standalone example into one repository
+  workflow that stages, queries, and pushes a dataset backed by freshly minted
+  `attributes!` definitions instead of the shared literature namespace.
+- README walkthrough and regression test now commit the staged dataset by value
+  instead of cloning it before submission.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
@@ -95,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated the repository workflow documentation to use `Repository::create_branch`
   and provide a runnable blob staging example.
 - Getting started guide now highlights the need to close pile-backed repositories so callers can handle flush errors explicitly.
+- README example now inlines the shared `tribles::examples::literature` namespace so the getting started walkthrough and crate examples stay aligned without depending on internal modules.
 - `with_sorted_dedup` now accepts iterators so compressed universes can build domains without materializing values.
 - `SuccinctArchiveMeta` now accepts the domain's serialized metadata type,
   removing its hardcoded `SectionHandle<RawValue>` dependency.

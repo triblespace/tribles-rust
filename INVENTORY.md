@@ -39,15 +39,34 @@
 - Develop property-based tests for pile operations to explore edge cases automatically.
 
 ## Formal Verification
-- Catalogue invariants for core data structures and map them to dedicated Kani
-  harnesses.
-- Build shared bounded-data generators to keep new proofs and fuzzers
-  maintainable.
-- Integrate `cargo miri test` and document the workflow for contributors.
-- Stand up a `cargo fuzz` workspace with harnesses for PATCH encoding,
-  query planning, and repository sync flows.
-- Record deterministic simulation scenarios that exercise conflict resolution
-  and garbage collection edge cases.
+### Invariant Catalogue
+- Translate the `book/src/formal-verification.md` matrix into individual GitHub
+  issues, each covering one subsystem (TribleSet, PATCH, values, queries,
+  repository, storage primitives).
+- Document how each invariant maps to existing modules so new contributors can
+  locate the relevant code without spelunking.
+
+### Harness Work
+- Build shared bounded-data generators for Kani harnesses (tribles, PATCH
+  entries, commit DAGs) and publish them under `proofs/util.rs`.
+- Add `proofs/tribleset_harness.rs` validating ordering-preserving union,
+  intersection, difference, and iterator round-trips.
+- Add `proofs/patch_harness.rs` with ByteTable checks proving `plan_insert`
+  respects `MAX_RETRIES`, `table_insert` hands growth entries back to
+  `Branch::modify_child`, and `table_grow` preserves every occupant.
+- Extend `proofs/value_harness.rs` with schema-aware helpers ensuring forced
+  values reject truncated buffers.
+- Expand `proofs/commit_harness.rs` with bounded commit DAG generators that
+  assert append-only pile semantics.
+
+### Tooling & Execution
+- Integrate `cargo miri test` into `scripts/preflight.sh` with appropriate
+  guards for unsupported harnesses.
+- Stand up a `cargo fuzz` workspace covering PATCH encoding/decoding, query
+  planning, and repository sync flows; publish nightly cadence expectations in
+  the roadmap.
+- Record deterministic simulation scenarios (conflict resolution, garbage
+  collection, remote sync) that double as regression tests.
 
 ## Additional Built-in Schemas
 The existing collection of schemas covers the basics like strings, large

@@ -53,7 +53,7 @@ use tribles::repo::{memoryrepo::MemoryRepo, Repository};
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
-mod library {
+mod literature {
     use tribles::prelude::*;
     use tribles::prelude::blobschemas::LongString;
     use tribles::prelude::valueschemas::{Blake3, GenId, Handle, R256, ShortString};
@@ -97,19 +97,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut library = TribleSet::new();
 
     library += entity! { &author_id @
-        library::firstname: "Frank",
-        library::lastname: "Herbert",
+        literature::firstname: "Frank",
+        literature::lastname: "Herbert",
     };
 
     library += entity! { &author_id @
-        library::title: "Dune",
-        library::author: &author_id,
-        library::quote: ws.put::<LongString, _>(
+        literature::title: "Dune",
+        literature::author: &author_id,
+        literature::quote: ws.put::<LongString, _>(
             "Deep in the human unconscious is a pervasive need for a logical \
              universe that makes sense. But the real universe is always one \
              step beyond logic."
         ),
-        library::quote: ws.put::<LongString, _>(
+        literature::quote: ws.put::<LongString, _>(
             "I must not fear. Fear is the mind-killer. Fear is the little-death \
              that brings total obliteration. I will face my fear. I will permit \
              it to pass over me and through me. And when it has gone past I will \
@@ -130,13 +130,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (first: String, last: Value<_>, quote),
         pattern!(&catalog, [
             { _?author @
-                library::firstname: ?first,
-                library::lastname: ?last
+                literature::firstname: ?first,
+                literature::lastname: ?last
             },
             {
-                library::title: title,
-                library::author: _?author,
-                library::quote: ?quote
+                literature::title: title,
+                literature::author: _?author,
+                literature::quote: ?quote
             }
         ])
     ) {
@@ -178,8 +178,8 @@ macro expansion:
 
 ```ignore
 pattern!(&set, [{
-    ?author @ library::firstname: _?name,
-    library::lastname: _?name,
+    ?author @ literature::firstname: _?name,
+    literature::lastname: _?name,
 }]);
 ```
 

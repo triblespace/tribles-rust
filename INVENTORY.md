@@ -3,9 +3,34 @@
 ## Potential Removals
 - None at the moment.
 
+## 0.6.0 Release Preparation
+- **Delta helpers.**
+  - Design a helper that produces delta `TribleSet`s for `pattern_changes!` and
+    drafts an API signature for review.
+  - Implement the helper plus unit tests that demonstrate incremental update
+    workflows and guard against regressions.
+  - Document the helper in the book or API docs with a migration note for users
+    maintaining custom delta code.
+- **Documentation polish.**
+  - Draft advanced query examples that compose multiple `attributes!` modules
+    (including the regular path walkthrough) and slot them into the book
+    structure.
+  - Extract deep reference content from the API docs (`value`, `blob`, `repo`,
+    and trible structure discussions) into dedicated book chapters.
+  - Author the requested FAQ chapter and cross-link it from the landing page and
+    changelog for discoverability.
+- **PATCH performance notes.**
+  - Stand up a repeatable benchmark suite covering the iterator and
+    `with_sorted_dedup` improvements.
+  - Summarise empirical findings alongside complexity notes in either the book
+    or changelog.
+  - Capture any uncovered hotspots or tuning ideas back into this inventory for
+    future releases.
+
 ## Desired Functionality
 - Provide additional examples showcasing advanced queries and repository usage.
-- Include a cross-namespace regular path query example in the book.
+- Include a regular path query example that combines attributes from multiple
+  `attributes!` modules in the book.
 - Helper to derive delta `TribleSet`s for `pattern_changes!` so callers don't
   have to compute them manually.
 - Explore replacing `CommitSelector` ranges with a set-based API
@@ -16,7 +41,7 @@
   intersect B". Commit sets themselves would be formed by primitives
   like `ancestors(<commit>)` and `descendants(<commit>)` so selectors
   map directly to the commit graph.
-- Generate namespaces from a `TribleSet` description so tooling can
+- Generate `attributes!` modules from a `TribleSet` description so tooling can
   derive them programmatically. Rewriting `pattern!` as a procedural
   macro will be the first step toward this automation.
 - Benchmark PATCH performance across typical workloads.
@@ -36,7 +61,6 @@
   ordering implementations for PATCH at compile time.
 - Expose segment iterators on PATCH using `KeySchema`'s segment permutation instead of raw key ranges.
 - Consolidate pile header size constants to avoid repeated magic numbers.
-- Develop property-based tests for pile operations to explore edge cases automatically.
 
 ## Formal Verification
 ### Invariant Catalogue
@@ -121,8 +145,3 @@ prioritized for efficient zero-copy access.
 
 ## Discovered Issues
 - No open issues recorded yet.
-- Enforce `PREFIX_LEN` never exceeds `KEY_LEN` when checking prefixes.
-- Update `SuccinctArchive` schema to the latest Jerky API and re-enable the
-  associated benchmarks and tests.
-- `succinctarchive` schema is temporarily disabled; update to the latest
-  `jerky` APIs and remove the feature gate.

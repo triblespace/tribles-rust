@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- 0.6.0 release preparation checklist in `INVENTORY.md` detailing actionable
+  subtasks for the remaining blockers and polish items.
 - Formal verification roadmap outlining Kani, Miri, fuzzing, and simulation
   testing plans in the book.
 - Expanded the roadmap with an explicit invariant catalogue, spelling out the
@@ -82,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Combined the README quick-start and standalone example into one repository
   workflow that stages, queries, and pushes a dataset backed by freshly minted
   `attributes!` definitions instead of the shared literature namespace.
+- Updated the release preparation inventory to call out multi-`attributes!`
+  module examples instead of cross-namespace guidance.
+- Pruned completed 0.6.0 release checklist items (prefix guards, succinct archive parity,
+  pile property tests) from the inventory after auditing the codebase.
 - README walkthrough and regression test now commit the staged dataset by value
   instead of cloning it before submission.
 - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.

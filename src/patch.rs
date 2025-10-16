@@ -1162,9 +1162,9 @@ where
         PATCHIterator::new(self)
     }
 
-    /// Iterates over all keys in the PATCH in tree order.
+    /// Iterates over all keys in the PATCH in key order.
     ///
-    /// The traversal visits every key according to the tree's ordering, without
+    /// The traversal visits every key in lexicographic key order, without
     /// accepting a prefix filter. For prefix-aware iteration, see
     /// [`PATCH::iter_prefix_count`].
     pub fn iter_ordered<'a>(&'a self) -> PATCHOrderedIterator<'a, KEY_LEN, O, V> {
@@ -1351,11 +1351,12 @@ impl<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> std::iter::FusedIterato
 {
 }
 
-/// An iterator over every key in a PATCH, returned in tree order.
+/// An iterator over every key in a PATCH, returned in key order.
 ///
-/// This iterator walks the full tree and does not accept a prefix filter. For
-/// prefix-aware iteration, use [`PATCHPrefixIterator`], constructed via
-/// [`PATCH::iter_prefix_count`].
+/// Keys are yielded in lexicographic key order regardless of their physical
+/// layout in the underlying tree. This iterator walks the full tree and does
+/// not accept a prefix filter. For prefix-aware iteration, use
+/// [`PATCHPrefixIterator`], constructed via [`PATCH::iter_prefix_count`].
 pub struct PATCHOrderedIterator<'a, const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
     stack: Vec<ArrayVec<&'a Head<KEY_LEN, O, V>, 256>>,
     remaining: usize,
@@ -1423,7 +1424,7 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> Iterator for PATCHIntoItera
     }
 }
 
-/// Iterator that owns a PATCH and yields keys in tree order.
+/// Iterator that owns a PATCH and yields keys in key order.
 pub struct PATCHIntoOrderedIterator<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> {
     queue: Vec<Head<KEY_LEN, O, V>>,
     remaining: usize,
@@ -1486,7 +1487,7 @@ impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> IntoIterator for PATCH<KEY_
 }
 
 impl<const KEY_LEN: usize, O: KeySchema<KEY_LEN>, V> PATCH<KEY_LEN, O, V> {
-    /// Consume and return an iterator that yields keys in tree order.
+    /// Consume and return an iterator that yields keys in key order.
     pub fn into_iter_ordered(self) -> PATCHIntoOrderedIterator<KEY_LEN, O, V> {
         let remaining = self.len().min(usize::MAX as u64) as usize;
         let mut q = Vec::new();

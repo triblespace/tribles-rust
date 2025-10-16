@@ -1,7 +1,4 @@
----
-title: Descriptive Structural Typing and the find! Idiom
-weight: 30
----
+# Descriptive Structural Typing and the find! Idiom
 
 This chapter documents the mental model and idioms we recommend when working
 with tribles. The model is intentionally descriptive: queries declare the
@@ -9,7 +6,8 @@ shape of the data you want to see rather than prescribing a single concrete
 Rust type for every entity. This gives you the flexibility to keep the full
 graph around and to materialize only the view you need, when you need it.
 
-Key ideas at a glance
+## Key ideas at a glance
+
 - Attributes are typed fields (unlike untyped RDF predicates).
 - An entity in tribles is a structural record: a bag of typed fields.
 - find! patterns are descriptive type checks / projections: they select
@@ -20,8 +18,7 @@ Key ideas at a glance
 - Prefer passing the Workspace + the checkout result (TribleSet) and an
   entity id around — only materialize a concrete Rust view when required.
 
-Why "descriptive" not "prescriptive"?
--------------------------------------
+## Why "descriptive" not "prescriptive"?
 
 In a prescriptive system you define a named struct (type), commit to it, and
 force conversions at boundaries. Tribles instead let you describe the fields
@@ -33,18 +30,17 @@ CategoryX, you ask "show me entities that have fields A and B" and work with
 those. If an entity also has field C that's fine — it simply matches the
 descriptive pattern.
 
-Type theory mapping (short)
+## Type theory mapping (short)
+
 - Structural typing: types are shapes of fields, not names.
 - Width subtyping: records with more fields subsume records with fewer.
 - Intersection types: requiring both patterns A and B is like A & B.
 - Row polymorphism: patterns naturally allow additional (unspecified)
   fields to exist.
 
-Core idioms and recommended patterns
------------------------------------
+## Core idioms and recommended patterns
 
-1) Use Workspace as your core I/O handle
----------------------------------------
+### 1. Use Workspace as your core I/O handle
 
 The Workspace is the primary object for interacting with a repository. It
 lets you open a branch, commit, push, checkout history, and — importantly —
@@ -58,8 +54,7 @@ need them.
 This avoids duplicating memory and allows cheap zero-copy access to LongString
 blobs.
 
-Manager-owned repository and workspace DI
-----------------------------------------
+#### Manager-owned repository and workspace DI
 
 At runtime, prefer to give a long-lived manager (session, exporter, service)
 ownership of a Repository instance and expose an "open_workspace()" helper
@@ -80,8 +75,7 @@ let mem = memory_for_prompt_ws(&mut repo, ...)?; // workspace-variant helper
 This pattern keeps startup/teardown centralized and eliminates the common
 hot-loop anti-pattern of repeatedly opening ephemeral repository instances.
 
-2) Use find! as a descriptive type / projection
-----------------------------------------------
+### 2. Use find! as a descriptive type / projection
 
 find! is not just a query language; it is the place where you declare the
 shape of the data you expect. Treat find! patterns as lightweight, inline
@@ -101,8 +95,7 @@ for (e,) in find!((e: Id), tribles::pattern!(&content, [{ ?e @ metadata::tag: (K
 }
 ```
 
-3) Lazy, ad‑hoc conversions only where needed
--------------------------------------------
+### 3. Lazy, ad‑hoc conversions only where needed
 
 If a function needs a few fields for an operation, ask for them with find!
 inside the function. If later you perform an operation that needs different
@@ -118,8 +111,7 @@ fn handle_plan_update(ws: &mut Workspace<Pile<Blake3>>, plan_id: Id) -> io::Resu
 }
 ```
 
-4) Read LongString as &str (zero-copy)
--------------------------------------
+### 4. Read LongString as &str (zero-copy)
 
 Blob schema types in tribles are intentionally zerocopy. Prefer the
 typed View API which returns a borrowed &str without copying when possible.
@@ -133,8 +125,7 @@ let s: &str = view.as_ref(); // zero-copy view tied to the workspace lifetime
 Note: a View borrows data that is managed by the Workspace; avoid returning
 `&str` that outlives the workspace or the View.
 
-5) Structural sharing and normalization patterns
------------------------------------------------
+### 5. Structural sharing and normalization patterns
 
 When persisting graphs that contain many repeated or immutable pieces
 (e.g. steps in a plan), prefer structural sharing:
@@ -146,8 +137,7 @@ On update, create new step entities only for truly new step text and add a
 new snapshot entity that references the steps. This keeps history immutable
 and easy to reason about.
 
-6) Push/merge retry loop for writers
-------------------------------------
+### 6. Push/merge retry loop for writers
 
 When pushing writes, use the standard push/merge loop to handle concurrent
 writers. Two options are available:
@@ -174,8 +164,7 @@ ws.commit(content, Some("plan-update"));
 repo.push(&mut ws)?;
 ```
 
-Practical anti‑patterns
-------------------------
+## Practical anti‑patterns
 - Do not unfold the graph or convert it into nested Rust structs.
   It wastes CPU and memory and loses the benefits of tribles’ flexible
   reifications.
@@ -202,8 +191,8 @@ Practical anti‑patterns
 - Avoid reading blobs eagerly; prefer lazy reads via `ws.get::<View<...>, _>(handle)`.
   Allocate owned data only when necessary.
 
-Glossary
---------
+## Glossary
+
 - Workspace: the repo handle that opens branches, reads blobs, commits and
   pushes.
 - TribleSet: the in-memory content snapshot returned by Workspace::checkout.
@@ -212,14 +201,14 @@ Glossary
 - entity!: construct an ad‑hoc entity into a TribleSet for commit.
 - LongString: zero-copy blob schema for potentially-large text.
 
-Closing notes
--------------
+## Closing notes
 
 This chapter captures the pragmatic type story we use in tribles: describe
 the fields you need at the place you need them, keep the full graph, and
 materialize small views lazily.
 
-Reviewers' checklist (quick)
+## Reviewers' checklist (quick)
+
 - Prefer find!/pattern! projections for the fields needed by the function.
 - Avoid converting graph into rust structs.
 - Use ws.get::<View<...>, _>(handle) for zero-copy blob reads;
@@ -233,15 +222,13 @@ Reviewers' checklist (quick)
 
 The sections below contain copy‑pasteable recipes for common operations.
 
-Idioms & code recipes
----------------------
+## Idioms & code recipes
 
 This section contains pragmatic, copy‑pasteable snippets and patterns you can
 reuse. The examples intentionally use the tribles macros (attributes!, find!,
 pattern!, entity!) directly — that is the intended style.
 
-Reviewer checklist
-------------------
+### Reviewer checklist
 
 When reviewing code that touches tribles, look for these items:
 
@@ -253,8 +240,7 @@ When reviewing code that touches tribles, look for these items:
 - Is the code avoiding holding the repo's Mutex across awaits and long
   blocking operations?
 
-Further reading and references
-------------------------------
+## Further reading and references
 
 - See the tribles macros: attributes!, find!, pattern!, entity! in the tribles code
   for exact usage.

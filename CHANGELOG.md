@@ -182,6 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Corrected the `PATCHOrderedIterator` documentation to describe its
+  lexicographic key-order traversal instead of prefix iteration.
 - Restored `_?ident` locals in `pattern!`/`pattern_changes!` to infer their
   value schema from usage instead of forcing `GenId`, so scoped bindings work on
   non-`GenId` attributes again.

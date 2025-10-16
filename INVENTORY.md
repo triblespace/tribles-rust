@@ -141,7 +141,6 @@ prioritized for efficient zero-copy access.
 - Split out the lengthy explanation of trible structure from `src/trible.rs`
   and consolidate it with the deep dive chapter.
 - Add a FAQ chapter to the book summarising common questions.
-- Correct `PATCHOrderedIterator` doc comment; it currently references prefix iteration.
 
 ## Discovered Issues
 - No open issues recorded yet.

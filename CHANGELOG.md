@@ -64,16 +64,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Book section documenting how to manage multiple signing identities with
   `Repository::set_signing_key`, `Repository::create_branch_with_key`, and
   `Repository::pull_with_key`.
+- Dedicated "Portability & Common Formats" chapter in the book capturing value
+  schemas, identifiers, and conversion guidance, referenced from the `Value`
+  crate docs, and closing out the documentation backlog request to move this
+  material out of the API reference.
 
 ### Changed
 - `proofs::util::bounded_id` now rejects the nil sentinel with `kani::assume`
   to keep identifier generation unbiased while ensuring exclusivity checks stay
   sound in verification harnesses.
+- Expanded the Developing Locally chapter with setup steps, workflow scripts,
+  and book rebuild instructions.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
   describe the full tree-order traversal without a prefix filter and point to
   the prefix iterator for filtered traversal.
+- Trimmed the Portability & Common Formats chapter by removing the "Why this
+  chapter lives in the book" subsection after documenting the move from the
+  `Value` module docs.
 - Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
   macros in the `tribles-macros` crate overview.
 - Reframed commit range selectors so `start..end` walks from the end selector

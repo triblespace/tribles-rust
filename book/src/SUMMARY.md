@@ -9,6 +9,7 @@
 - [Query Language](query-language.md)
 - [Incremental Queries](incremental-queries.md)
 - [Schemas](schemas.md)
+- [Portability & Common Formats](portability-and-formats.md)
 - [Descriptive Typing & find! Idiom](descriptive_types.md)
 - [Repository Workflows](repository-workflows.md)
 - [Commit Selectors](commit-selectors.md)

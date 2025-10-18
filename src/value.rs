@@ -1,38 +1,6 @@
-//! Value type and conversion traits for schema types.
-//!
-//! # Portability & Common Formats
-//! In order to build a portable and extensible database, we need to be able to store and retrieve arbitrary Rust types.
-//! However, we can't just store the raw bytes of a type, because the bytes of a type are not portable across different platforms,
-//! programming languages, or even different versions of the same type.
-//!
-//! We therefore need to define portable types that can be exchanged between different systems and expressed in a common format, i.e. bytes or strings.
-//! RDF choose to use URIs for this purpose, which are easily readable and writable by humans, but not very efficient for machines.
-//!
-//! Our approach is to use a 32-byte array as the common format for all types, as it is the smallest amount of bits that provides sufficient entropy
-//! to store intrinsic identifiers, i.e. hashes, in case we want to store larger values in a separate storage, i.e. a blob.
-//!
-//! We call these portable types "schemas", because they define the meaning and valid bit patterns of the bytes.
-//! This allows us to use one common type, the [Value] type with a type parameter that represents the schema type, to store and retrieve arbitrary Rust types.
-//!
-//! The bytes are opaque to the Value type, and don't have to be valid for the schema type.
-//! In cases where not all bit patterns are valid, conversion functions should check for validity via the [TryFromValue] trait.
-//!
-//! Conversion functions have to be implemented for the schema type and not for the [Value] type,
-//! to circumvent the orphan rule when implementing conversion functions for types or schemas from other crates.
-//!
-//! To implement a new schema, create a new type that implements the [ValueSchema] trait.
-//! Conversion functions can be implemented for the abstract schema type and concrete rust types
-//! via the [ToValue], [FromValue], [TryToValue], and [TryFromValue] traits.
-//!
-//! Each schema type has to have a unique value schema id, and can optionally have a unique blob schema id.
-//! The value schema id is used to identify the schema type for the bytes of a [Value] type, and the blob schema id is used to identify the schema type for the bytes of
-//! the associated blob type, should the value schema represent a intrinsic identifier for a larger value stored in a blob. See the [crate::blob] module for more information.
-//!
-//! These ids are used to store metadata and documentation about the schema type in the knowledge graph itself,
-//! and can for example be used to look up the schema type in a schema registry.
-//!
-//! Note that (de)serialization is essentialy a memory safe form of transmutation, and should be used with caution.
-//! I.e. conversion between values of different schema types won't produce undefined behavior, but might produce unexpected results.
+//! Value type and conversion traits for schema types. For a deeper look at
+//! portability goals, common formats, and schema design, refer to the
+//! "Portability & Common Formats" chapter in the project book.
 //!
 //! # Example
 //!

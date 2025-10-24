@@ -73,6 +73,9 @@ mod readme_example {
 
             /// The number of pages in the work.
             "FCCE870BECA333D059D5CD68C43B98F0" as pub page_count: R256;
+
+            /// A pen name or alternate spelling for an author.
+            "D2D1B857AC92CEAA45C0737147CA417E" as pub alias: ShortString;
         }
     }
 
@@ -113,19 +116,22 @@ mod readme_example {
         let catalog = ws.checkout(..)?;
         let title = "Dune";
 
+        // Use `_?ident` when you need a fresh variable scoped to this macro call
+        // without declaring it in the find! projection list.
         for (f, l, quote) in find!(
             (first: String, last: Value<_>, quote),
             pattern!(&catalog, [
-                { _?author @
-                literature::firstname: ?first,
-                literature::lastname: ?last
-            },
-            {
-                literature::title: title,
-                literature::author: _?author,
-                literature::quote: ?quote
-            }
-        ])
+                {
+                    _?author @
+                    literature::firstname: ?first,
+                    literature::lastname: ?last
+                },
+                {
+                    literature::title: title,
+                    literature::author: _?author,
+                    literature::quote: ?quote
+                }
+            ])
         ) {
             let quote: View<str> = ws.get(quote)?;
             let quote = quote.as_ref();
@@ -133,13 +139,58 @@ mod readme_example {
             println!(
                 "'{quote}'\n - from {title} by {f} {}.",
                 l.from_value::<&str>()
-            )
+            );
         }
 
-        if let Some(mut conflict_ws) = repo.try_push(&mut ws).expect("push staged commits") {
+        // Use `push` when you want automatic retries that merge concurrent history
+        // into the workspace before publishing.
+        repo.push(&mut ws).expect("publish initial library");
+
+        // Stage a non-monotonic update that we plan to reconcile manually.
+        ws.commit(
+            entity! { &author_id @ literature::firstname: "Francis" },
+            Some("use pen name"),
+        );
+
+        // Simulate a collaborator racing us with a different update.
+        let mut collaborator = repo.pull(*branch_id).expect("pull collaborator workspace");
+        collaborator.commit(
+            entity! { &author_id @ literature::firstname: "Franklin" },
+            Some("record legal first name"),
+        );
+        repo.push(&mut collaborator)
+            .expect("publish collaborator history");
+
+        // `try_push` returns a conflict workspace when the CAS fails, letting us
+        // inspect divergent history and decide how to merge it.
+        if let Some(mut conflict_ws) = repo
+            .try_push(&mut ws)
+            .expect("attempt manual conflict resolution")
+        {
+            let conflict_catalog = conflict_ws.checkout(..)?;
+
+            for (first,) in find!(
+                (first: Value<_>),
+                pattern!(&conflict_catalog, [{
+                    literature::author: &author_id,
+                    literature::firstname: ?first
+                }])
+            ) {
+                println!(
+                    "Collaborator kept the name '{}'.",
+                    first.from_value::<&str>()
+                );
+            }
+
             ws.merge(&mut conflict_ws)
                 .expect("merge conflicting history");
-            repo.push(&mut ws).expect("finalize push after merge");
+
+            ws.commit(
+                entity! { &author_id @ literature::alias: "Francis" },
+                Some("keep pen-name as an alias"),
+            );
+
+            repo.push(&mut ws).expect("publish merged aliases");
         }
 
         Ok(())

@@ -73,6 +73,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Reorganized the workspace so the new `triblespace` crate exposes the public
+  prelude, examples, and documentation while the implementation lives in
+  `triblespace-core` with procedural macros in `triblespace-core-macros`,
+  enabling future proc-macro crates to depend on the core without cyclic
+  dependencies.
+- Moved the README regression test and Kani proof harnesses into the
+  `triblespace` facade crate so `triblespace-core` stays lean for proc-macro
+  consumers while the public API remains thoroughly exercised.
 - Expanded Chapter 1 of the book with clearer motivation, reader guidance, and
   an outline of the subsequent chapters. Streamlined the "Why Trible Space
   exists" section so it stays focused on the data-management pains Trible Space
@@ -127,9 +135,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   module examples instead of cross-namespace guidance.
 - Pruned completed 0.6.0 release checklist items (prefix guards, succinct archive parity,
   pile property tests) from the inventory after auditing the codebase.
-- README walkthrough and regression test now commit the staged dataset by value
-  instead of cloning it before submission.
-- Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+  - README walkthrough and regression test now commit the staged dataset by value
+    instead of cloning it before submission.
+  - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+
+### Fixed
+- Updated the procedural macros to resolve either the `triblespace-core` or
+  `triblespace` crate path automatically so downstream users can rely on the
+  facade crate without declaring extra dependencies.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
 - Simplified blob deserialization by reading archive metadata via `Bytes::view_suffix`.

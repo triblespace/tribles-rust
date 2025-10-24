@@ -57,8 +57,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Book section documenting how to manage multiple signing identities with
   `Repository::set_signing_key`, `Repository::create_branch_with_key`, and
   `Repository::pull_with_key`.
+- Reworked Chapter 1 introduction to clarify Trible Space's goals, distinguish
+  fixed-width tribles from blob payloads, and guide readers through the rest of
+  the book.
 
 ### Changed
+- Expanded Chapter 1 of the book with clearer motivation, reader guidance, and
+  an outline of the subsequent chapters. Streamlined the "Why Trible Space
+  exists" section so it stays focused on the data-management pains Trible Space
+  solves and how pairing blobs with fine-grained facts addresses them, and
+  reworded the flexible querying description to show how a single query blends
+  trible sets, succinct indexes, and Rust collections such as hash maps.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

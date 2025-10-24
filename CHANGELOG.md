@@ -59,6 +59,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Aligned the README regression test with the expanded library conflict resolution walkthrough so documentation stays exercised.
+- Regenerated the quick-start alias attribute ID with a CLI-generated value so the README, book, and regression test stay in sync.
+- Unified the getting started walkthrough around the library example, showing `push` for automatic retries, `try_push` for manual conflict handling, and updating the README snippet to match.
+- Expanded the book's getting started chapter with clearer step-by-step setup,
+  execution instructions, and explanations of the repository workflow pieces.
+- Restored the README's quick-start example while keeping the expanded
+  walkthrough in the getting started chapter so newcomers can skim or dive
+  deeper as they prefer.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

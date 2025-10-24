@@ -42,16 +42,16 @@ Add the crate to your project:
 cargo add tribles
 ```
 
-Then spin up a repository-backed workspace, mint the attributes your program
-needs, populate the repository with data, and query it—all in a single
-program.
+Once the crate is installed, you can experiment immediately with the
+quick-start program below. It showcases the attribute macros, workspace
+staging, queries, and pushing commits to a repository.
 
 ```rust
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
 use tribles::prelude::*;
 use tribles::prelude::blobschemas::LongString;
 use tribles::repo::{memoryrepo::MemoryRepo, Repository};
-use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
 
 mod literature {
     use tribles::prelude::*;
@@ -78,6 +78,9 @@ mod literature {
 
         /// The number of pages in the work.
         "FCCE870BECA333D059D5CD68C43B98F0" as pub page_count: R256;
+
+        /// A pen name or alternate spelling for an author.
+        "D2D1B857AC92CEAA45C0737147CA417E" as pub alias: ShortString;
     }
 }
 
@@ -105,16 +108,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         literature::title: "Dune",
         literature::author: &author_id,
         literature::quote: ws.put::<LongString, _>(
-            "Deep in the human unconscious is a pervasive need for a logical \
-             universe that makes sense. But the real universe is always one \
-             step beyond logic."
+            "Deep in the human unconscious is a pervasive need for a logical              universe that makes sense. But the real universe is always one              step beyond logic."
         ),
         literature::quote: ws.put::<LongString, _>(
-            "I must not fear. Fear is the mind-killer. Fear is the little-death \
-             that brings total obliteration. I will face my fear. I will permit \
-             it to pass over me and through me. And when it has gone past I will \
-             turn the inner eye to see its path. Where the fear has gone there \
-             will be nothing. Only I will remain."
+            "I must not fear. Fear is the mind-killer. Fear is the little-death              that brings total obliteration. I will face my fear. I will permit              it to pass over me and through me. And when it has gone past I will              turn the inner eye to see its path. Where the fear has gone there              will be nothing. Only I will remain."
         ),
     };
 
@@ -142,49 +139,70 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ) {
         let quote: View<str> = ws.get(quote)?;
         let quote = quote.as_ref();
-        println!("'{quote}'\n - from {title} by {f} {}.", l.from_value::<&str>());
+        println!("'{quote}'
+ - from {title} by {f} {}.", l.from_value::<&str>());
     }
 
-    // Use `try_push` for a single attempt that returns a conflict workspace on
-    // CAS failure; use `push` to let the repository merge and retry
-    // automatically.
+    // Use `push` when you want automatic retries that merge concurrent history
+    // into the workspace before publishing.
+    repo.push(&mut ws).expect("publish initial library");
+
+    // Stage a non-monotonic update that we plan to reconcile manually.
+    ws.commit(
+        entity! { &author_id @ literature::firstname: "Francis" },
+        Some("use pen name"),
+    );
+
+    // Simulate a collaborator racing us with a different update.
+    let mut collaborator = repo
+        .pull(*branch_id)
+        .expect("pull collaborator workspace");
+    collaborator.commit(
+        entity! { &author_id @ literature::firstname: "Franklin" },
+        Some("record legal first name"),
+    );
+    repo.push(&mut collaborator)
+        .expect("publish collaborator history");
+
+    // `try_push` returns a conflict workspace when the CAS fails, letting us
+    // inspect divergent history and decide how to merge it.
     if let Some(mut conflict_ws) = repo
         .try_push(&mut ws)
-        .expect("push staged commits")
+        .expect("attempt manual conflict resolution")
     {
-        // Resolve conflicts by merging the returned workspace as needed.
+        let conflict_catalog = conflict_ws.checkout(..)?;
+
+        for (first,) in find!(
+            (first: Value<_>),
+            pattern!(&conflict_catalog, [{
+                literature::author: &author_id,
+                literature::firstname: ?first
+            }])
+        ) {
+            println!("Collaborator kept the name '{}'.", first.from_value::<&str>());
+        }
+
         ws.merge(&mut conflict_ws)
             .expect("merge conflicting history");
-        repo.push(&mut ws).expect("finalize push after merge");
+
+        ws.commit(
+            entity! { &author_id @ literature::alias: "Francis" },
+            Some("keep pen-name as an alias"),
+        );
+
+        repo.push(&mut ws)
+            .expect("publish merged aliases");
     }
 
     Ok(())
 }
 ```
 
-`Repository::create_branch` returns an `ExclusiveId` guard for the new branch.
-Dereference it (or call `release`) when passing the branch identifier to
-`Repository::pull` so additional workspaces can target the same branch.
 
-The example inlines the `tribles::examples::literature` namespace with
-`attributes!` so the quick-start walkthrough and crate examples stay aligned
-while still compiling in standalone projects. Update the 32-character hex
-strings when you adapt the code to keep attribute identifiers globally unique.
-
-You can also introduce temporary equality constraints inside a pattern without
-adding them to the surrounding `find!` bindings. Prefix a variable name with
-`_?` to allocate a scoped query variable that lives only for the duration of the
-macro expansion:
-
-```ignore
-pattern!(&set, [{
-    ?author @ literature::firstname: _?name,
-    literature::lastname: _?name,
-}]);
-```
-
-This binds both attributes to the same generated variable, ensuring the first
-and last names match without cluttering the outer query signature.
+The [Getting Started](https://triblespace.github.io/tribles-rust/getting-started.html)
+chapter of the book breaks this example down line by line, covers project
+scaffolding, and introduces more background on how repositories, workspaces,
+and queries interact.
 
 ## Tribles Book
 

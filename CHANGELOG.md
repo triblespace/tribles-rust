@@ -78,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `triblespace-core` with procedural macros in `triblespace-core-macros`,
   enabling future proc-macro crates to depend on the core without cyclic
   dependencies.
+- Moved the README regression test and Kani proof harnesses into the
+  `triblespace` facade crate so `triblespace-core` stays lean for proc-macro
+  consumers while the public API remains thoroughly exercised.
 - Expanded Chapter 1 of the book with clearer motivation, reader guidance, and
   an outline of the subsequent chapters. Streamlined the "Why Trible Space
   exists" section so it stays focused on the data-management pains Trible Space

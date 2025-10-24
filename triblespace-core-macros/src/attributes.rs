@@ -96,7 +96,7 @@ pub(crate) fn attributes_impl(input: TokenStream) -> syn::Result<TokenStream> {
         out.extend(quote! {
             #(#attrs)*
             #[allow(non_upper_case_globals)]
-            #vis_ts const #name: ::tribles::attribute::Attribute<#ty> = ::tribles::attribute::Attribute::from(::tribles::id::_hex_literal_hex!(#id));
+            #vis_ts const #name: ::triblespace_core::attribute::Attribute<#ty> = ::triblespace_core::attribute::Attribute::from(::triblespace_core::id::_hex_literal_hex!(#id));
         });
     }
 

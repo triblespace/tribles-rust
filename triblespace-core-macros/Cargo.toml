@@ -1,5 +1,5 @@
 [package]
-name = "tribles-macros"
+name = "triblespace-core-macros"
 version = "0.1.0"
 edition = "2021"
 

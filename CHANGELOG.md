@@ -73,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Reorganized the workspace so the new `triblespace` crate exposes the public
+  prelude, examples, and documentation while the implementation lives in
+  `triblespace-core` with procedural macros in `triblespace-core-macros`,
+  enabling future proc-macro crates to depend on the core without cyclic
+  dependencies.
 - Expanded Chapter 1 of the book with clearer motivation, reader guidance, and
   an outline of the subsequent chapters. Streamlined the "Why Trible Space
   exists" section so it stays focused on the data-management pains Trible Space

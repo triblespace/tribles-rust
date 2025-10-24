@@ -1,5 +1,5 @@
-![Crates.io Version](https://img.shields.io/crates/v/tribles)
-![docs.rs](https://img.shields.io/docsrs/tribles)
+![Crates.io Version](https://img.shields.io/crates/v/triblespace)
+![docs.rs](https://img.shields.io/docsrs/triblespace)
 ![Discord Shield](https://discordapp.com/api/guilds/795317845181464651/widget.png?style=shield)
 
 🚧🚧🚧 Please note that this is work in progress, so while a lot of things have settled by now, we still favour breaking backwards compatiblity for seeminly minor improvements. 🚧🚧🚧
@@ -39,7 +39,7 @@ If you have any questions or want to chat about graph databases hop into our [di
 Add the crate to your project:
 
 ```bash
-cargo add tribles
+cargo add triblespace
 ```
 
 Once the crate is installed, you can experiment immediately with the
@@ -49,14 +49,14 @@ staging, queries, and pushing commits to a repository.
 ```rust
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::prelude::*;
-use tribles::prelude::blobschemas::LongString;
-use tribles::repo::{memoryrepo::MemoryRepo, Repository};
+use triblespace::prelude::*;
+use triblespace::prelude::blobschemas::LongString;
+use triblespace::repo::{memoryrepo::MemoryRepo, Repository};
 
 mod literature {
-    use tribles::prelude::*;
-    use tribles::prelude::blobschemas::LongString;
-    use tribles::prelude::valueschemas::{Blake3, GenId, Handle, R256, ShortString};
+    use triblespace::prelude::*;
+    use triblespace::prelude::blobschemas::LongString;
+    use triblespace::prelude::valueschemas::{Blake3, GenId, Handle, R256, ShortString};
 
     attributes! {
         /// The title of a work.

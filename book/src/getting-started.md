@@ -8,12 +8,12 @@ with running `cargo` commands from a terminal.
 ## 1. Add the dependencies
 
 Create a new binary crate (for example with `cargo new tribles-demo`) and add
-the dependencies needed for the example. The `tribles` crate provides the
+the dependencies needed for the example. The `triblespace` crate provides the
 database, `ed25519-dalek` offers an implementation of the signing keys used for
 authentication, and `rand` supplies secure randomness.
 
 ```bash
-cargo add tribles ed25519-dalek rand
+cargo add triblespace ed25519-dalek rand
 ```
 
 ## 2. Build the example program
@@ -25,16 +25,16 @@ how to use `try_push` when you want to inspect and reconcile a conflict
 manually.
 
 ```rust
-use tribles::prelude::*;
-use tribles::prelude::blobschemas::LongString;
-use tribles::repo::{memoryrepo::MemoryRepo, Repository};
+use triblespace::prelude::*;
+use triblespace::prelude::blobschemas::LongString;
+use triblespace::repo::{memoryrepo::MemoryRepo, Repository};
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
 mod literature {
-    use tribles::prelude::*;
-    use tribles::prelude::blobschemas::LongString;
-    use tribles::prelude::valueschemas::{Blake3, GenId, Handle, R256, ShortString};
+    use triblespace::prelude::*;
+    use triblespace::prelude::blobschemas::LongString;
+    use triblespace::prelude::valueschemas::{Blake3, GenId, Handle, R256, ShortString};
 
     attributes! {
         /// The title of a work.
@@ -222,7 +222,7 @@ you are done experimenting to avoid accidentally reading stale state.
   recover the underlying pile with `Repository::into_storage` and call
   `Pile::close()` yourself.
 
-See the [crate documentation](https://docs.rs/tribles/latest/tribles/) for
+See the [crate documentation](https://docs.rs/triblespace/latest/triblespace/) for
 additional modules and examples.
 
 ## Switching signing identities

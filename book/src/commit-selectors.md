@@ -67,7 +67,7 @@ data itself. Selectors compose, so you can further narrow a range:
 
 ```rust
 use hifitime::Epoch;
-use tribles::repo::{filter, time_range};
+use triblespace::repo::{filter, time_range};
 
 let since = Epoch::from_unix_seconds(1_609_459_200.0); // 2020-12-01
 let now = Epoch::now().unwrap();
@@ -130,7 +130,7 @@ to gather commits whose timestamps fall between two `Epoch` values:
 
 ```rust
 use hifitime::Epoch;
-use tribles::repo::time_range;
+use triblespace::repo::time_range;
 
 let since = Epoch::from_unix_seconds(1_609_459_200.0); // 2020-12-01
 let now = Epoch::now().unwrap();

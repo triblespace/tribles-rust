@@ -1,9 +1,9 @@
 use crate::entity;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::examples::literature;
-use tribles::prelude::*;
-use tribles::repo::Repository;
+use triblespace::examples::literature;
+use triblespace::prelude::*;
+use triblespace::repo::Repository;
 
 fn main() {
     let tmp = tempfile::tempdir().expect("tmp dir");

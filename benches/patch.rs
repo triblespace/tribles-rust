@@ -2,12 +2,12 @@ use fake::faker::lorem::en::Sentence;
 use fake::Fake;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use tribles::patch::bytetable::init as table_init;
-use tribles::patch::bytetable::ByteEntry;
-use tribles::patch::bytetable::ByteTable;
-use tribles::patch::Entry;
-use tribles::patch::IdentitySchema;
-use tribles::patch::PATCH;
+use triblespace::patch::bytetable::init as table_init;
+use triblespace::patch::bytetable::ByteEntry;
+use triblespace::patch::bytetable::ByteTable;
+use triblespace::patch::Entry;
+use triblespace::patch::IdentitySchema;
+use triblespace::patch::PATCH;
 
 fn patch_fill_benchmark() {
     let mut patch = PATCH::<64, IdentitySchema>::new();

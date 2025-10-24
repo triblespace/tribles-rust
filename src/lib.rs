@@ -1,45 +1,37 @@
 #![doc = include_str!("../README.md")]
-// Prefer explicit `?` variable bindings in patterns instead of relying on
-// parenthesisation. Do not suppress `unused_parens` at the crate level.
-#![cfg_attr(nightly, feature(rustc_attrs, decl_macro, file_lock))]
 
-extern crate self as tribles;
+pub use triblespace_core::attribute;
+pub use triblespace_core::blob;
+pub use triblespace_core::debug;
+pub use triblespace_core::examples;
+pub use triblespace_core::id;
+pub use triblespace_core::metadata;
+pub use triblespace_core::patch;
+pub use triblespace_core::query;
+pub use triblespace_core::repo;
+pub use triblespace_core::trible;
+pub use triblespace_core::value;
 
-#[cfg(not(all(target_pointer_width = "64", target_endian = "little")))]
-compile_error!("tribles-rust requires a 64-bit little-endian target");
+pub mod prelude {
+    pub use triblespace_core::prelude::*;
+}
 
-pub mod attribute;
-pub mod blob;
-pub mod id;
-pub mod metadata;
-pub mod patch;
-pub mod prelude;
-pub mod query;
-pub mod repo;
-pub mod trible;
-pub mod value;
+pub use triblespace_core::arrayvec;
+pub use triblespace_core::macro_pub;
+pub use triblespace_core::macros;
 
-pub mod debug;
-pub mod examples;
-
-// Re-export dependencies used by generated macros so consumers
-// don't need to add them explicitly.
-pub use arrayvec;
-pub use macro_pub;
-pub use tribles_macros as macros;
-// Re-export proc-macros at the crate root so they are available within the
-// crate without requiring explicit `use` statements at every call site.
-pub use tribles_macros::attributes;
-pub use tribles_macros::entity;
-pub use tribles_macros::path;
-pub use tribles_macros::pattern;
-pub use tribles_macros::pattern_changes;
+pub use triblespace_core::attributes;
+pub use triblespace_core::entity;
+pub use triblespace_core::path;
+pub use triblespace_core::pattern;
+pub use triblespace_core::pattern_changes;
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]
 mod proofs;
 
-// Let's add the readme example as a test
+// Keep the README example here so the facade crate exercises the public API as
+// consumers see it while `triblespace-core` stays lean for proc-macro usage.
 #[cfg(test)]
 mod readme_example {
     use crate::prelude::blobschemas::LongString;

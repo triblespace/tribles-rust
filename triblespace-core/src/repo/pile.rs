@@ -70,8 +70,6 @@ pub enum ValidationState {
     Invalid,
 }
 
-use crate::repo::BlobStoreMeta;
-
 #[derive(Debug, Clone)]
 struct IndexEntry {
     state: Arc<OnceLock<ValidationState>>,

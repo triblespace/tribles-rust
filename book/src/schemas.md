@@ -7,8 +7,8 @@ raw bytes to concrete application types and decouple persisted data from a
 particular implementation. This separation lets you refactor to new libraries
 or frameworks without rewriting what's already stored. The crate ships with a
 collection of ready‑made schemas located in
-[`tribles::value::schemas`](https://docs.rs/tribles/latest/tribles/value/schemas/index.html) and
-[`tribles::blob::schemas`](https://docs.rs/tribles/latest/tribles/blob/schemas/index.html).
+[`triblespace::value::schemas`](https://docs.rs/triblespace/latest/triblespace/value/schemas/index.html) and
+[`triblespace::blob::schemas`](https://docs.rs/triblespace/latest/triblespace/blob/schemas/index.html).
 
 ### Why 32 bytes?
 
@@ -50,8 +50,8 @@ The crate provides the following value schemas out of the box:
 - `UnknownValue` as a fallback when no specific schema is known.
 
 ```rust
-use tribles::value::schemas::shortstring::ShortString;
-use tribles::value::{ToValue, ValueSchema};
+use triblespace::value::schemas::shortstring::ShortString;
+use triblespace::value::{ToValue, ValueSchema};
 
 let v = "hi".to_value::<ShortString>();
 assert_eq!(v.schema_id(), ShortString::VALUE_SCHEMA_ID);
@@ -67,8 +67,8 @@ The crate also ships with these blob schemas:
 - `UnknownBlob` for data of unknown type.
 
 ```rust
-use tribles::blob::schemas::longstring::LongString;
-use tribles::blob::{ToBlob, BlobSchema};
+use triblespace::blob::schemas::longstring::LongString;
+use triblespace::blob::{ToBlob, BlobSchema};
 
 let b = "example".to_blob::<LongString>();
 assert_eq!(LongString::BLOB_SCHEMA_ID, b.schema_id());

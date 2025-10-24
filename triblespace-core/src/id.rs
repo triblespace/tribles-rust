@@ -224,7 +224,7 @@ pub use hex_literal::hex as _hex_literal_hex;
 ///
 /// # Example
 /// ```
-/// use tribles::id::id_hex;
+/// use triblespace::id::id_hex;
 /// let id = id_hex!("7D06820D69947D76E7177E5DEA4EA773");
 /// ```
 #[macro_export]
@@ -379,7 +379,7 @@ pub fn local_ids(v: Variable<GenId>) -> impl Constraint<'static> {
 /// # Example
 ///
 /// ```
-/// use tribles::id::{IdOwner, ExclusiveId, fucid};
+/// use triblespace::id::{IdOwner, ExclusiveId, fucid};
 /// let mut owner = IdOwner::new();
 /// let exclusive_id = fucid();
 /// let id = owner.insert(exclusive_id);
@@ -450,9 +450,9 @@ impl IdOwner {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     /// use valueschemas::ShortString;
-    /// use tribles::id_hex;
+    /// use triblespace::id_hex;
     ///
     /// let mut owner = IdOwner::new();
     /// let owned_id = owner.defer_insert(fucid());
@@ -510,7 +510,7 @@ impl IdOwner {
     /// # Example
     ///
     /// ```
-    /// use tribles::id::{IdOwner, ExclusiveId, fucid};
+    /// use triblespace::id::{IdOwner, ExclusiveId, fucid};
     /// let mut owner = IdOwner::new();
     /// let exclusive_id = fucid();
     /// let id = owner.insert(exclusive_id);

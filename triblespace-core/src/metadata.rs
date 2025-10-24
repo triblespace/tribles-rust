@@ -1,10 +1,10 @@
-//! Metadata namespace for the `tribles` crate.
+//! Metadata namespace for the `triblespace` crate.
 //!
 //! This namespace is used to bootstrap the meaning of other namespaces.
 //! It defines meta attributes that are used to describe other attributes.
 
 use crate::prelude::valueschemas;
-use tribles_macros::attributes;
+use triblespace_core_macros::attributes;
 
 use crate::id::Id;
 use crate::id_hex;

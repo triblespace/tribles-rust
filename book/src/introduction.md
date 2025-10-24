@@ -1,7 +1,7 @@
 # Introduction
 
 Welcome to the **Tribles Book**. This first chapter is your map to Trible
-Space—the problems it tackles, the core ideas behind the `tribles` crate, and
+Space—the problems it tackles, the core ideas behind the `triblespace` crate, and
 the kinds of projects it was built to support. By the end of these opening
 pages you should be able to recognize when Trible Space is the right tool,
 whether you are prototyping something new, extending an existing system, or

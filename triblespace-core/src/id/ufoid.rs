@@ -40,7 +40,7 @@ use super::Id;
 /// ## Usage Example
 ///
 /// ```rust
-/// use tribles::id::ufoid::ufoid;
+/// use triblespace::id::ufoid::ufoid;
 ///
 /// let id1 = ufoid();
 /// let id2 = ufoid();

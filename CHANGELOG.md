@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Contributor guidelines now require reading the entire `./book` before starting each new task to stay aligned with project concepts.
 - `proofs::util::bounded_id` now rejects the nil sentinel with `kani::assume`
   to keep identifier generation unbiased while ensuring exclusivity checks stay
   sound in verification harnesses.

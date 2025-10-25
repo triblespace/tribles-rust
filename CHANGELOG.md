@@ -117,6 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Value` module docs.
 - Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
   macros in the `tribles-macros` crate overview.
+- `attributes!` procedural macro now resolves the caller's crate path so
+  downstream users can depend solely on the `triblespace` facade when
+  generating attribute constants.
 - Reframed commit range selectors so `start..end` walks from the end selector
   until encountering a commit yielded by the start selector, reducing
   redundant ancestor exploration and making the traversal cost explicit.

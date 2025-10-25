@@ -5,9 +5,9 @@
 //! # Example
 //!
 //! ```
-//! use tribles::value::{Value, ValueSchema, ToValue, FromValue};
-//! use tribles::id::Id;
-//! use tribles::id_hex;
+//! use triblespace::value::{Value, ValueSchema, ToValue, FromValue};
+//! use triblespace::id::Id;
+//! use triblespace::id_hex;
 //! use std::convert::TryInto;
 //!
 //! // Define a new schema type.
@@ -100,7 +100,7 @@ pub type RawValue = [u8; VALUE_LEN];
 /// # Example
 ///
 /// ```
-/// use tribles::prelude::*;
+/// use triblespace::prelude::*;
 /// use valueschemas::R256;
 /// use num_rational::Ratio;
 ///
@@ -122,8 +122,8 @@ impl<S: ValueSchema> Value<S> {
     /// # Example
     ///
     /// ```
-    /// use tribles::value::{Value, ValueSchema};
-    /// use tribles::value::schemas::UnknownValue;
+    /// use triblespace::value::{Value, ValueSchema};
+    /// use triblespace::value::schemas::UnknownValue;
     ///
     /// let bytes = [0; 32];
     /// let value = Value::<UnknownValue>::new(bytes);
@@ -176,8 +176,8 @@ impl<S: ValueSchema> Value<S> {
     /// # Example
     ///
     /// ```
-    /// use tribles::value::{Value, ValueSchema};
-    /// use tribles::value::schemas::UnknownValue;
+    /// use triblespace::value::{Value, ValueSchema};
+    /// use triblespace::value::schemas::UnknownValue;
     /// use std::borrow::Borrow;
     ///
     /// let bytes = [0; 32];
@@ -203,7 +203,7 @@ impl<S: ValueSchema> Value<S> {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     /// use valueschemas::R256;
     /// use num_rational::Ratio;
     ///
@@ -229,7 +229,7 @@ impl<S: ValueSchema> Value<S> {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     /// use valueschemas::R256;
     /// use num_rational::Ratio;
     ///

@@ -141,9 +141,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   module examples instead of cross-namespace guidance.
 - Pruned completed 0.6.0 release checklist items (prefix guards, succinct archive parity,
   pile property tests) from the inventory after auditing the codebase.
-- README walkthrough and regression test now commit the staged dataset by value
-  instead of cloning it before submission.
-- Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+  - README walkthrough and regression test now commit the staged dataset by value
+    instead of cloning it before submission.
+  - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+
+### Fixed
+- Updated the procedural macros to resolve either the `triblespace-core` or
+  `triblespace` crate path automatically so downstream users can rely on the
+  facade crate without declaring extra dependencies.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
 - Simplified blob deserialization by reading archive metadata via `Bytes::view_suffix`.

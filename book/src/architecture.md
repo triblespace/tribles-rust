@@ -22,8 +22,8 @@ The fundamental unit of information is a [`Trible`](https://docs.rs/tribles/late
 
 To keep joins skew‑resistant, each set maintains all six orderings of entity,
 attribute and value.  The trees reuse the same leaf nodes so a trible is stored
-only once, avoiding a naïve six‑fold memory cost while still letting the query
-planner pick the most selective permutation.
+only once, avoiding a naïve six‑fold memory cost while still letting the search
+loop pick the most selective permutation using the constraint heuristics.
 
 ## Blob Storage
 

@@ -59,8 +59,8 @@ efficiently:
 
 Each permutation has its own inner nodes, but all six share leaf nodes
 containing the 64‑byte trible. This avoids a naïve six‑fold memory cost while
-still letting the query planner pick the most selective ordering, keeping joins
-resistant to skew.
+still letting the search loop pick the most selective ordering from the
+constraint heuristics, keeping joins resistant to skew.
 
 ## Advantages
 

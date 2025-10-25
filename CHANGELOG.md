@@ -73,6 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Re-reviewed the book and codebase to tighten the Glossary definitions:
+  clarified how attributes carry their schemas via `attributes!`, explained
+  that schemas stay language agnostic instead of binding to Rust types, noted
+  that blobs hold archived `TribleSet`s and commit metadata, documented commits
+  as `SimpleArchive` blobs with signed metadata, and highlighted identifier
+  ownership in the entity entry alongside the existing PATCH description.
 - Reorganized the workspace so the new `triblespace` crate exposes the public
   prelude, examples, and documentation while the implementation lives in
   `triblespace-core` with procedural macros in `triblespace-core-macros`,

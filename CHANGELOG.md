@@ -73,6 +73,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Clarified in the Architecture chapter that blob stores, not repositories, perform
+  deduplication of uploaded content.
+- Corrected the push/pull arrows in the Architecture diagram to match the actual
+  workspace and repository data flow.
+- Refined the Architecture diagram and explanation to match
+  `Repository::pull`, `Workspace::commit`, and `Repository::try_push`
+  responsibilities.
+- Reworked the Architecture diagram again to restore the approachable
+  workspace overview, clarify the `commit`/`add_blob` interactions, and ensure
+  the push arrow flows from the workspace into the repository box.
+- Tightened the Architecture diagram so `push/try_push` rises from the
+  workspace, `pull` flows back from the repository, and the workspace box now
+  highlights concise `commit`/`add_blob` annotations plus a `checkout` link to
+  the application layer, then nudged the arrow spacing and arrowheads for
+  clearer alignment.
 - Re-reviewed the book and codebase to tighten the Glossary definitions:
   clarified how attributes carry their schemas via `attributes!`, explained
   that schemas stay language agnostic instead of binding to Rust types, noted
@@ -177,6 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `with_sorted_dedup` now accepts iterators so compressed universes can build domains without materializing values.
 - `SuccinctArchiveMeta` now accepts the domain's serialized metadata type,
   removing its hardcoded `SectionHandle<RawValue>` dependency.
+- Architecture chapter now explains the system layers, copy-on-write behaviour,
+  and how repositories coordinate blob and branch stores.
 - `SuccinctArchiveMeta` bounds metadata types with jerky's `Metadata` marker
   to guarantee zero-copy-safe layouts.
 - `CompressedUniverse` now relies solely on jerky's `DacsByte` and a section-

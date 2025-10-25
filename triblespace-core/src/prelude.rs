@@ -1,9 +1,9 @@
-//! This module re-exports the most commonly used types and traits from the `tribles` crate.
-//! It is intended to be glob imported as `use tribles::prelude::*;`.
+//! This module re-exports the most commonly used types and traits from the `triblespace` crate.
+//! It is intended to be glob imported as `use triblespace::prelude::*;`.
 //!
 //! # Introduction
 //!
-//! The `tribles` crate is a Rust library for working with graph data.
+//! The `triblespace` crate is a Rust library for working with graph data.
 //! It is designed to be simple, fast, and flexible.
 //!
 //! # Deletion and Forgetting
@@ -25,7 +25,7 @@
 //! if you want to build a consistent distributed system, you need to
 //! ensure that it is logically monotonic. This is where forgetting comes
 //! in: _By allowing you to forget things, but preventing you from deleting
-//! things, `tribles` allows you to build consistent distributed systems.
+//! things, `triblespace` allows you to build consistent distributed systems.
 //!
 
 pub mod blobschemas;
@@ -65,7 +65,7 @@ pub use crate::value::Value;
 pub use crate::value::ValueSchema;
 pub use anybytes::View;
 // Re-export the pattern/entity procedural macros into the prelude so they can
-// be imported with `use tribles::prelude::*;` and called as `pattern!(...)`.
+// be imported with `use triblespace::prelude::*;` and called as `pattern!(...)`.
 // After migrating away from namespace-local wrapper macros, this makes the
 // new global proc-macros ergonomically available.
 pub use crate::macros::attributes;

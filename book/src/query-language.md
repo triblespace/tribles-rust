@@ -1,6 +1,6 @@
 # Query Language
 
-This chapter introduces the basic query facilities provided by `tribles`.
+This chapter introduces the basic query facilities provided by `triblespace`.
 Queries are declared in a small declarative language that describes which
 values should match rather than how to iterate them.
 
@@ -83,8 +83,8 @@ regardless of whether any `y` equals `2`.
 ## Example
 
 ```rust
-use tribles::prelude::*;
-use tribles::examples::{self, literature};
+use triblespace::prelude::*;
+use triblespace::examples::{self, literature};
 
 let dataset = examples::dataset();
 
@@ -126,7 +126,7 @@ Sometimes you only want to check whether a constraint has any solutions.
 The `matches!` macro mirrors the `find!` syntax but returns a boolean:
 
 ```rust
-use tribles::prelude::*;
+use triblespace::prelude::*;
 
 assert!(matches!((x), x.is(1.into())));
 assert!(!matches!((x), and!(x.is(1.into()), x.is(2.into()))));
@@ -148,9 +148,9 @@ into a [`TribleSet`](crate::trible::TribleSet).
 ```rust
 use std::collections::HashSet;
 
-use tribles::prelude::*;
-use tribles::prelude::valueschemas::ShortString;
-use tribles::query::hashsetconstraint::SetConstraint;
+use triblespace::prelude::*;
+use triblespace::prelude::valueschemas::ShortString;
+use triblespace::query::hashsetconstraint::SetConstraint;
 
 struct ExternalTags<'a> {
     tags: &'a HashSet<String>,
@@ -185,11 +185,11 @@ combined with other constraints.  Invoke it through a namespace module
 (`social::path!`) to implicitly resolve attribute names:
 
 ```rust
-use tribles::prelude::*;
+use triblespace::prelude::*;
 
 mod social {
-  use tribles::prelude::*;
-  use tribles::prelude::valueschemas::*;
+  use triblespace::prelude::*;
+  use triblespace::prelude::valueschemas::*;
   attributes! {
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: GenId;
     "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" as likes: GenId;

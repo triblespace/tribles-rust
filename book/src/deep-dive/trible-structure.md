@@ -79,10 +79,10 @@ resistant to skew.
 ## Set operations and monotonic semantics
 
 `TribleSet`s provide familiar set-theoretic helpers such as
-[`TribleSet::union`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.union),
-[`TribleSet::intersection`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.intersection)
+[`TribleSet::union`](https://docs.rs/triblespace/latest/triblespace/trible/struct.TribleSet.html#method.union),
+[`TribleSet::intersection`](https://docs.rs/triblespace/latest/triblespace/trible/struct.TribleSet.html#method.intersection)
 and
-[`TribleSet::difference`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.difference).
+[`TribleSet::difference`](https://docs.rs/triblespace/latest/triblespace/trible/struct.TribleSet.html#method.difference).
 Each of these operations returns a new `TribleSet` view without modifying the
 inputs, making it straightforward to merge datasets, locate their overlap or
 identify the facts that still need to propagate between replicas while keeping
@@ -109,7 +109,7 @@ as done by OWL and RDF with the `inverseOf` predicate. Leading to a
 doubling of the number of edges in the graph or inference at query time.
 - Endless bikeshedding about the "right" direction of edges.
 
-In the `tribles` crate we solve this problem by giving the direction of the edge
+In the `triblespace` crate we solve this problem by giving the direction of the edge
 an explicit semantic meaning: The direction of the edge indicates which entity
 is the one making the statement, i.e. which entity is observing the fact
 or proclaiming the relationship. This is a simple and consistent rule that

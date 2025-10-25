@@ -3,13 +3,13 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 
-use tribles::blob::schemas::UnknownBlob;
-use tribles::blob::Blob;
-use tribles::blob::Bytes;
-use tribles::repo::pile::GetBlobError;
-use tribles::repo::pile::Pile;
-use tribles::repo::BlobStore;
-use tribles::repo::BlobStorePut;
+use triblespace::blob::schemas::UnknownBlob;
+use triblespace::blob::Blob;
+use triblespace::blob::Bytes;
+use triblespace::repo::pile::GetBlobError;
+use triblespace::repo::pile::Pile;
+use triblespace::repo::BlobStore;
+use triblespace::repo::BlobStorePut;
 
 // size of the blob header in the pile format
 const BLOB_HEADER_LEN: u64 = 16 + 8 + 8 + 32;

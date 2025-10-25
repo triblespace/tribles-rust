@@ -46,8 +46,8 @@ styles, including graph, relational and document-oriented queries.
 
 For example, the [`pattern!`](crate::pattern!) and
 [`entity!`](crate::entity!) macros—available at the crate root and re-exported
-via [`tribles::prelude`](crate::prelude) (for instance with
-`use tribles::prelude::*;`)—generate constraints for a given trible pattern in
+via [`triblespace::prelude`](crate::prelude) (for instance with
+`use triblespace::prelude::*;`)—generate constraints for a given trible pattern in
 a query-by-example style reminiscent of SPARQL or GraphQL but tailored to a
 document-graph data model. It would also be possible to layer a property-graph
 language like Cypher or a relational language like Datalog on top of the

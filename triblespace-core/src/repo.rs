@@ -26,9 +26,9 @@
 //! ```rust,ignore
 //! use ed25519_dalek::SigningKey;
 //! use rand::rngs::OsRng;
-//! use tribles::prelude::*;
-//! use tribles::prelude::valueschemas::{GenId, ShortString};
-//! use tribles::repo::{memoryrepo::MemoryRepo, Repository};
+//! use triblespace::prelude::*;
+//! use triblespace::prelude::valueschemas::{GenId, ShortString};
+//! use triblespace::repo::{memoryrepo::MemoryRepo, Repository};
 //!
 //! let storage = MemoryRepo::default();
 //! let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));

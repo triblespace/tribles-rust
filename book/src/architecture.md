@@ -33,9 +33,10 @@ The 64 byte boundary allows tribles to live comfortably on cache lines and makes
 
 `TribleSet`s provide fast querying and cheap copy‑on‑write semantics.  They can be merged, diffed and searched entirely in memory.  When durability is needed the set is serialised into a blob and tracked by the repository layer.
 
-To keep joins skew‑resistant, each set maintains all six orderings of entity, attribute and value.  The trees reuse the same leaf nodes so a trible is stored only once, avoiding a naïve six‑fold memory cost while still letting the query planner pick the most selective permutation.
-
-Copy‑on‑write behaviour is central to the incremental query engine.  Queries can branch speculative paths without risking mutation of live state, and small edits only touch the subtrees that actually changed.  This keeps response times consistent even when datasets grow.
+To keep joins skew‑resistant, each set maintains all six orderings of entity,
+attribute and value.  The trees reuse the same leaf nodes so a trible is stored
+only once, avoiding a naïve six‑fold memory cost while still letting the search
+loop pick the most selective permutation using the constraint heuristics.
 
 ## Blob Storage
 
@@ -94,9 +95,9 @@ Because commits are immutable, rollback and branching are cheap.  Diverging hist
 |   current head (latest commit reference)      |
 +----------------------------+------------------+
         ^             ^             |
+        |             |         checkout
+     commit       add_blob          |
         |             |             v
-     commit       add_blob     checkout
-        |             |             |
 +----------------------------+------------------+
 |                 Application                  |
 +----------------------------------------------+

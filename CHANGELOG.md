@@ -73,6 +73,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Reworked the Query Engine chapter to describe the in-search Atreides
+  cardinality estimates, clarify how constraints cooperate at runtime, and remove
+  references to a nonexistent planner.
+- Clarified how the Query Engine search loop derives join variants from
+  cardinality heuristics, documented the role of `confirm` inside `and!`, and
+  replaced the chapter's query example with a runnable snippet that mixes
+  `pattern!` constraints with a `HashSet` filter.
+- Updated the architecture overview and trible structure deep dive so they
+  describe join ordering as a search-loop choice driven by constraint
+  heuristics instead of a separate planner.
 - Clarified in the Architecture chapter that blob stores, not repositories, perform
   deduplication of uploaded content.
 - Corrected the push/pull arrows in the Architecture diagram to match the actual

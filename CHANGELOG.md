@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Re-reviewed the book and codebase to tighten the Glossary definitions:
+  clarified how attributes carry their schemas via `attributes!`, explained
+  that schemas stay language agnostic instead of binding to Rust types, noted
+  that blobs hold archived `TribleSet`s and commit metadata, documented commits
+  as `SimpleArchive` blobs with signed metadata, and highlighted identifier
+  ownership in the entity entry alongside the existing PATCH description.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

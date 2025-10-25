@@ -1,6 +1,6 @@
-use tribles::blob::schemas::succinctarchive::OrderedUniverse;
-use tribles::blob::schemas::succinctarchive::SuccinctArchive;
-use tribles::prelude::*;
+use triblespace::blob::schemas::succinctarchive::OrderedUniverse;
+use triblespace::blob::schemas::succinctarchive::SuccinctArchive;
+use triblespace::prelude::*;
 
 #[test]
 fn build_from_empty_set() {

@@ -1,6 +1,6 @@
 # Formal Verification Roadmap
 
-This roadmap captures the initial strategy for driving the `tribles` crates
+This roadmap captures the initial strategy for driving the `triblespace` crates
 toward comprehensive formal verification.  It unifies model checking, symbolic
 execution, fuzzing, and deterministic simulation so we can reason about both the
 low-level data structures and high-level repository workflows with stronger

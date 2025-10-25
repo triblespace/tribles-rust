@@ -38,11 +38,11 @@ repository type exposes that trait bound you can call `repo.close()?` to flush
 and release resources instead of relying on `Drop` to run at an unknown time.
 
 ```rust,ignore
-use tribles::repo::hybridstore::HybridStore;
-use tribles::repo::memoryrepo::MemoryRepo;
-use tribles::repo::objectstore::ObjectStoreRemote;
-use tribles::repo::Repository;
-use tribles::value::schemas::hash::Blake3;
+use triblespace::repo::hybridstore::HybridStore;
+use triblespace::repo::memoryrepo::MemoryRepo;
+use triblespace::repo::objectstore::ObjectStoreRemote;
+use triblespace::repo::Repository;
+use triblespace::value::schemas::hash::Blake3;
 use url::Url;
 
 let blob_remote: ObjectStoreRemote<Blake3> =
@@ -108,7 +108,7 @@ letting a human collaborator keep theirs:
 ```rust,ignore
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::repo::Repository;
+use triblespace::repo::Repository;
 
 let alice = SigningKey::generate(&mut OsRng);
 let automation = SigningKey::generate(&mut OsRng);
@@ -172,10 +172,10 @@ views:
 ```rust
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::blob::Blob;
-use tribles::examples::{self, literature};
-use tribles::prelude::*;
-use tribles::repo::{self, memoryrepo::MemoryRepo, Repository};
+use triblespace::blob::Blob;
+use triblespace::examples::{self, literature};
+use triblespace::prelude::*;
+use triblespace::repo::{self, memoryrepo::MemoryRepo, Repository};
 use blobschemas::{LongString, SimpleArchive};
 
 let storage = MemoryRepo::default();
@@ -188,11 +188,11 @@ let quote_handle = ws.put("Fear is the mind-killer".to_owned());
 let archive_handle = ws.put(&examples::dataset());
 
 // Embed the handles inside the change set that will be committed.
-let mut change = tribles::entity! {
+let mut change = triblespace::entity! {
     literature::title: "Dune (annotated)",
     literature::quote: quote_handle.clone(),
 };
-change += tribles::entity! { repo::content: archive_handle.clone() };
+change += triblespace::entity! { repo::content: archive_handle.clone() };
 
 ws.commit(change, Some("Attach annotated dataset"));
 // Single-attempt push. Use `push` to let the repository merge and retry automatically.
@@ -350,10 +350,10 @@ continues to work unchanged – the only difference is the URL you pass to
 ```rust,ignore
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::prelude::*;
-use tribles::repo::objectstore::ObjectStoreRemote;
-use tribles::repo::Repository;
-use tribles::value::schemas::hash::Blake3;
+use triblespace::prelude::*;
+use triblespace::repo::objectstore::ObjectStoreRemote;
+use triblespace::repo::Repository;
+use triblespace::value::schemas::hash::Blake3;
 use url::Url;
 
 fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
@@ -419,7 +419,7 @@ embedded handles remain 32‑aligned.
 >   provide) with targeted copies, returning `(old_handle, new_handle)` pairs
 >   for the supplied handles. Feed it the `reachable` iterator when you only
 >   want live blobs, the output of
->   [`potential_handles`](https://docs.rs/tribles/latest/tribles/repo/fn.potential_handles.html)
+>   [`potential_handles`](https://docs.rs/triblespace/latest/triblespace/repo/fn.potential_handles.html)
 >   when scanning metadata, or a collected list from
 >   `BlobStoreList::blobs()` when duplicating an entire store.
 > - `MemoryBlobStore::keep` (and other `BlobStoreKeep` implementations) retain
@@ -437,16 +437,16 @@ want to attach the history of one branch to another:
 ```rust,ignore
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::prelude::*;
-use tribles::repo::{self, pile::Pile, Repository};
-use tribles::value::schemas::hash::Blake3;
-use tribles::value::schemas::hash::Handle;
+use triblespace::prelude::*;
+use triblespace::repo::{self, pile::Pile, Repository};
+use triblespace::value::schemas::hash::Blake3;
+use triblespace::value::schemas::hash::Handle;
 
 fn merge_import_example(
     src_path: &std::path::Path,
-    src_branch_id: tribles::id::Id,
+    src_branch_id: triblespace::id::Id,
     dst_path: &std::path::Path,
-    dst_branch_id: tribles::id::Id,
+    dst_branch_id: triblespace::id::Id,
 ) -> anyhow::Result<()> {
     // 1) Open source (read) and destination (write) piles
     let mut src = Pile::open(src_path)?;

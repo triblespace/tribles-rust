@@ -7,8 +7,11 @@
 
 use core::marker::PhantomData;
 
+use crate::blob::ToBlob;
 use crate::id::RawId;
+use crate::value::schemas::hash::Blake3;
 use crate::value::ValueSchema;
+use blake3::Hasher;
 
 /// A typed reference to an attribute id together with its value schema.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -58,6 +61,64 @@ impl<S: ValueSchema> Attribute<S> {
     pub fn as_variable(&self, v: crate::query::Variable<S>) -> crate::query::Variable<S> {
         v
     }
+
+    /// Derive an attribute id from a dynamic field name and this schema's metadata.
+    ///
+    /// The identifier is computed by hashing the field name handle produced as a
+    /// `Handle<Blake3, crate::blob::schemas::longstring::LongString>` together with the
+    /// schema's [`ValueSchema::VALUE_SCHEMA_ID`] and [`ValueSchema::BLOB_SCHEMA_ID`].
+    /// The resulting 32-byte Blake3 digest is truncated to 16 bytes to match the
+    /// `RawId` layout used by [`Attribute::from`].
+    pub fn from_field(field_name: &str) -> Self {
+        let mut hasher = Hasher::new();
+
+        let field_handle = String::from(field_name).to_blob().get_handle::<Blake3>();
+        hasher.update(&field_handle.raw);
+        hasher.update(S::VALUE_SCHEMA_ID.as_ref());
+
+        let blob_schema_bytes: RawId = S::BLOB_SCHEMA_ID
+            .map(|id| id.into())
+            .unwrap_or([0; crate::id::ID_LEN]);
+        hasher.update(&blob_schema_bytes);
+
+        let digest = hasher.finalize();
+        let mut raw = [0u8; crate::id::ID_LEN];
+        raw.copy_from_slice(&digest.as_bytes()[..crate::id::ID_LEN]);
+        Self::from(raw)
+    }
 }
 
 pub use crate::id::RawId as RawIdAlias;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::blob::schemas::longstring::LongString;
+    use crate::value::schemas::hash::{Blake3, Handle};
+    use crate::value::schemas::shortstring::ShortString;
+
+    #[test]
+    fn dynamic_field_is_deterministic() {
+        let a1 = Attribute::<ShortString>::from_field("title");
+        let a2 = Attribute::<ShortString>::from_field("title");
+
+        assert_eq!(a1, a2);
+        assert_ne!(a1.raw(), [0; crate::id::ID_LEN]);
+    }
+
+    #[test]
+    fn dynamic_field_changes_with_name() {
+        let title = Attribute::<ShortString>::from_field("title");
+        let author = Attribute::<ShortString>::from_field("author");
+
+        assert_ne!(title, author);
+    }
+
+    #[test]
+    fn dynamic_field_includes_blob_schema() {
+        let short = Attribute::<ShortString>::from_field("title");
+        let handle = Attribute::<Handle<Blake3, LongString>>::from_field("title");
+
+        assert_ne!(short.raw(), handle.raw());
+    }
+}

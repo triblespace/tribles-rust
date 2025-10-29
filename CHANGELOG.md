@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Runtime helper `Attribute::from_field` for deriving deterministic attribute IDs
+  from dynamic field names using schema metadata and hashed field handles.
 - Shared `proofs::util` module providing bounded Kani generators for tribles,
   PATCH entries, and small commit DAGs, and updated the query harness to reuse
   them.

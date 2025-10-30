@@ -18,6 +18,8 @@ use std::mem;
 use std::num::NonZero;
 use std::ops::Deref;
 
+use hex::FromHex;
+
 pub use fucid::fucid;
 pub use fucid::FUCIDsource;
 pub use rngid::rngid;
@@ -74,6 +76,15 @@ impl Id {
     /// Creates a new `Id` from a [RawId] 16 byte array.
     pub const fn new(id: RawId) -> Option<Self> {
         unsafe { std::mem::transmute::<RawId, Option<Id>>(id) }
+    }
+
+    /// Parses a hexadecimal identifier string into an `Id`.
+    ///
+    /// Returns `None` if the input is not valid hexadecimal or represents the
+    /// nil identifier (all zero bytes).
+    pub fn from_hex(hex: &str) -> Option<Self> {
+        let raw = <RawId as FromHex>::from_hex(hex).ok()?;
+        Id::new(raw)
     }
 
     /// Forces the creation of an `Id` from a [RawId] without checking for nil.

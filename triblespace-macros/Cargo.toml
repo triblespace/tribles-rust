@@ -1,0 +1,18 @@
+[package]
+name = "triblespace-macros"
+version = "0.5.2"
+edition = "2021"
+description = "Instrumented wrappers around the triblespace procedural macros"
+license = "MIT OR Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+hex = "0.4"
+triblespace-core = { path = "../triblespace-core" }
+triblespace-core-macros = { path = "../triblespace-core-macros" }

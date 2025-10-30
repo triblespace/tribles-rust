@@ -95,6 +95,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Expanded and corrected the Atreides Join chapter with a structured
+  walkthrough: it now explains the constraint interface, details the
+  Jessica/Paul/Ghanima/Leto heuristic ladder, clarifies what quantity each
+  variant estimates, describes the ordering heuristics used by the guided
+  search, motivates the worst-case optimal guarantee, and clarifies how
+  per-variable estimates are derived in the worked example while tying the
+  introduction back to the broader worst-case optimal join literature.
 - Macro instrumentation now records the entire span of each invocation in a
   single `source_range` attribute instead of separate line and column values.
 - Implemented `ToValue<LineLocation>` for `proc_macro::Span` so metadata

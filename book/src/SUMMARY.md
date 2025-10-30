@@ -11,6 +11,7 @@
 - [Schemas](schemas.md)
 - [Portability & Common Formats](portability-and-formats.md)
 - [Descriptive Typing & find! Idiom](descriptive_types.md)
+- [Type Algebra of TribleSpace](type-algebra.md)
 - [Repository Workflows](repository-workflows.md)
 - [Commit Selectors](commit-selectors.md)
 - [Garbage Collection](garbage-collection.md)

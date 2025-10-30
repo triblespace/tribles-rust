@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schemas, identifiers, and conversion guidance, referenced from the `Value`
   crate docs, and closing out the documentation backlog request to move this
   material out of the API reference.
+- Chapter exploring the TribleSpace type algebra linking `attributes!`,
+  `entity!`, and query semantics.
 
 ### Changed
 - `proofs::util::bounded_id` now rejects the nil sentinel with `kani::assume`
@@ -77,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and book rebuild instructions.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
+- Re-reviewed the type algebra chapter, linking its claims directly to the
+  `Attribute`, `TribleSet`, and query constraint implementations for accuracy.
+- Softened the Type Algebra chapter summary to describe the design without
+  value-laden language.
+- Rephrased the Type Algebra chapter's closing sentence to highlight surface
+  simplicity backed by rich type theory.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
   describe the full tree-order traversal without a prefix filter and point to
   the prefix iterator for filtered traversal.

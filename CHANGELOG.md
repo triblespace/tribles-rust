@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `RangeU128` and `RangeInclusiveU128` value schemas for encoding pairs of
+  packed `u128` values, enabling compact storage of start/end markers such as
+  source ranges.
+- `LineLocation` value schema for storing explicit `(line, column)` start and
+  end coordinates without manual packing, now used by the macro metadata
+  instrumentation when recording invocation spans.
+- `triblespace-macros` crate wrapping the procedural macros and query helpers
+  to record invocation metadata in an optional repository configured via the
+  `TRIBLESPACE_METADATA_PILE` and `TRIBLESPACE_METADATA_BRANCH` environment
+  variables.
+- `TRIBLESPACE_METADATA_SIGNING_KEY` environment variable for configuring the
+  signing key used when committing metadata; instrumentation skips emission when
+  the value is unset or invalid.
+- `Id::from_hex` helper for parsing hexadecimal identifiers, now reused by the
+  macro metadata instrumentation when decoding branch IDs.
+- Attribute definition metadata emitted alongside `attributes!` expansions,
+  recording attribute identifiers, names, invocation IDs, and the declared
+  schema type tokens for downstream analysis tools.
 - Shared `proofs::util` module providing bounded Kani generators for tribles,
   PATCH entries, and small commit DAGs, and updated the query harness to reuse
   them.
@@ -73,6 +91,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   material out of the API reference.
 
 ### Changed
+- Macro instrumentation now records the entire span of each invocation in a
+  single `source_range` attribute instead of separate line and column values.
+- Implemented `ToValue<LineLocation>` for `proc_macro::Span` so metadata
+  wrappers can hand spans directly to `entity!` without manual tuple
+  construction.
+- Attribute metadata emission no longer attempts to resolve value/blob schema
+  identifiers, sticking to the information reliably available at macro
+  expansion time.
+- Metadata emission callbacks now receive a mutable context exposing the
+  workspace, invocation ID, and tokens so wrapper macros can commit additional
+  metadata directly without reopening the repository.
+- Metadata emission now commits records to the configured repository branch
+  instead of appending raw archives to a standalone pile, aligning the
+  instrumentation with the standard storage workflow and renaming the
+  environment variable knobs accordingly.
+- Regenerated the macro instrumentation attribute identifiers from
+  command-line randomness to document their provenance and avoid
+  hand-crafted values.
+- Metadata instrumentation now reuses the shared hex parsing helpers when
+  decoding signing keys and branch identifiers from the environment and
+  requires exact hexadecimal strings without a prefix, eliminating bespoke
+  sanitization logic in the wrapper crate.
 - Reorganized the workspace so the new `triblespace` crate exposes the public
   prelude, examples, and documentation while the implementation lives in
   `triblespace-core` with procedural macros in `triblespace-core-macros`,

@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Attribute definition metadata emitted alongside `attributes!` expansions,
   recording attribute identifiers, names, invocation IDs, and the declared
   schema type tokens for downstream analysis tools.
+- Runtime helper `Attribute::from_field` for deriving deterministic attribute IDs
+  from dynamic field names using schema metadata and hashed field handles.
 - Shared `proofs::util` module providing bounded Kani generators for tribles,
   PATCH entries, and small commit DAGs, and updated the query harness to reuse
   them.
@@ -113,6 +115,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decoding signing keys and branch identifiers from the environment and
   requires exact hexadecimal strings without a prefix, eliminating bespoke
   sanitization logic in the wrapper crate.
+- Reworked the Query Engine chapter to describe the in-search Atreides
+  cardinality estimates, clarify how constraints cooperate at runtime, and remove
+  references to a nonexistent planner.
+- Clarified how the Query Engine search loop derives join variants from
+  cardinality heuristics, documented the role of `confirm` inside `and!`, and
+  replaced the chapter's query example with a runnable snippet that mixes
+  `pattern!` constraints with a `HashSet` filter.
+- Updated the architecture overview and trible structure deep dive so they
+  describe join ordering as a search-loop choice driven by constraint
+  heuristics instead of a separate planner.
+- Clarified in the Architecture chapter that blob stores, not repositories, perform
+  deduplication of uploaded content.
+- Corrected the push/pull arrows in the Architecture diagram to match the actual
+  workspace and repository data flow.
+- Refined the Architecture diagram and explanation to match
+  `Repository::pull`, `Workspace::commit`, and `Repository::try_push`
+  responsibilities.
+- Reworked the Architecture diagram again to restore the approachable
+  workspace overview, clarify the `commit`/`add_blob` interactions, and ensure
+  the push arrow flows from the workspace into the repository box.
+- Tightened the Architecture diagram so `push/try_push` rises from the
+  workspace, `pull` flows back from the repository, and the workspace box now
+  highlights concise `commit`/`add_blob` annotations plus a `checkout` link to
+  the application layer, then nudged the arrow spacing and arrowheads for
+  clearer alignment.
+- Re-reviewed the book and codebase to tighten the Glossary definitions:
+  clarified how attributes carry their schemas via `attributes!`, explained
+  that schemas stay language agnostic instead of binding to Rust types, noted
+  that blobs hold archived `TribleSet`s and commit metadata, documented commits
+  as `SimpleArchive` blobs with signed metadata, and highlighted identifier
+  ownership in the entity entry alongside the existing PATCH description.
 - Reorganized the workspace so the new `triblespace` crate exposes the public
   prelude, examples, and documentation while the implementation lives in
   `triblespace-core` with procedural macros in `triblespace-core-macros`,
@@ -151,6 +184,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Value` module docs.
 - Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
   macros in the `tribles-macros` crate overview.
+- `attributes!` procedural macro now resolves the caller's crate path so
+  downstream users can depend solely on the `triblespace` facade when
+  generating attribute constants.
 - Reframed commit range selectors so `start..end` walks from the end selector
   until encountering a commit yielded by the start selector, reducing
   redundant ancestor exploration and making the traversal cost explicit.
@@ -175,9 +211,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   module examples instead of cross-namespace guidance.
 - Pruned completed 0.6.0 release checklist items (prefix guards, succinct archive parity,
   pile property tests) from the inventory after auditing the codebase.
-- README walkthrough and regression test now commit the staged dataset by value
-  instead of cloning it before submission.
-- Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+  - README walkthrough and regression test now commit the staged dataset by value
+    instead of cloning it before submission.
+  - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
+
+### Fixed
+- Updated the procedural macros to resolve either the `triblespace-core` or
+  `triblespace` crate path automatically so downstream users can rely on the
+  facade crate without declaring extra dependencies.
 - `SuccinctArchive` now derives domain metadata via `Serializable` instead of storing raw handles.
 - `SuccinctArchive` now retains a handle to a contiguous byte area so blob serialization clones the underlying bytes without rebuilding.
 - Simplified blob deserialization by reading archive metadata via `Bytes::view_suffix`.
@@ -203,6 +244,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `with_sorted_dedup` now accepts iterators so compressed universes can build domains without materializing values.
 - `SuccinctArchiveMeta` now accepts the domain's serialized metadata type,
   removing its hardcoded `SectionHandle<RawValue>` dependency.
+- Architecture chapter now explains the system layers, copy-on-write behaviour,
+  and how repositories coordinate blob and branch stores.
 - `SuccinctArchiveMeta` bounds metadata types with jerky's `Metadata` marker
   to guarantee zero-copy-safe layouts.
 - `CompressedUniverse` now relies solely on jerky's `DacsByte` and a section-

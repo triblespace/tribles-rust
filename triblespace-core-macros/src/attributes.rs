@@ -1,3 +1,4 @@
+use crate::resolve_crate_path;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
@@ -79,6 +80,7 @@ pub(crate) fn attributes_impl(input: TokenStream) -> syn::Result<TokenStream> {
     // and keeps the macro strict (no extra normalization branch).
     let ts2: TokenStream2 = input.into();
     let AttributesInput { attributes } = syn::parse2(ts2)?;
+    let crate_path_ts = resolve_crate_path();
 
     let mut out: TokenStream2 = TokenStream2::new();
     for AttributesDef {
@@ -96,7 +98,7 @@ pub(crate) fn attributes_impl(input: TokenStream) -> syn::Result<TokenStream> {
         out.extend(quote! {
             #(#attrs)*
             #[allow(non_upper_case_globals)]
-            #vis_ts const #name: ::triblespace_core::attribute::Attribute<#ty> = ::triblespace_core::attribute::Attribute::from(::triblespace_core::id::_hex_literal_hex!(#id));
+            #vis_ts const #name: #crate_path_ts::attribute::Attribute<#ty> = #crate_path_ts::attribute::Attribute::from(#crate_path_ts::id::_hex_literal_hex!(#id));
         });
     }
 

@@ -1,7 +1,7 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::repo::memoryrepo::MemoryRepo;
-use tribles::repo::Repository;
+use triblespace::repo::memoryrepo::MemoryRepo;
+use triblespace::repo::Repository;
 
 #[test]
 fn repository_branch_creates_branch() {

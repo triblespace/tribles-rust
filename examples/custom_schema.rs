@@ -1,16 +1,16 @@
 use anybytes::Bytes;
 use std::convert::Infallible;
-use tribles::blob::Blob;
-use tribles::blob::BlobSchema;
-use tribles::blob::ToBlob;
-use tribles::blob::TryFromBlob;
-use tribles::id::id_hex;
-use tribles::id::Id;
-use tribles::value::FromValue;
-use tribles::value::ToValue;
-use tribles::value::Value;
-use tribles::value::ValueSchema;
-use tribles::value::VALUE_LEN;
+use triblespace::blob::Blob;
+use triblespace::blob::BlobSchema;
+use triblespace::blob::ToBlob;
+use triblespace::blob::TryFromBlob;
+use triblespace::id::id_hex;
+use triblespace::id::Id;
+use triblespace::value::FromValue;
+use triblespace::value::ToValue;
+use triblespace::value::Value;
+use triblespace::value::ValueSchema;
+use triblespace::value::VALUE_LEN;
 
 // ANCHOR: custom_schema
 

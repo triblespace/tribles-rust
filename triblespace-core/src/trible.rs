@@ -62,7 +62,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     /// use valueschemas::R256;
     ///
     /// let e = fucid();
@@ -100,7 +100,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     /// use valueschemas::R256;
     ///
     /// let e = fucid();
@@ -130,7 +130,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     ///
     /// let data = [
     ///    // Entity
@@ -169,7 +169,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     ///
     /// let data = [
     ///   // Entity
@@ -208,7 +208,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     ///
     /// let data = [
     ///   // Entity
@@ -236,7 +236,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     ///
     /// let data = [
     ///   // Entity
@@ -264,7 +264,7 @@ impl Trible {
     /// # Example
     ///
     /// ```
-    /// use tribles::prelude::*;
+    /// use triblespace::prelude::*;
     /// use valueschemas::R256;
     ///
     /// let data = [

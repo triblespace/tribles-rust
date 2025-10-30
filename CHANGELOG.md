@@ -59,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Expanded and corrected the Atreides Join chapter with a structured
+  walkthrough: it now explains the constraint interface, details the
+  Jessica/Paul/Ghanima/Leto heuristic ladder, clarifies what quantity each
+  variant estimates, describes the ordering heuristics used by the guided
+  search, motivates the worst-case optimal guarantee, and clarifies how
+  per-variable estimates are derived in the worked example while tying the
+  introduction back to the broader worst-case optimal join literature.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

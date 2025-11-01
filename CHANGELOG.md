@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Criterion benchmark covering deterministic and non-deterministic JSON import
+  performance using the serde-rs/json-benchmark fixtures.
+- Bundled the `canada.json`, `citm_catalog.json`, and `twitter.json` datasets to
+  keep the JSON import benchmark self-contained.
 - `import::json::JsonImporter` for turning JSON objects into deterministic
   tribles using schema-specific attribute ids derived from field names,
   including multi-valued array support and nested object expansion.

@@ -50,6 +50,10 @@ harness = false
 name = "patch"
 harness = false
 
+[[bench]]
+name = "json_import"
+harness = false
+
 [profile.bench]
 debug = true
 opt-level = 3

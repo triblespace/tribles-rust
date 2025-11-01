@@ -95,6 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Expanded the Incremental Queries chapter with practical guidance on
+  preparing delta sets, reusing `TribleSet` set operations, and tying the
+  workspace and local-buffer stories together through the shared set
+  algebra that powers both workflows.
 - Expanded and corrected the Atreides Join chapter with a structured
   walkthrough: it now explains the constraint interface, details the
   Jessica/Paul/Ghanima/Leto heuristic ladder, clarifies what quantity each

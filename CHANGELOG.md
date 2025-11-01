@@ -305,6 +305,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 
 ### Fixed
+- Corrected the JSON import benchmark to use the re-exported
+  `valueschemas::Blake3` handle schema so it compiles again.
 - Buffered the JSON importers so encoding errors roll back an entire import
   instead of leaving partially imported tribles in the accumulated set.
 - Routed the JSON importer staging helpers through a shared temporary

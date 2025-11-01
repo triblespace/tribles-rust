@@ -5,7 +5,7 @@ use triblespace::blob::ToBlob;
 use triblespace::id::ExclusiveId;
 use triblespace::import::json::{DeterministicJsonImporter, EncodeError, JsonImporter};
 use triblespace::prelude::blobschemas::LongString;
-use triblespace::prelude::valueschemas::{self, Boolean, Handle, F256};
+use triblespace::prelude::valueschemas::{Blake3, Boolean, Handle, F256};
 use triblespace::prelude::*;
 
 struct Fixture {
@@ -35,20 +35,16 @@ fn load_fixtures() -> Vec<Fixture> {
 
 fn make_importer() -> JsonImporter<
     'static,
-    Handle<valueschemas::hash::Blake3, LongString>,
+    Handle<Blake3, LongString>,
     F256,
     Boolean,
-    impl FnMut(&str) -> Result<Value<Handle<valueschemas::hash::Blake3, LongString>>, EncodeError>,
+    impl FnMut(&str) -> Result<Value<Handle<Blake3, LongString>>, EncodeError>,
     impl FnMut(&serde_json::Number) -> Result<Value<F256>, EncodeError>,
     impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
     fn() -> ExclusiveId,
 > {
     JsonImporter::new(
-        |text: &str| {
-            Ok(text
-                .to_blob::<LongString>()
-                .get_handle::<valueschemas::hash::Blake3>())
-        },
+        |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
                 n as f64
@@ -70,19 +66,15 @@ fn make_importer() -> JsonImporter<
 
 fn make_deterministic_importer() -> DeterministicJsonImporter<
     'static,
-    Handle<valueschemas::hash::Blake3, LongString>,
+    Handle<Blake3, LongString>,
     F256,
     Boolean,
-    impl FnMut(&str) -> Result<Value<Handle<valueschemas::hash::Blake3, LongString>>, EncodeError>,
+    impl FnMut(&str) -> Result<Value<Handle<Blake3, LongString>>, EncodeError>,
     impl FnMut(&serde_json::Number) -> Result<Value<F256>, EncodeError>,
     impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
 > {
     DeterministicJsonImporter::new(
-        |text: &str| {
-            Ok(text
-                .to_blob::<LongString>()
-                .get_handle::<valueschemas::hash::Blake3>())
-        },
+        |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
                 n as f64

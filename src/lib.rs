@@ -5,6 +5,7 @@ pub use triblespace_core::blob;
 pub use triblespace_core::debug;
 pub use triblespace_core::examples;
 pub use triblespace_core::id;
+pub use triblespace_core::import;
 pub use triblespace_core::metadata;
 pub use triblespace_core::patch;
 pub use triblespace_core::query;

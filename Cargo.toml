@@ -34,6 +34,7 @@ anybytes = { git = "https://github.com/triblespace/anybytes", features = ["bytes
 url = "2.5.0"
 serde_json = "1.0"
 f256 = "0.7.0"
+blake3 = "1.5"
 
 [features]
 default = ["triblespace-core/proptest"]

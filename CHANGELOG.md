@@ -305,6 +305,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 
 ### Fixed
+- Added the missing `blake3` dev-dependency and adjusted the JSON importer
+  benchmark to allocate owned strings and convert JSON numbers via
+  `f256::from`, restoring the json benchmarks after recent refactors.
 - Updated JSON importer benchmarks, core tests, and book snippets to ensure the
   `LongString` generic parameter stays attached to the trait, fixing
   compilation failures introduced by the new benchmark and documentation

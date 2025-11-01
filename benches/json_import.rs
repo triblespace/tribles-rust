@@ -44,9 +44,7 @@ fn make_importer() -> JsonImporter<
     fn() -> ExclusiveId,
 > {
     JsonImporter::new(
-        |text: &str| {
-            Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>())
-        },
+        |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_owned()).get_handle::<Blake3>()),
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
                 n as f64
@@ -57,10 +55,14 @@ fn make_importer() -> JsonImporter<
                     .as_f64()
                     .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
             };
-            let converted = f256::f256::from_f64(primitive).ok_or_else(|| {
-                EncodeError::message(format!("failed to represent {primitive} as f256"))
-            })?;
-            Ok(converted.to_value())
+            let converted = f256::f256::from(primitive);
+            if converted.is_finite() {
+                Ok(converted.to_value())
+            } else {
+                Err(EncodeError::message(format!(
+                    "failed to represent {primitive} as f256"
+                )))
+            }
         },
         |flag: bool| Ok(Boolean::value_from(flag)),
     )
@@ -76,9 +78,7 @@ fn make_deterministic_importer() -> DeterministicJsonImporter<
     impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
 > {
     DeterministicJsonImporter::new(
-        |text: &str| {
-            Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>())
-        },
+        |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_owned()).get_handle::<Blake3>()),
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
                 n as f64
@@ -89,10 +89,14 @@ fn make_deterministic_importer() -> DeterministicJsonImporter<
                     .as_f64()
                     .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
             };
-            let converted = f256::f256::from_f64(primitive).ok_or_else(|| {
-                EncodeError::message(format!("failed to represent {primitive} as f256"))
-            })?;
-            Ok(converted.to_value())
+            let converted = f256::f256::from(primitive);
+            if converted.is_finite() {
+                Ok(converted.to_value())
+            } else {
+                Err(EncodeError::message(format!(
+                    "failed to represent {primitive} as f256"
+                )))
+            }
         },
         |flag: bool| Ok(Boolean::value_from(flag)),
     )
@@ -113,7 +117,7 @@ fn json_import_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     let mut importer = make_importer();
                     importer.import_str(payload).expect("import JSON");
-                    criterion::black_box(importer.data().len());
+                    std::hint::black_box(importer.data().len());
                 });
             },
         );
@@ -126,7 +130,7 @@ fn json_import_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     let mut importer = make_deterministic_importer();
                     importer.import_str(payload).expect("import JSON");
-                    criterion::black_box(importer.data().len());
+                    std::hint::black_box(importer.data().len());
                 });
             },
         );

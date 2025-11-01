@@ -95,6 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Expanded the Schemas chapter with validation examples, clarified how schema
+  identifiers power cross-language tooling and deterministic attribute imports,
+  outlined schema evolution best practices, and corrected the built-in blob
+  schema references for succinct archives.
 - Expanded the Incremental Queries chapter with practical guidance on
   preparing delta sets, reusing `TribleSet` set operations, and tying the
   workspace and local-buffer stories together through the shared set

@@ -107,7 +107,15 @@ fn json_import_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("json_import");
 
     for fixture in fixtures {
-        group.throughput(Throughput::Bytes(fixture.payload.len() as u64));
+        let element_count = {
+            let mut importer = make_deterministic_importer();
+            importer
+                .import_str(fixture.payload.as_str())
+                .expect("import JSON to determine element count");
+            importer.data().len()
+        };
+
+        group.throughput(Throughput::Elements(element_count as u64));
 
         group.bench_with_input(
             BenchmarkId::new("nondeterministic", fixture.name),

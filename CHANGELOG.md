@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- `json_import` benchmark now reports throughput using imported trible counts
+  derived from the deterministic importer so Criterion displays element-based
+  statistics.
 - Inlined the JSON importer's trible insertion helper to avoid an extra
   function hop when staging statements.
 - Updated both JSON importers to stage objects as `TribleSet`s and have the

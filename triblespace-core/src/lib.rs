@@ -11,6 +11,7 @@ compile_error!("tribles-rust requires a 64-bit little-endian target");
 pub mod attribute;
 pub mod blob;
 pub mod id;
+pub mod import;
 pub mod metadata;
 pub mod patch;
 pub mod prelude;

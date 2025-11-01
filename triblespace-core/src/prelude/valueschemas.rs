@@ -1,3 +1,4 @@
+pub use crate::value::schemas::boolean::Boolean;
 pub use crate::value::schemas::ed25519::ED25519PublicKey;
 pub use crate::value::schemas::ed25519::ED25519RComponent;
 pub use crate::value::schemas::ed25519::ED25519SComponent;

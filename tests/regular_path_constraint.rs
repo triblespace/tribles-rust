@@ -1,9 +1,9 @@
 use crate::entity;
 use crate::path;
-use tribles::prelude::*;
+use triblespace::prelude::*;
 
 pub mod social {
-    use tribles::prelude::*;
+    use triblespace::prelude::*;
 
     attributes! {
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" as follows: valueschemas::GenId;

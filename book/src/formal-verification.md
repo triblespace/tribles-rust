@@ -1,6 +1,6 @@
 # Formal Verification Roadmap
 
-This roadmap captures the initial strategy for driving the `tribles` crates
+This roadmap captures the initial strategy for driving the `triblespace` crates
 toward comprehensive formal verification.  It unifies model checking, symbolic
 execution, fuzzing, and deterministic simulation so we can reason about both the
 low-level data structures and high-level repository workflows with stronger
@@ -12,7 +12,7 @@ correctness guarantees.
   repository commit graph.
 - Exercise serialization, deserialization, and zero-copy data views under
   adversarial inputs.
-- Detect behavioural regressions in query planning, constraint solving, and
+- Detect behavioural regressions in query heuristics, constraint solving, and
   workspace merging before they reach downstream users.
 - Integrate the tooling into CI so proofs and regression checks run
   automatically for every change.
@@ -37,7 +37,7 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
 | `TribleSet` (`src/trible/tribleset.rs`) | Union/intersection/difference maintain canonical ordering across all six PATCH indexes; iterators only yield deduplicated `Trible`s; `insert` never drops an ordering. | Extend the existing `variableset` harnesses with nondeterministic inserts, and add a dedicated `tribleset_harness.rs` validating round-trips across every ordering. |
 | `PATCH` & `ByteTable` (`src/patch/*.rs`) | Cuckoo displacement respects `MAX_RETRIES` without losing entries; `Branch::modify_child` grows tables when required and preserves `leaf_count`/`segment_count`; `table_grow` copies every occupant exactly once. | Introduce a `patch_harness.rs` that stress-tests `plan_insert`, `table_insert`, and `Branch::grow`, plus a micro-fuzzer that drives inserts/removals across random table sizes. |
 | Value schemas (`src/value/*.rs`) | Schema encoders respect declared byte widths; `Value::force` and `ValueSchema::validate` reject truncated buffers; zero-copy views stay aligned. | Reuse `value_harness.rs`, adding per-schema helpers plus a Miri regression suite that loads slices at every alignment. |
-| Query engine (`src/query/*.rs`) | Constraint solver never aliases conflicting bindings; planner outputs cover all join permutations referenced by `pattern!`; influence tracking matches selected variables. | Expand `proofs/query_harness.rs` with minimal counterexamples, and fuzz constraint graphs via `cargo fuzz`. |
+| Query engine (`src/query/*.rs`) | Constraint solver never aliases conflicting bindings; join-order heuristics still cover all permutations referenced by `pattern!`; influence tracking matches selected variables. | Expand `proofs/query_harness.rs` with minimal counterexamples, and fuzz constraint graphs via `cargo fuzz`. |
 | Repository & commits (`src/repo/*.rs`, `proofs/commit_harness.rs`) | Branch heads remain append-only; `Workspace::pull` never forgets reachable blobs; selector algebra matches Git semantics. | Add bounded commit DAG generators in `commit_harness.rs` plus deterministic simulation traces covering merges and garbage collection. |
 | Storage primitives (`src/blob`, `src/repo`, `src/patch/leaf.rs`) | Blob handles stay reference counted; pile headers remain within reserved capacity; byte slices from archives stay valid for the life of the store. | Combine Miri tests for aliasing with nightly fuzzers that replay repository sync transcripts. |
 
@@ -48,8 +48,8 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
 1. Catalogue crate-level invariants and map them to concrete Kani harnesses.
    Start with:
    - `TribleSet` operations preserving canonical ordering and deduplication.
-   - Join planning in `atreides` ensuring variable bindings never alias
-     conflicting values.
+    - Join heuristics in `atreides` ensuring variable bindings never alias
+      conflicting values.
    - Repository merge logic maintaining append-only pile semantics.
 2. Extract shared helpers for generating bounded arbitrary data (e.g.
    `Vec::bounded_any`) so harnesses remain expressive without exploding the
@@ -75,7 +75,7 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
 1. Introduce a `cargo fuzz` workspace targeting:
    - PATCH encoders/decoders with binary corpus seeds generated from integration
      tests.
-   - Query planning to explore combinations of constraint graphs and filter
+   - Join-order heuristics to explore combinations of constraint graphs and filter
      predicates.
    - Repository sync workflows by fuzzing sequences of commits, pulls, and
      merges.

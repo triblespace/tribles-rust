@@ -305,6 +305,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 
 ### Fixed
+- Added the missing `serde_json` and `f256` dev-dependencies so the JSON import
+  benchmark builds successfully.
 - Buffered the JSON importers so encoding errors roll back an entire import
   instead of leaving partially imported tribles in the accumulated set.
 - Routed the JSON importer staging helpers through a shared temporary

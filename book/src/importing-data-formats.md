@@ -70,6 +70,16 @@ writes the cached pairs into its internal trible set via `Trible::new`, so
 subsequent calls to `data()` expose the deterministic statements alongside the
 metadata generated for every derived attribute.
 
+This hashing step also changes how repeated structures behave. When a JSON
+document contains identical nested objects—common in fixtures such as
+`citm_catalog` or Twitter exports—the deterministic importer emits the same
+identifier for each recurrence. Only the first copy reaches the underlying
+`TribleSet`; later occurrences are recognised as duplicates and skipped during
+the merge. The nondeterministic importer must still mint a fresh identifier for
+every repetition, so it inserts and deduplicates a full set of triples each
+time. Even if the ID generator itself is fast, that extra merge work makes the
+deterministic importer benchmark faster on datasets with significant repetition.
+
 ## Working with Encoder Callbacks
 
 Encoder callbacks receive borrowed references to the raw JSON values. Because the

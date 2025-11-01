@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Expanded the Schemas chapter with validation examples, clarified how schema
+  identifiers power cross-language tooling and deterministic attribute imports,
+  outlined schema evolution best practices, and corrected the built-in blob
+  schema references for succinct archives.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

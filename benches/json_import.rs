@@ -13,6 +13,12 @@ struct Fixture {
     payload: String,
 }
 
+struct PreparedFixture {
+    fixture: Fixture,
+    nondeterministic_count: usize,
+    deterministic_count: usize,
+}
+
 fn load_fixtures() -> Vec<Fixture> {
     const FIXTURES: [(&str, &str); 3] = [
         ("canada", "canada.json"),
@@ -29,6 +35,33 @@ fn load_fixtures() -> Vec<Fixture> {
             let payload = fs::read_to_string(&path)
                 .unwrap_or_else(|err| panic!("failed to load {file} for {name} fixture: {err}"));
             Fixture { name, payload }
+        })
+        .collect()
+}
+
+fn prepare_fixtures() -> Vec<PreparedFixture> {
+    load_fixtures()
+        .into_iter()
+        .map(|fixture| {
+            let payload = fixture.payload.as_str();
+
+            let mut nondeterministic = make_importer();
+            nondeterministic
+                .import_str(payload)
+                .expect("import JSON to determine nondeterministic element count");
+            let nondeterministic_count = nondeterministic.data().len();
+
+            let mut deterministic = make_deterministic_importer();
+            deterministic
+                .import_str(payload)
+                .expect("import JSON to determine deterministic element count");
+            let deterministic_count = deterministic.data().len();
+
+            PreparedFixture {
+                fixture,
+                nondeterministic_count,
+                deterministic_count,
+            }
         })
         .collect()
 }
@@ -102,31 +135,16 @@ fn make_deterministic_importer() -> DeterministicJsonImporter<
     )
 }
 
-fn json_import_benchmark(c: &mut Criterion) {
-    let fixtures = load_fixtures();
-    let mut group = c.benchmark_group("json_import");
+fn bench_elements(c: &mut Criterion, fixtures: &[PreparedFixture]) {
+    let mut group = c.benchmark_group("json_import/elements");
 
-    for fixture in fixtures {
-        let (nondeterministic_count, deterministic_count) = {
-            let mut nondeterministic = make_importer();
-            nondeterministic
-                .import_str(fixture.payload.as_str())
-                .expect("import JSON to determine nondeterministic element count");
-            let nondeterministic_count = nondeterministic.data().len();
+    for prepared in fixtures {
+        let fixture = &prepared.fixture;
 
-            let mut deterministic = make_deterministic_importer();
-            deterministic
-                .import_str(fixture.payload.as_str())
-                .expect("import JSON to determine deterministic element count");
-            let deterministic_count = deterministic.data().len();
-
-            (nondeterministic_count, deterministic_count)
-        };
-
-        group.throughput(Throughput::Elements(nondeterministic_count as u64));
+        group.throughput(Throughput::Elements(prepared.nondeterministic_count as u64));
         group.bench_with_input(
             BenchmarkId::new("nondeterministic", fixture.name),
-            &fixture,
+            fixture,
             |b, fixture| {
                 let payload = fixture.payload.as_str();
                 b.iter(|| {
@@ -137,10 +155,10 @@ fn json_import_benchmark(c: &mut Criterion) {
             },
         );
 
-        group.throughput(Throughput::Elements(deterministic_count as u64));
+        group.throughput(Throughput::Elements(prepared.deterministic_count as u64));
         group.bench_with_input(
             BenchmarkId::new("deterministic", fixture.name),
-            &fixture,
+            fixture,
             |b, fixture| {
                 let payload = fixture.payload.as_str();
                 b.iter(|| {
@@ -153,6 +171,52 @@ fn json_import_benchmark(c: &mut Criterion) {
     }
 
     group.finish();
+}
+
+fn bench_bytes(c: &mut Criterion, fixtures: &[PreparedFixture]) {
+    let mut group = c.benchmark_group("json_import/bytes");
+
+    for prepared in fixtures {
+        let fixture = &prepared.fixture;
+        let bytes = fixture.payload.len() as u64;
+
+        group.throughput(Throughput::Bytes(bytes));
+        group.bench_with_input(
+            BenchmarkId::new("nondeterministic", fixture.name),
+            fixture,
+            |b, fixture| {
+                let payload = fixture.payload.as_str();
+                b.iter(|| {
+                    let mut importer = make_importer();
+                    importer.import_str(payload).expect("import JSON");
+                    std::hint::black_box(importer.data().len());
+                });
+            },
+        );
+
+        group.throughput(Throughput::Bytes(bytes));
+        group.bench_with_input(
+            BenchmarkId::new("deterministic", fixture.name),
+            fixture,
+            |b, fixture| {
+                let payload = fixture.payload.as_str();
+                b.iter(|| {
+                    let mut importer = make_deterministic_importer();
+                    importer.import_str(payload).expect("import JSON");
+                    std::hint::black_box(importer.data().len());
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn json_import_benchmark(c: &mut Criterion) {
+    let fixtures = prepare_fixtures();
+
+    bench_elements(c, &fixtures);
+    bench_bytes(c, &fixtures);
 }
 
 criterion_group!(benches, json_import_benchmark);

@@ -107,16 +107,23 @@ fn json_import_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("json_import");
 
     for fixture in fixtures {
-        let element_count = {
-            let mut importer = make_deterministic_importer();
-            importer
+        let (nondeterministic_count, deterministic_count) = {
+            let mut nondeterministic = make_importer();
+            nondeterministic
                 .import_str(fixture.payload.as_str())
-                .expect("import JSON to determine element count");
-            importer.data().len()
+                .expect("import JSON to determine nondeterministic element count");
+            let nondeterministic_count = nondeterministic.data().len();
+
+            let mut deterministic = make_deterministic_importer();
+            deterministic
+                .import_str(fixture.payload.as_str())
+                .expect("import JSON to determine deterministic element count");
+            let deterministic_count = deterministic.data().len();
+
+            (nondeterministic_count, deterministic_count)
         };
 
-        group.throughput(Throughput::Elements(element_count as u64));
-
+        group.throughput(Throughput::Elements(nondeterministic_count as u64));
         group.bench_with_input(
             BenchmarkId::new("nondeterministic", fixture.name),
             &fixture,
@@ -130,6 +137,7 @@ fn json_import_benchmark(c: &mut Criterion) {
             },
         );
 
+        group.throughput(Throughput::Elements(deterministic_count as u64));
         group.bench_with_input(
             BenchmarkId::new("deterministic", fixture.name),
             &fixture,

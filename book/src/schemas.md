@@ -126,9 +126,9 @@ The crate also ships with these blob schemas:
 
 ```rust
 use triblespace::blob::schemas::longstring::LongString;
-use triblespace::blob::{ToBlob, BlobSchema};
+use triblespace::blob::{Blob, BlobSchema, ToBlob};
 
-let b = "example".to_blob::<LongString>();
+let b: Blob<LongString> = "example".to_blob();
 let schema_id = LongString::BLOB_SCHEMA_ID;
 ```
 

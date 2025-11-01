@@ -44,7 +44,9 @@ fn make_importer() -> JsonImporter<
     fn() -> ExclusiveId,
 > {
     JsonImporter::new(
-        |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
+        |text: &str| {
+            Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>())
+        },
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
                 n as f64
@@ -74,7 +76,9 @@ fn make_deterministic_importer() -> DeterministicJsonImporter<
     impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
 > {
     DeterministicJsonImporter::new(
-        |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
+        |text: &str| {
+            Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>())
+        },
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
                 n as f64

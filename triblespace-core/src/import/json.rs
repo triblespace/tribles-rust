@@ -515,6 +515,7 @@ pub struct DeterministicJsonImporter<
     number_attributes: HashMap<String, RawId>,
     bool_attributes: HashMap<String, RawId>,
     genid_attributes: HashMap<String, RawId>,
+    id_salt: Option<[u8; 32]>,
     _schemas: PhantomData<(StringSchema, NumberSchema, BoolSchema)>,
     _hasher: PhantomData<Hasher>,
     _lifetime: PhantomData<&'enc ()>,
@@ -555,6 +556,18 @@ where
         number_encoder: NumberEncoder,
         bool_encoder: BoolEncoder,
     ) -> Self {
+        Self::new_with_salt(string_encoder, number_encoder, bool_encoder, None)
+    }
+
+    /// Creates a new deterministic importer using the supplied primitive
+    /// encoders and an explicit optional 32-byte salt mixed into every derived
+    /// entity ID.
+    pub fn new_with_salt(
+        string_encoder: StringEncoder,
+        number_encoder: NumberEncoder,
+        bool_encoder: BoolEncoder,
+        salt: Option<[u8; 32]>,
+    ) -> Self {
         Self {
             string_encoder,
             number_encoder,
@@ -564,6 +577,7 @@ where
             number_attributes: HashMap::new(),
             bool_attributes: HashMap::new(),
             genid_attributes: HashMap::new(),
+            id_salt: salt,
             _schemas: PhantomData,
             _hasher: PhantomData,
             _lifetime: PhantomData,
@@ -708,7 +722,7 @@ where
             self.stage_field(field, value, &mut pairs, staged)?;
         }
 
-        let entity = Self::derive_id(&pairs);
+        let entity = self.derive_id(&pairs);
 
         for (attribute, value) in pairs {
             let attribute_id =
@@ -775,13 +789,16 @@ where
         }
     }
 
-    fn derive_id(values: &[(RawId, RawValue)]) -> ExclusiveId {
+    fn derive_id(&self, values: &[(RawId, RawValue)]) -> ExclusiveId {
         let mut pairs = values.to_vec();
         pairs.sort_by(|(attr_a, value_a), (attr_b, value_b)| {
             attr_a.cmp(attr_b).then(value_a.cmp(value_b))
         });
 
         let mut hasher = Hasher::new();
+        if let Some(salt) = self.id_salt {
+            hasher.update(salt.as_ref());
+        }
         for (attribute, value) in &pairs {
             hasher.update(attribute);
             hasher.update(value);
@@ -854,7 +871,21 @@ mod tests {
         impl FnMut(&serde_json::Number) -> Result<Value<F256>, EncodeError>,
         impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
     > {
-        DeterministicJsonImporter::new(
+        make_deterministic_importer_with_salt(None)
+    }
+
+    fn make_deterministic_importer_with_salt(
+        salt: Option<[u8; 32]>,
+    ) -> DeterministicJsonImporter<
+        'static,
+        Handle<Blake3, LongString>,
+        F256,
+        Boolean,
+        impl FnMut(&str) -> Result<Value<Handle<Blake3, LongString>>, EncodeError>,
+        impl FnMut(&serde_json::Number) -> Result<Value<F256>, EncodeError>,
+        impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
+    > {
+        DeterministicJsonImporter::new_with_salt(
             |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
                 let primitive = if let Some(n) = number.as_i64() {
@@ -872,7 +903,30 @@ mod tests {
                 Ok(converted.to_value())
             },
             |flag: bool| Ok(Boolean::value_from(flag)),
+            salt,
         )
+    }
+
+    #[test]
+    fn salted_importer_changes_entity_ids() {
+        let payload = serde_json::json!({ "title": "Dune" });
+
+        let mut unsalted = make_deterministic_importer();
+        unsalted.import_value(&payload).unwrap();
+        let unsalted_root = *unsalted.data().iter().next().unwrap().e();
+
+        let salt = [0x55; 32];
+        let mut salted = make_deterministic_importer_with_salt(Some(salt));
+        salted.import_value(&payload).unwrap();
+        let salted_root = *salted.data().iter().next().unwrap().e();
+
+        assert_ne!(unsalted_root, salted_root);
+
+        let mut salted_again = make_deterministic_importer_with_salt(Some(salt));
+        salted_again.import_value(&payload).unwrap();
+        let salted_again_root = *salted_again.data().iter().next().unwrap().e();
+
+        assert_eq!(salted_root, salted_again_root);
     }
 
     fn assert_attribute_metadata<S: ValueSchema>(metadata: &TribleSet, attribute: Id, field: &str) {

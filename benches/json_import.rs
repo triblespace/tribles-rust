@@ -45,9 +45,7 @@ fn make_importer() -> JsonImporter<
 > {
     JsonImporter::new(
         |text: &str| {
-            Ok(text
-                .to_blob::<LongString>()
-                .get_handle::<valueschemas::hash::Blake3>())
+            Ok(ToBlob::<LongString>::to_blob(text).get_handle::<valueschemas::hash::Blake3>())
         },
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {
@@ -79,9 +77,7 @@ fn make_deterministic_importer() -> DeterministicJsonImporter<
 > {
     DeterministicJsonImporter::new(
         |text: &str| {
-            Ok(text
-                .to_blob::<LongString>()
-                .get_handle::<valueschemas::hash::Blake3>())
+            Ok(ToBlob::<LongString>::to_blob(text).get_handle::<valueschemas::hash::Blake3>())
         },
         |number: &serde_json::Number| {
             let primitive = if let Some(n) = number.as_i64() {

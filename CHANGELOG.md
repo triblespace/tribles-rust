@@ -305,6 +305,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 
 ### Fixed
+- Updated JSON importer benchmarks, core tests, and book snippets to ensure the
+  `LongString` generic parameter stays attached to the trait, fixing
+  compilation failures introduced by the new benchmark and documentation
+  examples. Book snippets now rely on type inference for `to_blob()` to match
+  idiomatic usage.
 - Buffered the JSON importers so encoding errors roll back an entire import
   instead of leaving partially imported tribles in the accumulated set.
 - Routed the JSON importer staging helpers through a shared temporary

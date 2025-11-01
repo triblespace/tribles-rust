@@ -825,7 +825,7 @@ mod tests {
         fn() -> ExclusiveId,
     > {
         JsonImporter::new(
-            |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
+            |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
                 let primitive = if let Some(n) = number.as_i64() {
                     n as f64
@@ -855,7 +855,7 @@ mod tests {
         impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
     > {
         DeterministicJsonImporter::new(
-            |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
+            |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
                 let primitive = if let Some(n) = number.as_i64() {
                     n as f64
@@ -966,7 +966,7 @@ mod tests {
             let attribute = trible.a();
             if *attribute == title_attr {
                 let value = trible.v::<Handle<Blake3, LongString>>();
-                let expected = "Dune".to_blob::<LongString>().get_handle::<Blake3>();
+                let expected = ToBlob::<LongString>::to_blob("Dune").get_handle::<Blake3>();
                 assert_eq!(value.raw, expected.raw);
             } else if *attribute == tags_attr {
                 tag_values.push(trible.v::<Handle<Blake3, LongString>>().raw);
@@ -1024,12 +1024,12 @@ mod tests {
             if *trible.e() == child_id.id {
                 if *trible.a() == first_attr {
                     let value = trible.v::<Handle<Blake3, LongString>>();
-                    let expected = "Frank".to_blob::<LongString>().get_handle::<Blake3>();
+                    let expected = ToBlob::<LongString>::to_blob("Frank").get_handle::<Blake3>();
                     assert_eq!(value.raw, expected.raw);
                     seen_first = true;
                 } else if *trible.a() == last_attr {
                     let value = trible.v::<Handle<Blake3, LongString>>();
-                    let expected = "Herbert".to_blob::<LongString>().get_handle::<Blake3>();
+                    let expected = ToBlob::<LongString>::to_blob("Herbert").get_handle::<Blake3>();
                     assert_eq!(value.raw, expected.raw);
                     seen_last = true;
                 }
@@ -1068,7 +1068,11 @@ mod tests {
         let observed: std::collections::BTreeSet<_> = by_root.values().copied().collect();
         let expected: std::collections::BTreeSet<_> = ["Dune", "Dune Messiah"]
             .into_iter()
-            .map(|title| title.to_blob::<LongString>().get_handle::<Blake3>().raw)
+            .map(|title| {
+                ToBlob::<LongString>::to_blob(title)
+                    .get_handle::<Blake3>()
+                    .raw
+            })
             .collect();
 
         assert_eq!(observed, expected);
@@ -1081,7 +1085,7 @@ mod tests {
                 if text.is_empty() {
                     return Err(EncodeError::message("empty strings are not allowed"));
                 }
-                Ok(text.to_blob::<LongString>().get_handle::<Blake3>())
+                Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>())
             },
             |number: &serde_json::Number| {
                 let value = number.as_f64().ok_or_else(|| EncodeError::message("bad"))?;
@@ -1120,7 +1124,7 @@ mod tests {
 
         let mut importer = JsonImporter::new(
             |text: &str| {
-                let blob = text.to_blob::<LongString>();
+                let blob = ToBlob::<LongString>::to_blob(text);
                 Ok(store.insert(blob))
             },
             |_number: &serde_json::Number| -> Result<Value<F256>, EncodeError> {
@@ -1171,7 +1175,7 @@ mod tests {
         ids.reverse();
 
         let mut importer = JsonImporter::with_id_generator(
-            |text: &str| Ok(text.to_blob::<LongString>().get_handle::<Blake3>()),
+            |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
                 let primitive = if let Some(n) = number.as_i64() {
                     n as f64
@@ -1317,7 +1321,11 @@ mod tests {
         let observed: std::collections::BTreeSet<_> = by_root.values().copied().collect();
         let expected: std::collections::BTreeSet<_> = ["Dune", "Dune Messiah"]
             .into_iter()
-            .map(|title| title.to_blob::<LongString>().get_handle::<Blake3>().raw)
+            .map(|title| {
+                ToBlob::<LongString>::to_blob(title)
+                    .get_handle::<Blake3>()
+                    .raw
+            })
             .collect();
         assert_eq!(observed, expected);
         assert_attribute_metadata::<Handle<Blake3, LongString>>(&metadata, title_attr, "title");

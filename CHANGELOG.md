@@ -17,6 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all ones, providing an unambiguous target for JSON boolean importers.
 - Relaxed the JSON importer encoder callbacks so they can borrow external
   resources (e.g. blob stores) without `Rc<RefCell<...>>` wrappers.
+- `RangeU128` and `RangeInclusiveU128` value schemas for encoding pairs of
+  packed `u128` values, enabling compact storage of start/end markers such as
+  source ranges.
+- `LineLocation` value schema for storing explicit `(line, column)` start and
+  end coordinates without manual packing, now used by the macro metadata
+  instrumentation when recording invocation spans.
+- `triblespace-macros` crate wrapping the procedural macros and query helpers
+  to record invocation metadata in an optional repository configured via the
+  `TRIBLESPACE_METADATA_PILE` and `TRIBLESPACE_METADATA_BRANCH` environment
+  variables.
+- `TRIBLESPACE_METADATA_SIGNING_KEY` environment variable for configuring the
+  signing key used when committing metadata; instrumentation skips emission when
+  the value is unset or invalid.
+- `Id::from_hex` helper for parsing hexadecimal identifiers, now reused by the
+  macro metadata instrumentation when decoding branch IDs.
+- Attribute definition metadata emitted alongside `attributes!` expansions,
+  recording attribute identifiers, names, invocation IDs, and the declared
+  schema type tokens for downstream analysis tools.
 - Runtime helper `Attribute::from_field` for deriving deterministic attribute IDs
   from dynamic field names using schema metadata and hashed field handles.
 - Shared `proofs::util` module providing bounded Kani generators for tribles,
@@ -89,6 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schemas, identifiers, and conversion guidance, referenced from the `Value`
   crate docs, and closing out the documentation backlog request to move this
   material out of the API reference.
+- Chapter exploring the TribleSpace type algebra linking `attributes!`,
+  `entity!`, and query semantics.
 
 ### Changed
 - Inlined the JSON importer's trible insertion helper to avoid an extra
@@ -137,6 +157,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   covering custom generators.
 - Cached JSON importer attributes per field name so repeated values reuse the
   same hashed identifiers without recomputing them.
+- Expanded the Schemas chapter with validation examples, clarified how schema
+  identifiers power cross-language tooling and deterministic attribute imports,
+  outlined schema evolution best practices, and corrected the built-in blob
+  schema references for succinct archives.
+- Expanded the Incremental Queries chapter with practical guidance on
+  preparing delta sets, reusing `TribleSet` set operations, and tying the
+  workspace and local-buffer stories together through the shared set
+  algebra that powers both workflows.
+- Expanded and corrected the Atreides Join chapter with a structured
+  walkthrough: it now explains the constraint interface, details the
+  Jessica/Paul/Ghanima/Leto heuristic ladder, clarifies what quantity each
+  variant estimates, describes the ordering heuristics used by the guided
+  search, motivates the worst-case optimal guarantee, and clarifies how
+  per-variable estimates are derived in the worked example while tying the
+  introduction back to the broader worst-case optimal join literature.
+- Macro instrumentation now records the entire span of each invocation in a
+  single `source_range` attribute instead of separate line and column values.
+- Implemented `ToValue<LineLocation>` for `proc_macro::Span` so metadata
+  wrappers can hand spans directly to `entity!` without manual tuple
+  construction.
+- Attribute metadata emission no longer attempts to resolve value/blob schema
+  identifiers, sticking to the information reliably available at macro
+  expansion time.
+- Metadata emission callbacks now receive a mutable context exposing the
+  workspace, invocation ID, and tokens so wrapper macros can commit additional
+  metadata directly without reopening the repository.
+- Metadata emission now commits records to the configured repository branch
+  instead of appending raw archives to a standalone pile, aligning the
+  instrumentation with the standard storage workflow and renaming the
+  environment variable knobs accordingly.
+- Regenerated the macro instrumentation attribute identifiers from
+  command-line randomness to document their provenance and avoid
+  hand-crafted values.
+- Metadata instrumentation now reuses the shared hex parsing helpers when
+  decoding signing keys and branch identifiers from the environment and
+  requires exact hexadecimal strings without a prefix, eliminating bespoke
+  sanitization logic in the wrapper crate.
 - Reworked the Query Engine chapter to describe the in-search Atreides
   cardinality estimates, clarify how constraints cooperate at runtime, and remove
   references to a nonexistent planner.
@@ -198,6 +255,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and book rebuild instructions.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
+- Re-reviewed the type algebra chapter, linking its claims directly to the
+  `Attribute`, `TribleSet`, and query constraint implementations for accuracy.
+- Softened the Type Algebra chapter summary to describe the design without
+  value-laden language.
+- Rephrased the Type Algebra chapter's closing sentence to highlight surface
+  simplicity backed by rich type theory.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
   describe the full tree-order traversal without a prefix filter and point to
   the prefix iterator for filtered traversal.

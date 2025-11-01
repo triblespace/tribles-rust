@@ -12,11 +12,13 @@ license = "MIT OR Apache-2.0"
 members = [
     "triblespace-core",
     "triblespace-core-macros",
+    "triblespace-macros",
 ]
 resolver = "2"
 
 [dependencies]
 triblespace-core = { path = "triblespace-core" }
+triblespace-macros = { path = "triblespace-macros" }
 
 [dev-dependencies]
 criterion = "0.6.0"

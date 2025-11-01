@@ -6,7 +6,9 @@ pub mod f256;
 pub mod genid;
 pub mod hash;
 pub mod iu256;
+pub mod linelocation;
 pub mod r256;
+pub mod range;
 pub mod shortstring;
 pub mod time;
 

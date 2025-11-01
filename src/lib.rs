@@ -14,18 +14,20 @@ pub use triblespace_core::trible;
 pub use triblespace_core::value;
 
 pub mod prelude {
+    pub use crate::macros::{attributes, entity, find, matches, path, pattern, pattern_changes};
     pub use triblespace_core::prelude::*;
 }
 
 pub use triblespace_core::arrayvec;
 pub use triblespace_core::macro_pub;
-pub use triblespace_core::macros;
 
-pub use triblespace_core::attributes;
-pub use triblespace_core::entity;
-pub use triblespace_core::path;
-pub use triblespace_core::pattern;
-pub use triblespace_core::pattern_changes;
+pub mod macros {
+    pub use triblespace_macros::{
+        attributes, entity, find, matches, path, pattern, pattern_changes,
+    };
+}
+
+pub use macros::{attributes, entity, find, matches, path, pattern, pattern_changes};
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]

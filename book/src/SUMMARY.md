@@ -12,6 +12,7 @@
 - [Portability & Common Formats](portability-and-formats.md)
 - [Importing Other Data Formats](importing-data-formats.md)
 - [Descriptive Typing & find! Idiom](descriptive_types.md)
+- [Type Algebra of TribleSpace](type-algebra.md)
 - [Repository Workflows](repository-workflows.md)
 - [Commit Selectors](commit-selectors.md)
 - [Garbage Collection](garbage-collection.md)

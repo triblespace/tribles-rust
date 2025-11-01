@@ -147,6 +147,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserving the descriptors for all derived fields.
 - Clarified the importing guide to explain that `metadata()` returns attribute
   descriptors generated from the cached ids after an import completes.
+- Documented how deterministic JSON imports collapse repeated subdocuments,
+  explaining why they can outperform nondeterministic runs even with cheap ID
+  generators.
 - JSON importers retain the accumulated tribles inside the importer, exposing
   `data()`/`metadata()` accessors along with `clear_data()` and `clear()` helpers
   so multiple JSON documents can be staged—or reset entirely—before reading the

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `import::json::DeterministicJsonImporter` that hashes attribute/value pairs
   to derive entity ids, enabling idempotent JSON imports regardless of field
   order or array permutations.
+- `import::json::DeterministicJsonImporter::new_with_salt` for mixing an
+  optional 32-byte salt into derived entity identifiers when deterministic
+  imports need to avoid collisions with existing data.
 - `valueschemas::Boolean` for encoding `false` as all-zero bytes and `true` as
   all ones, providing an unambiguous target for JSON boolean importers.
 - Relaxed the JSON importer encoder callbacks so they can borrow external

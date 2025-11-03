@@ -59,6 +59,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Refined the Descriptive Typing chapter with accurate workspace lifecycle
+  guidance, corrected `find!` pattern syntax, clearer advice on structuring
+  ad-hoc projections and strongly discouraging long-lived typed wrappers,
+  updated the
+  manager-owned repository DI section to emphasize using short-lived
+  `&mut Repository<_>` borrows, handing out task-scoped `&mut Workspace<_>`
+  handles, highlighting how multiple mutable workspaces coexist over a
+  single repository, clarified that cloning an already-fetched blob is cheap
+  compared to the cost of retrieving it from storage, and corrected the
+  description of composable clauses so it no longer suggests optional
+  attribute matching.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

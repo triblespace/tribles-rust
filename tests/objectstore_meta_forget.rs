@@ -4,13 +4,13 @@ use url::Url;
 fn objectstore_metadata_and_forget_file_backend() -> Result<(), Box<dyn std::error::Error>> {
     use tempfile::tempdir;
 
-    use triblespace::blob::schemas::UnknownBlob;
-    use triblespace::blob::Blob;
-    use triblespace::blob::Bytes;
+    use triblespace::core::blob::schemas::UnknownBlob;
+    use triblespace::core::blob::Blob;
+    use triblespace::core::blob::Bytes;
     use triblespace::prelude::BlobStorePut;
-    use triblespace::repo::objectstore::ObjectStoreRemote;
-    use triblespace::repo::{BlobStoreForget, BlobStoreMeta};
-    use triblespace::value::schemas::hash::Blake3;
+    use triblespace::core::repo::objectstore::ObjectStoreRemote;
+    use triblespace::core::repo::{BlobStoreForget, BlobStoreMeta};
+    use triblespace::core::value::schemas::hash::Blake3;
 
     let dir = tempdir()?;
     let url = Url::parse(&format!("file://{}", dir.path().display()))?;

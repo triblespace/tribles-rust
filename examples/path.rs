@@ -1,5 +1,3 @@
-use crate::entity;
-use crate::path;
 use triblespace::prelude::*;
 
 pub mod social {

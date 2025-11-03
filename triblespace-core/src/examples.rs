@@ -1,7 +1,6 @@
 //! This module contains an example namespace for use in the documentation.
 //! It is not intended to be used in practice.
 
-use crate::entity;
 use crate::prelude::*;
 pub mod literature {
     #![allow(unused)]

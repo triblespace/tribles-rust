@@ -49,9 +49,9 @@ retain live blobs, duplicate them into a scratch store, and report how many
 handles were touched without writing bespoke walkers:
 
 ```rust
-use triblespace::blob::memoryblobstore::MemoryBlobStore;
-use triblespace::repo::{self, BlobStoreKeep, BlobStoreList};
-use triblespace::value::schemas::hash::Blake3;
+use triblespace::core::blob::memoryblobstore::MemoryBlobStore;
+use triblespace::core::repo::{self, BlobStoreKeep, BlobStoreList};
+use triblespace::core::value::schemas::hash::Blake3;
 
 let mut store = MemoryBlobStore::<Blake3>::default();
 // ... populate the store or import data ...

@@ -1,4 +1,3 @@
-#![doc = include_str!("../../README.md")]
 // Prefer explicit `?` variable bindings in patterns instead of relying on
 // parenthesisation. Do not suppress `unused_parens` at the crate level.
 #![cfg_attr(nightly, feature(rustc_attrs, decl_macro, file_lock))]
@@ -29,15 +28,12 @@ pub mod examples;
 // Re-export dependencies used by generated macros so consumers
 // don't need to add them explicitly.
 pub use arrayvec;
-pub use macro_pub;
-pub use triblespace_core_macros as macros;
-// Re-export proc-macros at the crate root so they are available within the
-// crate without requiring explicit `use` statements at every call site.
-pub use triblespace_core_macros::attributes;
-pub use triblespace_core_macros::entity;
-pub use triblespace_core_macros::path;
-pub use triblespace_core_macros::pattern;
-pub use triblespace_core_macros::pattern_changes;
+
+pub mod macros {
+    pub use triblespace_core_macros::*;
+    pub use crate::id::id_hex;
+    pub use crate::query::find;
+}
 
 // Proof harnesses and integration-style documentation tests live in the
 // top-level `triblespace` crate so downstream users can depend on

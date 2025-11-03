@@ -1,5 +1,5 @@
-use crate::entity;
-use crate::pattern;
+use crate::macros::entity;
+use crate::macros::pattern;
 use ed25519::signature::Signer;
 use ed25519::Signature;
 use ed25519_dalek::SignatureError;

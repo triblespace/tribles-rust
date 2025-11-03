@@ -145,7 +145,7 @@ where
     }
 }
 
-use crate::pattern;
+use crate::macros::pattern;
 use std::collections::{HashSet, VecDeque};
 use std::convert::Infallible;
 use std::error::Error;

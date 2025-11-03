@@ -146,27 +146,27 @@ where
     let entity = fucid();
     let invocation_id = entity.id;
 
-    set += ::triblespace_core::entity! {
+    set += ::triblespace_core::macros::entity! {
         &entity @
         invocation::macro_kind: kind,
         invocation::source_range: span
     };
 
     if let Ok(crate_name) = std::env::var("CARGO_PKG_NAME") {
-        set += ::triblespace_core::entity! { &entity @ invocation::crate_name: crate_name };
+        set += ::triblespace_core::macros::entity! { &entity @ invocation::crate_name: crate_name };
     }
 
     if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
         if !dir.trim().is_empty() {
             let handle = workspace.put::<LongString, _>(dir);
-            set += ::triblespace_core::entity! { &entity @ invocation::manifest_dir: handle };
+            set += ::triblespace_core::macros::entity! { &entity @ invocation::manifest_dir: handle };
         }
     }
 
     let tokens = input.to_string();
     if !tokens.is_empty() {
         let handle = workspace.put::<LongString, _>(tokens);
-        set += ::triblespace_core::entity! { &entity @ invocation::source_tokens: handle };
+        set += ::triblespace_core::macros::entity! { &entity @ invocation::source_tokens: handle };
     }
 
     if set.is_empty() {
@@ -244,7 +244,7 @@ fn emit_attribute_definitions(context: &mut MetadataContext<'_>) {
 
     for definition in parsed.entries {
         let entity = fucid();
-        let mut set = ::triblespace_core::entity! {
+        let mut set = ::triblespace_core::macros::entity! {
             &entity @
             attribute::attribute_id: definition.id.value(),
             attribute::attribute_name: definition.name.to_string(),
@@ -257,7 +257,7 @@ fn emit_attribute_definitions(context: &mut MetadataContext<'_>) {
                 let workspace = context.workspace();
                 workspace.put::<LongString, _>(ty_tokens)
             };
-            set += ::triblespace_core::entity! { &entity @ attribute::attribute_type: handle };
+            set += ::triblespace_core::macros::entity! { &entity @ attribute::attribute_type: handle };
         }
 
         context.workspace().commit(set, None);
@@ -271,7 +271,7 @@ pub fn attributes(input: TokenStream) -> TokenStream {
         emit_attribute_definitions(context)
     });
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::attributes! { #inner }))
+    TokenStream::from(quote!(::triblespace::core::macros::attributes! { #inner }))
 }
 
 #[proc_macro]
@@ -279,7 +279,7 @@ pub fn path(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("path", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::path!(#inner)))
+    TokenStream::from(quote!(::triblespace::core::macros::path!(#inner)))
 }
 
 #[proc_macro]
@@ -287,7 +287,7 @@ pub fn pattern(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("pattern", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::pattern!(#inner)))
+    TokenStream::from(quote!(::triblespace::core::macros::pattern!(#inner)))
 }
 
 #[proc_macro]
@@ -295,7 +295,7 @@ pub fn pattern_changes(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("pattern_changes", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::pattern_changes!(#inner)))
+    TokenStream::from(quote!(::triblespace::core::macros::pattern_changes!(#inner)))
 }
 
 #[proc_macro]
@@ -303,7 +303,7 @@ pub fn entity(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("entity", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::entity! { #inner }))
+    TokenStream::from(quote!(::triblespace::core::macros::entity! { #inner }))
 }
 
 #[proc_macro]
@@ -311,7 +311,7 @@ pub fn find(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("find", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::query::find!(#inner)))
+    TokenStream::from(quote!(::triblespace::core::macros::find!(#inner)))
 }
 
 #[proc_macro]
@@ -319,5 +319,5 @@ pub fn matches(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("matches", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace_core::query::matches!(#inner)))
+    TokenStream::from(quote!(::triblespace::core::macros::matches!(#inner)))
 }

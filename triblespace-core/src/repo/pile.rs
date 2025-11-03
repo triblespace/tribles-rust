@@ -1029,6 +1029,7 @@ mod tests {
     use std::time::UNIX_EPOCH;
     use tempfile;
 
+    use crate::repo::BlobStoreMeta;
     use crate::repo::PushResult;
 
     #[test]

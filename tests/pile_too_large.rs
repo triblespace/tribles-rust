@@ -1,6 +1,6 @@
 use triblespace::prelude::*;
-use triblespace::repo::pile::ReadError;
-use triblespace::value::schemas::hash::Blake3;
+use triblespace::core::repo::pile::ReadError;
+use triblespace::core::value::schemas::hash::Blake3;
 
 #[test]
 #[cfg(target_pointer_width = "64")]

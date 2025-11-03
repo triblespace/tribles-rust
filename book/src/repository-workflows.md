@@ -38,11 +38,11 @@ repository type exposes that trait bound you can call `repo.close()?` to flush
 and release resources instead of relying on `Drop` to run at an unknown time.
 
 ```rust,ignore
-use triblespace::repo::hybridstore::HybridStore;
-use triblespace::repo::memoryrepo::MemoryRepo;
-use triblespace::repo::objectstore::ObjectStoreRemote;
-use triblespace::repo::Repository;
-use triblespace::value::schemas::hash::Blake3;
+use triblespace::core::repo::hybridstore::HybridStore;
+use triblespace::core::repo::memoryrepo::MemoryRepo;
+use triblespace::core::repo::objectstore::ObjectStoreRemote;
+use triblespace::core::repo::Repository;
+use triblespace::core::value::schemas::hash::Blake3;
 use url::Url;
 
 let blob_remote: ObjectStoreRemote<Blake3> =
@@ -351,9 +351,9 @@ continues to work unchanged – the only difference is the URL you pass to
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use triblespace::prelude::*;
-use triblespace::repo::objectstore::ObjectStoreRemote;
-use triblespace::repo::Repository;
-use triblespace::value::schemas::hash::Blake3;
+use triblespace::core::repo::objectstore::ObjectStoreRemote;
+use triblespace::core::repo::Repository;
+use triblespace::core::value::schemas::hash::Blake3;
 use url::Url;
 
 fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
@@ -438,9 +438,9 @@ want to attach the history of one branch to another:
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use triblespace::prelude::*;
-use triblespace::repo::{self, pile::Pile, Repository};
-use triblespace::value::schemas::hash::Blake3;
-use triblespace::value::schemas::hash::Handle;
+use triblespace::core::repo::{self, pile::Pile, Repository};
+use triblespace::core::value::schemas::hash::Blake3;
+use triblespace::core::value::schemas::hash::Handle;
 
 fn merge_import_example(
     src_path: &std::path::Path,

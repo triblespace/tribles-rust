@@ -1,6 +1,6 @@
-use triblespace::patch::Entry;
-use triblespace::patch::IdentitySchema;
-use triblespace::patch::PATCH;
+use triblespace::core::patch::Entry;
+use triblespace::core::patch::IdentitySchema;
+use triblespace::core::patch::PATCH;
 
 #[test]
 fn get_returns_value_when_present() {

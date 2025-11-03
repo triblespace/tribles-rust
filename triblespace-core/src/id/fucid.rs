@@ -70,7 +70,7 @@ thread_local!(static GEN_STATE: RefCell<FUCIDsource> = RefCell::new(FUCIDsource:
 /// for most use cases.
 ///
 /// ```rust
-/// use triblespace::id::fucid;
+/// use triblespace_core::id::fucid;
 ///
 /// let id1 = fucid();
 /// let id2 = fucid();
@@ -82,7 +82,7 @@ thread_local!(static GEN_STATE: RefCell<FUCIDsource> = RefCell::new(FUCIDsource:
 /// can be instantiated and used directly.
 ///
 /// ```rust
-/// use triblespace::id::FUCIDsource;
+/// use triblespace_core::id::FUCIDsource;
 ///
 /// let mut source = FUCIDsource::new();
 /// let id1 = source.mint();

@@ -1,9 +1,9 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use triblespace::prelude::*;
-use triblespace::repo::commit;
-use triblespace::repo::memoryrepo::MemoryRepo;
-use triblespace::repo::Repository;
+use triblespace::core::repo::commit;
+use triblespace::core::repo::memoryrepo::MemoryRepo;
+use triblespace::core::repo::Repository;
 
 #[test]
 fn branch_from_and_pull_with_key() {

@@ -1,33 +1,21 @@
 #![doc = include_str!("../README.md")]
-
-pub use triblespace_core::attribute;
-pub use triblespace_core::blob;
-pub use triblespace_core::debug;
-pub use triblespace_core::examples;
-pub use triblespace_core::id;
-pub use triblespace_core::import;
-pub use triblespace_core::metadata;
-pub use triblespace_core::patch;
-pub use triblespace_core::query;
-pub use triblespace_core::repo;
-pub use triblespace_core::trible;
-pub use triblespace_core::value;
-
-pub mod prelude {
-    pub use crate::macros::{attributes, entity, find, matches, path, pattern, pattern_changes};
-    pub use triblespace_core::prelude::*;
-}
+extern crate self as triblespace;
 
 pub use triblespace_core::arrayvec;
-pub use triblespace_core::macro_pub;
+
+pub use triblespace_core as core;
 
 pub mod macros {
     pub use triblespace_macros::{
         attributes, entity, find, matches, path, pattern, pattern_changes,
     };
+    pub use triblespace_core::macros::id_hex;
 }
 
-pub use macros::{attributes, entity, find, matches, path, pattern, pattern_changes};
+pub mod prelude {
+    pub use triblespace_core::prelude::*;
+    pub use crate::macros::{attributes, entity, find, matches, path, pattern, pattern_changes};
+}
 
 #[cfg(kani)]
 #[path = "../proofs/mod.rs"]
@@ -39,7 +27,7 @@ mod proofs;
 mod readme_example {
     use crate::prelude::blobschemas::LongString;
     use crate::prelude::*;
-    use crate::repo::{memoryrepo::MemoryRepo, Repository};
+    use crate::core::repo::{memoryrepo::MemoryRepo, Repository};
     use ed25519_dalek::SigningKey;
     use rand::rngs::OsRng;
 

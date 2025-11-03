@@ -8,8 +8,8 @@ use triblespace::prelude::*;
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use triblespace::query::ContainsConstraint;
-use triblespace::repo::BlobStorePut;
+use triblespace::core::query::ContainsConstraint;
+use triblespace::core::repo::BlobStorePut;
 
 pub mod literature {
     use triblespace::prelude::*;

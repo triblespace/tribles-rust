@@ -1,12 +1,12 @@
 use anybytes::Bytes;
 use tempfile::tempdir;
-use triblespace::blob::schemas::UnknownBlob;
-use triblespace::blob::Blob;
+use triblespace::core::blob::schemas::UnknownBlob;
+use triblespace::core::blob::Blob;
 use triblespace::prelude::BlobStore;
 use triblespace::prelude::BlobStoreGet;
 use triblespace::prelude::BlobStorePut;
-use triblespace::repo::pile::Pile;
-use triblespace::value::schemas::hash::Blake3;
+use triblespace::core::repo::pile::Pile;
+use triblespace::core::value::schemas::hash::Blake3;
 
 #[test]
 fn put_and_get_empty_blob() {

@@ -7,8 +7,8 @@ those raw bytes to concrete application types and decouple persisted data from a
 particular implementation. This separation lets you refactor to new libraries or
 frameworks without rewriting what's already stored or coordinating live
 migrations. The crate ships with a collection of ready‑made schemas located in
-[`triblespace::value::schemas`](https://docs.rs/triblespace/latest/triblespace/value/schemas/index.html) and
-[`triblespace::blob::schemas`](https://docs.rs/triblespace/latest/triblespace/blob/schemas/index.html).
+[`triblespace::core::value::schemas`](https://docs.rs/triblespace/latest/triblespace/core/value/schemas/index.html) and
+[`triblespace::core::blob::schemas`](https://docs.rs/triblespace/latest/triblespace/core/blob/schemas/index.html).
 
 When data crosses the FFI boundary or is consumed by a different language, the
 schema is the contract both sides agree on. Consumers only need to understand
@@ -103,8 +103,8 @@ The crate provides the following value schemas out of the box:
 - `UnknownValue` as a fallback when no specific schema is known.
 
 ```rust
-use triblespace::value::schemas::shortstring::ShortString;
-use triblespace::value::{ToValue, ValueSchema};
+use triblespace::core::value::schemas::shortstring::ShortString;
+use triblespace::core::value::{ToValue, ValueSchema};
 
 let v = "hi".to_value::<ShortString>();
 let raw_bytes = v.raw; // Persist alongside ShortString::VALUE_SCHEMA_ID.

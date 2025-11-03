@@ -1,9 +1,9 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::fs;
 use std::path::PathBuf;
-use triblespace::blob::ToBlob;
-use triblespace::id::ExclusiveId;
-use triblespace::import::json::{DeterministicJsonImporter, EncodeError, JsonImporter};
+use triblespace::core::blob::ToBlob;
+use triblespace::core::id::ExclusiveId;
+use triblespace::core::import::json::{DeterministicJsonImporter, EncodeError, JsonImporter};
 use triblespace::prelude::blobschemas::LongString;
 use triblespace::prelude::valueschemas::{Blake3, Boolean, Handle, F256};
 use triblespace::prelude::*;

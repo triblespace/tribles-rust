@@ -67,7 +67,7 @@ data itself. Selectors compose, so you can further narrow a range:
 
 ```rust
 use hifitime::Epoch;
-use triblespace::repo::{filter, time_range};
+use triblespace::core::repo::{filter, time_range};
 
 let since = Epoch::from_unix_seconds(1_609_459_200.0); // 2020-12-01
 let now = Epoch::now().unwrap();

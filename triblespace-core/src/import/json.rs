@@ -815,6 +815,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use core::num;
+
     use super::*;
 
     use crate::blob::schemas::longstring::LongString;
@@ -823,6 +825,8 @@ mod tests {
     use crate::id::fucid;
     use crate::id::Id;
     use crate::metadata;
+    use crate::repo::BlobStore;
+    use crate::value::ToValue;
     use crate::value::schemas::boolean::Boolean;
     use crate::value::schemas::f256::F256;
     use crate::value::schemas::hash::{Blake3, Handle};
@@ -842,21 +846,18 @@ mod tests {
         fn() -> ExclusiveId,
     > {
         JsonImporter::new(
-            |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
+            |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_string()).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
-                let primitive = if let Some(n) = number.as_i64() {
-                    n as f64
-                } else if let Some(n) = number.as_u64() {
-                    n as f64
-                } else {
-                    number
-                        .as_f64()
-                        .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
-                };
-                let converted = f256::from_f64(primitive).ok_or_else(|| {
-                    EncodeError::message(format!("failed to represent {primitive} as f256"))
-                })?;
-                Ok(converted.to_value())
+                if let Some(n) = number.as_u128() {
+                    return Ok(f256::from(n).to_value());
+                }
+                if let Some(n) = number.as_i128() {
+                    return Ok(f256::from(n).to_value());
+                }
+                if let Some(n) = number.as_f64() {
+                    return Ok(f256::from(n).to_value());
+                }
+                Err(EncodeError::message("failed to decode JSON number"))
             },
             |flag: bool| Ok(Boolean::value_from(flag)),
         )
@@ -886,21 +887,18 @@ mod tests {
         impl FnMut(bool) -> Result<Value<Boolean>, EncodeError>,
     > {
         DeterministicJsonImporter::new_with_salt(
-            |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
+            |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_string()).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
-                let primitive = if let Some(n) = number.as_i64() {
-                    n as f64
-                } else if let Some(n) = number.as_u64() {
-                    n as f64
-                } else {
-                    number
-                        .as_f64()
-                        .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
-                };
-                let converted = f256::from_f64(primitive).ok_or_else(|| {
-                    EncodeError::message(format!("failed to represent {primitive} as f256"))
-                })?;
-                Ok(converted.to_value())
+                if let Some(n) = number.as_u128() {
+                    return Ok(f256::from(n).to_value());
+                }
+                if let Some(n) = number.as_i128() {
+                    return Ok(f256::from(n).to_value());
+                }
+                if let Some(n) = number.as_f64() {
+                    return Ok(f256::from(n).to_value());
+                }
+                Err(EncodeError::message("failed to decode JSON number"))
             },
             |flag: bool| Ok(Boolean::value_from(flag)),
             salt,
@@ -1027,7 +1025,7 @@ mod tests {
             } else if *attribute == pages_attr {
                 let value = trible.v::<F256>();
                 let number: f256 = value.from_value();
-                let expected = f256::from_f64(412.0).unwrap();
+                let expected = f256::from(412.0);
                 assert_eq!(number, expected);
             } else if *attribute == available_attr {
                 let value = trible.v::<Boolean>();
@@ -1139,13 +1137,12 @@ mod tests {
                 if text.is_empty() {
                     return Err(EncodeError::message("empty strings are not allowed"));
                 }
-                Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>())
+                Ok(ToBlob::<LongString>::to_blob(text.to_string()).get_handle::<Blake3>())
             },
             |number: &serde_json::Number| {
                 let value = number.as_f64().ok_or_else(|| EncodeError::message("bad"))?;
-                let converted =
-                    f256::from_f64(value).ok_or_else(|| EncodeError::message("convert number"))?;
-                Ok(converted.to_value())
+                let converted: Value<F256> = f256::from(value).to_value();
+                Ok(converted)
             },
             |flag: bool| Ok(Boolean::value_from(flag)),
         );
@@ -1178,7 +1175,7 @@ mod tests {
 
         let mut importer = JsonImporter::new(
             |text: &str| {
-                let blob = ToBlob::<LongString>::to_blob(text);
+                let blob = ToBlob::<LongString>::to_blob(text.to_string());
                 Ok(store.insert(blob))
             },
             |_number: &serde_json::Number| -> Result<Value<F256>, EncodeError> {
@@ -1193,6 +1190,7 @@ mod tests {
         importer.import_value(&payload).unwrap();
 
         let data: Vec<_> = importer.data().iter().collect();
+        let metadata = importer.metadata();
         assert_eq!(data.len(), 1);
 
         let description_attr =
@@ -1216,7 +1214,7 @@ mod tests {
         assert_eq!(text.as_ref(), "the spice must flow");
 
         assert_attribute_metadata::<Handle<Blake3, LongString>>(
-            &importer.metadata(),
+            &metadata,
             description_attr,
             "description",
         );
@@ -1229,7 +1227,7 @@ mod tests {
         ids.reverse();
 
         let mut importer = JsonImporter::with_id_generator(
-            |text: &str| Ok(ToBlob::<LongString>::to_blob(text).get_handle::<Blake3>()),
+            |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_string()).get_handle::<Blake3>()),
             |number: &serde_json::Number| {
                 let primitive = if let Some(n) = number.as_i64() {
                     n as f64
@@ -1240,10 +1238,8 @@ mod tests {
                         .as_f64()
                         .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
                 };
-                let converted = f256::from_f64(primitive).ok_or_else(|| {
-                    EncodeError::message(format!("failed to represent {primitive} as f256"))
-                })?;
-                Ok(converted.to_value())
+                let converted: Value<F256> = f256::from(primitive).to_value();
+                Ok(converted)
             },
             |flag: bool| Ok(Boolean::value_from(flag)),
             move || ids.pop().expect("custom id generator exhausted"),
@@ -1313,10 +1309,10 @@ mod tests {
         });
 
         importer.import_value(&payload).unwrap();
-        let first: Vec<_> = importer.data().iter().collect();
+        let first = importer.data().clone();
 
         importer.import_value(&payload).unwrap();
-        let second: Vec<_> = importer.data().iter().collect();
+        let second = importer.data().clone();
 
         assert_eq!(first, second);
     }
@@ -1342,12 +1338,12 @@ mod tests {
         });
 
         importer.import_value(&payload_a).unwrap();
-        let first: Vec<_> = importer.data().iter().collect();
+        let first = importer.data().clone();
 
         importer.clear_data();
 
         importer.import_value(&payload_b).unwrap();
-        let second: Vec<_> = importer.data().iter().collect();
+        let second = importer.data().clone();
 
         assert_eq!(first, second);
     }
@@ -1361,7 +1357,7 @@ mod tests {
         ]);
 
         importer.import_value(&payload).unwrap();
-        let first: Vec<_> = importer.data().iter().collect();
+        let first = importer.data().clone();
         let metadata = importer.metadata();
 
         let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
@@ -1386,7 +1382,7 @@ mod tests {
 
         importer.clear_data();
         importer.import_value(&payload).unwrap();
-        let second: Vec<_> = importer.data().iter().collect();
+        let second = importer.data().clone();
 
         assert_eq!(first, second);
         for trible in &second {

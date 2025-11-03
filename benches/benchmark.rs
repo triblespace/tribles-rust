@@ -11,18 +11,18 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::hint::black_box;
 use std::iter::FromIterator;
-use triblespace::blob::schemas::succinctarchive::CachedUniverse;
-use triblespace::blob::schemas::succinctarchive::CompressedUniverse;
-use triblespace::blob::schemas::succinctarchive::SuccinctArchive;
-use triblespace::blob::schemas::UnknownBlob;
-use triblespace::repo::BlobStorePut;
+use triblespace::core::blob::schemas::succinctarchive::CachedUniverse;
+use triblespace::core::blob::schemas::succinctarchive::CompressedUniverse;
+use triblespace::core::blob::schemas::succinctarchive::SuccinctArchive;
+use triblespace::core::blob::schemas::UnknownBlob;
+use triblespace::core::repo::BlobStorePut;
 
 use triblespace::prelude::blobschemas::*;
 use triblespace::prelude::*;
 
-use triblespace::patch::Entry;
-use triblespace::patch::IdentitySchema;
-use triblespace::patch::PATCH;
+use triblespace::core::patch::Entry;
+use triblespace::core::patch::IdentitySchema;
+use triblespace::core::patch::PATCH;
 
 use im::OrdSet;
 

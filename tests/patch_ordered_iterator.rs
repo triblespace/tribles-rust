@@ -3,10 +3,10 @@ use rand::rngs::ThreadRng;
 use rand::RngCore;
 use rand::SeedableRng;
 use std::collections::HashSet;
-use triblespace::patch::Entry;
-use triblespace::patch::IdentitySchema;
-use triblespace::patch::PATCH;
-use triblespace::trible::EAVOrder;
+use triblespace::core::patch::Entry;
+use triblespace::core::patch::IdentitySchema;
+use triblespace::core::patch::PATCH;
+use triblespace::core::trible::EAVOrder;
 
 #[test]
 fn iter_ordered_returns_sorted_keys_eav() {

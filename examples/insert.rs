@@ -3,12 +3,12 @@ use fake::faker::lorem::en::Sentence;
 use fake::faker::lorem::en::Words;
 use triblespace::prelude::*;
 
-use triblespace::examples::literature;
+use triblespace::core::examples::literature;
 
 use fake::faker::name::raw::*;
 use fake::locales::*;
 use fake::Fake;
-use triblespace::repo::BlobStorePut;
+use triblespace::core::repo::BlobStorePut;
 
 fn main() {
     let mut kb = TribleSet::new();

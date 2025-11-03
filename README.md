@@ -51,7 +51,7 @@ use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use triblespace::prelude::*;
 use triblespace::prelude::blobschemas::LongString;
-use triblespace::repo::{memoryrepo::MemoryRepo, Repository};
+use triblespace::core::repo::{memoryrepo::MemoryRepo, Repository};
 
 mod literature {
     use triblespace::prelude::*;

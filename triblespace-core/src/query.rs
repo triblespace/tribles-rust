@@ -3,8 +3,8 @@
 //! combines constraint expressions:
 //!
 //! ```
-//! # use triblespace::prelude::*;
-//! # use triblespace::prelude::valueschemas::ShortString;
+//! # use triblespace_core::prelude::*;
+//! # use triblespace_core::prelude::valueschemas::ShortString;
 //! let results = find!((x: Value<ShortString>), x.is("foo".to_value())).collect::<Vec<_>>();
 //! ```
 //!

@@ -102,7 +102,7 @@ mod tests {
         let a1 = Attribute::<ShortString>::from_field("title");
         let a2 = Attribute::<ShortString>::from_field("title");
 
-        assert_eq!(a1, a2);
+        assert_eq!(a1.raw(), a2.raw());
         assert_ne!(a1.raw(), [0; crate::id::ID_LEN]);
     }
 
@@ -111,7 +111,7 @@ mod tests {
         let title = Attribute::<ShortString>::from_field("title");
         let author = Attribute::<ShortString>::from_field("author");
 
-        assert_ne!(title, author);
+        assert_ne!(title.raw(), author.raw());
     }
 
     #[test]

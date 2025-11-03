@@ -28,7 +28,7 @@ negligible, so the scan may keep extra blobs but will not drop a referenced one.
    referenced blob is a `SimpleArchive`, scan every second 32‑byte segment for
    further handles instead of deserialising it.
 4. Stream the discovered handles into whatever operation you need. The
-   [`reachable`](https://docs.rs/tribles/latest/tribles/repo/fn.reachable.html)
+   [`reachable`](https://docs.rs/triblespace/latest/triblespace/repo/fn.reachable.html)
    helper returns an iterator of handles, so you can retain them, transfer
    them into another store, or collect them into whichever structure your
    workflow expects.
@@ -40,18 +40,18 @@ their handle and are otherwise eligible for forgetting.
 ## Automating the Walk
 
 The repository module already provides most of the required plumbing. The
-[`reachable`](https://docs.rs/tribles/latest/tribles/repo/fn.reachable.html)
+[`reachable`](https://docs.rs/triblespace/latest/triblespace/repo/fn.reachable.html)
 helper exposes the traversal as a reusable iterator so you can compose other
 operations along the way, while
-[`transfer`](https://docs.rs/tribles/latest/tribles/repo/fn.transfer.html)
+[`transfer`](https://docs.rs/triblespace/latest/triblespace/repo/fn.transfer.html)
 duplicates whichever handles you feed it. The in-memory `MemoryBlobStore` can
 retain live blobs, duplicate them into a scratch store, and report how many
 handles were touched without writing bespoke walkers:
 
 ```rust
-use tribles::blob::memoryblobstore::MemoryBlobStore;
-use tribles::repo::{self, BlobStoreKeep, BlobStoreList};
-use tribles::value::schemas::hash::Blake3;
+use triblespace::core::blob::memoryblobstore::MemoryBlobStore;
+use triblespace::core::repo::{self, BlobStoreKeep, BlobStoreList};
+use triblespace::core::value::schemas::hash::Blake3;
 
 let mut store = MemoryBlobStore::<Blake3>::default();
 // ... populate the store or import data ...
@@ -77,7 +77,7 @@ println!("rewrote {} handles", mapping.len());
 ```
 
 Every blob store reader implements the
-[`BlobStoreList`](https://docs.rs/tribles/latest/tribles/repo/trait.BlobStoreList.html)
+[`BlobStoreList`](https://docs.rs/triblespace/latest/triblespace/repo/trait.BlobStoreList.html)
 trait, which exposes helpers such as `blobs()` for enumerating stored handles.
 In practice you would seed the walker with the handles extracted from branch
 metadata or other root sets instead of iterating the entire store. The helper
@@ -89,7 +89,7 @@ mark-and-sweep collectors or selective replication pipelines without duplicating
 traversal code.
 
 When you already have metadata represented as a `TribleSet`, the
-[`potential_handles`](https://docs.rs/tribles/latest/tribles/repo/fn.potential_handles.html)
+[`potential_handles`](https://docs.rs/triblespace/latest/triblespace/repo/fn.potential_handles.html)
 helper converts its value column into the conservative stream of
 `Handle<H, UnknownBlob>` instances expected by these operations.
 

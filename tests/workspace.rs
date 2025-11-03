@@ -1,13 +1,13 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use tribles::prelude::*;
-use tribles::repo::ancestors;
-use tribles::repo::history_of;
-use tribles::repo::memoryrepo::MemoryRepo;
-use tribles::repo::nth_ancestor;
-use tribles::repo::parents;
-use tribles::repo::symmetric_diff;
-use tribles::repo::Repository;
+use triblespace::prelude::*;
+use triblespace::core::repo::ancestors;
+use triblespace::core::repo::history_of;
+use triblespace::core::repo::memoryrepo::MemoryRepo;
+use triblespace::core::repo::nth_ancestor;
+use triblespace::core::repo::parents;
+use triblespace::core::repo::symmetric_diff;
+use triblespace::core::repo::Repository;
 
 #[test]
 fn workspace_commit_updates_head() {
@@ -23,7 +23,7 @@ fn workspace_commit_updates_head() {
 
 #[test]
 fn workspace_checkout_unions_commits() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -60,7 +60,7 @@ fn workspace_checkout_unions_commits() {
 
 #[test]
 fn workspace_checkout_single_commit() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -84,7 +84,7 @@ fn workspace_checkout_single_commit() {
 
 #[test]
 fn workspace_checkout_vec_commits() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -117,7 +117,7 @@ fn workspace_checkout_vec_commits() {
 
 #[test]
 fn workspace_checkout_range_variants() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -157,12 +157,12 @@ fn workspace_checkout_range_variants() {
 fn workspace_checkout_range_stops_at_explicit_boundaries() {
     use std::iter;
 
-    use tribles::blob::schemas::simplearchive::SimpleArchive;
-    use tribles::blob::Blob;
-    use tribles::repo::commit::commit_metadata;
-    use tribles::value::schemas::hash::{Blake3, Handle};
-    use tribles::value::schemas::r256::R256;
-    use tribles::value::Value;
+    use triblespace::core::blob::schemas::simplearchive::SimpleArchive;
+    use triblespace::core::blob::Blob;
+    use triblespace::core::repo::commit::commit_metadata;
+    use triblespace::core::value::schemas::hash::{Blake3, Handle};
+    use triblespace::core::value::schemas::r256::R256;
+    use triblespace::core::value::Value;
 
     type CommitHandle = Value<Handle<Blake3, SimpleArchive>>;
 
@@ -227,7 +227,7 @@ fn workspace_checkout_range_stops_at_explicit_boundaries() {
 
 #[test]
 fn workspace_checkout_symmetric_diff() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -257,7 +257,7 @@ fn workspace_checkout_symmetric_diff() {
 
 #[test]
 fn workspace_get_local_and_base() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -287,7 +287,7 @@ fn workspace_get_local_and_base() {
 
 #[test]
 fn workspace_checkout_head_collects_history() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -318,7 +318,7 @@ fn workspace_checkout_head_collects_history() {
 
 #[test]
 fn workspace_nth_ancestor_selector() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -352,7 +352,7 @@ fn workspace_nth_ancestor_selector() {
 
 #[test]
 fn workspace_parents_selector() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
@@ -405,7 +405,7 @@ fn workspace_parents_selector() {
 
 #[test]
 fn workspace_history_of_entity() {
-    use tribles::value::schemas::r256::R256;
+    use triblespace::core::value::schemas::r256::R256;
 
     let storage = MemoryRepo::default();
     let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));

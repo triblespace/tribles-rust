@@ -1,6 +1,6 @@
 [package]
 name = "triblespace-core"
-version = "0.5.2"
+version = "0.6.0"
 authors = ["Jan Bramkamp <crest@rlwinm.de>", "⚫️ <jp@bultmann.eu>", "Vanja Sophie Cangalovic <vanja@bultmann.eu>"]
 edition = "2021"
 rust-version = "1.89"

@@ -1,4 +1,3 @@
-use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::parse::Parse;
@@ -24,20 +23,11 @@ struct AttributesInput {
 
 impl Parse for AttributesInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        // Accept the flattened token stream form: parse the tokens directly
-        // from the provided ParseStream. This matches the token shape the
-        // compiler typically hands us in practice.
         let content = input;
         let mut attributes = Vec::new();
         while !content.is_empty() {
             let attrs = content.call(Attribute::parse_outer)?;
-            // LEGACY PLACEMENT REMOVED: visibility must appear after the
-            // `as` token and before the attribute name so the fixed-width hex ids
-            // remain visually aligned. If a caller still passes a `pub` token
-            // here we emit a helpful error directing them to the new form.
             if content.peek(Token![pub]) {
-                // Consume the token into a Visibility so we can span the error
-                // precisely.
                 let v: Visibility = content.parse()?;
                 return Err(syn::Error::new_spanned(
                     v,
@@ -45,14 +35,8 @@ impl Parse for AttributesInput {
                 ));
             }
 
-            // We no longer support the `doc = "..."` shorthand; prefer
-            // idiomatic `///` doc comments which are parsed as outer
-            // attributes by `Attribute::parse_outer` above. Keeping the input
-            // syntax simple reduces complexity.
-
             let id: LitStr = content.parse()?;
             content.parse::<Token![as]>()?;
-            // Optional visibility only in the post-`as` position.
             let vis: Option<Visibility> = if content.peek(Token![pub]) {
                 Some(content.parse()?)
             } else {
@@ -74,11 +58,11 @@ impl Parse for AttributesInput {
     }
 }
 
-pub(crate) fn attributes_impl(input: TokenStream) -> syn::Result<TokenStream> {
-    // Parse the flattened token stream; this is the form we saw in practice
-    // and keeps the macro strict (no extra normalization branch).
-    let ts2: TokenStream2 = input.into();
-    let AttributesInput { attributes } = syn::parse2(ts2)?;
+pub fn attributes_impl(
+    input: TokenStream2,
+    base_path: &TokenStream2,
+) -> syn::Result<TokenStream2> {
+    let AttributesInput { attributes } = syn::parse2(input)?;
 
     let mut out: TokenStream2 = TokenStream2::new();
     for AttributesDef {
@@ -96,9 +80,9 @@ pub(crate) fn attributes_impl(input: TokenStream) -> syn::Result<TokenStream> {
         out.extend(quote! {
             #(#attrs)*
             #[allow(non_upper_case_globals)]
-            #vis_ts const #name: ::triblespace_core::attribute::Attribute<#ty> = ::triblespace_core::attribute::Attribute::from(::triblespace_core::id::_hex_literal_hex!(#id));
+            #vis_ts const #name: #base_path::attribute::Attribute<#ty> = #base_path::attribute::Attribute::from(#base_path::id::_hex_literal_hex!(#id));
         });
     }
 
-    Ok(out.into())
+    Ok(out)
 }

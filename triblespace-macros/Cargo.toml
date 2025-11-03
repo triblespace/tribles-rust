@@ -16,3 +16,4 @@ syn = { version = "2", features = ["full"] }
 hex = "0.4"
 triblespace-core = { path = "../triblespace-core" }
 triblespace-core-macros = { path = "../triblespace-core-macros" }
+triblespace-macros-common = { path = "../triblespace-macros-common" }

@@ -27,6 +27,10 @@ use syn::Token;
 use syn::Type;
 use syn::Visibility;
 
+use triblespace_macros_common::{
+    attributes_impl, entity_impl, pattern_changes_impl, pattern_impl, path_impl,
+};
+
 mod instrumentation_attributes {
     pub(crate) mod attribute {
         use triblespace_core::blob::schemas::longstring::LongString;
@@ -270,40 +274,60 @@ pub fn attributes(input: TokenStream) -> TokenStream {
     emit_metadata("attributes", &clone, |context| {
         emit_attribute_definitions(context)
     });
-    let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace::core::macros::attributes! { #inner }))
+    let base_path: TokenStream2 = quote!(::triblespace::core);
+    let tokens = TokenStream2::from(input);
+    match attributes_impl(tokens, &base_path) {
+        Ok(ts) => TokenStream::from(ts),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
 #[proc_macro]
 pub fn path(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("path", &clone, |_context| {});
-    let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace::core::macros::path!(#inner)))
+    let base_path: TokenStream2 = quote!(::triblespace::core);
+    let tokens = TokenStream2::from(input);
+    match path_impl(tokens, &base_path) {
+        Ok(ts) => TokenStream::from(ts),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
 #[proc_macro]
 pub fn pattern(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("pattern", &clone, |_context| {});
-    let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace::core::macros::pattern!(#inner)))
+    let base_path: TokenStream2 = quote!(::triblespace::core);
+    let tokens = TokenStream2::from(input);
+    match pattern_impl(tokens, &base_path) {
+        Ok(ts) => TokenStream::from(ts),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
 #[proc_macro]
 pub fn pattern_changes(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("pattern_changes", &clone, |_context| {});
-    let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace::core::macros::pattern_changes!(#inner)))
+    let base_path: TokenStream2 = quote!(::triblespace::core);
+    let tokens = TokenStream2::from(input);
+    match pattern_changes_impl(tokens, &base_path) {
+        Ok(ts) => TokenStream::from(ts),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
 #[proc_macro]
 pub fn entity(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("entity", &clone, |_context| {});
-    let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace::core::macros::entity! { #inner }))
+    let base_path: TokenStream2 = quote!(::triblespace::core);
+    let tokens = TokenStream2::from(input);
+    match entity_impl(tokens, &base_path) {
+        Ok(ts) => TokenStream::from(ts),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
 #[proc_macro]
@@ -319,5 +343,5 @@ pub fn matches(input: TokenStream) -> TokenStream {
     let clone = input.clone();
     emit_metadata("matches", &clone, |_context| {});
     let inner = TokenStream2::from(input);
-    TokenStream::from(quote!(::triblespace::core::macros::matches!(#inner)))
+    TokenStream::from(quote!(::triblespace::core::matches!(#inner)))
 }

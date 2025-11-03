@@ -13,6 +13,7 @@ members = [
     "triblespace-core",
     "triblespace-core-macros",
     "triblespace-macros",
+    "triblespace-macros-common",
 ]
 resolver = "2"
 

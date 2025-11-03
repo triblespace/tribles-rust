@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 memmap2 = "0.9.5"
 zerocopy = { version = "0.8", features = ["derive"] }
-anybytes = { git = "https://github.com/triblespace/anybytes", features = ["bytes", "zerocopy"] }
+anybytes = { version = "0.20.0", features = ["bytes", "zerocopy"] }
 rand = "0.8"
 digest = "0.10.7"
 ux = "0.1.5"
@@ -37,7 +37,7 @@ bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
 proptest = { version = "1.6.0", optional = true }
 hifitime = "4.1.2"
 f256 = "0.7.0"
-jerky = { git = "https://github.com/triblespace/jerky" }
+jerky = "0.9.0"
 itertools = "0.14.0"
 sptr = "0.3.2"
 indxvec = "1.9.0"
@@ -47,7 +47,7 @@ arrayvec = "0.7.6"
 quick_cache = "0.6.9"
 uuid = "1.15.1"
 reft-light = "0.3.1"
-triblespace-core-macros = { path = "../triblespace-core-macros" }
+triblespace-core-macros = "0.6.0"
 page_size = "0.6.0"
 
 [dev-dependencies]

@@ -3,11 +3,11 @@ use proptest::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use triblespace::core::blob::schemas::UnknownBlob;
+use triblespace::core::repo::PushResult;
+use triblespace::core::value::schemas::hash::Blake3;
 use triblespace::prelude::blobschemas::SimpleArchive;
 use triblespace::prelude::valueschemas::Handle;
 use triblespace::prelude::*;
-use triblespace::core::repo::PushResult;
-use triblespace::core::value::schemas::hash::Blake3;
 
 #[derive(Debug, Clone)]
 enum Op {

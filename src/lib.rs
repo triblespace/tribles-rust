@@ -6,15 +6,15 @@ pub use triblespace_core::arrayvec;
 pub use triblespace_core as core;
 
 pub mod macros {
+    pub use triblespace_core::macros::id_hex;
     pub use triblespace_macros::{
         attributes, entity, find, matches, path, pattern, pattern_changes,
     };
-    pub use triblespace_core::macros::id_hex;
 }
 
 pub mod prelude {
-    pub use triblespace_core::prelude::*;
     pub use crate::macros::{attributes, entity, find, matches, path, pattern, pattern_changes};
+    pub use triblespace_core::prelude::*;
 }
 
 #[cfg(kani)]
@@ -25,9 +25,9 @@ mod proofs;
 // consumers see it while `triblespace-core` stays lean for proc-macro usage.
 #[cfg(test)]
 mod readme_example {
+    use crate::core::repo::{memoryrepo::MemoryRepo, Repository};
     use crate::prelude::blobschemas::LongString;
     use crate::prelude::*;
-    use crate::core::repo::{memoryrepo::MemoryRepo, Repository};
     use ed25519_dalek::SigningKey;
     use rand::rngs::OsRng;
 

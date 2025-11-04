@@ -30,9 +30,9 @@ pub mod examples;
 pub use arrayvec;
 
 pub mod macros {
-    pub use triblespace_core_macros::*;
     pub use crate::id::id_hex;
     pub use crate::query::find;
+    pub use triblespace_core_macros::*;
 }
 
 // Proof harnesses and integration-style documentation tests live in the

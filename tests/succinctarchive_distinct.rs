@@ -1,7 +1,7 @@
 use triblespace::core::blob::schemas::succinctarchive::OrderedUniverse;
 use triblespace::core::blob::schemas::succinctarchive::SuccinctArchive;
-use triblespace::prelude::*;
 use triblespace::core::value::schemas::UnknownValue;
+use triblespace::prelude::*;
 
 #[test]
 fn distinct_and_enumerate() {

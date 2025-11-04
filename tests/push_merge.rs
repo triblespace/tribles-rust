@@ -1,8 +1,8 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use triblespace::prelude::*;
 use triblespace::core::repo::memoryrepo::MemoryRepo;
 use triblespace::core::repo::Repository;
+use triblespace::prelude::*;
 
 #[test]
 fn push_and_merge_conflict_resolution() {

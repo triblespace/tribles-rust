@@ -17,7 +17,9 @@ fn core_base_path() -> TokenStream2 {
 pub fn attributes(input: TokenStream) -> TokenStream {
     let base_path = core_base_path();
     let tokens = TokenStream2::from(input);
-    expand(triblespace_macros_common::attributes_impl(tokens, &base_path))
+    expand(triblespace_macros_common::attributes_impl(
+        tokens, &base_path,
+    ))
 }
 
 #[proc_macro]
@@ -38,7 +40,9 @@ pub fn pattern(input: TokenStream) -> TokenStream {
 pub fn pattern_changes(input: TokenStream) -> TokenStream {
     let base_path = core_base_path();
     let tokens = TokenStream2::from(input);
-    expand(triblespace_macros_common::pattern_changes_impl(tokens, &base_path))
+    expand(triblespace_macros_common::pattern_changes_impl(
+        tokens, &base_path,
+    ))
 }
 
 #[proc_macro]

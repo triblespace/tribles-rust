@@ -195,8 +195,7 @@ pub fn path_impl(input: TokenStream2, base_path: &TokenStream2) -> syn::Result<T
                     if matches!(op, OpTok::LParen) {
                         break;
                     }
-                    if prec(op) > prec(&token)
-                        || (!right_assoc(&token) && prec(op) == prec(&token))
+                    if prec(op) > prec(&token) || (!right_assoc(&token) && prec(op) == prec(&token))
                     {
                         output.push(stack.pop().unwrap());
                     } else {
@@ -379,7 +378,11 @@ pub fn pattern_impl(input: TokenStream2, base_path: &TokenStream2) -> syn::Resul
         };
         entity_tokens.extend(init);
 
-        for Attribute { name: field_expr, value } in entity.attributes {
+        for Attribute {
+            name: field_expr,
+            value,
+        } in entity.attributes
+        {
             let key = field_expr.to_token_stream().to_string();
             let (a_var_ident, af_ident) = attr_map
                 .entry(key)

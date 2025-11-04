@@ -2,9 +2,9 @@ use crate::entity;
 use crate::pattern_changes;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use triblespace::prelude::*;
 use triblespace::core::repo::memoryrepo::MemoryRepo;
 use triblespace::core::repo::Repository;
+use triblespace::prelude::*;
 
 pub mod literature {
     use triblespace::prelude::*;

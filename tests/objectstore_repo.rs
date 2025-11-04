@@ -1,10 +1,10 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use triblespace::prelude::*;
 use triblespace::core::repo::objectstore::ObjectStoreRemote;
 use triblespace::core::repo::Repository;
 use triblespace::core::repo::{self};
 use triblespace::core::value::schemas::hash::Blake3;
+use triblespace::prelude::*;
 use url::Url;
 
 #[test]

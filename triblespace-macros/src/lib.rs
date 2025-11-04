@@ -28,7 +28,7 @@ use syn::Type;
 use syn::Visibility;
 
 use triblespace_macros_common::{
-    attributes_impl, entity_impl, pattern_changes_impl, pattern_impl, path_impl,
+    attributes_impl, entity_impl, path_impl, pattern_changes_impl, pattern_impl,
 };
 
 mod instrumentation_attributes {
@@ -163,7 +163,8 @@ where
     if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
         if !dir.trim().is_empty() {
             let handle = workspace.put::<LongString, _>(dir);
-            set += ::triblespace_core::macros::entity! { &entity @ invocation::manifest_dir: handle };
+            set +=
+                ::triblespace_core::macros::entity! { &entity @ invocation::manifest_dir: handle };
         }
     }
 
@@ -261,7 +262,8 @@ fn emit_attribute_definitions(context: &mut MetadataContext<'_>) {
                 let workspace = context.workspace();
                 workspace.put::<LongString, _>(ty_tokens)
             };
-            set += ::triblespace_core::macros::entity! { &entity @ attribute::attribute_type: handle };
+            set +=
+                ::triblespace_core::macros::entity! { &entity @ attribute::attribute_type: handle };
         }
 
         context.workspace().commit(set, None);

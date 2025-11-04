@@ -826,11 +826,11 @@ mod tests {
     use crate::id::Id;
     use crate::metadata;
     use crate::repo::BlobStore;
-    use crate::value::ToValue;
     use crate::value::schemas::boolean::Boolean;
     use crate::value::schemas::f256::F256;
     use crate::value::schemas::hash::{Blake3, Handle};
     use crate::value::schemas::shortstring::ShortString;
+    use crate::value::ToValue;
     use crate::value::ValueSchema;
     use anybytes::View;
     use f256::f256;

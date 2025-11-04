@@ -1,9 +1,9 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
-use triblespace::prelude::*;
 use triblespace::core::repo::memoryrepo::MemoryRepo;
 use triblespace::core::repo::PushResult;
 use triblespace::core::repo::{self};
+use triblespace::prelude::*;
 
 #[test]
 fn branch_update_success_and_conflict() {

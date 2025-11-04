@@ -1,17 +1,36 @@
 # Repository Workflows
 
-Tribles borrows much of its vocabulary from Git:
+Working with a Tribles repository feels familiar to Git users, but the types
+make data ownership and lifecycle explicit. Keep the following vocabulary in
+mind when exploring the API:
 
-* **Repository** – top-level object that tracks history through a `BlobStore`
-  and `BranchStore`.
+* **Repository** – top-level object that tracks history through `BlobStore`
+  and `BranchStore` implementations.
 * **Workspace** – mutable view of a branch, similar to Git's working directory
-  and index combined.
-* **BlobStore** – stores commits and blobs.
-* **BranchStore** – records branch metadata.
+  and index combined. Workspaces buffer commits and custom blobs until you push
+  them back to the repository.
+* **BlobStore** – storage backend for commits and payload blobs.
+* **BranchStore** – records branch metadata and head pointers.
 
 Both stores can be in memory, on disk or backed by a remote service. The
-examples in `examples/repo.rs` and `examples/workspace.rs` showcase this API and
-should feel familiar to anyone comfortable with Git.
+examples in `examples/repo.rs` and `examples/workspace.rs` showcase these APIs
+and are a great place to start if you are comfortable with Git but new to
+Tribles.
+
+## Opening a repository
+
+Repositories are constructed from any storage that implements the appropriate
+traits. The choice largely depends on your deployment scenario:
+
+1. Pick or compose a storage backend (see [Storage Backends and
+   Composition](#storage-backends-and-composition)).
+2. Create a signing key for the identity that will author commits.
+3. Call `Repository::new(storage, signing_key)` to obtain a handle.
+
+Most applications perform the above steps once during start-up and then reuse
+the resulting `Repository`. If initialization may fail (for example when opening
+an on-disk pile), bubble the error to the caller so the process can retry or
+surface a helpful message to operators.
 
 ## Storage Backends and Composition
 
@@ -36,6 +55,8 @@ crate ships with a few ready-made options:
 Backends that need explicit shutdown can implement `StorageClose`. When the
 repository type exposes that trait bound you can call `repo.close()?` to flush
 and release resources instead of relying on `Drop` to run at an unknown time.
+This is especially handy for automation where the process may terminate soon
+after completing a task.
 
 ```rust,ignore
 use tribles::repo::hybridstore::HybridStore;
@@ -57,19 +78,25 @@ let mut repo = Repository::new(storage, signing_key);
 
 ## Branching
 
-A branch records a line of history. Creating one writes initial metadata to the
+A branch records a line of history and carries the metadata that identifies who
+controls updates to that history. Creating one writes initial metadata to the
 underlying store and returns an [`ExclusiveId`](../src/id.rs) guarding the
 branch head. Dereference that ID when you need a plain [`Id`](../src/id.rs) for
-queries or workspace operations. Typical steps look like:
+queries or workspace operations.
+
+Typical steps for working on a branch look like:
 
 1. Create a repository backed by blob and branch stores via `Repository::new`.
-2. Initialize or look up a branch ID with helpers like `Repository::create_branch`,
-   then call `Repository::pull` to obtain a workspace for it.
+2. Initialize or look up a branch ID with helpers like
+   `Repository::create_branch`. When interacting with an existing branch call
+   `Repository::pull` directly.
 3. Commit changes in the workspace using `Workspace::commit`.
-4. Push the workspace with `Repository::push` to publish those commits.
+4. Push the workspace with `Repository::push` (or handle conflicts manually via
+   `Repository::try_push`) to publish those commits.
 
-While `Repository::create_branch` registers a new branch, most workflows call
-`Repository::pull` to obtain a workspace for an existing branch:
+The example below demonstrates bootstrapping a new branch and opening multiple
+workspaces on it. Each workspace holds its own staging area, so remember to push
+before sharing work or starting another task.
 
 
 ```rust
@@ -80,7 +107,10 @@ let mut ws = repo.pull(*branch_id).expect("pull branch");
 let mut ws2 = repo.pull(ws.branch_id()).expect("open branch");
 ```
 
-After committing changes you can push the workspace back:
+After committing changes you can push the workspace back. `push` will retry on
+contention and attempt to merge, while `try_push` performs a single attempt and
+returns `Ok(Some(conflict_ws))` when the branch head moved. Choose the latter
+when you need explicit conflict handling:
 
 ```rust
 ws.commit(change, Some("initial commit"));
@@ -133,7 +163,9 @@ let mut human_ws = repo.pull_with_key(automation_branch, alice.clone())?;
 `human_ws` and `bot_ws` now operate on the same branch but will sign their
 commits with different keys. This pattern is useful when rotating credentials or
 running scheduled jobs under a service identity while preserving authorship in
-the history.
+the history. You can swap identities at any time; existing workspaces keep the
+key they were created with until you explicitly call
+`Workspace::set_signing_key`.
 
 ## Inspecting History
 
@@ -143,7 +175,8 @@ commit returns just that commit. To include its history you can use the
 `ancestors` helper. Commit ranges are supported for convenience. The expression
 `a..b` yields every commit reachable from `b` that is not reachable from `a`,
 treating missing endpoints as empty (`..b`) or the current `HEAD` (`a..` and
-`..`):
+`..`). These selectors compose with filters, so you can slice history to only
+the entities you care about.
 
 ```rust
 let history = ws.checkout(commit_a..commit_b)?;
@@ -165,9 +198,12 @@ store. This makes it easy to stage large payloads alongside the trible sets you
 plan to commit. The [`Workspace::put`](../src/repo.rs) helper stores any type
 implementing [`ToBlob`](crate::blob::ToBlob) and returns a typed handle you can
 embed like any other value. Handles are `Copy`, so you can commit them and reuse
-them to fetch the blob later. The example below stages a quote and an archived
-`TribleSet`, commits both, then retrieves them again with strongly typed and raw
-views:
+them to fetch the blob later.
+
+The example below stages a quote and an archived `TribleSet`, commits both, then
+retrieves them again with strongly typed and raw views. In practice you might
+use this pattern to attach schema migrations, binary artifacts, or other payloads
+that should travel with the commit:
 
 ```rust
 use ed25519_dalek::SigningKey;
@@ -243,7 +279,7 @@ while let Some(mut incoming) = repo.try_push(&mut current_ws)? {
 
 - `Repository::push` — a convenience wrapper that performs the merge-and-retry
   loop for you. Call this when you prefer the repository to handle conflicts
-  automatically; it either succeeds (returns `Ok(None)`) or returns an error.
+  automatically; it either succeeds (returns `Ok(())`) or returns an error.
 
 ```rust
 ws.commit(content, Some("codex-turn"));
@@ -374,9 +410,10 @@ fn open_remote_repo(raw_url: &str) -> anyhow::Result<()> {
 }
 ```
 
-`ObjectStoreRemote` writes directly through to the backing service, so there is
-no `repo.close()` equivalent to call at the end. Dropping the repository handle
-is enough to release resources.
+`ObjectStoreRemote` writes directly through to the backing service. It
+implements `StorageClose`, but the implementation is a no-op, so dropping the
+repository handle is usually sufficient. Call `repo.close()` if you prefer an
+explicit shutdown step.
 
 Credential configuration follows the `object_store` backend you select. For
 example, S3 endpoints consume AWS access keys or IAM roles, while

@@ -15,5 +15,5 @@ quote = "1"
 syn = { version = "2", features = ["full"] }
 hex = "0.4"
 triblespace-core = {version = "0.6.0", path = "../triblespace-core"}
-triblespace-macros = {version = "0.6.0", path = "../triblespace-macros"}
+triblespace-core-macros = {version = "0.6.0", path = "../triblespace-core-macros"}
 triblespace-macros-common = {version = "0.6.0", path = "../triblespace-macros-common"}

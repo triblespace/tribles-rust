@@ -47,8 +47,8 @@ arrayvec = "0.7.6"
 quick_cache = "0.6.9"
 uuid = "1.15.1"
 reft-light = "0.3.1"
-triblespace-core-macros = "0.6.0"
 page_size = "0.6.0"
+triblespace-core-macros = {version = "0.6.0", path = "../triblespace-core-macros"}
 
 [dev-dependencies]
 fake = "4.3.0"

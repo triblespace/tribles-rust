@@ -14,6 +14,6 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }
 hex = "0.4"
-triblespace-core = { path = "../triblespace-core" }
-triblespace-core-macros = { path = "../triblespace-core-macros" }
-triblespace-macros-common = { path = "../triblespace-macros-common" }
+triblespace-core = {version = "0.6.0", path = "../triblespace-core"}
+triblespace-macros = {version = "0.6.0", path = "../triblespace-macros"}
+triblespace-macros-common = {version = "0.6.0", path = "../triblespace-macros-common"}

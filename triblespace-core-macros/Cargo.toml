@@ -10,4 +10,4 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["extra-traits"] }
-triblespace-macros-common = { path = "../triblespace-macros-common" }
+triblespace-macros-common = {version = "0.6.0", path = "../triblespace-macros-common"}

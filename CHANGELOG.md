@@ -364,6 +364,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SuccinctArchive` constructs universes with `with_sorted_dedup`, avoiding an extra sort/dedup pass when the caller already guarantees ordering.
 - Updated the repository workflow documentation to use `Repository::create_branch`
   and provide a runnable blob staging example.
+- Expanded the repository workflows chapter with an overview of repository
+  initialization, branching conventions, and guidance on choosing between
+  `push` and `try_push`.
 - Getting started guide now highlights the need to close pile-backed repositories so callers can handle flush errors explicitly.
 - README example now inlines the shared `tribles::examples::literature` namespace so the getting started walkthrough and crate examples stay aligned without depending on internal modules.
 - README walkthrough and regression test keep the namespace name `literature` to match the shared example module.
@@ -382,6 +385,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified repository workflow docs with a sidebar highlighting
   `repo::transfer` alongside `BlobStoreKeep::keep`, including
   garbage-collection scenarios that only copy live blobs.
+- Removed the suggested branch conventions subsection from the repository
+  workflows chapter so the page concentrates on API behavior and storage
+  guidance.
 - Clarified that multiple pile writers require filesystems with atomic append
   semantics; noted unsupported filesystems in documentation.
 - Streamlined the merge troubleshooting note to highlight
@@ -436,6 +442,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PATCH::replace` method replaces existing keys without removing/ reinserting.
 
 ### Fixed
+- Corrected the repository workflow documentation to describe the actual
+  `Repository::push` and `Repository::try_push` return values and clarify that
+  remote backends expose a no-op `repo.close()`.
 - Corrected the `PATCHOrderedIterator` documentation to describe its
   lexicographic key-order traversal instead of prefix iteration.
 - Restored `_?ident` locals in `pattern!`/`pattern_changes!` to infer their

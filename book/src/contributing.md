@@ -12,8 +12,8 @@ confidence.
 2. Clone the repository and switch into it:
 
    ```shell
-   git clone https://github.com/TribleSpace/tribles-rust.git
-   cd tribles-rust
+   git clone https://github.com/TribleSpace/triblespace-rs.git
+   cd triblespace-rs
    ```
 
 3. (Optional) Install [`mdbook`](https://rust-lang.github.io/mdBook/) with

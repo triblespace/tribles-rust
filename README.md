@@ -5,7 +5,7 @@
 🚧🚧🚧 Please note that this is work in progress, so while a lot of things have settled by now, we still favour breaking backwards compatiblity for seeminly minor improvements. 🚧🚧🚧
 
 
-<img src="https://github.com/triblespace/tribles-rust/blob/main/sticker.png?raw=true" width="300"
+<img src="https://github.com/triblespace/triblespace-rs/blob/main/sticker.png?raw=true" width="300"
  alt="The mascot of the trible.space a cute fluffy trible with three eyes."/>
 
 
@@ -199,7 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 
-The [Getting Started](https://triblespace.github.io/tribles-rust/getting-started.html)
+The [Getting Started](https://triblespace.github.io/triblespace-rs/getting-started.html)
 chapter of the book breaks this example down line by line, covers project
 scaffolding, and introduces more background on how repositories, workspaces,
 and queries interact.
@@ -218,20 +218,20 @@ For details on setting up a development environment, see [Developing Locally](bo
 
 # Learn More
 
-The best way to get started is to read the [Tribles Book](https://triblespace.github.io/tribles-rust/). The following links mirror the book's chapter order so you can progress from the basics to more advanced topics:
+The best way to get started is to read the [Tribles Book](https://triblespace.github.io/triblespace-rs/). The following links mirror the book's chapter order so you can progress from the basics to more advanced topics:
 
-1. [Introduction](https://triblespace.github.io/tribles-rust/introduction.html)
-2. [Getting Started](https://triblespace.github.io/tribles-rust/getting-started.html)
-3. [Architecture](https://triblespace.github.io/tribles-rust/architecture.html)
-4. [Query Language](https://triblespace.github.io/tribles-rust/query-language.html)
-5. [Incremental Queries](https://triblespace.github.io/tribles-rust/incremental-queries.html)
-6. [Schemas](https://triblespace.github.io/tribles-rust/schemas.html)
-7. [Repository Workflows](https://triblespace.github.io/tribles-rust/repository-workflows.html)
-8. [Commit Selectors](https://triblespace.github.io/tribles-rust/commit-selectors.html)
-9. [Philosophy](https://triblespace.github.io/tribles-rust/deep-dive/philosophy.html)
-10. [Identifiers](https://triblespace.github.io/tribles-rust/deep-dive/identifiers.html)
-11. [Trible Structure](https://triblespace.github.io/tribles-rust/deep-dive/trible-structure.html)
-12. [Pile Format](https://triblespace.github.io/tribles-rust/pile-format.html)
+1. [Introduction](https://triblespace.github.io/triblespace-rs/introduction.html)
+2. [Getting Started](https://triblespace.github.io/triblespace-rs/getting-started.html)
+3. [Architecture](https://triblespace.github.io/triblespace-rs/architecture.html)
+4. [Query Language](https://triblespace.github.io/triblespace-rs/query-language.html)
+5. [Incremental Queries](https://triblespace.github.io/triblespace-rs/incremental-queries.html)
+6. [Schemas](https://triblespace.github.io/triblespace-rs/schemas.html)
+7. [Repository Workflows](https://triblespace.github.io/triblespace-rs/repository-workflows.html)
+8. [Commit Selectors](https://triblespace.github.io/triblespace-rs/commit-selectors.html)
+9. [Philosophy](https://triblespace.github.io/triblespace-rs/deep-dive/philosophy.html)
+10. [Identifiers](https://triblespace.github.io/triblespace-rs/deep-dive/identifiers.html)
+11. [Trible Structure](https://triblespace.github.io/triblespace-rs/deep-dive/trible-structure.html)
+12. [Pile Format](https://triblespace.github.io/triblespace-rs/pile-format.html)
 ## License
 
 Licensed under either of

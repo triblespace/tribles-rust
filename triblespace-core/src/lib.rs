@@ -8,7 +8,7 @@ extern crate self as triblespace_core;
 extern crate proc_macro;
 
 #[cfg(not(all(target_pointer_width = "64", target_endian = "little")))]
-compile_error!("tribles-rust requires a 64-bit little-endian target");
+compile_error!("triblespace-rs requires a 64-bit little-endian target");
 
 pub mod attribute;
 pub mod blob;

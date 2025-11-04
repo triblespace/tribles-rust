@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documentation updates.
 - `parents` commit selector corresponding to Git's `A^@` syntax.
 - `INVENTORY.md` file and instructions for recording future work.
-- README now links to the corresponding chapters on https://triblespace.github.io/tribles-rust.
+- README now links to the corresponding chapters on https://triblespace.github.io/triblespace-rs.
 - `Constraint::influence` method for identifying dependent variables.
 - Documentation and examples for the repository API.
 - Book section showing how to stage and fetch workspace blobs with `Workspace::put`

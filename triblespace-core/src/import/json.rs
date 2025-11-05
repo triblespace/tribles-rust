@@ -284,7 +284,7 @@ where
     }
 
     /// Parses JSON text and imports it into a [`TribleSet`].
-    pub fn import_str(&mut self, input: &str) -> Result<(), JsonImportError> {
+    pub fn import_str(&mut self, input: &str) -> Result<Vec<Id>, JsonImportError> {
         let value = serde_json::from_str::<JsonValue>(input).map_err(JsonImportError::Parse)?;
         self.import_value(&value)
     }
@@ -293,14 +293,17 @@ where
     ///
     /// Root documents can either be objects, which yield a single entity, or
     /// arrays of objects, which return one entity per element. Primitive roots
-    /// are rejected.
-    pub fn import_value(&mut self, value: &JsonValue) -> Result<(), JsonImportError> {
+    /// are rejected. Returns the identifiers of every imported root entity in
+    /// the order they were encountered.
+    pub fn import_value(&mut self, value: &JsonValue) -> Result<Vec<Id>, JsonImportError> {
         let mut staged = TribleSet::new();
+        let mut roots = Vec::new();
 
         match value {
             JsonValue::Object(object) => {
                 let root = self.next_id();
-                self.stage_object(root, object, &mut staged)?;
+                let root = self.stage_object(root, object, &mut staged)?;
+                roots.push(root.forget());
             }
             JsonValue::Array(elements) => {
                 for element in elements {
@@ -308,14 +311,15 @@ where
                         return Err(JsonImportError::PrimitiveRoot);
                     };
                     let root = self.next_id();
-                    self.stage_object(root, object, &mut staged)?;
+                    let root = self.stage_object(root, object, &mut staged)?;
+                    roots.push(root.forget());
                 }
             }
             _ => return Err(JsonImportError::PrimitiveRoot),
         }
 
         self.data.union(staged);
-        Ok(())
+        Ok(roots)
     }
 
     /// Returns the accumulated data tribles imported so far.
@@ -369,12 +373,12 @@ where
         entity: ExclusiveId,
         object: &Map<String, JsonValue>,
         staged: &mut TribleSet,
-    ) -> Result<(), JsonImportError> {
+    ) -> Result<ExclusiveId, JsonImportError> {
         for (field, value) in object {
             self.stage_field(&entity, field, value, staged)?;
         }
 
-        Ok(())
+        Ok(entity)
     }
 
     fn stage_field(
@@ -428,7 +432,7 @@ where
             JsonValue::Object(object) => {
                 let child_id = self.next_id();
                 let value = GenId::value_from(&child_id);
-                self.stage_object(child_id, object, staged)?;
+                let _ = self.stage_object(child_id, object, staged)?;
                 let attr = self.genid_attribute(field);
                 let attr_id = attr.id();
                 staged.insert(&Trible::new(entity, &attr_id, &value));
@@ -585,7 +589,7 @@ where
     }
 
     /// Parses JSON text and imports it deterministically into a [`TribleSet`].
-    pub fn import_str(&mut self, input: &str) -> Result<(), JsonImportError> {
+    pub fn import_str(&mut self, input: &str) -> Result<Vec<Id>, JsonImportError> {
         let value = serde_json::from_str::<JsonValue>(input).map_err(JsonImportError::Parse)?;
         self.import_value(&value)
     }
@@ -594,27 +598,31 @@ where
     ///
     /// Root documents can either be objects, which yield a single entity, or
     /// arrays of objects, which return one entity per element. Primitive roots
-    /// are rejected.
-    pub fn import_value(&mut self, value: &JsonValue) -> Result<(), JsonImportError> {
+    /// are rejected. Returns the identifiers of every imported root entity in
+    /// the order they were encountered.
+    pub fn import_value(&mut self, value: &JsonValue) -> Result<Vec<Id>, JsonImportError> {
         let mut staged = TribleSet::new();
+        let mut roots = Vec::new();
 
         match value {
             JsonValue::Object(object) => {
-                self.stage_object(object, &mut staged)?;
+                let root = self.stage_object(object, &mut staged)?;
+                roots.push(root.forget());
             }
             JsonValue::Array(elements) => {
                 for element in elements {
                     let JsonValue::Object(object) = element else {
                         return Err(JsonImportError::PrimitiveRoot);
                     };
-                    self.stage_object(object, &mut staged)?;
+                    let root = self.stage_object(object, &mut staged)?;
+                    roots.push(root.forget());
                 }
             }
             _ => return Err(JsonImportError::PrimitiveRoot),
         }
 
         self.data.union(staged);
-        Ok(())
+        Ok(roots)
     }
 
     /// Returns the accumulated data tribles imported so far.
@@ -910,19 +918,22 @@ mod tests {
         let payload = serde_json::json!({ "title": "Dune" });
 
         let mut unsalted = make_deterministic_importer();
-        unsalted.import_value(&payload).unwrap();
-        let unsalted_root = *unsalted.data().iter().next().unwrap().e();
+        let unsalted_roots = unsalted.import_value(&payload).unwrap();
+        assert_eq!(unsalted_roots.len(), 1);
+        let unsalted_root = unsalted_roots[0];
 
         let salt = [0x55; 32];
         let mut salted = make_deterministic_importer_with_salt(Some(salt));
-        salted.import_value(&payload).unwrap();
-        let salted_root = *salted.data().iter().next().unwrap().e();
+        let salted_roots = salted.import_value(&payload).unwrap();
+        assert_eq!(salted_roots.len(), 1);
+        let salted_root = salted_roots[0];
 
         assert_ne!(unsalted_root, salted_root);
 
         let mut salted_again = make_deterministic_importer_with_salt(Some(salt));
-        salted_again.import_value(&payload).unwrap();
-        let salted_again_root = *salted_again.data().iter().next().unwrap().e();
+        let salted_again_roots = salted_again.import_value(&payload).unwrap();
+        assert_eq!(salted_again_roots.len(), 1);
+        let salted_again_root = salted_again_roots[0];
 
         assert_eq!(salted_root, salted_again_root);
     }
@@ -998,15 +1009,14 @@ mod tests {
             "skip": null
         });
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
+        let root = roots[0];
         let data: Vec<_> = importer.data().iter().collect();
         let metadata = importer.metadata();
 
         assert_eq!(data.len(), 5);
-        let root = *data.first().unwrap().e();
-        for trible in &data {
-            assert_eq!(*trible.e(), root);
-        }
+        assert!(data.iter().all(|trible| *trible.e() == root));
 
         let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
         let tags_attr = Attribute::<Handle<Blake3, LongString>>::from_field("tags").id();
@@ -1051,7 +1061,9 @@ mod tests {
             }
         });
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
+        let root = roots[0];
         let data: Vec<_> = importer.data().iter().collect();
         let metadata = importer.metadata();
         assert_eq!(data.len(), 4);
@@ -1059,6 +1071,7 @@ mod tests {
         let author_attr = Attribute::<GenId>::from_field("author").id();
         let mut child_ids = Vec::new();
         for trible in &data {
+            assert_eq!(*trible.e(), root);
             if *trible.a() == author_attr {
                 let child = trible.v::<GenId>().from_value::<ExclusiveId>();
                 child_ids.push(child);
@@ -1103,7 +1116,8 @@ mod tests {
             { "title": "Dune Messiah" }
         ]);
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 2);
         let data: Vec<_> = importer.data().iter().collect();
 
         assert_eq!(data.len(), 2);
@@ -1187,7 +1201,8 @@ mod tests {
         );
 
         let payload = serde_json::json!({ "description": "the spice must flow" });
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
 
         let data: Vec<_> = importer.data().iter().collect();
         let metadata = importer.metadata();
@@ -1252,7 +1267,8 @@ mod tests {
             }
         });
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
         let data: Vec<_> = importer.data().iter().collect();
 
         let author_attr = Attribute::<GenId>::from_field("author").id();
@@ -1280,7 +1296,8 @@ mod tests {
             "available": true
         });
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
         assert!(!importer.metadata().is_empty());
 
         importer.clear();
@@ -1288,7 +1305,8 @@ mod tests {
         assert!(importer.data().is_empty());
         assert!(importer.metadata().is_empty());
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
         let metadata = importer.metadata();
         let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
         assert_attribute_metadata::<Handle<Blake3, LongString>>(&metadata, title_attr, "title");
@@ -1308,10 +1326,12 @@ mod tests {
             }
         });
 
-        importer.import_value(&payload).unwrap();
+        let first_roots = importer.import_value(&payload).unwrap();
+        assert_eq!(first_roots.len(), 1);
         let first = importer.data().clone();
 
-        importer.import_value(&payload).unwrap();
+        let second_roots = importer.import_value(&payload).unwrap();
+        assert_eq!(second_roots.len(), 1);
         let second = importer.data().clone();
 
         assert_eq!(first, second);
@@ -1337,12 +1357,14 @@ mod tests {
             "tags": ["scifi", "classic"]
         });
 
-        importer.import_value(&payload_a).unwrap();
+        let roots_a = importer.import_value(&payload_a).unwrap();
+        assert_eq!(roots_a.len(), 1);
         let first = importer.data().clone();
 
         importer.clear_data();
 
-        importer.import_value(&payload_b).unwrap();
+        let roots_b = importer.import_value(&payload_b).unwrap();
+        assert_eq!(roots_b.len(), 1);
         let second = importer.data().clone();
 
         assert_eq!(first, second);
@@ -1356,7 +1378,8 @@ mod tests {
             { "title": "Dune Messiah" }
         ]);
 
-        importer.import_value(&payload).unwrap();
+        let first_roots = importer.import_value(&payload).unwrap();
+        assert_eq!(first_roots.len(), 2);
         let first = importer.data().clone();
         let metadata = importer.metadata();
 
@@ -1381,7 +1404,8 @@ mod tests {
         assert_attribute_metadata::<Handle<Blake3, LongString>>(&metadata, title_attr, "title");
 
         importer.clear_data();
-        importer.import_value(&payload).unwrap();
+        let second_roots = importer.import_value(&payload).unwrap();
+        assert_eq!(second_roots.len(), 2);
         let second = importer.data().clone();
 
         assert_eq!(first, second);
@@ -1398,7 +1422,8 @@ mod tests {
             "available": true
         });
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
         assert!(!importer.metadata().is_empty());
 
         importer.clear();
@@ -1406,7 +1431,8 @@ mod tests {
         assert!(importer.data().is_empty());
         assert!(importer.metadata().is_empty());
 
-        importer.import_value(&payload).unwrap();
+        let roots = importer.import_value(&payload).unwrap();
+        assert_eq!(roots.len(), 1);
         let metadata = importer.metadata();
         let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
         assert_attribute_metadata::<Handle<Blake3, LongString>>(&metadata, title_attr, "title");

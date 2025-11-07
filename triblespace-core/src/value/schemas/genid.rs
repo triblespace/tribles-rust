@@ -1,5 +1,6 @@
 use crate::id::ExclusiveId;
 use crate::id::Id;
+use crate::id::NilUuidError;
 use crate::id::OwnedId;
 use crate::id::RawId;
 use crate::id_hex;
@@ -136,6 +137,24 @@ impl ToValue<GenId> for Id {
     }
 }
 
+impl TryFromValue<'_, GenId> for uuid::Uuid {
+    type Error = IdParseError;
+
+    fn try_from_value(value: &Value<GenId>) -> Result<Self, Self::Error> {
+        if value.raw[0..16] != [0; 16] {
+            return Err(IdParseError::BadFormat);
+        }
+        let bytes: [u8; 16] = value.raw[16..32].try_into().unwrap();
+        Ok(uuid::Uuid::from_bytes(bytes))
+    }
+}
+
+impl FromValue<'_, GenId> for uuid::Uuid {
+    fn from_value(v: &Value<GenId>) -> Self {
+        v.try_from_value().unwrap()
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ExclusiveIdError {
     FailedParse(IdParseError),
@@ -224,6 +243,24 @@ impl TryToValue<GenId> for &str {
     }
 }
 
+impl TryToValue<GenId> for uuid::Uuid {
+    type Error = NilUuidError;
+
+    fn try_to_value(self) -> Result<Value<GenId>, Self::Error> {
+        let mut data = [0; VALUE_LEN];
+        data[16..32].copy_from_slice(self.as_bytes());
+        Ok(Value::new(data))
+    }
+}
+
+impl TryToValue<GenId> for &uuid::Uuid {
+    type Error = NilUuidError;
+
+    fn try_to_value(self) -> Result<Value<GenId>, Self::Error> {
+        (*self).try_to_value()
+    }
+}
+
 #[cfg(feature = "proptest")]
 pub struct IdValueTree(RawId);
 
@@ -264,10 +301,23 @@ impl proptest::strategy::ValueTree for IdValueTree {
 
 #[cfg(test)]
 mod tests {
+    use super::GenId;
     use crate::id::rngid;
+    use crate::value::TryFromValue;
+    use crate::value::TryToValue;
+    use crate::value::ValueSchema;
 
     #[test]
     fn unique() {
         assert!(rngid() != rngid());
+    }
+
+    #[test]
+    fn uuid_nil_round_trip() {
+        let uuid = uuid::Uuid::nil();
+        let value = uuid.try_to_value().expect("uuid packing should succeed");
+        GenId::validate(value.clone()).expect("schema validation");
+        let round_trip = uuid::Uuid::try_from_value(&value).expect("uuid unpacking should succeed");
+        assert_eq!(uuid, round_trip);
     }
 }

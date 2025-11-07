@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_?ident` scoped variables for `pattern!` and `pattern_changes!`, enabling
   fresh bindings without declaring them in `find!` heads, along with
   documentation and tests.
+- `temp!` macro for allocating hidden query variables across constraints, plus
+  documentation and regression tests covering cross-pattern joins.
+- Clarified the `and!` example in the Query Language chapter to show how
+  membership helpers can pair with pattern constraints drawn from a different
+  collection.
 - Documented repository storage backends and added a book page tracking future
   documentation improvements.
 - Expanded the documentation backlog with notes on remote object-store conflict
@@ -59,6 +64,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Reconciled the duplicated Query Language edits by combining the reorganised
+  introduction, conversion guidance, simplified `ignore!` syntax that always
+  captures the surrounding query context while still minting distinct
+  temporary variables, richer `or!` and `pattern!` examples, and updated
+  regular path query coverage.
+- Clarified the regular path example to use `temp!` when hiding an endpoint so
+  the traversal still participates in follow-up constraints without projecting
+  the hidden binding.
+- `ignore!` now always infers its context from `find!`/`matches!`. Use
+  [`IgnoreConstraint::new`](https://docs.rs/tribles/latest/tribles/query/ignore/struct.IgnoreConstraint.html)
+  directly when building bespoke constraints outside those macros.
+- `temp!` now mirrors `ignore!` by taking both the tuple-style binding list and
+  the scoped expression, so helper variables introduce their own temporary
+  block without wrapping the surrounding query body manually.
+- `temp!` no longer accepts explicit type annotations. Hidden bindings never
+  project into the result tuple, so their value schemas are inferred entirely
+  from how they are used inside the scoped expression.
+- Documented `temp!` alongside the other built-in macros in the Query Language
+  chapter's constraint table so readers can spot it at a glance.
+- Clarified the `ignore!` documentation to highlight that ignored bindings are
+  never solved or unified, showing how triple-style constraints can drop unused
+  positions while branches that reference only ignored variables never even get
+  scheduled.
+- Streamlined the `ignore!` partial-projection example by trimming unrelated
+  namespace discussion and added an introduction note that highlights how the
+  macros wrap the underlying constraint builders for manual use.
+- Query Language chapter now gives `or!` its own subsection, calls out
+  `_?name` placeholders in `pattern!`/`pattern_changes!` as an alternative to
+  `temp!` when hidden helpers stay within a single pattern, clarifies that each
+  branch behaves as an independent constraint whose matches are all retained so
+  the overall query stays monotonic, documents that all branches must reference
+  the same variable set, and notes that mismatches panic at runtime.
+- Documented the `.is(...)` constant constraint alongside the other built-in
+  operators, added a dedicated subsection showing how to pin bindings,
+  highlighted that `pattern!`/`pattern_changes!` already materialise constant
+  constraints for literal values, and pointed readers to membership helpers
+  such as `.has(...)` when accepting several literals.
+- Added `pattern!` and `pattern_changes!` to the built-in constraints table,
+  noting that incremental patterns emit only additions and pointing readers to
+  the Incremental Queries chapter for the full evaluation workflow.
+- Clarified the `has` membership entry so it points to `ContainsConstraint`
+  implementors like set-style collections while steering triple sources toward
+  `pattern!`.
+- Added an "Intersections (`and!`)" subsection to the Query Language chapter
+  covering how conjunctions combine clauses, share bindings, and nest within
+  other combinators.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
@@ -275,8 +326,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented a procedural `delta!` macro for incremental query support.
 - Expanded documentation for the `pattern` procedural macro to ease maintenance, including detailed comments inside the implementation.
 - Expanded Query Language chapter with iterator examples and clarified that
-  `ignore!` skips variables so their constraints aren't checked, enabling
-  existential or don't-care matches.
+  `ignore!` removes the named variables from planning while the scoped bindings
+  still unify inside the ignored expression, making it easy to drop value
+  columns from multi-position constraints without losing the join on the
+  remaining variables.
 - `EntityId` variants renamed to `Var` and `Lit` for consistency with field patterns.
 - `Workspace::checkout` now accepts commit ranges for convenient history queries.
 - Git-based terminology notes in the repository guide and a clearer workspace example.

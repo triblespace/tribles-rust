@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Criterion benchmark covering deterministic and non-deterministic JSON import
   performance using the serde-rs/json-benchmark fixtures.
+- `GenId` value schema conversions for `uuid::Uuid`, including fallible packing and support for nil UUID values
+  and unpacking helpers that enforce the non-nil invariant.
 - Bundled the `canada.json`, `citm_catalog.json`, and `twitter.json` datasets to
   keep the JSON import benchmark self-contained.
 - `import::json::JsonImporter` for turning JSON objects into deterministic

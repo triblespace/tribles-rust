@@ -648,6 +648,24 @@ macro_rules! matches {
 }
 pub use matches;
 
+#[macro_export]
+macro_rules! temp {
+    (($Var:ident), $body:expr) => {{
+        let $Var = __local_find_context!().next_variable();
+        $body
+    }};
+    (($Var:ident,), $body:expr) => {
+        $crate::temp!(($Var), $body)
+    };
+    (($Var:ident, $($rest:ident),+ $(,)?), $body:expr) => {{
+        $crate::temp!(
+            ($Var),
+            $crate::temp!(($($rest),+), $body)
+        )
+    }};
+}
+pub use temp;
+
 // Helper to construct tuples of variables with correct arity. Defined at
 // top-level to avoid nested repetition issues inside other macro_rules!
 macro_rules! __tribles_mk_tuple {
@@ -682,6 +700,15 @@ mod tests {
         attributes! {
             "8143F46E812E88C4544E7094080EC523" as loves: valueschemas::GenId;
             "D6E0F2A6E5214E1330565B4D4138E55C" as name: valueschemas::ShortString;
+        }
+    }
+
+    mod social {
+        use crate::prelude::*;
+
+        attributes! {
+            "A19EC1D9DD534BA9896223A457A6B9C9" as name: valueschemas::ShortString;
+            "C21DE0AA5BA3446AB886C9640BA60244" as friend: valueschemas::GenId;
         }
     }
 
@@ -807,14 +834,36 @@ mod tests {
     }
 
     #[test]
+    fn temp_variables_span_patterns() {
+        use social::*;
+
+        let mut kb = TribleSet::new();
+        let alice = fucid();
+        let bob = fucid();
+
+        kb += entity! { &alice @ name: "Alice", friend: &bob };
+        kb += entity! { &bob @ name: "Bob" };
+
+        let matches: Vec<_> = find!(
+            (person_name: Value<_>),
+            temp!((mutual_friend),
+                and!(
+                    pattern!(&kb, [{ _?person @ name: ?person_name, friend: ?mutual_friend }]),
+                    pattern!(&kb, [{ ?mutual_friend @ name: "Bob" }])
+                )
+            )
+        )
+        .collect();
+
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].0.from_value::<&str>(), "Alice");
+    }
+
+    #[test]
     fn ignore_skips_variables() {
         let results: Vec<_> = find!(
             (x: Value<_>),
-            ignore!(
-                __local_find_context!(),
-                (y),
-                and!(x.is(I256BE::value_from(1)), y.is(I256BE::value_from(2)))
-            )
+            ignore!((y), and!(x.is(I256BE::value_from(1)), y.is(I256BE::value_from(2))))
         )
         .collect();
 

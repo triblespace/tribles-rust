@@ -22,7 +22,9 @@ use super::TryFromBlob;
 /// Any bit pattern can be a valid blob of this schema.
 pub struct UnknownBlob;
 impl BlobSchema for UnknownBlob {
-    const BLOB_SCHEMA_ID: Id = id_hex!("EAB14005141181B0C10C4B5DD7985F8D");
+    fn id() -> Id {
+        id_hex!("EAB14005141181B0C10C4B5DD7985F8D")
+    }
 }
 
 impl TryFromBlob<UnknownBlob> for Bytes {

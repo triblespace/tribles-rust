@@ -28,7 +28,7 @@ fn emit_attribute_metadata<S: ValueSchema>(field: &str, raw: RawId, cache: &mut 
     let name = Trible::new(&entity, &metadata::name.id(), &name_value);
     cache.insert(&name);
 
-    let schema_value = GenId::value_from(&S::VALUE_SCHEMA_ID);
+    let schema_value = GenId::value_from(S::id());
     let schema = Trible::new(&entity, &metadata::attr_value_schema.id(), &schema_value);
     cache.insert(&schema);
 }
@@ -967,7 +967,7 @@ mod tests {
             .expect("value schema metadata should exist")
             .v::<GenId>()
             .from_value::<Id>();
-        assert_eq!(schema_value, S::VALUE_SCHEMA_ID);
+        assert_eq!(schema_value, S::id());
     }
 
     #[test]

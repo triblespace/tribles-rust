@@ -18,11 +18,15 @@ pub struct F256BE;
 pub type F256 = F256LE;
 
 impl ValueSchema for F256LE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2");
+    fn id() -> Id {
+        id_hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for F256BE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("A629176D4656928D96B155038F9F2220");
+    fn id() -> Id {
+        id_hex!("A629176D4656928D96B155038F9F2220")
+    }
     type ValidationError = Infallible;
 }
 

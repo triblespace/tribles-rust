@@ -19,7 +19,9 @@ use hifitime::prelude::*;
 pub struct NsTAIInterval;
 
 impl ValueSchema for NsTAIInterval {
-    const VALUE_SCHEMA_ID: Id = id_hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8");
+    fn id() -> Id {
+        id_hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8")
+    }
     type ValidationError = Infallible;
 }
 

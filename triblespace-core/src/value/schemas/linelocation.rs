@@ -14,7 +14,9 @@ use std::convert::Infallible;
 pub struct LineLocation;
 
 impl ValueSchema for LineLocation {
-    const VALUE_SCHEMA_ID: Id = id_hex!("DFAED173A908498CB893A076EAD3E578");
+    fn id() -> Id {
+        id_hex!("DFAED173A908498CB893A076EAD3E578")
+    }
     type ValidationError = Infallible;
 }
 

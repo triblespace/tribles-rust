@@ -17,7 +17,9 @@
 //!
 //! // Implement the ValueSchema trait for the schema type.
 //! impl ValueSchema for MyNumber {
-//!    const VALUE_SCHEMA_ID: Id = id_hex!("345EAC0C5B5D7D034C87777280B88AE2");
+//!    fn id() -> Id {
+//!        id_hex!("345EAC0C5B5D7D034C87777280B88AE2")
+//!    }
 //!    type ValidationError = ();
 //!    // Every bit pattern is valid for this schema.
 //! }
@@ -306,7 +308,13 @@ impl<T: ValueSchema> Debug for Value<T> {
 /// See the [value](crate::value) module for more information.
 /// See the [BlobSchema](crate::blob::BlobSchema) trait for the counterpart trait for blobs.
 pub trait ValueSchema: Sized + 'static {
-    const VALUE_SCHEMA_ID: Id;
+    /// Returns the identifier for this schema.
+    ///
+    /// We can't currently expose this as a `const fn` because composite
+    /// schemas like [`Handle`](crate::value::schemas::hash::Handle) derive
+    /// their identifier by hashing other schema IDs with `blake3`, which is a
+    /// runtime-only API at the moment.
+    fn id() -> Id;
 
     type ValidationError;
 

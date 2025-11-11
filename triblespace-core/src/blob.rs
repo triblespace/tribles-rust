@@ -126,7 +126,11 @@ impl<T: BlobSchema> Debug for Blob<T> {
 /// A trait for defining the abstract schema type of a blob.
 /// This is similar to the `ValueSchema` trait in the [`value`](crate::value) module.
 pub trait BlobSchema: Sized + 'static {
-    const BLOB_SCHEMA_ID: Id;
+    /// Returns the identifier for this schema.
+    ///
+    /// See [`ValueSchema::id`](crate::value::ValueSchema::id) for why this is a
+    /// regular function instead of a `const fn`.
+    fn id() -> Id;
 
     /// Converts a concrete Rust type to a blob with this schema.
     /// If the conversion fails, this might cause a panic.

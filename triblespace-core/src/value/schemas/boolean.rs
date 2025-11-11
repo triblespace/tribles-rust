@@ -42,7 +42,9 @@ impl Boolean {
 }
 
 impl ValueSchema for Boolean {
-    const VALUE_SCHEMA_ID: Id = id_hex!("73B414A3E25B0C0F9E4D6B0694DC33C5");
+    fn id() -> Id {
+        id_hex!("73B414A3E25B0C0F9E4D6B0694DC33C5")
+    }
     type ValidationError = InvalidBoolean;
 
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

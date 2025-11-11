@@ -26,7 +26,9 @@ use std::convert::Infallible;
 /// Any bit pattern can be a valid value of this schema.
 pub struct UnknownValue {}
 impl ValueSchema for UnknownValue {
-    const VALUE_SCHEMA_ID: Id = id_hex!("4EC697E8599AC79D667C722E2C8BEBF4");
+    fn id() -> Id {
+        id_hex!("4EC697E8599AC79D667C722E2C8BEBF4")
+    }
     type ValidationError = Infallible;
 
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

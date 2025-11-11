@@ -66,7 +66,7 @@ impl<S: ValueSchema> Attribute<S> {
     ///
     /// The identifier is computed by hashing the field name handle produced as a
     /// `Handle<Blake3, crate::blob::schemas::longstring::LongString>` together with the
-    /// schema's [`ValueSchema::VALUE_SCHEMA_ID`] and [`ValueSchema::BLOB_SCHEMA_ID`].
+    /// schema's [`ValueSchema::VALUE_SCHEMA_ID`].
     /// The resulting 32-byte Blake3 digest is truncated to 16 bytes to match the
     /// `RawId` layout used by [`Attribute::from`].
     pub fn from_field(field_name: &str) -> Self {
@@ -75,11 +75,6 @@ impl<S: ValueSchema> Attribute<S> {
         let field_handle = String::from(field_name).to_blob().get_handle::<Blake3>();
         hasher.update(&field_handle.raw);
         hasher.update(S::VALUE_SCHEMA_ID.as_ref());
-
-        let blob_schema_bytes: RawId = S::BLOB_SCHEMA_ID
-            .map(|id| id.into())
-            .unwrap_or([0; crate::id::ID_LEN]);
-        hasher.update(&blob_schema_bytes);
 
         let digest = hasher.finalize();
         let mut raw = [0u8; crate::id::ID_LEN];
@@ -115,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_field_includes_blob_schema() {
+    fn dynamic_field_changes_with_schema() {
         let short = Attribute::<ShortString>::from_field("title");
         let handle = Attribute::<Handle<Blake3, LongString>>::from_field("title");
 

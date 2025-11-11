@@ -31,12 +31,6 @@ fn emit_attribute_metadata<S: ValueSchema>(field: &str, raw: RawId, cache: &mut 
     let schema_value = GenId::value_from(&S::VALUE_SCHEMA_ID);
     let schema = Trible::new(&entity, &metadata::attr_value_schema.id(), &schema_value);
     cache.insert(&schema);
-
-    if let Some(blob_schema) = S::BLOB_SCHEMA_ID {
-        let blob_value = GenId::value_from(&blob_schema);
-        let blob = Trible::new(&entity, &metadata::attr_blob_schema.id(), &blob_value);
-        cache.insert(&blob);
-    }
 }
 
 /// Error raised while converting JSON documents into tribles.
@@ -147,8 +141,8 @@ impl std::error::Error for EncodeError {
 ///
 /// Each time the importer derives a new attribute id it caches the raw
 /// identifier. After conversion completes it emits metadata describing the
-/// field name, value schema, and optional blob schema so downstream queries can
-/// recover the attribute definition.
+/// field name and value schema so downstream queries can recover the attribute
+/// definition.
 pub struct JsonImporter<
     'enc,
     StringSchema,
@@ -941,15 +935,11 @@ mod tests {
     fn assert_attribute_metadata<S: ValueSchema>(metadata: &TribleSet, attribute: Id, field: &str) {
         let name_attr = metadata::name.id();
         let schema_attr = metadata::attr_value_schema.id();
-        let blob_attr = metadata::attr_blob_schema.id();
 
         let entries: Vec<Trible> = metadata
             .iter()
             .filter(|trible| {
-                *trible.e() == attribute
-                    && (*trible.a() == name_attr
-                        || *trible.a() == schema_attr
-                        || *trible.a() == blob_attr)
+                *trible.e() == attribute && (*trible.a() == name_attr || *trible.a() == schema_attr)
             })
             .copied()
             .collect();
@@ -978,24 +968,6 @@ mod tests {
             .v::<GenId>()
             .from_value::<Id>();
         assert_eq!(schema_value, S::VALUE_SCHEMA_ID);
-
-        match S::BLOB_SCHEMA_ID {
-            Some(expected) => {
-                let blob = entries
-                    .iter()
-                    .find(|t| *t.a() == blob_attr)
-                    .expect("blob schema metadata should exist")
-                    .v::<GenId>()
-                    .from_value::<Id>();
-                assert_eq!(blob, expected);
-            }
-            None => {
-                assert!(
-                    entries.iter().all(|t| *t.a() != blob_attr),
-                    "unexpected blob schema metadata for {field}"
-                );
-            }
-        }
     }
 
     #[test]

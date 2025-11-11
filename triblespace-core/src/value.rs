@@ -307,7 +307,6 @@ impl<T: ValueSchema> Debug for Value<T> {
 /// See the [BlobSchema](crate::blob::BlobSchema) trait for the counterpart trait for blobs.
 pub trait ValueSchema: Sized + 'static {
     const VALUE_SCHEMA_ID: Id;
-    const BLOB_SCHEMA_ID: Option<Id> = None;
 
     type ValidationError;
 

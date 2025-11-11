@@ -75,8 +75,7 @@ impl TryFromValue<'_, ShortString> for Username {
 ### Schema identifiers
 
 Every schema declares a unique 128‑bit identifier such as
-`ShortString::VALUE_SCHEMA_ID` (and optionally `ShortString::BLOB_SCHEMA_ID` for
-blob handles). Persisting these IDs keeps the serialized data self describing so
+`ShortString::VALUE_SCHEMA_ID`. Persisting these IDs keeps the serialized data self describing so
 other tooling can make sense of the payload without linking against your Rust
 types. Dynamic language bindings (like the Python crate) inspect the stored
 schema identifier to choose the correct decoder, while internal metadata stored

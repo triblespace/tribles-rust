@@ -166,7 +166,6 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
 
 impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
     const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
-    const BLOB_SCHEMA_ID: Option<Id> = Some(T::BLOB_SCHEMA_ID);
     type ValidationError = Infallible;
 }
 

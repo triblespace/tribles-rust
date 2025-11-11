@@ -78,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documentation improvements.
 - Expanded the documentation backlog with notes on remote object-store conflict
   handling, succinct archive indexes, and extending regular path engines.
+### Changed
+- Removed the `ValueSchema::BLOB_SCHEMA_ID` associated constant and stopped
+  emitting attribute metadata that relied on blob schema coupling.
 - Glossary chapter in the book for quick reference to core terminology.
 - Expanded the Identifiers chapter with a `local_ids` + `IdOwner` workflow
   example showing how to borrow freshly minted IDs in queries.
@@ -378,6 +381,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `SuccinctArchive` to use `BitVectorDataMeta` for prefix bit vectors.
 
 ### Fixed
+- Reinstated the `ValueSchema` documentation that notes hash handles still carry
+  their referenced blob schema type parameter.
+- Updated deterministic JSON importer metadata tests to stop asserting the
+  absence of `metadata::attr_blob_schema` entries now that value schemas no
+  longer expose blob schema identifiers.
 - Added the missing `blake3` dev-dependency and adjusted the JSON importer
   benchmark to allocate owned strings and convert JSON numbers via
   `f256::from`, restoring the json benchmarks after recent refactors.

@@ -13,7 +13,9 @@ use anybytes::View;
 pub struct SimpleArchive;
 
 impl BlobSchema for SimpleArchive {
-    const BLOB_SCHEMA_ID: Id = id_hex!("8F4A27C8581DADCBA1ADA8BA228069B6");
+    fn id() -> Id {
+        id_hex!("8F4A27C8581DADCBA1ADA8BA228069B6")
+    }
 }
 
 impl ToBlob<SimpleArchive> for TribleSet {

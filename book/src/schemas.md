@@ -75,7 +75,7 @@ impl TryFromValue<'_, ShortString> for Username {
 ### Schema identifiers
 
 Every schema declares a unique 128‑bit identifier such as
-`ShortString::VALUE_SCHEMA_ID`. Persisting these IDs keeps the serialized data self describing so
+`ShortString::id()`. Persisting these IDs keeps the serialized data self describing so
 other tooling can make sense of the payload without linking against your Rust
 types. Dynamic language bindings (like the Python crate) inspect the stored
 schema identifier to choose the correct decoder, while internal metadata stored
@@ -106,8 +106,8 @@ use triblespace::core::value::schemas::shortstring::ShortString;
 use triblespace::core::value::{ToValue, ValueSchema};
 
 let v = "hi".to_value::<ShortString>();
-let raw_bytes = v.raw; // Persist alongside ShortString::VALUE_SCHEMA_ID.
-let schema_id = ShortString::VALUE_SCHEMA_ID;
+let raw_bytes = v.raw; // Persist alongside ShortString::id().
+let schema_id = ShortString::id();
 ```
 
 ## Built‑in blob schemas
@@ -128,7 +128,7 @@ use triblespace::blob::schemas::longstring::LongString;
 use triblespace::blob::{Blob, BlobSchema, ToBlob};
 
 let b: Blob<LongString> = "example".to_blob();
-let schema_id = LongString::BLOB_SCHEMA_ID;
+let schema_id = LongString::id();
 ```
 
 ## Defining new schemas

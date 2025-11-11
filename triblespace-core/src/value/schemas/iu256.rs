@@ -29,19 +29,27 @@ pub type I256 = I256BE;
 pub type U256 = U256BE;
 
 impl ValueSchema for U256LE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("49E70B4DBD84DC7A3E0BDDABEC8A8C6E");
+    fn id() -> Id {
+        id_hex!("49E70B4DBD84DC7A3E0BDDABEC8A8C6E")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for U256BE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("DC3CFB719B05F019FB8101A6F471A982");
+    fn id() -> Id {
+        id_hex!("DC3CFB719B05F019FB8101A6F471A982")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for I256LE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("DB94325A37D96037CBFC6941A4C3B66D");
+    fn id() -> Id {
+        id_hex!("DB94325A37D96037CBFC6941A4C3B66D")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for I256BE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("CE3A7839231F1EB390E9E8E13DAED782");
+    fn id() -> Id {
+        id_hex!("CE3A7839231F1EB390E9E8E13DAED782")
+    }
     type ValidationError = Infallible;
 }
 

@@ -22,15 +22,21 @@ pub struct ED25519SComponent;
 pub struct ED25519PublicKey;
 
 impl ValueSchema for ED25519RComponent {
-    const VALUE_SCHEMA_ID: Id = id_hex!("995A86FFC83DB95ECEAA17E226208897");
+    fn id() -> Id {
+        id_hex!("995A86FFC83DB95ECEAA17E226208897")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for ED25519SComponent {
-    const VALUE_SCHEMA_ID: Id = id_hex!("10D35B0B628E9E409C549D8EC1FB3598");
+    fn id() -> Id {
+        id_hex!("10D35B0B628E9E409C549D8EC1FB3598")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for ED25519PublicKey {
-    const VALUE_SCHEMA_ID: Id = id_hex!("69A872254E01B4C1ED36E08E40445E93");
+    fn id() -> Id {
+        id_hex!("69A872254E01B4C1ED36E08E40445E93")
+    }
     type ValidationError = Infallible;
 }
 

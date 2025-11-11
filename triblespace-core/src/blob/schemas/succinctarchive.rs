@@ -42,7 +42,9 @@ use jerky::serialization::{Metadata, Serializable};
 pub struct SuccinctArchiveBlob;
 
 impl BlobSchema for SuccinctArchiveBlob {
-    const BLOB_SCHEMA_ID: Id = id_hex!("8FAD1D4C7F884B51BAA5D6C56B873E41");
+    fn id() -> Id {
+        id_hex!("8FAD1D4C7F884B51BAA5D6C56B873E41")
+    }
 }
 
 #[derive(Debug, Clone, Copy, zerocopy::FromBytes, zerocopy::KnownLayout, zerocopy::Immutable)]

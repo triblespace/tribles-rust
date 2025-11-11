@@ -20,7 +20,7 @@ use std::marker::PhantomData;
 /// for example via a [struct@Hash] or a [Handle].
 pub trait HashProtocol: Digest<OutputSize = U32> + Clone + Send + 'static {
     const NAME: &'static str;
-    const SCHEMA_ID: Id;
+    fn id() -> Id;
 }
 
 /// A value schema for a hash.
@@ -36,7 +36,9 @@ impl<H> ValueSchema for Hash<H>
 where
     H: HashProtocol,
 {
-    const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
+    fn id() -> Id {
+        H::id()
+    }
     type ValidationError = Infallible;
 }
 
@@ -120,12 +122,18 @@ pub use blake3::Hasher as Blake3;
 
 impl HashProtocol for Blake2b {
     const NAME: &'static str = "blake2";
-    const SCHEMA_ID: Id = id_hex!("91F880222412A49F012BE999942E6199");
+
+    fn id() -> Id {
+        id_hex!("91F880222412A49F012BE999942E6199")
+    }
 }
 
 impl HashProtocol for Blake3 {
     const NAME: &'static str = "blake3";
-    const SCHEMA_ID: Id = id_hex!("4160218D6C8F620652ECFBD7FDC7BDB3");
+
+    fn id() -> Id {
+        id_hex!("4160218D6C8F620652ECFBD7FDC7BDB3")
+    }
 }
 
 /// This is a value schema for a handle.
@@ -165,7 +173,18 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
 }
 
 impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
-    const VALUE_SCHEMA_ID: Id = H::SCHEMA_ID;
+    // NOTE: This can't be a `const fn` while we rely on the runtime `blake3`
+    // hasher to derive the identifier. Once a const-friendly hashing API is
+    // available we can revisit this.
+    fn id() -> Id {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(Hash::<H>::id().as_ref());
+        hasher.update(T::id().as_ref());
+        let digest = hasher.finalize();
+        let mut raw = [0u8; 16];
+        raw.copy_from_slice(&digest[..16]);
+        Id::new(raw).expect("derived handle schema id must be non-nil")
+    }
     type ValidationError = Infallible;
 }
 

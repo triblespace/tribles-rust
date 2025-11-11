@@ -34,11 +34,15 @@ pub struct R256BE;
 pub type R256 = R256LE;
 
 impl ValueSchema for R256LE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("0A9B43C5C2ECD45B257CDEFC16544358");
+    fn id() -> Id {
+        id_hex!("0A9B43C5C2ECD45B257CDEFC16544358")
+    }
     type ValidationError = Infallible;
 }
 impl ValueSchema for R256BE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("CA5EAF567171772C1FFD776E9C7C02D1");
+    fn id() -> Id {
+        id_hex!("CA5EAF567171772C1FFD776E9C7C02D1")
+    }
     type ValidationError = Infallible;
 }
 

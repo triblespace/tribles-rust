@@ -79,6 +79,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the documentation backlog with notes on remote object-store conflict
   handling, succinct archive indexes, and extending regular path engines.
 ### Changed
+- Replaced the `ValueSchema::VALUE_SCHEMA_ID` and `BlobSchema::BLOB_SCHEMA_ID`
+  associated constants with `ValueSchema::id()` and `BlobSchema::id()` methods,
+  preserving existing identifiers and deriving composite `Handle` schema IDs
+  deterministically from their hash protocol and blob schema components.
+- Swapped the `HashProtocol::SCHEMA_ID` associated constant for a matching
+  `HashProtocol::id()` accessor so hash protocol identifiers follow the same
+  API as value and blob schemas.
+- Documented why schema identifiers remain regular functions until `blake3`
+  exposes a const-friendly hashing API for composite handle schemas.
 - Removed the `ValueSchema::BLOB_SCHEMA_ID` associated constant and stopped
   emitting attribute metadata that relied on blob schema coupling.
 - Glossary chapter in the book for quick reference to core terminology.

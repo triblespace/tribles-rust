@@ -23,12 +23,16 @@ pub struct RangeU128;
 pub struct RangeInclusiveU128;
 
 impl ValueSchema for RangeU128 {
-    const VALUE_SCHEMA_ID: Id = id_hex!("A4E25E3B92364FA5AB519C6A77D7CB3A");
+    fn id() -> Id {
+        id_hex!("A4E25E3B92364FA5AB519C6A77D7CB3A")
+    }
     type ValidationError = Infallible;
 }
 
 impl ValueSchema for RangeInclusiveU128 {
-    const VALUE_SCHEMA_ID: Id = id_hex!("1D0D82CA84424CD0A2F98DB37039E152");
+    fn id() -> Id {
+        id_hex!("1D0D82CA84424CD0A2F98DB37039E152")
+    }
     type ValidationError = Infallible;
 }
 

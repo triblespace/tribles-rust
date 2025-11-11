@@ -11,7 +11,9 @@ use anybytes::View;
 pub struct LongString {}
 
 impl BlobSchema for LongString {
-    const BLOB_SCHEMA_ID: Id = id_hex!("8B173C65B7DB601A11E8A190BD774A79");
+    fn id() -> Id {
+        id_hex!("8B173C65B7DB601A11E8A190BD774A79")
+    }
 }
 
 impl TryFromBlob<LongString> for View<str> {

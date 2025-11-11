@@ -17,7 +17,9 @@ use triblespace::core::value::VALUE_LEN;
 pub struct U64LE;
 
 impl ValueSchema for U64LE {
-    const VALUE_SCHEMA_ID: Id = id_hex!("0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A");
+    fn id() -> Id {
+        id_hex!("0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A")
+    }
     type ValidationError = Infallible;
 }
 
@@ -38,7 +40,9 @@ impl FromValue<'_, U64LE> for u64 {
 pub struct BytesBlob;
 
 impl BlobSchema for BytesBlob {
-    const BLOB_SCHEMA_ID: Id = id_hex!("B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0");
+    fn id() -> Id {
+        id_hex!("B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0")
+    }
 }
 
 impl ToBlob<BytesBlob> for Bytes {

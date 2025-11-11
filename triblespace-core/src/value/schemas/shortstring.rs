@@ -33,7 +33,9 @@ pub enum ValidationError {
 pub struct ShortString;
 
 impl ValueSchema for ShortString {
-    const VALUE_SCHEMA_ID: Id = id_hex!("2D848DB0AF112DB226A6BF1A3640D019");
+    fn id() -> Id {
+        id_hex!("2D848DB0AF112DB226A6BF1A3640D019")
+    }
     type ValidationError = ValidationError;
 
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

@@ -9,7 +9,6 @@ use crate::value::ValueSchema;
 use crate::value::VALUE_LEN;
 
 use std::convert::Infallible;
-
 /// Error raised when a value does not match the [`Boolean`] encoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InvalidBoolean;

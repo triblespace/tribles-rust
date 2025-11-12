@@ -833,6 +833,7 @@ mod tests {
     use crate::value::schemas::hash::{Blake3, Handle};
     use crate::value::schemas::shortstring::ShortString;
     use crate::value::ToValue;
+    use crate::value::TryToValue;
     use crate::value::ValueSchema;
     use anybytes::View;
     use f256::f256;
@@ -849,19 +850,8 @@ mod tests {
     > {
         JsonImporter::new(
             |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_string()).get_handle::<Blake3>()),
-            |number: &serde_json::Number| {
-                if let Some(n) = number.as_u128() {
-                    return Ok(f256::from(n).to_value());
-                }
-                if let Some(n) = number.as_i128() {
-                    return Ok(f256::from(n).to_value());
-                }
-                if let Some(n) = number.as_f64() {
-                    return Ok(f256::from(n).to_value());
-                }
-                Err(EncodeError::message("failed to decode JSON number"))
-            },
-            |flag: bool| Ok(Boolean::value_from(flag)),
+            |number: &serde_json::Number| number.try_to_value().map_err(EncodeError::from_error),
+            |flag: bool| Ok(flag.to_value()),
         )
     }
 
@@ -890,19 +880,8 @@ mod tests {
     > {
         DeterministicJsonImporter::new_with_salt(
             |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_string()).get_handle::<Blake3>()),
-            |number: &serde_json::Number| {
-                if let Some(n) = number.as_u128() {
-                    return Ok(f256::from(n).to_value());
-                }
-                if let Some(n) = number.as_i128() {
-                    return Ok(f256::from(n).to_value());
-                }
-                if let Some(n) = number.as_f64() {
-                    return Ok(f256::from(n).to_value());
-                }
-                Err(EncodeError::message("failed to decode JSON number"))
-            },
-            |flag: bool| Ok(Boolean::value_from(flag)),
+            |number: &serde_json::Number| number.try_to_value().map_err(EncodeError::from_error),
+            |flag: bool| Ok(flag.to_value()),
             salt,
         )
     }

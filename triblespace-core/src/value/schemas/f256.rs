@@ -2,11 +2,14 @@ use crate::id::Id;
 use crate::id_hex;
 use crate::value::FromValue;
 use crate::value::ToValue;
+use crate::value::TryToValue;
 use crate::value::Value;
 use crate::value::ValueSchema;
 use std::convert::Infallible;
+use std::fmt;
 
 use f256::f256;
+use serde_json::Number as JsonNumber;
 
 /// A value schema for a 256-bit floating point number in little-endian byte order.
 pub struct F256LE;
@@ -51,5 +54,49 @@ impl FromValue<'_, F256LE> for f256 {
 impl ToValue<F256LE> for f256 {
     fn to_value(self) -> Value<F256LE> {
         Value::new(self.to_le_bytes())
+    }
+}
+
+/// Errors encountered when converting JSON numbers into [`F256`] values.
+#[derive(Debug, Clone, PartialEq)]
+pub enum JsonNumberToF256Error {
+    /// The numeric value could not be represented as an `f256`.
+    Unrepresentable,
+}
+
+impl fmt::Display for JsonNumberToF256Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JsonNumberToF256Error::Unrepresentable => {
+                write!(f, "number is too large to represent as f256")
+            }
+        }
+    }
+}
+
+impl std::error::Error for JsonNumberToF256Error {}
+
+impl TryToValue<F256> for JsonNumber {
+    type Error = JsonNumberToF256Error;
+
+    fn try_to_value(self) -> Result<Value<F256>, Self::Error> {
+        (&self).try_to_value()
+    }
+}
+
+impl TryToValue<F256> for &JsonNumber {
+    type Error = JsonNumberToF256Error;
+
+    fn try_to_value(self) -> Result<Value<F256>, Self::Error> {
+        if let Some(value) = self.as_u128() {
+            return Ok(f256::from(value).to_value());
+        }
+        if let Some(value) = self.as_i128() {
+            return Ok(f256::from(value).to_value());
+        }
+        if let Some(value) = self.as_f64() {
+            return Ok(f256::from(value).to_value());
+        }
+        Err(JsonNumberToF256Error::Unrepresentable)
     }
 }

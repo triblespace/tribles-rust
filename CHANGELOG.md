@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `TryToValue` implementations that convert `serde_json::Number` directly into
+  the `F256` schema so JSON import code can call `.to_value()` instead of
+  hand-packing high-precision floats.
 - Criterion benchmark covering deterministic and non-deterministic JSON import
   performance using the serde-rs/json-benchmark fixtures.
 - `GenId` value schema conversions for `uuid::Uuid`, including fallible packing and support for nil UUID values

@@ -78,26 +78,8 @@ fn make_importer() -> JsonImporter<
 > {
     JsonImporter::new(
         |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_owned()).get_handle::<Blake3>()),
-        |number: &serde_json::Number| {
-            let primitive = if let Some(n) = number.as_i64() {
-                n as f64
-            } else if let Some(n) = number.as_u64() {
-                n as f64
-            } else {
-                number
-                    .as_f64()
-                    .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
-            };
-            let converted = f256::f256::from(primitive);
-            if converted.is_finite() {
-                Ok(converted.to_value())
-            } else {
-                Err(EncodeError::message(format!(
-                    "failed to represent {primitive} as f256"
-                )))
-            }
-        },
-        |flag: bool| Ok(Boolean::value_from(flag)),
+        |number: &serde_json::Number| number.try_to_value().map_err(EncodeError::from_error),
+        |flag: bool| Ok(flag.to_value()),
     )
 }
 
@@ -112,26 +94,8 @@ fn make_deterministic_importer() -> DeterministicJsonImporter<
 > {
     DeterministicJsonImporter::new(
         |text: &str| Ok(ToBlob::<LongString>::to_blob(text.to_owned()).get_handle::<Blake3>()),
-        |number: &serde_json::Number| {
-            let primitive = if let Some(n) = number.as_i64() {
-                n as f64
-            } else if let Some(n) = number.as_u64() {
-                n as f64
-            } else {
-                number
-                    .as_f64()
-                    .ok_or_else(|| EncodeError::message("non-finite JSON number"))?
-            };
-            let converted = f256::f256::from(primitive);
-            if converted.is_finite() {
-                Ok(converted.to_value())
-            } else {
-                Err(EncodeError::message(format!(
-                    "failed to represent {primitive} as f256"
-                )))
-            }
-        },
-        |flag: bool| Ok(Boolean::value_from(flag)),
+        |number: &serde_json::Number| number.try_to_value().map_err(EncodeError::from_error),
+        |flag: bool| Ok(flag.to_value()),
     )
 }
 

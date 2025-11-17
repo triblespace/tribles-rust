@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Guidance on how `ExclusiveId` ownership narrows safe absence checks while
+  keeping queries monotonic across collaborators in the incremental queries
+  chapter of the book.
 - `metadata::Metadata` trait for emitting self-describing `TribleSet` and
   `MemoryBlobStore` pairs, enabling attributes and schemas to publish
   documentation metadata recursively.

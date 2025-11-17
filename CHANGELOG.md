@@ -159,6 +159,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Reworked the documentation improvement chapter with prioritised sections and
+  contribution guidance for future book updates.
+- Standardised citation formatting in the documentation backlog to match the
+  book's reference style.
 - Refined the Descriptive Typing chapter with accurate workspace lifecycle
   guidance, corrected `find!` pattern syntax, clearer advice on structuring
   ad-hoc projections and strongly discouraging long-lived typed wrappers,

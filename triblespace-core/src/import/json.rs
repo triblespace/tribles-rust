@@ -10,7 +10,7 @@ use crate::id::ExclusiveId;
 use crate::id::Id;
 use crate::id::RawId;
 use crate::id::ID_LEN;
-use crate::metadata;
+use crate::metadata::Metadata;
 use crate::trible::Trible;
 use crate::trible::TribleSet;
 use crate::value::schemas::genid::GenId;
@@ -20,17 +20,9 @@ use crate::value::RawValue;
 use crate::value::Value;
 use crate::value::ValueSchema;
 
-fn emit_attribute_metadata<S: ValueSchema>(field: &str, raw: RawId, cache: &mut TribleSet) {
-    let id = Id::new(raw).expect("Attribute::from_field produced nil id");
-    let entity = ExclusiveId::force(id);
-
-    let name_value = metadata::name.value_from(field);
-    let name = Trible::new(&entity, &metadata::name.id(), &name_value);
-    cache.insert(&name);
-
-    let schema_value = GenId::value_from(S::id());
-    let schema = Trible::new(&entity, &metadata::attr_value_schema.id(), &schema_value);
-    cache.insert(&schema);
+fn emit_attribute_metadata<S: ValueSchema>(attribute: &Attribute<S>, cache: &mut TribleSet) {
+    let (metadata, _) = attribute.describe();
+    cache.union(metadata);
 }
 
 /// Error raised while converting JSON documents into tribles.
@@ -166,10 +158,10 @@ pub struct JsonImporter<
     bool_encoder: BoolEncoder,
     id_generator: IdGenerator,
     data: TribleSet,
-    string_attributes: HashMap<String, RawId>,
-    number_attributes: HashMap<String, RawId>,
-    bool_attributes: HashMap<String, RawId>,
-    genid_attributes: HashMap<String, RawId>,
+    string_attributes: HashMap<String, Attribute<StringSchema>>,
+    number_attributes: HashMap<String, Attribute<NumberSchema>>,
+    bool_attributes: HashMap<String, Attribute<BoolSchema>>,
+    genid_attributes: HashMap<String, Attribute<GenId>>,
     _schemas: PhantomData<(StringSchema, NumberSchema, BoolSchema)>,
     _lifetime: PhantomData<&'enc ()>,
 }
@@ -230,51 +222,47 @@ where
     }
 
     fn string_attribute(&mut self, field: &str) -> Attribute<StringSchema> {
-        let raw = if let Some(raw) = self.string_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.string_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<StringSchema>::from_field(field);
-            let raw = attr.raw();
-            self.string_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<StringSchema>::from_name(field);
+            self.string_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn number_attribute(&mut self, field: &str) -> Attribute<NumberSchema> {
-        let raw = if let Some(raw) = self.number_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.number_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<NumberSchema>::from_field(field);
-            let raw = attr.raw();
-            self.number_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<NumberSchema>::from_name(field);
+            self.number_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn bool_attribute(&mut self, field: &str) -> Attribute<BoolSchema> {
-        let raw = if let Some(raw) = self.bool_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.bool_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<BoolSchema>::from_field(field);
-            let raw = attr.raw();
-            self.bool_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<BoolSchema>::from_name(field);
+            self.bool_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn genid_attribute(&mut self, field: &str) -> Attribute<GenId> {
-        let raw = if let Some(raw) = self.genid_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.genid_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<GenId>::from_field(field);
-            let raw = attr.raw();
-            self.genid_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<GenId>::from_name(field);
+            self.genid_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     /// Parses JSON text and imports it into a [`TribleSet`].
@@ -343,20 +331,20 @@ where
     fn cached_metadata(&self) -> TribleSet {
         let mut metadata = TribleSet::new();
 
-        for (field, raw) in &self.string_attributes {
-            emit_attribute_metadata::<StringSchema>(field, *raw, &mut metadata);
+        for attribute in self.string_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
-        for (field, raw) in &self.number_attributes {
-            emit_attribute_metadata::<NumberSchema>(field, *raw, &mut metadata);
+        for attribute in self.number_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
-        for (field, raw) in &self.bool_attributes {
-            emit_attribute_metadata::<BoolSchema>(field, *raw, &mut metadata);
+        for attribute in self.bool_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
-        for (field, raw) in &self.genid_attributes {
-            emit_attribute_metadata::<GenId>(field, *raw, &mut metadata);
+        for attribute in self.genid_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
         metadata
@@ -509,10 +497,10 @@ pub struct DeterministicJsonImporter<
     number_encoder: NumberEncoder,
     bool_encoder: BoolEncoder,
     data: TribleSet,
-    string_attributes: HashMap<String, RawId>,
-    number_attributes: HashMap<String, RawId>,
-    bool_attributes: HashMap<String, RawId>,
-    genid_attributes: HashMap<String, RawId>,
+    string_attributes: HashMap<String, Attribute<StringSchema>>,
+    number_attributes: HashMap<String, Attribute<NumberSchema>>,
+    bool_attributes: HashMap<String, Attribute<BoolSchema>>,
+    genid_attributes: HashMap<String, Attribute<GenId>>,
     id_salt: Option<[u8; 32]>,
     _schemas: PhantomData<(StringSchema, NumberSchema, BoolSchema)>,
     _hasher: PhantomData<Hasher>,
@@ -644,70 +632,66 @@ where
     }
 
     fn string_attribute(&mut self, field: &str) -> Attribute<StringSchema> {
-        let raw = if let Some(raw) = self.string_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.string_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<StringSchema>::from_field(field);
-            let raw = attr.raw();
-            self.string_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<StringSchema>::from_name(field);
+            self.string_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn number_attribute(&mut self, field: &str) -> Attribute<NumberSchema> {
-        let raw = if let Some(raw) = self.number_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.number_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<NumberSchema>::from_field(field);
-            let raw = attr.raw();
-            self.number_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<NumberSchema>::from_name(field);
+            self.number_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn bool_attribute(&mut self, field: &str) -> Attribute<BoolSchema> {
-        let raw = if let Some(raw) = self.bool_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.bool_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<BoolSchema>::from_field(field);
-            let raw = attr.raw();
-            self.bool_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<BoolSchema>::from_name(field);
+            self.bool_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn genid_attribute(&mut self, field: &str) -> Attribute<GenId> {
-        let raw = if let Some(raw) = self.genid_attributes.get(field) {
-            *raw
+        if let Some(attribute) = self.genid_attributes.get(field) {
+            attribute.clone()
         } else {
-            let attr = Attribute::<GenId>::from_field(field);
-            let raw = attr.raw();
-            self.genid_attributes.insert(field.to_owned(), raw);
-            raw
-        };
-        Attribute::from(raw)
+            let attribute = Attribute::<GenId>::from_name(field);
+            self.genid_attributes
+                .insert(field.to_owned(), attribute.clone());
+            attribute
+        }
     }
 
     fn cached_metadata(&self) -> TribleSet {
         let mut metadata = TribleSet::new();
 
-        for (field, raw) in &self.string_attributes {
-            emit_attribute_metadata::<StringSchema>(field, *raw, &mut metadata);
+        for attribute in self.string_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
-        for (field, raw) in &self.number_attributes {
-            emit_attribute_metadata::<NumberSchema>(field, *raw, &mut metadata);
+        for attribute in self.number_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
-        for (field, raw) in &self.bool_attributes {
-            emit_attribute_metadata::<BoolSchema>(field, *raw, &mut metadata);
+        for attribute in self.bool_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
-        for (field, raw) in &self.genid_attributes {
-            emit_attribute_metadata::<GenId>(field, *raw, &mut metadata);
+        for attribute in self.genid_attributes.values() {
+            emit_attribute_metadata(attribute, &mut metadata);
         }
 
         metadata
@@ -969,10 +953,10 @@ mod tests {
         assert_eq!(data.len(), 5);
         assert!(data.iter().all(|trible| *trible.e() == root));
 
-        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
-        let tags_attr = Attribute::<Handle<Blake3, LongString>>::from_field("tags").id();
-        let pages_attr = Attribute::<F256>::from_field("pages").id();
-        let available_attr = Attribute::<Boolean>::from_field("available").id();
+        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_name("title").id();
+        let tags_attr = Attribute::<Handle<Blake3, LongString>>::from_name("tags").id();
+        let pages_attr = Attribute::<F256>::from_name("pages").id();
+        let available_attr = Attribute::<Boolean>::from_name("available").id();
 
         let mut tag_values = Vec::new();
         for trible in &data {
@@ -1019,7 +1003,7 @@ mod tests {
         let metadata = importer.metadata();
         assert_eq!(data.len(), 4);
 
-        let author_attr = Attribute::<GenId>::from_field("author").id();
+        let author_attr = Attribute::<GenId>::from_name("author").id();
         let mut child_ids = Vec::new();
         for trible in &data {
             assert_eq!(*trible.e(), root);
@@ -1031,8 +1015,8 @@ mod tests {
         assert_eq!(child_ids.len(), 1);
         let child_id = child_ids.into_iter().next().unwrap();
 
-        let first_attr = Attribute::<Handle<Blake3, LongString>>::from_field("first").id();
-        let last_attr = Attribute::<Handle<Blake3, LongString>>::from_field("last").id();
+        let first_attr = Attribute::<Handle<Blake3, LongString>>::from_name("first").id();
+        let last_attr = Attribute::<Handle<Blake3, LongString>>::from_name("last").id();
 
         let mut seen_first = false;
         let mut seen_last = false;
@@ -1073,7 +1057,7 @@ mod tests {
 
         assert_eq!(data.len(), 2);
 
-        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
+        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_name("title").id();
         let mut by_root = std::collections::HashMap::new();
         for trible in &data {
             assert_eq!(trible.a(), &title_attr);
@@ -1160,7 +1144,7 @@ mod tests {
         assert_eq!(data.len(), 1);
 
         let description_attr =
-            Attribute::<Handle<Blake3, LongString>>::from_field("description").id();
+            Attribute::<Handle<Blake3, LongString>>::from_name("description").id();
         let trible = data.first().unwrap();
         assert_eq!(trible.a(), &description_attr);
         let stored_value = trible.v::<Handle<Blake3, LongString>>().clone();
@@ -1222,7 +1206,7 @@ mod tests {
         assert_eq!(roots.len(), 1);
         let data: Vec<_> = importer.data().iter().collect();
 
-        let author_attr = Attribute::<GenId>::from_field("author").id();
+        let author_attr = Attribute::<GenId>::from_name("author").id();
         let mut root = None;
         let mut child = None;
         for trible in &data {
@@ -1259,7 +1243,7 @@ mod tests {
         let roots = importer.import_value(&payload).unwrap();
         assert_eq!(roots.len(), 1);
         let metadata = importer.metadata();
-        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
+        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_name("title").id();
         assert_attribute_metadata::<Handle<Blake3, LongString>>(&metadata, title_attr, "title");
     }
 
@@ -1334,7 +1318,7 @@ mod tests {
         let first = importer.data().clone();
         let metadata = importer.metadata();
 
-        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
+        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_name("title").id();
         let mut by_root = std::collections::HashMap::new();
         for trible in &first {
             assert_eq!(trible.a(), &title_attr);
@@ -1385,7 +1369,7 @@ mod tests {
         let roots = importer.import_value(&payload).unwrap();
         assert_eq!(roots.len(), 1);
         let metadata = importer.metadata();
-        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_field("title").id();
+        let title_attr = Attribute::<Handle<Blake3, LongString>>::from_name("title").id();
         assert_attribute_metadata::<Handle<Blake3, LongString>>(&metadata, title_attr, "title");
     }
 

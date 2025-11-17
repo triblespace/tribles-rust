@@ -3,11 +3,47 @@
 //! This namespace is used to bootstrap the meaning of other namespaces.
 //! It defines meta attributes that are used to describe other attributes.
 
-use crate::prelude::valueschemas;
-use triblespace_core_macros::attributes;
-
+use crate::blob::MemoryBlobStore;
 use crate::id::Id;
 use crate::id_hex;
+use crate::prelude::valueschemas;
+use crate::trible::TribleSet;
+use crate::value::schemas::hash::Blake3;
+use crate::value::ValueSchema;
+use core::marker::PhantomData;
+use triblespace_core_macros::attributes;
+
+/// Describes metadata that can be emitted for documentation or discovery.
+pub trait Metadata {
+    fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>);
+}
+
+/// Helper trait for schema types that want to expose metadata without requiring an instance.
+pub trait SchemaMetadata: ValueSchema {
+    fn describe_schema() -> (TribleSet, MemoryBlobStore<Blake3>) {
+        (TribleSet::new(), MemoryBlobStore::new())
+    }
+}
+
+impl<T> SchemaMetadata for T where T: ValueSchema {}
+
+impl<S> Metadata for PhantomData<S>
+where
+    S: SchemaMetadata,
+{
+    fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
+        S::describe_schema()
+    }
+}
+
+impl<T> Metadata for T
+where
+    T: SchemaMetadata,
+{
+    fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
+        T::describe_schema()
+    }
+}
 // namespace constants
 
 pub const ATTR_VALUE_SCHEMA: Id = id_hex!("213F89E3F49628A105B3830BD3A6612C");

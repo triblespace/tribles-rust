@@ -6,27 +6,52 @@
 //! fields can be declared as `pub const F: Field<ShortString> = Field::from(hex!("..."));`.
 
 use core::marker::PhantomData;
+use std::borrow::Cow;
 
 use crate::blob::ToBlob;
+use crate::id::ExclusiveId;
 use crate::id::RawId;
+use crate::macros::entity;
+use crate::metadata::{self, Metadata};
+use crate::trible::TribleSet;
+use crate::value::schemas::genid::GenId;
 use crate::value::schemas::hash::Blake3;
 use crate::value::ValueSchema;
 use blake3::Hasher;
-
 /// A typed reference to an attribute id together with its value schema.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Attribute<S: ValueSchema> {
     raw: RawId,
+    name: Option<Cow<'static, str>>,
     _schema: PhantomData<S>,
 }
 
+impl<S: ValueSchema> Clone for Attribute<S> {
+    fn clone(&self) -> Self {
+        Self {
+            raw: self.raw,
+            name: self.name.clone(),
+            _schema: PhantomData,
+        }
+    }
+}
+
 impl<S: ValueSchema> Attribute<S> {
-    /// Construct a `Field` from a raw 16-byte id.
-    ///
-    /// This is a `const fn` so it can be used in `const`/`static` declarations.
-    pub const fn from(raw: RawId) -> Self {
+    /// Construct a `Field` from a raw 16-byte id and static attribute name.
+    pub const fn from_id_with_name(raw: RawId, name: &'static str) -> Self {
         Self {
             raw,
+            name: Some(Cow::Borrowed(name)),
+            _schema: PhantomData,
+        }
+    }
+
+    /// Construct a `Field` from a raw 16-byte id without attaching a static name.
+    /// Prefer [`Attribute::from_id_with_name`] when the name is known at compile time.
+    pub const fn from_id(raw: RawId) -> Self {
+        Self {
+            raw,
+            name: None,
             _schema: PhantomData,
         }
     }
@@ -62,24 +87,53 @@ impl<S: ValueSchema> Attribute<S> {
         v
     }
 
-    /// Derive an attribute id from a dynamic field name and this schema's metadata.
+    /// Returns the declared name of this attribute, if any.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Derive an attribute id from a dynamic name and this schema's metadata.
     ///
     /// The identifier is computed by hashing the field name handle produced as a
     /// `Handle<Blake3, crate::blob::schemas::longstring::LongString>` together with the
     /// schema's [`ValueSchema::id`].
     /// The resulting 32-byte Blake3 digest is truncated to 16 bytes to match the
-    /// `RawId` layout used by [`Attribute::from`].
-    pub fn from_field(field_name: &str) -> Self {
+    /// `RawId` layout used by [`Attribute::from_id`].
+    pub fn from_name(name: &str) -> Self {
         let mut hasher = Hasher::new();
 
-        let field_handle = String::from(field_name).to_blob().get_handle::<Blake3>();
+        let field_handle = String::from(name).to_blob().get_handle::<Blake3>();
         hasher.update(&field_handle.raw);
         hasher.update(S::id().as_ref());
 
         let digest = hasher.finalize();
         let mut raw = [0u8; crate::id::ID_LEN];
         raw.copy_from_slice(&digest.as_bytes()[..crate::id::ID_LEN]);
-        Self::from(raw)
+        Self {
+            raw,
+            name: Some(Cow::Owned(name.to_owned())),
+            _schema: PhantomData,
+        }
+    }
+}
+
+impl<S> Metadata for Attribute<S>
+where
+    S: ValueSchema,
+    PhantomData<S>: Metadata,
+{
+    fn describe(&self) -> (TribleSet, crate::blob::MemoryBlobStore<Blake3>) {
+        let (mut tribles, blobs) = Metadata::describe(&self._schema);
+
+        let entity = ExclusiveId::force(self.id());
+
+        if let Some(name) = self.name() {
+            tribles += entity! { &entity @ metadata::name: name };
+        }
+
+        tribles += entity! { &entity @ metadata::attr_value_schema: GenId::value_from(S::id()) };
+
+        (tribles, blobs)
     }
 }
 
@@ -94,8 +148,8 @@ mod tests {
 
     #[test]
     fn dynamic_field_is_deterministic() {
-        let a1 = Attribute::<ShortString>::from_field("title");
-        let a2 = Attribute::<ShortString>::from_field("title");
+        let a1 = Attribute::<ShortString>::from_name("title");
+        let a2 = Attribute::<ShortString>::from_name("title");
 
         assert_eq!(a1.raw(), a2.raw());
         assert_ne!(a1.raw(), [0; crate::id::ID_LEN]);
@@ -103,16 +157,16 @@ mod tests {
 
     #[test]
     fn dynamic_field_changes_with_name() {
-        let title = Attribute::<ShortString>::from_field("title");
-        let author = Attribute::<ShortString>::from_field("author");
+        let title = Attribute::<ShortString>::from_name("title");
+        let author = Attribute::<ShortString>::from_name("author");
 
         assert_ne!(title.raw(), author.raw());
     }
 
     #[test]
     fn dynamic_field_changes_with_schema() {
-        let short = Attribute::<ShortString>::from_field("title");
-        let handle = Attribute::<Handle<Blake3, LongString>>::from_field("title");
+        let short = Attribute::<ShortString>::from_name("title");
+        let handle = Attribute::<Handle<Blake3, LongString>>::from_name("title");
 
         assert_ne!(short.raw(), handle.raw());
     }

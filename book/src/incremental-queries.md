@@ -41,6 +41,24 @@ information arises, applications append fresh tribles describing their
 preferred view instead of retracting old ones. Stores may forget obsolete
 data, but semantically tribles are never deleted.
 
+### Exclusive IDs and absence checks
+
+Exclusive identifiers tighten the blast radius of non-monotonic logic
+without abandoning CALM. Holding an `ExclusiveId` proves that no other
+writer can add tribles for that entity, so checking for the *absence* of a
+triple about that entity becomes stable: once you observe a missing
+attribute, no concurrent peer will later introduce it. This permits
+existence/absence queries in the narrow scope of entities you own while
+keeping global queries monotonic.
+
+Even with that safety net, prefer monotonic reads and writes when possible
+because they compose cleanly across repositories. Absence checks should be
+reserved for workflows where the `ExclusiveId` guarantees a closed world
+for the entity—such as asserting a default value when none exists or
+verifying invariants before emitting additional facts. Outside that
+boundary, stick to append-only predicates so derived results remain valid
+as new data arrives from other collaborators.
+
 ## Example
 
 The `pattern_changes!` macro expresses these delta queries. It behaves

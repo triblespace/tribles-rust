@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Guidance on how `ExclusiveId` ownership narrows safe absence checks while
+  keeping queries monotonic across collaborators in the incremental queries
+  chapter of the book.
 - `TryToValue` implementations that convert `serde_json::Number` directly into
   the `F256` schema so JSON import code can call `.to_value()` instead of
   hand-packing high-precision floats.

@@ -1077,6 +1077,40 @@ pub fn symmetric_diff(a: CommitHandle, b: CommitHandle) -> SymmetricDiff {
     SymmetricDiff(a, b)
 }
 
+/// Selector that returns the union of commits returned by two selectors.
+pub struct Union<A, B> {
+    left: A,
+    right: B,
+}
+
+/// Convenience function to create a [`Union`] selector.
+pub fn union<A, B>(left: A, right: B) -> Union<A, B> {
+    Union { left, right }
+}
+
+/// Selector that returns the intersection of commits returned by two selectors.
+pub struct Intersect<A, B> {
+    left: A,
+    right: B,
+}
+
+/// Convenience function to create an [`Intersect`] selector.
+pub fn intersect<A, B>(left: A, right: B) -> Intersect<A, B> {
+    Intersect { left, right }
+}
+
+/// Selector that returns commits from the left selector that are not also
+/// returned by the right selector.
+pub struct Difference<A, B> {
+    left: A,
+    right: B,
+}
+
+/// Convenience function to create a [`Difference`] selector.
+pub fn difference<A, B>(left: A, right: B) -> Difference<A, B> {
+    Difference { left, right }
+}
+
 /// Selector that returns commits with timestamps in the given inclusive range.
 pub struct TimeRange(pub Epoch, pub Epoch);
 
@@ -1252,6 +1286,64 @@ where
         let mut union = a;
         union.union(b);
         Ok(union.difference(&inter))
+    }
+}
+
+impl<A, B, Blobs> CommitSelector<Blobs> for Union<A, B>
+where
+    A: CommitSelector<Blobs>,
+    B: CommitSelector<Blobs>,
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let mut left = self.left.select(ws)?;
+        let right = self.right.select(ws)?;
+        left.union(right);
+        Ok(left)
+    }
+}
+
+impl<A, B, Blobs> CommitSelector<Blobs> for Intersect<A, B>
+where
+    A: CommitSelector<Blobs>,
+    B: CommitSelector<Blobs>,
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let left = self.left.select(ws)?;
+        let right = self.right.select(ws)?;
+        Ok(left.intersect(&right))
+    }
+}
+
+impl<A, B, Blobs> CommitSelector<Blobs> for Difference<A, B>
+where
+    A: CommitSelector<Blobs>,
+    B: CommitSelector<Blobs>,
+    Blobs: BlobStore<Blake3>,
+{
+    fn select(
+        self,
+        ws: &mut Workspace<Blobs>,
+    ) -> Result<
+        CommitSet,
+        WorkspaceCheckoutError<<Blobs::Reader as BlobStoreGet<Blake3>>::GetError<UnarchiveError>>,
+    > {
+        let left = self.left.select(ws)?;
+        let right = self.right.select(ws)?;
+        Ok(left.difference(&right))
     }
 }
 

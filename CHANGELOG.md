@@ -72,6 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the roadmap with an explicit invariant catalogue, spelling out the
   PATCH/ByteTable invariants exercised by `Branch::modify_child`, and synchronised
   follow-up tasks in `INVENTORY.md`.
+- Documented the set-combinator commit selectors (`union`, `intersect`,
+  `difference`) in the book with usage examples.
 - `_?ident` scoped variables for `pattern!` and `pattern_changes!`, enabling
   fresh bindings without declaring them in `find!` heads, along with
   documentation and tests.
@@ -123,6 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remote store workflow example in the book showing how to open
   `ObjectStoreRemote` repositories and clarifying that no explicit close is
   required for remote backends.
+- `union`, `intersect`, and `difference` commit selectors that expose PATCH set
+  operations through the `CommitSelector` interface.
 - Documented `TribleSet` set operations and monotonic semantics in the Trible
   Structure chapter.
 - Test coverage for `branch_from` and `pull_with_key`.
@@ -387,6 +391,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the outdated note that parentheses "force" literals in the getting
   started guide now that the macros rely on regular Rust expression syntax for
   literal detection.
+- Commit selectors chapter now highlights range semantics, composability, and
+  Git parity to help readers choose the right selector for their workflow,
+  clarifies that selectors only pick commits while `Workspace::checkout`
+  materializes the `TribleSet`, refreshes the composition example to layer
+  entity filters over a time range, and shows how to combine selectors with the
+  built-in set-operation helpers.
+- Pinned `anybytes` and `jerky` to specific git revisions via a crates.io patch
+  so all dependents use a single source and API surface.
+- Refined the selector debugging guidance to encourage validating each layer
+  independently before composing them with the built-in set-operation helpers.
+- Documented the trade-off that empty start selectors rewalk the full history,
+  and showed how incremental queries can reuse the previous head commit as the
+  next range boundary to avoid repeating the walk.
+- Corrected the commit selector range description to note inclusive end
+  boundaries and clarified that selectors compose via the `CommitSelector`
+  trait instead of `IntoIterator`.
+- Clarified the commit selector traversal description to avoid implying a
+  specific order, fixed the `ancestors(A)..B` exclusion example, and tightened
+  the debugging guidance wording.
 - Clarified that `find!` retrieves `ExclusiveId` bindings via `FromValue` and
   that restricting queries with `local_ids` keeps the conversion safe.
 - Getting started guide now demonstrates defining custom attributes alongside

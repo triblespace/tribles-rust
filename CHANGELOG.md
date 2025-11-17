@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `metadata::Metadata` trait for emitting self-describing `TribleSet` and
+  `MemoryBlobStore` pairs, enabling attributes and schemas to publish
+  documentation metadata recursively.
 - `TryToValue` implementations that convert `serde_json::Number` directly into
   the `F256` schema so JSON import code can call `.to_value()` instead of
   hand-packing high-precision floats.
@@ -47,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Attribute definition metadata emitted alongside `attributes!` expansions,
   recording attribute identifiers, names, invocation IDs, and the declared
   schema type tokens for downstream analysis tools.
-- Runtime helper `Attribute::from_field` for deriving deterministic attribute IDs
+- Runtime helper `Attribute::from_name` for deriving deterministic attribute IDs
   from dynamic field names using schema metadata and hashed field handles.
 - Shared `proofs::util` module providing bounded Kani generators for tribles,
   PATCH entries, and small commit DAGs, and updated the query harness to reuse
@@ -82,6 +85,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded the documentation backlog with notes on remote object-store conflict
   handling, succinct archive indexes, and extending regular path engines.
 ### Changed
+- `Attribute` now retains its declared name, uses the field name for dynamic
+  attributes, and relies on the `Metadata` trait to emit attribute metadata in
+  both code-generated and runtime scenarios.
+- Renamed the attribute constructors to `from_id`, `from_id_with_name`, and
+  `from_name` to clarify when static identifiers carry documentation names and
+  when they are derived dynamically.
+- Simplified attribute naming by replacing the internal `AttributeName` enum
+  with an optional `Cow<'static, str>`, keeping const-friendly static ids while
+  storing dynamic field names directly.
 - Replaced the `ValueSchema::VALUE_SCHEMA_ID` and `BlobSchema::BLOB_SCHEMA_ID`
   associated constants with `ValueSchema::id()` and `BlobSchema::id()` methods,
   preserving existing identifiers and deriving composite `Handle` schema IDs
@@ -177,6 +189,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON importers now emit `metadata::name`, `metadata::attr_value_schema`, and
   `metadata::attr_blob_schema` tribles when minting attributes so imported
   datasets carry their own schema descriptions.
+- Attribute metadata emission now uses the public `entity!` macro so schema
+  descriptions are assembled with the same ergonomic syntax exposed to
+  consumers.
 - Both JSON importers now merge their cached attribute metadata into the
   result set after converting documents instead of inserting metadata entries
   mid-import, keeping the hot path lean while still returning the schema

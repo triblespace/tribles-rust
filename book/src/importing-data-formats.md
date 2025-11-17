@@ -32,7 +32,7 @@ attribute caches when you need a completely fresh run.
 
 ## Mapping JSON Fields to Attributes
 
-Attributes are derived through `Attribute::from_field`, which hashes the JSON
+Attributes are derived through `Attribute::from_name`, which hashes the JSON
 field name together with the `ValueSchema` selected for that primitive. The
 importers cache the resulting `RawId`s per field and schema so the hash only has
 to be computed once per run. Arrays are treated as multi-valued fields: every
@@ -97,7 +97,7 @@ diagnose while keeping the hot path lightweight.
 
 To support a new external format, implement a module in the `import` namespace
 that follows the same pattern: decode the source data, derive attributes with
-`Attribute::from_field`, and hand encoded values to `Trible::new`. Reuse the
+`Attribute::from_name`, and hand encoded values to `Trible::new`. Reuse the
 lifetime-parameterized encoder callbacks so callers can plug in existing blob
 stores or validation logic. If the format supplies stable identifiers, offer a
 constructor that accepts a custom generator or hash protocol so downstream

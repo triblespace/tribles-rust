@@ -77,7 +77,10 @@ pub fn attributes_impl(input: TokenStream2, base_path: &TokenStream2) -> syn::Re
         out.extend(quote! {
             #(#attrs)*
             #[allow(non_upper_case_globals)]
-            #vis_ts const #name: #base_path::attribute::Attribute<#ty> = #base_path::attribute::Attribute::from(#base_path::id::_hex_literal_hex!(#id));
+            #vis_ts const #name: #base_path::attribute::Attribute<#ty> = #base_path::attribute::Attribute::from_id_with_name(
+                #base_path::id::_hex_literal_hex!(#id),
+                stringify!(#name),
+            );
         });
     }
 

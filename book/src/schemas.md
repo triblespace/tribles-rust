@@ -83,7 +83,7 @@ inside Trible Space can use the same IDs to describe which schema governs a
 value.
 
 Identifiers also make it possible to derive deterministic attribute IDs when you
-ingest external formats. Helpers such as `Attribute::<S>::from_field("field")`
+ingest external formats. Helpers such as `Attribute::<S>::from_name("field")`
 combine the schema ID with the source field name to create a stable attribute so
 re-importing the same data always targets the same column.
 

@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 memmap2 = "0.9.5"
 zerocopy = { version = "0.8", features = ["derive"] }
-anybytes = { git = "https://github.com/triblespace/anybytes", features = ["bytes", "zerocopy"] }
+anybytes = { version = "0.20.0", features = ["bytes", "zerocopy"] }
 rand = "0.8"
 digest = "0.10.7"
 ux = "0.1.5"
@@ -37,7 +37,7 @@ bytemuck = { version = "1.15.0", features = ["extern_crate_alloc"]}
 proptest = { version = "1.6.0", optional = true }
 hifitime = "4.1.2"
 f256 = "0.7.0"
-jerky = { git = "https://github.com/triblespace/jerky" }
+jerky = { version = "0.9.0" }
 itertools = "0.14.0"
 sptr = "0.3.2"
 indxvec = "1.9.0"
@@ -93,6 +93,10 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nightly)', 'cfg(kani)'] }
 
 [package.metadata.kani.flags]
 default-unwind = "1"
+
+[patch.crates-io]
+anybytes = { git = "https://github.com/triblespace/anybytes", rev = "26bda6687e305173b47353fe5947b5b641a48093" }
+jerky = { git = "https://github.com/triblespace/jerky", rev = "7d43c6bad1ca87b17a2a786f892bfa7cb3f5da9a" }
 
 ## Removed workspace.metadata to allow this crate to be used as a path dependency
 ## inside the surrounding workspace without creating nested workspace roots.

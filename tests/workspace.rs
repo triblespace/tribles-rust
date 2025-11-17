@@ -2,11 +2,14 @@ use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use tribles::prelude::*;
 use tribles::repo::ancestors;
+use tribles::repo::difference;
 use tribles::repo::history_of;
+use tribles::repo::intersect;
 use tribles::repo::memoryrepo::MemoryRepo;
 use tribles::repo::nth_ancestor;
 use tribles::repo::parents;
 use tribles::repo::symmetric_diff;
+use tribles::repo::union;
 use tribles::repo::Repository;
 
 #[test]
@@ -253,6 +256,51 @@ fn workspace_checkout_symmetric_diff() {
     expected.union(sets[2].clone());
 
     assert_eq!(ws.checkout(symmetric_diff(c1, c3)).unwrap(), expected);
+}
+
+#[test]
+fn workspace_checkout_set_operation_selectors() {
+    use tribles::value::schemas::r256::R256;
+
+    let storage = MemoryRepo::default();
+    let mut repo = Repository::new(storage, SigningKey::generate(&mut OsRng));
+    let branch_id = repo.create_branch("main", None).expect("create branch");
+    let mut ws = repo.pull(*branch_id).expect("pull");
+
+    let mut sets = Vec::new();
+    let mut handles = Vec::new();
+    for i in 0..3i128 {
+        let e = ufoid();
+        let a = ufoid();
+        let v: Value<R256> = i.to_value();
+        let t = Trible::new(&e, &a, &v);
+        let mut s = TribleSet::new();
+        s.insert(&t);
+        ws.commit(s.clone(), None);
+        sets.push(s);
+        handles.push(ws.head().unwrap());
+    }
+
+    let head = ws.head().unwrap();
+
+    let union_result = ws
+        .checkout(union(handles[0], handles[2]))
+        .expect("checkout union");
+    let mut union_expected = sets[0].clone();
+    union_expected.union(sets[2].clone());
+    assert_eq!(union_result, union_expected);
+
+    let intersect_result = ws
+        .checkout(intersect(ancestors(head), ancestors(handles[1])))
+        .expect("checkout intersect");
+    let mut intersect_expected = sets[0].clone();
+    intersect_expected.union(sets[1].clone());
+    assert_eq!(intersect_result, intersect_expected);
+
+    let difference_result = ws
+        .checkout(difference(ancestors(head), ancestors(handles[1])))
+        .expect("checkout difference");
+    assert_eq!(difference_result, sets[2]);
 }
 
 #[test]

@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Reworked the documentation improvement chapter with prioritised sections and
+  contribution guidance for future book updates.
+- Standardised citation formatting in the documentation backlog to match the
+  book's reference style.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

@@ -19,29 +19,29 @@ pub trait Metadata {
 }
 
 /// Helper trait for schema types that want to expose metadata without requiring an instance.
-pub trait SchemaMetadata: ValueSchema {
-    fn describe_schema() -> (TribleSet, MemoryBlobStore<Blake3>) {
+pub trait ConstMetadata: ValueSchema {
+    fn describe() -> (TribleSet, MemoryBlobStore<Blake3>) {
         (TribleSet::new(), MemoryBlobStore::new())
     }
 }
 
-impl<T> SchemaMetadata for T where T: ValueSchema {}
+impl<T> ConstMetadata for T where T: ValueSchema {}
 
 impl<S> Metadata for PhantomData<S>
 where
-    S: SchemaMetadata,
+    S: ConstMetadata,
 {
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
-        S::describe_schema()
+        S::describe()
     }
 }
 
 impl<T> Metadata for T
 where
-    T: SchemaMetadata,
+    T: ConstMetadata,
 {
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
-        T::describe_schema()
+        T::describe()
     }
 }
 // namespace constants

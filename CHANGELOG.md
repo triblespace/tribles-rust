@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Replaced the `SchemaMetadata` helper with a `ConstMetadata` trait that
+  exposes static metadata and provides blanket `Metadata` implementations for
+  const-friendly schema types.
 ### Added
 - Guidance on how `ExclusiveId` ownership narrows safe absence checks while
   keeping queries monotonic across collaborators in the incremental queries

@@ -106,8 +106,8 @@ would halve the effective security of a 256-bit hash, reducing it to \( 2^{128} 
 current or theoretical technology. As a result, 256 bits remains a future-proof choice for intrinsic identifiers.  
 
 Such 256-bit intrinsic identifiers are represented by the types
-[`tribles::value::schemas::hash::Hash`](crate::value::schemas::hash::Hash) and
-[`tribles::value::schemas::hash::Handle`](crate::value::schemas::hash::Handle).  
+[`triblespace::core::value::schemas::hash::Hash`](crate::value::schemas::hash::Hash) and
+[`triblespace::core::value::schemas::hash::Handle`](crate::value::schemas::hash::Handle).  
 
 Additionally, we define three types of high-entropy abstract identifiers to address different requirements:  
 **RNGID, UFOID, and FUCID.** Each balances trade-offs between entropy, locality, compression, and
@@ -163,8 +163,8 @@ Once the IDs are back in scope you can either work with them directly as
 below shows both approaches in action:
 
 ```rust
-use tribles::examples::literature;
-use tribles::prelude::*;
+use triblespace::examples::literature;
+use triblespace::prelude::*;
 
 let mut kb = TribleSet::new();
 {

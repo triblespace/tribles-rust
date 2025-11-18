@@ -165,6 +165,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Expanded the deep-dive philosophy chapter with explicit guiding principles,
+  clarified how asynchronous backends surface through blocking entry points, and
+  grounded the practical implications in the currently available tooling.
 - Expanded the Formal Verification roadmap with a stack overview, contributor
   workflow guidance, and milestone tracking suggestions.
 - Expanded the garbage-collection chapter with guidance on choosing root sets,

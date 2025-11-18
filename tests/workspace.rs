@@ -1,14 +1,14 @@
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 use triblespace::core::repo::ancestors;
+use triblespace::core::repo::difference;
 use triblespace::core::repo::history_of;
+use triblespace::core::repo::intersect;
 use triblespace::core::repo::memoryrepo::MemoryRepo;
 use triblespace::core::repo::nth_ancestor;
 use triblespace::core::repo::parents;
 use triblespace::core::repo::symmetric_diff;
 use triblespace::core::repo::union;
-use triblespace::core::repo::intersect;
-use triblespace::core::repo::difference;
 use triblespace::core::repo::Repository;
 use triblespace::prelude::*;
 

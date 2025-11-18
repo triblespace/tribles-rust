@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formal verification roadmap outlining Kani, Miri, fuzzing, and simulation
   testing plans in the book.
 - Expanded the roadmap with an explicit invariant catalogue, spelling out the
+  PATCH/ByteTable invariants exercised by `Branch::modify_child`, clarifying the
+  value-schema guarantees around `TryFromValue`, and synchronised follow-up
+  tasks in `INVENTORY.md`.
   PATCH/ByteTable invariants exercised by `Branch::modify_child`, and synchronised
   follow-up tasks in `INVENTORY.md`.
 - Documented the set-combinator commit selectors (`union`, `intersect`,
@@ -162,6 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Expanded the Formal Verification roadmap with a stack overview, contributor
+  workflow guidance, and milestone tracking suggestions.
 - Expanded the garbage-collection chapter with guidance on choosing root sets,
   operational tips, clearer explanations of the conservative traversal, and a
   scan description that matches the implementation (including the fact that the

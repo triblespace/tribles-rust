@@ -6,6 +6,21 @@ execution, fuzzing, and deterministic simulation so we can reason about both the
 low-level data structures and high-level repository workflows with stronger
 correctness guarantees.
 
+## Verification Stack Overview
+
+- **Model checking with Kani** explores bounded but exhaustive state spaces for
+  invariants that must never be violated.
+- **Symbolic execution with Miri** exposes undefined behaviour (UB) and
+  aliasing issues across regular unit tests without requiring new harnesses.
+- **Coverage-guided fuzzing** stresses APIs with randomized input sequences to
+  uncover emergent behaviours that formal proofs might miss.
+- **Deterministic simulations** replay realistic repository workflows so we can
+  audit higher-level semantics and regression-test subtle interplays between
+  subsystems.
+
+Each technique complements the others; together they provide layered
+assurance that keeps regressions from reaching downstream users.
+
 ## Goals
 
 - Protect the fundamental algebraic properties of `TribleSet`, `PATCH`, and the
@@ -16,6 +31,8 @@ correctness guarantees.
   workspace merging before they reach downstream users.
 - Integrate the tooling into CI so proofs and regression checks run
   automatically for every change.
+- Preserve a contributor-friendly workflow where verification steps are
+  discoverable, well documented, and quick to reproduce locally.
 
 ## Current Foundation
 
@@ -36,8 +53,8 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
 | --- | --- | --- |
 | `TribleSet` (`src/trible/tribleset.rs`) | Union/intersection/difference maintain canonical ordering across all six PATCH indexes; iterators only yield deduplicated `Trible`s; `insert` never drops an ordering. | Extend the existing `variableset` harnesses with nondeterministic inserts, and add a dedicated `tribleset_harness.rs` validating round-trips across every ordering. |
 | `PATCH` & `ByteTable` (`src/patch/*.rs`) | Cuckoo displacement respects `MAX_RETRIES` without losing entries; `Branch::modify_child` grows tables when required and preserves `leaf_count`/`segment_count`; `table_grow` copies every occupant exactly once. | Introduce a `patch_harness.rs` that stress-tests `plan_insert`, `table_insert`, and `Branch::grow`, plus a micro-fuzzer that drives inserts/removals across random table sizes. |
-| Value schemas (`src/value/*.rs`) | Schema encoders respect declared byte widths; `Value::force` and `ValueSchema::validate` reject truncated buffers; zero-copy views stay aligned. | Reuse `value_harness.rs`, adding per-schema helpers plus a Miri regression suite that loads slices at every alignment. |
-| Query engine (`src/query/*.rs`) | Constraint solver never aliases conflicting bindings; join-order heuristics still cover all permutations referenced by `pattern!`; influence tracking matches selected variables. | Expand `proofs/query_harness.rs` with minimal counterexamples, and fuzz constraint graphs via `cargo fuzz`. |
+| Value schemas (`src/value/*.rs`) | Schema encoders respect declared byte widths; `TryFromValue` conversions and `ValueSchema::validate` reject truncated buffers; zero-copy views stay aligned. | Reuse `value_harness.rs`, adding per-schema helpers plus a Miri regression suite that loads slices at every alignment. |
+| Query engine (`src/query/*.rs`) | Constraint solver never aliases conflicting bindings; planner outputs cover all join permutations referenced by `pattern!`; influence tracking matches selected variables. | Expand `proofs/query_harness.rs` with minimal counterexamples, and fuzz constraint graphs via `cargo fuzz`. |
 | Repository & commits (`src/repo/*.rs`, `proofs/commit_harness.rs`) | Branch heads remain append-only; `Workspace::pull` never forgets reachable blobs; selector algebra matches Git semantics. | Add bounded commit DAG generators in `commit_harness.rs` plus deterministic simulation traces covering merges and garbage collection. |
 | Storage primitives (`src/blob`, `src/repo`, `src/patch/leaf.rs`) | Blob handles stay reference counted; pile headers remain within reserved capacity; byte slices from archives stay valid for the life of the store. | Combine Miri tests for aliasing with nightly fuzzers that replay repository sync transcripts. |
 
@@ -70,6 +87,22 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
    dedicated `scripts/miri.sh` for local runs when developers need deeper
    debugging.
 
+### Contributor Workflow
+
+1. Run `./scripts/preflight.sh` before every commit; it aggregates formatting,
+   testing, and (eventually) targeted verification checks.
+2. Use `cargo kani --harness <NAME>` locally when iterating on a new proof.
+   Start from the harness templates in `proofs/` so generators and assumptions
+   stay consistent.
+3. Execute `cargo miri test` after modifying unsafe code, pointer logic, or
+   concurrency primitives; it catches UB bugs that normal tests cannot
+   surface.
+4. Kick off fuzz targets with `cargo fuzz run <TARGET>` when touching boundary
+   code (deserializers, planners, repository sync).  Store new corpus inputs in
+   version control if they expose bugs or tricky behaviours.
+5. Record findings, gaps, and future work in `INVENTORY.md` so the roadmap
+   evolves alongside the implementation effort.
+
 ### Phase 3 – Fuzzing and Property Testing
 
 1. Introduce a `cargo fuzz` workspace targeting:
@@ -93,6 +126,15 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
    traces so they can double as documentation for expected behaviour.
 3. Capture simulation scenarios discovered during fuzzing to prevent
    regressions.
+
+### Milestones & Reporting
+
+- Track coverage for each invariant in a shared dashboard (CI summary or
+  `INVENTORY.md`) so contributors can quickly spot gaps.
+- Celebrate major wins—like a new harness landing or a bug found via
+  verification—in the CHANGELOG to reinforce the value of the effort.
+- Review and refresh this roadmap at least once per release cycle to keep the
+  guidance aligned with the architecture.
 
 ## Tooling Integration
 

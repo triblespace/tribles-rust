@@ -59,6 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Expanded the deep-dive philosophy chapter with explicit guiding principles,
+  clarified how asynchronous backends surface through blocking entry points, and
+  grounded the practical implications in the currently available tooling.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

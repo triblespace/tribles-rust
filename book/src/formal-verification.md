@@ -1,6 +1,6 @@
 # Formal Verification Roadmap
 
-This roadmap captures the initial strategy for driving the `tribles` crates
+This roadmap captures the initial strategy for driving the `triblespace` crates
 toward comprehensive formal verification.  It unifies model checking, symbolic
 execution, fuzzing, and deterministic simulation so we can reason about both the
 low-level data structures and high-level repository workflows with stronger
@@ -27,7 +27,7 @@ assurance that keeps regressions from reaching downstream users.
   repository commit graph.
 - Exercise serialization, deserialization, and zero-copy data views under
   adversarial inputs.
-- Detect behavioural regressions in query planning, constraint solving, and
+- Detect behavioural regressions in query heuristics, constraint solving, and
   workspace merging before they reach downstream users.
 - Integrate the tooling into CI so proofs and regression checks run
   automatically for every change.
@@ -65,8 +65,8 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
 1. Catalogue crate-level invariants and map them to concrete Kani harnesses.
    Start with:
    - `TribleSet` operations preserving canonical ordering and deduplication.
-   - Join planning in `atreides` ensuring variable bindings never alias
-     conflicting values.
+    - Join heuristics in `atreides` ensuring variable bindings never alias
+      conflicting values.
    - Repository merge logic maintaining append-only pile semantics.
 2. Extract shared helpers for generating bounded arbitrary data (e.g.
    `Vec::bounded_any`) so harnesses remain expressive without exploding the
@@ -108,7 +108,7 @@ rough sketch of how to exercise them in Kani, Miri, or fuzzing harnesses.
 1. Introduce a `cargo fuzz` workspace targeting:
    - PATCH encoders/decoders with binary corpus seeds generated from integration
      tests.
-   - Query planning to explore combinations of constraint graphs and filter
+   - Join-order heuristics to explore combinations of constraint graphs and filter
      predicates.
    - Repository sync workflows by fuzzing sequences of commits, pulls, and
      merges.

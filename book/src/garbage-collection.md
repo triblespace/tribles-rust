@@ -57,7 +57,7 @@ eligible for forgetting.
    scanned in 32-byte steps; any chunk whose lookup succeeds is enqueued instead
    of deserialising the archive.
 4. Stream the discovered handles into whatever operation you need. The
-   [`reachable`](https://docs.rs/tribles/latest/tribles/repo/fn.reachable.html)
+   [`reachable`](https://docs.rs/triblespace/latest/triblespace/repo/fn.reachable.html)
    helper returns an iterator of handles, so you can retain them, transfer
    them into another store, or collect them into whichever structure your
    workflow expects.
@@ -69,18 +69,18 @@ by a particular branch or to export a log of missing blobs for diagnostics.
 ## Automating the Walk
 
 The repository module already provides most of the required plumbing. The
-[`reachable`](https://docs.rs/tribles/latest/tribles/repo/fn.reachable.html)
+[`reachable`](https://docs.rs/triblespace/latest/triblespace/repo/fn.reachable.html)
 helper exposes the traversal as a reusable iterator so you can compose other
 operations along the way, while
-[`transfer`](https://docs.rs/tribles/latest/tribles/repo/fn.transfer.html)
+[`transfer`](https://docs.rs/triblespace/latest/triblespace/repo/fn.transfer.html)
 duplicates whichever handles you feed it. The in-memory `MemoryBlobStore` can
 retain live blobs, duplicate them into a scratch store, and report how many
 handles were touched without writing bespoke walkers:
 
 ```rust
-use tribles::blob::memoryblobstore::MemoryBlobStore;
-use tribles::repo::{self, BlobStoreKeep, BranchStore};
-use tribles::value::schemas::hash::Blake3;
+use triblespace::core::blob::memoryblobstore::MemoryBlobStore;
+use triblespace::core::repo::{self, BlobStoreKeep, BlobStoreList, BranchStore};
+use triblespace::core::value::schemas::hash::Blake3;
 
 let mut store = MemoryBlobStore::<Blake3>::default();
 // ... populate the store or import data ...
@@ -123,7 +123,7 @@ mark-and-sweep collectors or selective replication pipelines without duplicating
 traversal code.
 
 When you already have metadata represented as a `TribleSet`, the
-[`potential_handles`](https://docs.rs/tribles/latest/tribles/repo/fn.potential_handles.html)
+[`potential_handles`](https://docs.rs/triblespace/latest/triblespace/repo/fn.potential_handles.html)
 helper converts its value column into the conservative stream of
 `Handle<H, UnknownBlob>` instances expected by these operations.
 

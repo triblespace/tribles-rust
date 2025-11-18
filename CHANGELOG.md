@@ -34,8 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Book section showing how to stage and fetch workspace blobs with `Workspace::put`
   and `Workspace::get`.
 - Guidance on integrating custom constraints with external data sources in the book.
-- Garbage-collection chapter now shows how `BlobStoreList`, `reachable`, and
-  `transfer` work together to enumerate and traverse blobs in practice.
+- Garbage-collection chapter now shows how `BranchStore::branches`, `reachable`,
+  and `transfer` work together to enumerate branch roots and traverse blobs in
+  practice.
+- Clarified the garbage-collection root description to highlight that the
+  traversal retains everything reachable from enumerated branch metadata.
 - Remote store workflow example in the book showing how to open
   `ObjectStoreRemote` repositories and clarifying that no explicit close is
   required for remote backends.
@@ -59,6 +62,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Expanded the garbage-collection chapter with guidance on choosing root sets,
+  operational tips, clearer explanations of the conservative traversal, and a
+  scan description that matches the implementation (including the fact that the
+  walker scans every blob in 32-byte chunks because the store is type-agnostic).
+- Reworded the garbage-collection safety-margin tip to emphasize that
+  near-impossible hash collisions make extra roots a conservative way to protect
+  reachable data.
+- Refined the garbage-collection example loop to iterate branch IDs directly
+  when collecting roots from `BranchStore::branches`.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

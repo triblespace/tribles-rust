@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formal verification roadmap outlining Kani, Miri, fuzzing, and simulation
   testing plans in the book.
 - Expanded the roadmap with an explicit invariant catalogue, spelling out the
-  PATCH/ByteTable invariants exercised by `Branch::modify_child`, and synchronised
-  follow-up tasks in `INVENTORY.md`.
+  PATCH/ByteTable invariants exercised by `Branch::modify_child`, clarifying the
+  value-schema guarantees around `TryFromValue`, and synchronised follow-up
+  tasks in `INVENTORY.md`.
 - `_?ident` scoped variables for `pattern!` and `pattern_changes!`, enabling
   fresh bindings without declaring them in `find!` heads, along with
   documentation and tests.
@@ -59,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Expanded the Formal Verification roadmap with a stack overview, contributor
+  workflow guidance, and milestone tracking suggestions.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

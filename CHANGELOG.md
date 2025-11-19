@@ -90,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collection.
 - Documented repository storage backends and added a book page tracking future
   documentation improvements.
+- Clarified the `Trible` layout, indexing strategy, and edge semantics in the
+  deep dive chapter of the book.
 - Expanded the documentation backlog with notes on remote object-store conflict
   handling, succinct archive indexes, and extending regular path engines.
 ### Changed
@@ -165,6 +167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity!`, and query semantics.
 
 ### Changed
+- Corrected the Trible Structure deep dive to describe how `TribleSet::union`
+  mutates its receiver while the other set operations return new views.
 - Expanded the deep-dive philosophy chapter with explicit guiding principles,
   clarified how asynchronous backends surface through blocking entry points, and
   grounded the practical implications in the currently available tooling.

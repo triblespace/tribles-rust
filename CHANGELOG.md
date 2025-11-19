@@ -64,6 +64,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
   describe the full tree-order traversal without a prefix filter and point to
   the prefix iterator for filtered traversal.
+- Reframed the identifiers deep-dive chapter to highlight the abstract/semantic
+  and intrinsic/extrinsic axes, expand the embeddings discussion, and provide
+  clearer guidance on choosing identifier families.
+- Audited the identifier taxonomy guidance to align the RNGID/UFOID/FUCID
+  comparison with their implementations and fix crate-qualified links in the
+  table.
 - Documented the `path!`, `attributes!`, and `pattern_changes!` procedural
   macros in the `tribles-macros` crate overview.
 - Reframed commit range selectors so `start..end` walks from the end selector

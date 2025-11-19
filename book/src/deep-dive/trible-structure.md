@@ -84,10 +84,10 @@ resistant to skew even when cardinalities vary widely.
 ## Set operations and monotonic semantics
 
 `TribleSet`s provide familiar set-theoretic helpers such as
-[`TribleSet::union`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.union),
-[`TribleSet::intersection`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.intersection)
+[`TribleSet::union`](https://docs.rs/triblespace/latest/triblespace/trible/struct.TribleSet.html#method.union),
+[`TribleSet::intersection`](https://docs.rs/triblespace/latest/triblespace/trible/struct.TribleSet.html#method.intersection)
 and
-[`TribleSet::difference`](https://docs.rs/tribles/latest/tribles/trible/struct.TribleSet.html#method.difference).
+[`TribleSet::difference`](https://docs.rs/triblespace/latest/triblespace/trible/struct.TribleSet.html#method.difference).
 `union` consumes the right-hand operand and merges its contents into the
 receiver in place, while `intersection` and `difference` each produce a fresh
 `TribleSet` without mutating their inputs. Together these helpers make it

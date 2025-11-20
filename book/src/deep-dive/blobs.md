@@ -38,9 +38,9 @@ The following example demonstrates creating blobs, archiving a `TribleSet` and
 signing its contents:
 
 ```rust
-use tribles::prelude::*;
-use tribles::examples::literature;
-use tribles::repo;
+use triblespace::prelude::*;
+use triblespace::examples::literature;
+use triblespace::repo;
 use valueschemas::{Handle, Blake3};
 use blobschemas::{SimpleArchive, LongString};
 use rand::rngs::OsRng;

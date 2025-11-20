@@ -8,7 +8,7 @@
 use core::marker::PhantomData;
 use std::borrow::Cow;
 
-use crate::blob::ToBlob;
+use crate::blob::{MemoryBlobStore, ToBlob};
 use crate::id::ExclusiveId;
 use crate::id::RawId;
 use crate::macros::entity;
@@ -120,10 +120,14 @@ impl<S: ValueSchema> Attribute<S> {
 impl<S> Metadata for Attribute<S>
 where
     S: ValueSchema,
-    PhantomData<S>: Metadata,
 {
+    fn metadata_id(&self) -> crate::id::Id {
+        self.id()
+    }
+
     fn describe(&self) -> (TribleSet, crate::blob::MemoryBlobStore<Blake3>) {
-        let (mut tribles, blobs) = Metadata::describe(&self._schema);
+        let mut tribles = TribleSet::new();
+        let blobs: MemoryBlobStore<Blake3> = MemoryBlobStore::new();
 
         let entity = ExclusiveId::force(self.id());
 

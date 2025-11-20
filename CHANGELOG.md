@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced the `SchemaMetadata` helper with a `ConstMetadata` trait that
   exposes static metadata and provides blanket `Metadata` implementations for
   const-friendly schema types.
+- `Metadata` and `ConstMetadata` now expose `metadata_id` so descriptions can
+  point at an entity root without inlining nested metadata; attribute
+  descriptions no longer pull in value schema metadata when emitting their own
+  entries.
 - Attribute metadata emission now includes `metadata::attr_blob_schema` entries
   for handle-based value schemas so blob dependencies remain discoverable.
 - Value schemas expose blob dependencies directly via a new optional

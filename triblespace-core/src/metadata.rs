@@ -15,11 +15,21 @@ use triblespace_core_macros::attributes;
 
 /// Describes metadata that can be emitted for documentation or discovery.
 pub trait Metadata {
+    /// Returns the root identifier for this metadata description.
+    fn metadata_id(&self) -> Id;
+
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>);
 }
 
 /// Helper trait for schema types that want to expose metadata without requiring an instance.
 pub trait ConstMetadata: ValueSchema {
+    /// Returns the root identifier for this metadata description.
+    ///
+    /// By default this mirrors the value schema identifier.
+    fn metadata_id() -> Id {
+        Self::id()
+    }
+
     fn describe() -> (TribleSet, MemoryBlobStore<Blake3>) {
         (TribleSet::new(), MemoryBlobStore::new())
     }
@@ -31,6 +41,10 @@ impl<S> Metadata for PhantomData<S>
 where
     S: ConstMetadata,
 {
+    fn metadata_id(&self) -> Id {
+        S::metadata_id()
+    }
+
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
         S::describe()
     }
@@ -40,6 +54,10 @@ impl<T> Metadata for T
 where
     T: ConstMetadata,
 {
+    fn metadata_id(&self) -> Id {
+        T::metadata_id()
+    }
+
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
         T::describe()
     }

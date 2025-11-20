@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Corrected the PATCH deep-dive chapter so its descriptions of persistence,
+  node layout, resizing, and hash maintenance match the implementation.
+- Clarified the PATCH deep-dive resizing description to avoid implying growth
+  beyond the 256-entry table.
+- Clarified the PATCH hash-maintenance discussion so hash comparisons
+  short-circuit on matches and walk on mismatches.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to

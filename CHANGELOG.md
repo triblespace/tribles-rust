@@ -7,16 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
-- `ValueSchema` now requires the `Metadata` trait so schema identifiers and
-  metadata roots share a single contract and schema descriptions default to the
-  metadata surface.
-- Replaced the `SchemaMetadata` helper with a `ConstMetadata` trait that
-  exposes static metadata and provides blanket `Metadata` implementations for
-  const-friendly schema types.
-- `Metadata` and `ConstMetadata` now expose `metadata_id` so descriptions can
-  point at an entity root without inlining nested metadata; attribute
-  descriptions no longer pull in value schema metadata when emitting their own
-  entries.
+- `Metadata` and `ConstMetadata` now use a shared `id` method as the canonical
+  schema identifier, eliminating the former `metadata_id` accessors.
+- `ValueSchema` inherits its identifier and default description behavior from
+  `ConstMetadata`, removing duplicate `id`, `metadata_id`, and `describe`
+  methods from the schema trait itself.
+- Replaced the `SchemaMetadata` helper with direct `ConstMetadata` impls on
+  value schemas so static metadata stays in sync with runtime metadata roots.
 - Removed explicit blob schema hooks from value schemas and attribute metadata,
   relying on metadata identifiers instead of nested blob schema entries.
 ### Added
@@ -113,9 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with an optional `Cow<'static, str>`, keeping const-friendly static ids while
   storing dynamic field names directly.
 - Replaced the `ValueSchema::VALUE_SCHEMA_ID` and `BlobSchema::BLOB_SCHEMA_ID`
-  associated constants with `ValueSchema::id()` and `BlobSchema::id()` methods,
-  preserving existing identifiers and deriving composite `Handle` schema IDs
-  deterministically from their hash protocol and blob schema components.
+  associated constants with `ConstMetadata::id()` for value schemas and
+  `BlobSchema::id()` for blob schemas, preserving existing identifiers and
+  deriving composite `Handle` schema IDs deterministically from their hash
+  protocol and blob schema components.
 - Swapped the `HashProtocol::SCHEMA_ID` associated constant for a matching
   `HashProtocol::id()` accessor so hash protocol identifiers follow the same
   API as value and blob schemas.

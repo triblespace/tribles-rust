@@ -128,7 +128,7 @@ impl<T: BlobSchema> Debug for Blob<T> {
 pub trait BlobSchema: Sized + 'static {
     /// Returns the identifier for this schema.
     ///
-    /// See [`ValueSchema::id`](crate::value::ValueSchema::id) for why this is a
+    /// See [`ConstMetadata::id`](crate::metadata::ConstMetadata::id) for why this is a
     /// regular function instead of a `const fn`.
     fn id() -> Id;
 

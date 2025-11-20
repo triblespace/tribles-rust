@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::RawValue;
 use crate::value::ToValue;
@@ -22,17 +23,23 @@ pub struct RangeU128;
 #[derive(Debug, Clone, Copy)]
 pub struct RangeInclusiveU128;
 
-impl ValueSchema for RangeU128 {
+impl ConstMetadata for RangeU128 {
     fn id() -> Id {
         id_hex!("A4E25E3B92364FA5AB519C6A77D7CB3A")
     }
+}
+
+impl ValueSchema for RangeU128 {
     type ValidationError = Infallible;
 }
 
-impl ValueSchema for RangeInclusiveU128 {
+impl ConstMetadata for RangeInclusiveU128 {
     fn id() -> Id {
         id_hex!("1D0D82CA84424CD0A2F98DB37039E152")
     }
+}
+
+impl ValueSchema for RangeInclusiveU128 {
     type ValidationError = Infallible;
 }
 

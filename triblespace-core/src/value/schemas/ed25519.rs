@@ -5,6 +5,7 @@ pub use ed25519_dalek::VerifyingKey;
 
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::TryFromValue;
@@ -21,22 +22,28 @@ pub struct ED25519SComponent;
 /// A value schema for an Ed25519 public key.
 pub struct ED25519PublicKey;
 
-impl ValueSchema for ED25519RComponent {
+impl ConstMetadata for ED25519RComponent {
     fn id() -> Id {
         id_hex!("995A86FFC83DB95ECEAA17E226208897")
     }
+}
+impl ValueSchema for ED25519RComponent {
     type ValidationError = Infallible;
 }
-impl ValueSchema for ED25519SComponent {
+impl ConstMetadata for ED25519SComponent {
     fn id() -> Id {
         id_hex!("10D35B0B628E9E409C549D8EC1FB3598")
     }
+}
+impl ValueSchema for ED25519SComponent {
     type ValidationError = Infallible;
 }
-impl ValueSchema for ED25519PublicKey {
+impl ConstMetadata for ED25519PublicKey {
     fn id() -> Id {
         id_hex!("69A872254E01B4C1ED36E08E40445E93")
     }
+}
+impl ValueSchema for ED25519PublicKey {
     type ValidationError = Infallible;
 }
 

@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::TryFromValue;
@@ -40,10 +41,13 @@ impl Boolean {
     }
 }
 
-impl ValueSchema for Boolean {
+impl ConstMetadata for Boolean {
     fn id() -> Id {
         id_hex!("73B414A3E25B0C0F9E4D6B0694DC33C5")
     }
+}
+
+impl ValueSchema for Boolean {
     type ValidationError = InvalidBoolean;
 
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

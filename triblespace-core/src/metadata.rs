@@ -9,40 +9,33 @@ use crate::id_hex;
 use crate::prelude::valueschemas;
 use crate::trible::TribleSet;
 use crate::value::schemas::hash::Blake3;
-use crate::value::ValueSchema;
 use core::marker::PhantomData;
 use triblespace_core_macros::attributes;
 
 /// Describes metadata that can be emitted for documentation or discovery.
 pub trait Metadata {
     /// Returns the root identifier for this metadata description.
-    fn metadata_id(&self) -> Id;
+    fn id(&self) -> Id;
 
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>);
 }
 
 /// Helper trait for schema types that want to expose metadata without requiring an instance.
-pub trait ConstMetadata: ValueSchema {
+pub trait ConstMetadata {
     /// Returns the root identifier for this metadata description.
-    ///
-    /// By default this mirrors the value schema identifier.
-    fn metadata_id() -> Id {
-        Self::id()
-    }
+    fn id() -> Id;
 
     fn describe() -> (TribleSet, MemoryBlobStore<Blake3>) {
         (TribleSet::new(), MemoryBlobStore::new())
     }
 }
 
-impl<T> ConstMetadata for T where T: ValueSchema {}
-
 impl<S> Metadata for PhantomData<S>
 where
     S: ConstMetadata,
 {
-    fn metadata_id(&self) -> Id {
-        <S as ConstMetadata>::metadata_id()
+    fn id(&self) -> Id {
+        <S as ConstMetadata>::id()
     }
 
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
@@ -52,9 +45,9 @@ where
 
 impl<T> Metadata for T
 where
-    T: ValueSchema,
+    T: ConstMetadata,
 {
-    fn metadata_id(&self) -> Id {
+    fn id(&self) -> Id {
         T::id()
     }
 

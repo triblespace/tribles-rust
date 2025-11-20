@@ -4,6 +4,7 @@ use crate::id::NilUuidError;
 use crate::id::OwnedId;
 use crate::id::RawId;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::TryFromValue;
@@ -26,10 +27,12 @@ use proptest::prelude::RngCore;
 /// See the [crate::id] module documentation for a discussion on the role of this identifier.
 pub struct GenId;
 
-impl ValueSchema for GenId {
+impl ConstMetadata for GenId {
     fn id() -> Id {
         id_hex!("B08EE1D45EB081E8C47618178AFE0D81")
     }
+}
+impl ValueSchema for GenId {
     type ValidationError = ();
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {
         if value.raw[0..16] == [0; 16] {

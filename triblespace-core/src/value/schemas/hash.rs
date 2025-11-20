@@ -1,6 +1,7 @@
 use crate::blob::BlobSchema;
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::RawValue;
 use crate::value::TryToValue;
@@ -32,13 +33,19 @@ pub struct Hash<H> {
     _hasher: PhantomData<fn(H) -> ()>,
 }
 
-impl<H> ValueSchema for Hash<H>
+impl<H> ConstMetadata for Hash<H>
 where
     H: HashProtocol,
 {
     fn id() -> Id {
         H::id()
     }
+}
+
+impl<H> ValueSchema for Hash<H>
+where
+    H: HashProtocol,
+{
     type ValidationError = Infallible;
 }
 
@@ -172,7 +179,7 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
     }
 }
 
-impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
+impl<H: HashProtocol, T: BlobSchema> ConstMetadata for Handle<H, T> {
     // NOTE: This can't be a `const fn` while we rely on the runtime `blake3`
     // hasher to derive the identifier. Once a const-friendly hashing API is
     // available we can revisit this.
@@ -185,7 +192,9 @@ impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
         raw.copy_from_slice(&digest[..16]);
         Id::new(raw).expect("derived handle schema id must be non-nil")
     }
+}
 
+impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
     type ValidationError = Infallible;
 }
 

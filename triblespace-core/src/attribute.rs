@@ -96,7 +96,7 @@ impl<S: ValueSchema> Attribute<S> {
     ///
     /// The identifier is computed by hashing the field name handle produced as a
     /// `Handle<Blake3, crate::blob::schemas::longstring::LongString>` together with the
-    /// schema's [`ValueSchema::id`].
+    /// schema's [`ConstMetadata::id`].
     /// The resulting 32-byte Blake3 digest is truncated to 16 bytes to match the
     /// `RawId` layout used by [`Attribute::from_id`].
     pub fn from_name(name: &str) -> Self {
@@ -121,7 +121,7 @@ impl<S> Metadata for Attribute<S>
 where
     S: ValueSchema,
 {
-    fn metadata_id(&self) -> crate::id::Id {
+    fn id(&self) -> crate::id::Id {
         self.id()
     }
 

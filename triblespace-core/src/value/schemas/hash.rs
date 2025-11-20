@@ -186,10 +186,6 @@ impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
         Id::new(raw).expect("derived handle schema id must be non-nil")
     }
 
-    fn blob_schema_id() -> Option<Id> {
-        Some(T::id())
-    }
-
     type ValidationError = Infallible;
 }
 

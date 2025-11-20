@@ -137,11 +137,6 @@ where
 
         tribles += entity! { &entity @ metadata::attr_value_schema: GenId::value_from(S::id()) };
 
-        if let Some(blob_schema) = S::blob_schema_id() {
-            tribles +=
-                entity! { &entity @ metadata::attr_blob_schema: GenId::value_from(blob_schema) };
-        }
-
         (tribles, blobs)
     }
 }

@@ -14,10 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   point at an entity root without inlining nested metadata; attribute
   descriptions no longer pull in value schema metadata when emitting their own
   entries.
-- Attribute metadata emission now includes `metadata::attr_blob_schema` entries
-  for handle-based value schemas so blob dependencies remain discoverable.
-- Value schemas expose blob dependencies directly via a new optional
-  `blob_schema_id` method instead of relying on `AttributeSchemaMetadata`.
+- Removed explicit blob schema hooks from value schemas and attribute metadata,
+  relying on metadata identifiers instead of nested blob schema entries.
 ### Added
 - Guidance on how `ExclusiveId` ownership narrows safe absence checks while
   keeping queries monotonic across collaborators in the incremental queries
@@ -209,9 +207,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   imported statements.
 - Simplified JSON importer error diagnostics to avoid tracking JSON paths in
   the hot import loop.
-- JSON importers now emit `metadata::name`, `metadata::attr_value_schema`, and
-  `metadata::attr_blob_schema` tribles when minting attributes so imported
-  datasets carry their own schema descriptions.
+- JSON importers now emit `metadata::name` and `metadata::attr_value_schema`
+  tribles when minting attributes so imported datasets carry their own schema
+  descriptions.
 - Attribute metadata emission now uses the public `entity!` macro so schema
   descriptions are assembled with the same ergonomic syntax exposed to
   consumers.
@@ -452,9 +450,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Reinstated the `ValueSchema` documentation that notes hash handles still carry
   their referenced blob schema type parameter.
-- Updated deterministic JSON importer metadata tests to stop asserting the
-  absence of `metadata::attr_blob_schema` entries now that value schemas no
-  longer expose blob schema identifiers.
+- Updated deterministic JSON importer metadata tests to align with attribute
+  metadata now emitting only value schema descriptors.
 - Added the missing `blake3` dev-dependency and adjusted the JSON importer
   benchmark to allocate owned strings and convert JSON numbers via
   `f256::from`, restoring the json benchmarks after recent refactors.

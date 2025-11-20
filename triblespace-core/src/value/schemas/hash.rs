@@ -1,7 +1,10 @@
 use crate::blob::BlobSchema;
+use crate::blob::MemoryBlobStore;
 use crate::id::Id;
 use crate::id_hex;
 use crate::metadata::ConstMetadata;
+use crate::repo::BlobStore;
+use crate::trible::TribleSet;
 use crate::value::FromValue;
 use crate::value::RawValue;
 use crate::value::TryToValue;
@@ -194,6 +197,30 @@ impl<H: HashProtocol, T: BlobSchema> ConstMetadata for Handle<H, T> {
         let mut raw = [0u8; 16];
         raw.copy_from_slice(&digest[..16]);
         Id::new(raw).expect("derived handle schema id must be non-nil")
+    }
+
+    fn describe() -> (TribleSet, MemoryBlobStore<Blake3>) {
+        let (hash_tribles, mut hash_blobs) = H::describe();
+        let (blob_tribles, mut blob_blobs) = T::describe();
+
+        let mut tribles = TribleSet::new();
+        tribles += hash_tribles;
+        tribles += blob_tribles;
+
+        let hash_blobs_iter = hash_blobs
+            .reader()
+            .expect("hash protocol metadata reader should be infallible")
+            .into_iter();
+        let blob_blobs_iter = blob_blobs
+            .reader()
+            .expect("blob schema metadata reader should be infallible")
+            .into_iter();
+
+        let blobs = hash_blobs_iter
+            .chain(blob_blobs_iter)
+            .collect::<MemoryBlobStore<Blake3>>();
+
+        (tribles, blobs)
     }
 }
 

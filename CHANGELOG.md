@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value schemas so static metadata stays in sync with runtime metadata roots.
 - Removed explicit blob schema hooks from value schemas and attribute metadata,
   relying on metadata identifiers instead of nested blob schema entries.
+- `Handle` value schemas now forward metadata from their hash protocol and blob
+  schema components so composite schema descriptions stay discoverable.
 ### Added
 - Guidance on how `ExclusiveId` ownership narrows safe absence checks while
   keeping queries monotonic across collaborators in the incremental queries

@@ -110,10 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with an optional `Cow<'static, str>`, keeping const-friendly static ids while
   storing dynamic field names directly.
 - Replaced the `ValueSchema::VALUE_SCHEMA_ID` and `BlobSchema::BLOB_SCHEMA_ID`
-  associated constants with `ConstMetadata::id()` for value schemas and
-  `BlobSchema::id()` for blob schemas, preserving existing identifiers and
-  deriving composite `Handle` schema IDs deterministically from their hash
-  protocol and blob schema components.
+  associated constants with `ConstMetadata::id()` across value and blob schemas,
+  preserving existing identifiers and deriving composite `Handle` schema IDs
+  deterministically from their hash protocol and blob schema components.
 - Swapped the `HashProtocol::SCHEMA_ID` associated constant for a matching
   `HashProtocol::id()` accessor so hash protocol identifiers follow the same
   API as value and blob schemas.

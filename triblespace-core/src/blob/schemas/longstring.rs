@@ -4,13 +4,16 @@ use crate::blob::ToBlob;
 use crate::blob::TryFromBlob;
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 
 use anybytes::view::ViewError;
 use anybytes::View;
 
 pub struct LongString {}
 
-impl BlobSchema for LongString {
+impl BlobSchema for LongString {}
+
+impl ConstMetadata for LongString {
     fn id() -> Id {
         id_hex!("8B173C65B7DB601A11E8A190BD774A79")
     }

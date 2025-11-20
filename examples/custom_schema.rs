@@ -53,11 +53,13 @@ impl FromValue<'_, U64LE> for u64 {
 
 pub struct BytesBlob;
 
-impl BlobSchema for BytesBlob {
+impl ConstMetadata for BytesBlob {
     fn id() -> Id {
         id_hex!("B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0")
     }
 }
+
+impl BlobSchema for BytesBlob {}
 
 impl ToBlob<BytesBlob> for Bytes {
     fn to_blob(self) -> Blob<BytesBlob> {

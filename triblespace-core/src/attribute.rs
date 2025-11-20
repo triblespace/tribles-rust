@@ -97,7 +97,7 @@ impl<S: ValueSchema> Attribute<S> {
     /// The identifier is computed by hashing the field name handle produced as a
     /// `Handle<Blake3, crate::blob::schemas::longstring::LongString>` together with the
     /// schema's [`ConstMetadata::id`].
-    /// The resulting 32-byte Blake3 digest is truncated to 16 bytes to match the
+    /// The resulting 32-byte Blake3 digest uses its lower 16 bytes to match the
     /// `RawId` layout used by [`Attribute::from_id`].
     pub fn from_name(name: &str) -> Self {
         let mut hasher = Hasher::new();
@@ -108,7 +108,8 @@ impl<S: ValueSchema> Attribute<S> {
 
         let digest = hasher.finalize();
         let mut raw = [0u8; crate::id::ID_LEN];
-        raw.copy_from_slice(&digest.as_bytes()[..crate::id::ID_LEN]);
+        let lower_half = &digest.as_bytes()[digest.as_bytes().len() - crate::id::ID_LEN..];
+        raw.copy_from_slice(lower_half);
         Self {
             raw,
             name: Some(Cow::Owned(name.to_owned())),

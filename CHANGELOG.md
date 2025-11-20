@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- `ValueSchema` now requires the `Metadata` trait so schema identifiers and
+  metadata roots share a single contract and schema descriptions default to the
+  metadata surface.
 - Replaced the `SchemaMetadata` helper with a `ConstMetadata` trait that
   exposes static metadata and provides blanket `Metadata` implementations for
   const-friendly schema types.

@@ -42,24 +42,24 @@ where
     S: ConstMetadata,
 {
     fn metadata_id(&self) -> Id {
-        S::metadata_id()
+        <S as ConstMetadata>::metadata_id()
     }
 
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
-        S::describe()
+        <S as ConstMetadata>::describe()
     }
 }
 
 impl<T> Metadata for T
 where
-    T: ConstMetadata,
+    T: ValueSchema,
 {
     fn metadata_id(&self) -> Id {
-        T::metadata_id()
+        T::id()
     }
 
     fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
-        T::describe()
+        (TribleSet::new(), MemoryBlobStore::new())
     }
 }
 // namespace constants

@@ -73,7 +73,11 @@
 
 pub mod schemas;
 
+use crate::blob::MemoryBlobStore;
 use crate::id::Id;
+use crate::metadata::Metadata;
+use crate::trible::TribleSet;
+use crate::value::schemas::hash::Blake3;
 
 use core::fmt;
 use std::borrow::Borrow;
@@ -307,7 +311,7 @@ impl<T: ValueSchema> Debug for Value<T> {
 ///
 /// See the [value](crate::value) module for more information.
 /// See the [BlobSchema](crate::blob::BlobSchema) trait for the counterpart trait for blobs.
-pub trait ValueSchema: Sized + 'static {
+pub trait ValueSchema: Metadata + Sized + 'static {
     /// Returns the identifier for this schema.
     ///
     /// We can't currently expose this as a `const fn` because composite
@@ -317,6 +321,16 @@ pub trait ValueSchema: Sized + 'static {
     fn id() -> Id;
 
     type ValidationError;
+
+    /// Returns the metadata identifier for this schema.
+    fn metadata_id(&self) -> Id {
+        Self::id()
+    }
+
+    /// Describes this schema for documentation or discovery.
+    fn describe(&self) -> (TribleSet, MemoryBlobStore<Blake3>) {
+        (TribleSet::new(), MemoryBlobStore::new())
+    }
 
     /// Check if the given value conforms to this schema.
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

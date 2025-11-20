@@ -19,9 +19,8 @@ use std::marker::PhantomData;
 /// A trait for hash functions.
 /// This trait is implemented by hash functions that can be in a value schema
 /// for example via a [struct@Hash] or a [Handle].
-pub trait HashProtocol: Digest<OutputSize = U32> + Clone + Send + 'static {
+pub trait HashProtocol: Digest<OutputSize = U32> + Clone + Send + 'static + ConstMetadata {
     const NAME: &'static str;
-    fn id() -> Id;
 }
 
 /// A value schema for a hash.
@@ -38,7 +37,7 @@ where
     H: HashProtocol,
 {
     fn id() -> Id {
-        H::id()
+        <H as ConstMetadata>::id()
     }
 }
 
@@ -129,15 +128,19 @@ pub use blake3::Hasher as Blake3;
 
 impl HashProtocol for Blake2b {
     const NAME: &'static str = "blake2";
+}
 
+impl HashProtocol for Blake3 {
+    const NAME: &'static str = "blake3";
+}
+
+impl ConstMetadata for Blake2b {
     fn id() -> Id {
         id_hex!("91F880222412A49F012BE999942E6199")
     }
 }
 
-impl HashProtocol for Blake3 {
-    const NAME: &'static str = "blake3";
-
+impl ConstMetadata for Blake3 {
     fn id() -> Id {
         id_hex!("4160218D6C8F620652ECFBD7FDC7BDB3")
     }

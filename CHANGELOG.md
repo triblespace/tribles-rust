@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   const-friendly schema types.
 - Attribute metadata emission now includes `metadata::attr_blob_schema` entries
   for handle-based value schemas so blob dependencies remain discoverable.
+- Value schemas expose blob dependencies directly via a new optional
+  `blob_schema_id` method instead of relying on `AttributeSchemaMetadata`.
 ### Added
 - Guidance on how `ExclusiveId` ownership narrows safe absence checks while
   keeping queries monotonic across collaborators in the incremental queries

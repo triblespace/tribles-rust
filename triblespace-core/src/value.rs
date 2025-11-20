@@ -316,6 +316,16 @@ pub trait ValueSchema: Sized + 'static {
     /// runtime-only API at the moment.
     fn id() -> Id;
 
+    /// Returns the identifier of a blob schema this value schema depends on, if any.
+    ///
+    /// This defaults to `None` for schemas that do not refer to blobs. Schemas
+    /// that wrap blob handles can override the method to surface the
+    /// dependency so attribute descriptions can emit it alongside the value
+    /// schema identifier.
+    fn blob_schema_id() -> Option<Id> {
+        None
+    }
+
     type ValidationError;
 
     /// Check if the given value conforms to this schema.

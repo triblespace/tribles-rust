@@ -8,6 +8,7 @@
 use core::marker::PhantomData;
 use std::borrow::Cow;
 
+use crate::blob::BlobSchema;
 use crate::blob::ToBlob;
 use crate::id::ExclusiveId;
 use crate::id::RawId;
@@ -15,18 +16,18 @@ use crate::macros::entity;
 use crate::metadata::{self, Metadata};
 use crate::trible::TribleSet;
 use crate::value::schemas::genid::GenId;
-use crate::value::schemas::hash::Blake3;
+use crate::value::schemas::hash::{Blake3, Handle, HashProtocol};
 use crate::value::ValueSchema;
 use blake3::Hasher;
 /// A typed reference to an attribute id together with its value schema.
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Attribute<S: ValueSchema> {
+pub struct Attribute<S: AttributeSchemaMetadata> {
     raw: RawId,
     name: Option<Cow<'static, str>>,
     _schema: PhantomData<S>,
 }
 
-impl<S: ValueSchema> Clone for Attribute<S> {
+impl<S: AttributeSchemaMetadata> Clone for Attribute<S> {
     fn clone(&self) -> Self {
         Self {
             raw: self.raw,
@@ -36,7 +37,7 @@ impl<S: ValueSchema> Clone for Attribute<S> {
     }
 }
 
-impl<S: ValueSchema> Attribute<S> {
+impl<S: AttributeSchemaMetadata> Attribute<S> {
     /// Construct a `Field` from a raw 16-byte id and static attribute name.
     pub const fn from_id_with_name(raw: RawId, name: &'static str) -> Self {
         Self {
@@ -117,9 +118,45 @@ impl<S: ValueSchema> Attribute<S> {
     }
 }
 
+pub trait AttributeSchemaMetadata: ValueSchema {
+    fn blob_schema_id() -> Option<crate::id::Id> {
+        None
+    }
+}
+
+impl AttributeSchemaMetadata for crate::value::schemas::boolean::Boolean {}
+impl AttributeSchemaMetadata for crate::value::schemas::ed25519::ED25519PublicKey {}
+impl AttributeSchemaMetadata for crate::value::schemas::ed25519::ED25519RComponent {}
+impl AttributeSchemaMetadata for crate::value::schemas::ed25519::ED25519SComponent {}
+impl AttributeSchemaMetadata for crate::value::schemas::f256::F256BE {}
+impl AttributeSchemaMetadata for crate::value::schemas::f256::F256LE {}
+impl AttributeSchemaMetadata for crate::value::schemas::genid::GenId {}
+impl<H: HashProtocol> AttributeSchemaMetadata for crate::value::schemas::hash::Hash<H> {}
+impl<H, T> AttributeSchemaMetadata for Handle<H, T>
+where
+    H: HashProtocol,
+    T: BlobSchema,
+{
+    fn blob_schema_id() -> Option<crate::id::Id> {
+        Some(T::id())
+    }
+}
+impl AttributeSchemaMetadata for crate::value::schemas::iu256::I256BE {}
+impl AttributeSchemaMetadata for crate::value::schemas::iu256::I256LE {}
+impl AttributeSchemaMetadata for crate::value::schemas::iu256::U256BE {}
+impl AttributeSchemaMetadata for crate::value::schemas::iu256::U256LE {}
+impl AttributeSchemaMetadata for crate::value::schemas::linelocation::LineLocation {}
+impl AttributeSchemaMetadata for crate::value::schemas::r256::R256BE {}
+impl AttributeSchemaMetadata for crate::value::schemas::r256::R256LE {}
+impl AttributeSchemaMetadata for crate::value::schemas::range::RangeInclusiveU128 {}
+impl AttributeSchemaMetadata for crate::value::schemas::range::RangeU128 {}
+impl AttributeSchemaMetadata for crate::value::schemas::shortstring::ShortString {}
+impl AttributeSchemaMetadata for crate::value::schemas::time::NsTAIInterval {}
+impl AttributeSchemaMetadata for crate::value::schemas::UnknownValue {}
+
 impl<S> Metadata for Attribute<S>
 where
-    S: ValueSchema,
+    S: AttributeSchemaMetadata,
     PhantomData<S>: Metadata,
 {
     fn describe(&self) -> (TribleSet, crate::blob::MemoryBlobStore<Blake3>) {
@@ -132,6 +169,11 @@ where
         }
 
         tribles += entity! { &entity @ metadata::attr_value_schema: GenId::value_from(S::id()) };
+
+        if let Some(blob_schema) = S::blob_schema_id() {
+            tribles +=
+                entity! { &entity @ metadata::attr_blob_schema: GenId::value_from(blob_schema) };
+        }
 
         (tribles, blobs)
     }

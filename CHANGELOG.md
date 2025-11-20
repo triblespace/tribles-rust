@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced the `SchemaMetadata` helper with a `ConstMetadata` trait that
   exposes static metadata and provides blanket `Metadata` implementations for
   const-friendly schema types.
+- Attribute metadata emission now includes `metadata::attr_blob_schema` entries
+  for handle-based value schemas so blob dependencies remain discoverable.
 ### Added
 - Guidance on how `ExclusiveId` ownership narrows safe absence checks while
   keeping queries monotonic across collaborators in the incremental queries

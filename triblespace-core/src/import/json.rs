@@ -20,7 +20,10 @@ use crate::value::RawValue;
 use crate::value::Value;
 use crate::value::ValueSchema;
 
-fn emit_attribute_metadata<S: ValueSchema>(attribute: &Attribute<S>, cache: &mut TribleSet) {
+fn emit_attribute_metadata<S: ValueSchema + crate::attribute::AttributeSchemaMetadata>(
+    attribute: &Attribute<S>,
+    cache: &mut TribleSet,
+) {
     let (metadata, _) = attribute.describe();
     cache.union(metadata);
 }
@@ -145,9 +148,9 @@ pub struct JsonImporter<
     BoolEncoder,
     IdGenerator,
 > where
-    StringSchema: ValueSchema,
-    NumberSchema: ValueSchema,
-    BoolSchema: ValueSchema,
+    StringSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    NumberSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    BoolSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
     StringEncoder: FnMut(&str) -> Result<Value<StringSchema>, EncodeError> + 'enc,
     NumberEncoder: FnMut(&serde_json::Number) -> Result<Value<NumberSchema>, EncodeError> + 'enc,
     BoolEncoder: FnMut(bool) -> Result<Value<BoolSchema>, EncodeError> + 'enc,
@@ -187,9 +190,9 @@ impl<
         IdGenerator,
     >
 where
-    StringSchema: ValueSchema,
-    NumberSchema: ValueSchema,
-    BoolSchema: ValueSchema,
+    StringSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    NumberSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    BoolSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
     StringEncoder: FnMut(&str) -> Result<Value<StringSchema>, EncodeError> + 'enc,
     NumberEncoder: FnMut(&serde_json::Number) -> Result<Value<NumberSchema>, EncodeError> + 'enc,
     BoolEncoder: FnMut(bool) -> Result<Value<BoolSchema>, EncodeError> + 'enc,
@@ -436,9 +439,9 @@ impl<'enc, StringSchema, NumberSchema, BoolSchema, StringEncoder, NumberEncoder,
         fn() -> ExclusiveId,
     >
 where
-    StringSchema: ValueSchema,
-    NumberSchema: ValueSchema,
-    BoolSchema: ValueSchema,
+    StringSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    NumberSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    BoolSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
     StringEncoder: FnMut(&str) -> Result<Value<StringSchema>, EncodeError> + 'enc,
     NumberEncoder: FnMut(&serde_json::Number) -> Result<Value<NumberSchema>, EncodeError> + 'enc,
     BoolEncoder: FnMut(bool) -> Result<Value<BoolSchema>, EncodeError> + 'enc,
@@ -485,9 +488,9 @@ pub struct DeterministicJsonImporter<
     BoolEncoder,
     Hasher = crate::value::schemas::hash::Blake3,
 > where
-    StringSchema: ValueSchema,
-    NumberSchema: ValueSchema,
-    BoolSchema: ValueSchema,
+    StringSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    NumberSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    BoolSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
     StringEncoder: FnMut(&str) -> Result<Value<StringSchema>, EncodeError> + 'enc,
     NumberEncoder: FnMut(&serde_json::Number) -> Result<Value<NumberSchema>, EncodeError> + 'enc,
     BoolEncoder: FnMut(bool) -> Result<Value<BoolSchema>, EncodeError> + 'enc,
@@ -528,9 +531,9 @@ impl<
         Hasher,
     >
 where
-    StringSchema: ValueSchema,
-    NumberSchema: ValueSchema,
-    BoolSchema: ValueSchema,
+    StringSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    NumberSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
+    BoolSchema: ValueSchema + crate::attribute::AttributeSchemaMetadata,
     StringEncoder: FnMut(&str) -> Result<Value<StringSchema>, EncodeError> + 'enc,
     NumberEncoder: FnMut(&serde_json::Number) -> Result<Value<NumberSchema>, EncodeError> + 'enc,
     BoolEncoder: FnMut(bool) -> Result<Value<BoolSchema>, EncodeError> + 'enc,

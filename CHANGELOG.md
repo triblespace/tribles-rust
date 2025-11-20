@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Repository::pull_with_key`.
 
 ### Changed
+- Expanded the deep-dive blobs chapter with guidance on when to use blob
+  storage, how handles relate to schemas, and annotated examples.
 - Normalized the Descriptive Typing chapter to use consistent Markdown headings
   and remove unused front matter.
 - Clarified `PATCH::iter_ordered` and `PATCHOrderedIterator` documentation to
@@ -478,6 +480,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved `Debug` output for `Query` to show search state and bindings.
 - Replaced branch allocation code with `Layout::from_size_align_unchecked`.
 - Removed unused `FromBlob` and `TryToBlob` traits and updated documentation.
+- Documented how `MemoryBlobStore::insert` deduplicates blobs by handle in the
+  deep dive chapter.
 - Simplified constant comparison in query tests.
 - `pattern!` now reuses attribute variables for identical field names.
 - Clarified that the project's developer experience goal also includes

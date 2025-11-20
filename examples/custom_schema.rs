@@ -6,6 +6,7 @@ use triblespace::core::blob::ToBlob;
 use triblespace::core::blob::TryFromBlob;
 use triblespace::core::id::id_hex;
 use triblespace::core::id::Id;
+use triblespace::core::metadata::ConstMetadata;
 use triblespace::core::value::FromValue;
 use triblespace::core::value::ToValue;
 use triblespace::core::value::Value;
@@ -16,10 +17,23 @@ use triblespace::core::value::VALUE_LEN;
 
 pub struct U64LE;
 
-impl ValueSchema for U64LE {
+impl ConstMetadata for U64LE {
     fn id() -> Id {
         id_hex!("0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A")
     }
+
+    fn describe() -> (
+        triblespace::core::trible::TribleSet,
+        triblespace::core::blob::MemoryBlobStore<triblespace::core::value::schemas::hash::Blake3>,
+    ) {
+        (
+            triblespace::core::trible::TribleSet::new(),
+            triblespace::core::blob::MemoryBlobStore::new(),
+        )
+    }
+}
+
+impl ValueSchema for U64LE {
     type ValidationError = Infallible;
 }
 
@@ -39,11 +53,13 @@ impl FromValue<'_, U64LE> for u64 {
 
 pub struct BytesBlob;
 
-impl BlobSchema for BytesBlob {
+impl ConstMetadata for BytesBlob {
     fn id() -> Id {
         id_hex!("B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0")
     }
 }
+
+impl BlobSchema for BytesBlob {}
 
 impl ToBlob<BytesBlob> for Bytes {
     fn to_blob(self) -> Blob<BytesBlob> {

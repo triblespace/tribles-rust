@@ -74,13 +74,14 @@ impl TryFromValue<'_, ShortString> for Username {
 
 ### Schema identifiers
 
-Every schema declares a unique 128‑bit identifier such as
-`ShortString::id()`. Persisting these IDs keeps the serialized data self describing so
-other tooling can make sense of the payload without linking against your Rust
-types. Dynamic language bindings (like the Python crate) inspect the stored
-schema identifier to choose the correct decoder, while internal metadata stored
-inside Trible Space can use the same IDs to describe which schema governs a
-value.
+Every schema declares a unique 128‑bit identifier via the shared
+`ConstMetadata::id()` hook (for example, `<ShortString as ConstMetadata>::id()`).
+Persisting these IDs keeps serialized data self describing so other tooling can
+make sense of the payload without linking against your Rust types. Dynamic
+language bindings (like the Python crate) inspect the stored schema identifier
+to choose the correct decoder, while internal metadata stored inside Trible
+Space can use the same IDs to describe which schema governs a value, blob, or
+hash protocol.
 
 Identifiers also make it possible to derive deterministic attribute IDs when you
 ingest external formats. Helpers such as `Attribute::<S>::from_name("field")`
@@ -102,12 +103,13 @@ The crate provides the following value schemas out of the box:
 - `UnknownValue` as a fallback when no specific schema is known.
 
 ```rust
+use triblespace::core::metadata::ConstMetadata;
 use triblespace::core::value::schemas::shortstring::ShortString;
 use triblespace::core::value::{ToValue, ValueSchema};
 
 let v = "hi".to_value::<ShortString>();
-let raw_bytes = v.raw; // Persist alongside ShortString::id().
-let schema_id = ShortString::id();
+let raw_bytes = v.raw; // Persist alongside the schema's metadata id.
+let schema_id = <ShortString as ConstMetadata>::id();
 ```
 
 ## Built‑in blob schemas
@@ -124,11 +126,12 @@ The crate also ships with these blob schemas:
 - `UnknownBlob` for data of unknown type.
 
 ```rust
+use triblespace::metadata::ConstMetadata;
 use triblespace::blob::schemas::longstring::LongString;
 use triblespace::blob::{Blob, BlobSchema, ToBlob};
 
 let b: Blob<LongString> = "example".to_blob();
-let schema_id = LongString::id();
+let schema_id = <LongString as ConstMetadata>::id();
 ```
 
 ## Defining new schemas

@@ -4,6 +4,7 @@ use crate::blob::ToBlob;
 use crate::blob::TryFromBlob;
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::trible::Trible;
 use crate::trible::TribleSet;
 
@@ -12,7 +13,9 @@ use anybytes::View;
 
 pub struct SimpleArchive;
 
-impl BlobSchema for SimpleArchive {
+impl BlobSchema for SimpleArchive {}
+
+impl ConstMetadata for SimpleArchive {
     fn id() -> Id {
         id_hex!("8F4A27C8581DADCBA1ADA8BA228069B6")
     }

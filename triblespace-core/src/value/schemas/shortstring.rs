@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::TryFromValue;
@@ -32,10 +33,13 @@ pub enum ValidationError {
 /// If the string is exactly 32 bytes, then there is no zero terminator.
 pub struct ShortString;
 
-impl ValueSchema for ShortString {
+impl ConstMetadata for ShortString {
     fn id() -> Id {
         id_hex!("2D848DB0AF112DB226A6BF1A3640D019")
     }
+}
+
+impl ValueSchema for ShortString {
     type ValidationError = ValidationError;
 
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

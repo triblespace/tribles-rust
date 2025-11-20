@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::RawValue;
 use crate::value::ToValue;
@@ -13,10 +14,13 @@ use std::convert::Infallible;
 #[derive(Debug, Clone, Copy)]
 pub struct LineLocation;
 
-impl ValueSchema for LineLocation {
+impl ConstMetadata for LineLocation {
     fn id() -> Id {
         id_hex!("DFAED173A908498CB893A076EAD3E578")
     }
+}
+
+impl ValueSchema for LineLocation {
     type ValidationError = Infallible;
 }
 

@@ -45,7 +45,7 @@ pub use crate::id::ExclusiveId;
 pub use crate::id::Id;
 pub use crate::id::IdOwner;
 pub use crate::id::RawId;
-pub use crate::metadata::{Metadata, SchemaMetadata};
+pub use crate::metadata::{ConstMetadata, Metadata};
 pub use crate::query::find;
 pub use crate::query::intersectionconstraint::and;
 pub use crate::query::intersectionconstraint::IntersectionConstraint;

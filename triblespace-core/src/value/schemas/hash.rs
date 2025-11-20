@@ -1,6 +1,10 @@
 use crate::blob::BlobSchema;
+use crate::blob::MemoryBlobStore;
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
+use crate::repo::BlobStore;
+use crate::trible::TribleSet;
 use crate::value::FromValue;
 use crate::value::RawValue;
 use crate::value::TryToValue;
@@ -18,9 +22,8 @@ use std::marker::PhantomData;
 /// A trait for hash functions.
 /// This trait is implemented by hash functions that can be in a value schema
 /// for example via a [struct@Hash] or a [Handle].
-pub trait HashProtocol: Digest<OutputSize = U32> + Clone + Send + 'static {
+pub trait HashProtocol: Digest<OutputSize = U32> + Clone + Send + 'static + ConstMetadata {
     const NAME: &'static str;
-    fn id() -> Id;
 }
 
 /// A value schema for a hash.
@@ -32,13 +35,19 @@ pub struct Hash<H> {
     _hasher: PhantomData<fn(H) -> ()>,
 }
 
-impl<H> ValueSchema for Hash<H>
+impl<H> ConstMetadata for Hash<H>
 where
     H: HashProtocol,
 {
     fn id() -> Id {
-        H::id()
+        <H as ConstMetadata>::id()
     }
+}
+
+impl<H> ValueSchema for Hash<H>
+where
+    H: HashProtocol,
+{
     type ValidationError = Infallible;
 }
 
@@ -122,15 +131,19 @@ pub use blake3::Hasher as Blake3;
 
 impl HashProtocol for Blake2b {
     const NAME: &'static str = "blake2";
+}
 
+impl HashProtocol for Blake3 {
+    const NAME: &'static str = "blake3";
+}
+
+impl ConstMetadata for Blake2b {
     fn id() -> Id {
         id_hex!("91F880222412A49F012BE999942E6199")
     }
 }
 
-impl HashProtocol for Blake3 {
-    const NAME: &'static str = "blake3";
-
+impl ConstMetadata for Blake3 {
     fn id() -> Id {
         id_hex!("4160218D6C8F620652ECFBD7FDC7BDB3")
     }
@@ -172,7 +185,7 @@ impl<H: HashProtocol, T: BlobSchema> From<Value<Handle<H, T>>> for Value<Hash<H>
     }
 }
 
-impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
+impl<H: HashProtocol, T: BlobSchema> ConstMetadata for Handle<H, T> {
     // NOTE: This can't be a `const fn` while we rely on the runtime `blake3`
     // hasher to derive the identifier. Once a const-friendly hashing API is
     // available we can revisit this.
@@ -185,6 +198,33 @@ impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
         raw.copy_from_slice(&digest[..16]);
         Id::new(raw).expect("derived handle schema id must be non-nil")
     }
+
+    fn describe() -> (TribleSet, MemoryBlobStore<Blake3>) {
+        let (hash_tribles, mut hash_blobs) = H::describe();
+        let (blob_tribles, mut blob_blobs) = T::describe();
+
+        let mut tribles = TribleSet::new();
+        tribles += hash_tribles;
+        tribles += blob_tribles;
+
+        let hash_blobs_iter = hash_blobs
+            .reader()
+            .expect("hash protocol metadata reader should be infallible")
+            .into_iter();
+        let blob_blobs_iter = blob_blobs
+            .reader()
+            .expect("blob schema metadata reader should be infallible")
+            .into_iter();
+
+        let blobs = hash_blobs_iter
+            .chain(blob_blobs_iter)
+            .collect::<MemoryBlobStore<Blake3>>();
+
+        (tribles, blobs)
+    }
+}
+
+impl<H: HashProtocol, T: BlobSchema> ValueSchema for Handle<H, T> {
     type ValidationError = Infallible;
 }
 

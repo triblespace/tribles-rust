@@ -6,6 +6,7 @@
 //!
 //! ```
 //! use triblespace_core::value::{Value, ValueSchema, ToValue, FromValue};
+//! use triblespace_core::metadata::ConstMetadata;
 //! use triblespace_core::id::Id;
 //! use triblespace_core::macros::id_hex;
 //! use std::convert::TryInto;
@@ -16,10 +17,12 @@
 //! pub struct MyNumber;
 //!
 //! // Implement the ValueSchema trait for the schema type.
-//! impl ValueSchema for MyNumber {
+//! impl ConstMetadata for MyNumber {
 //!    fn id() -> Id {
 //!        id_hex!("345EAC0C5B5D7D034C87777280B88AE2")
 //!    }
+//! }
+//! impl ValueSchema for MyNumber {
 //!    type ValidationError = ();
 //!    // Every bit pattern is valid for this schema.
 //! }
@@ -73,7 +76,7 @@
 
 pub mod schemas;
 
-use crate::id::Id;
+use crate::metadata::ConstMetadata;
 
 use core::fmt;
 use std::borrow::Borrow;
@@ -307,15 +310,7 @@ impl<T: ValueSchema> Debug for Value<T> {
 ///
 /// See the [value](crate::value) module for more information.
 /// See the [BlobSchema](crate::blob::BlobSchema) trait for the counterpart trait for blobs.
-pub trait ValueSchema: Sized + 'static {
-    /// Returns the identifier for this schema.
-    ///
-    /// We can't currently expose this as a `const fn` because composite
-    /// schemas like [`Handle`](crate::value::schemas::hash::Handle) derive
-    /// their identifier by hashing other schema IDs with `blake3`, which is a
-    /// runtime-only API at the moment.
-    fn id() -> Id;
-
+pub trait ValueSchema: ConstMetadata + Sized + 'static {
     type ValidationError;
 
     /// Check if the given value conforms to this schema.

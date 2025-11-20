@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- `Metadata` and `ConstMetadata` now use a shared `id` method as the canonical
+  schema identifier, eliminating the former `metadata_id` accessors.
+- `ValueSchema` inherits its identifier and default description behavior from
+  `ConstMetadata`, removing duplicate `id`, `metadata_id`, and `describe`
+  methods from the schema trait itself.
+- Replaced the `SchemaMetadata` helper with direct `ConstMetadata` impls on
+  value schemas so static metadata stays in sync with runtime metadata roots.
+- Removed explicit blob schema hooks from value schemas and attribute metadata,
+  relying on metadata identifiers instead of nested blob schema entries.
+- Updated schema documentation to reflect metadata-driven identifiers and
+  examples that call `ConstMetadata::id()`.
+- `Handle` value schemas now forward metadata from their hash protocol and blob
+  schema components so composite schema descriptions stay discoverable.
+- Attribute identifiers derived from hashed names now use the lower 16 bytes of
+  the Blake3 digest to stay consistent with the ID-to-value layout.
 ### Added
 - Guidance on how `ExclusiveId` ownership narrows safe absence checks while
   keeping queries monotonic across collaborators in the incremental queries
@@ -105,12 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with an optional `Cow<'static, str>`, keeping const-friendly static ids while
   storing dynamic field names directly.
 - Replaced the `ValueSchema::VALUE_SCHEMA_ID` and `BlobSchema::BLOB_SCHEMA_ID`
-  associated constants with `ValueSchema::id()` and `BlobSchema::id()` methods,
+  associated constants with `ConstMetadata::id()` across value and blob schemas,
   preserving existing identifiers and deriving composite `Handle` schema IDs
   deterministically from their hash protocol and blob schema components.
-- Swapped the `HashProtocol::SCHEMA_ID` associated constant for a matching
-  `HashProtocol::id()` accessor so hash protocol identifiers follow the same
-  API as value and blob schemas.
+- Made `HashProtocol` extend `ConstMetadata` so protocol identifiers come from
+  the unified metadata API alongside value and blob schemas.
 - Documented why schema identifiers remain regular functions until `blake3`
   exposes a const-friendly hashing API for composite handle schemas.
 - Removed the `ValueSchema::BLOB_SCHEMA_ID` associated constant and stopped
@@ -223,9 +238,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   imported statements.
 - Simplified JSON importer error diagnostics to avoid tracking JSON paths in
   the hot import loop.
-- JSON importers now emit `metadata::name`, `metadata::attr_value_schema`, and
-  `metadata::attr_blob_schema` tribles when minting attributes so imported
-  datasets carry their own schema descriptions.
+- JSON importers now emit `metadata::name` and `metadata::attr_value_schema`
+  tribles when minting attributes so imported datasets carry their own schema
+  descriptions.
 - Attribute metadata emission now uses the public `entity!` macro so schema
   descriptions are assembled with the same ergonomic syntax exposed to
   consumers.
@@ -472,9 +487,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Reinstated the `ValueSchema` documentation that notes hash handles still carry
   their referenced blob schema type parameter.
-- Updated deterministic JSON importer metadata tests to stop asserting the
-  absence of `metadata::attr_blob_schema` entries now that value schemas no
-  longer expose blob schema identifiers.
+- Updated deterministic JSON importer metadata tests to align with attribute
+  metadata now emitting only value schema descriptors.
 - Added the missing `blake3` dev-dependency and adjusted the JSON importer
   benchmark to allocate owned strings and convert JSON numbers via
   `f256::from`, restoring the json benchmarks after recent refactors.

@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::Value;
@@ -18,10 +19,13 @@ use hifitime::prelude::*;
 /// Both the lower and upper bounds are inclusive. That is, the interval contains all TAI epochs between the lower and upper bounds.
 pub struct NsTAIInterval;
 
-impl ValueSchema for NsTAIInterval {
+impl ConstMetadata for NsTAIInterval {
     fn id() -> Id {
         id_hex!("675A2E885B12FCBC0EEC01E6AEDD8AA8")
     }
+}
+
+impl ValueSchema for NsTAIInterval {
     type ValidationError = Infallible;
 }
 

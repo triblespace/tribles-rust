@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::TryToValue;
@@ -20,16 +21,20 @@ pub struct F256BE;
 /// A type alias for the little-endian version of the 256-bit floating point number.
 pub type F256 = F256LE;
 
-impl ValueSchema for F256LE {
+impl ConstMetadata for F256LE {
     fn id() -> Id {
         id_hex!("D9A419D3CAA0D8E05D8DAB950F5E80F2")
     }
+}
+impl ValueSchema for F256LE {
     type ValidationError = Infallible;
 }
-impl ValueSchema for F256BE {
+impl ConstMetadata for F256BE {
     fn id() -> Id {
         id_hex!("A629176D4656928D96B155038F9F2220")
     }
+}
+impl ValueSchema for F256BE {
     type ValidationError = Infallible;
 }
 

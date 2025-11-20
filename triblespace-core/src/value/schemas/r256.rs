@@ -1,5 +1,6 @@
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::FromValue;
 use crate::value::ToValue;
 use crate::value::TryFromValue;
@@ -33,16 +34,20 @@ pub struct R256BE;
 
 pub type R256 = R256LE;
 
-impl ValueSchema for R256LE {
+impl ConstMetadata for R256LE {
     fn id() -> Id {
         id_hex!("0A9B43C5C2ECD45B257CDEFC16544358")
     }
+}
+impl ValueSchema for R256LE {
     type ValidationError = Infallible;
 }
-impl ValueSchema for R256BE {
+impl ConstMetadata for R256BE {
     fn id() -> Id {
         id_hex!("CA5EAF567171772C1FFD776E9C7C02D1")
     }
+}
+impl ValueSchema for R256BE {
     type ValidationError = Infallible;
 }
 

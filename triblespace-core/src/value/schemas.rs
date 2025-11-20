@@ -14,6 +14,7 @@ pub mod time;
 
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::value::Value;
 use crate::value::ValueSchema;
 use std::convert::Infallible;
@@ -25,10 +26,12 @@ use std::convert::Infallible;
 ///
 /// Any bit pattern can be a valid value of this schema.
 pub struct UnknownValue {}
-impl ValueSchema for UnknownValue {
+impl ConstMetadata for UnknownValue {
     fn id() -> Id {
         id_hex!("4EC697E8599AC79D667C722E2C8BEBF4")
     }
+}
+impl ValueSchema for UnknownValue {
     type ValidationError = Infallible;
 
     fn validate(value: Value<Self>) -> Result<Value<Self>, Self::ValidationError> {

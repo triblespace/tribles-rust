@@ -11,7 +11,7 @@
 mod memoryblobstore;
 pub mod schemas;
 
-use crate::id::Id;
+use crate::metadata::ConstMetadata;
 use crate::value::schemas::hash::Handle;
 use crate::value::schemas::hash::HashProtocol;
 use crate::value::Value;
@@ -125,13 +125,7 @@ impl<T: BlobSchema> Debug for Blob<T> {
 
 /// A trait for defining the abstract schema type of a blob.
 /// This is similar to the `ValueSchema` trait in the [`value`](crate::value) module.
-pub trait BlobSchema: Sized + 'static {
-    /// Returns the identifier for this schema.
-    ///
-    /// See [`ValueSchema::id`](crate::value::ValueSchema::id) for why this is a
-    /// regular function instead of a `const fn`.
-    fn id() -> Id;
-
+pub trait BlobSchema: ConstMetadata + Sized + 'static {
     /// Converts a concrete Rust type to a blob with this schema.
     /// If the conversion fails, this might cause a panic.
     fn blob_from<T: ToBlob<Self>>(t: T) -> Blob<Self> {

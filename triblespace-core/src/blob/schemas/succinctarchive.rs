@@ -9,6 +9,7 @@ use crate::id::id_from_value;
 use crate::id::id_into_value;
 use crate::id::Id;
 use crate::id_hex;
+use crate::metadata::ConstMetadata;
 use crate::query::TriblePattern;
 use crate::trible::Trible;
 use crate::trible::TribleSet;
@@ -41,7 +42,9 @@ use jerky::serialization::{Metadata, Serializable};
 
 pub struct SuccinctArchiveBlob;
 
-impl BlobSchema for SuccinctArchiveBlob {
+impl BlobSchema for SuccinctArchiveBlob {}
+
+impl ConstMetadata for SuccinctArchiveBlob {
     fn id() -> Id {
         id_hex!("8FAD1D4C7F884B51BAA5D6C56B873E41")
     }
